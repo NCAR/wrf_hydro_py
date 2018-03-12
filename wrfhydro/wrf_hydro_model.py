@@ -77,8 +77,6 @@ class wrf_hydro_model(object):
         #Change to source code directory for compile time
         chdir(self.source_dir)
 
-        #configure_path = str(self.source_dir.joinpath('configure'))
-        #compile_noah_mp_path = str(self.source_dir.joinpath('compile_offline_NoahMP.sh'))
         subprocess.run(['./configure',
                         compilers[compiler]])
         subprocess.run(['./compile_offline_NoahMP.sh',
@@ -271,8 +269,59 @@ class wrf_hydro_simulation(object):
         chdir(self.simulation_dir)
         subprocess.run(['mpiexec','-np',str(num_cores),'./wrf_hydro.exe'])
 
+        #String match diag files for successfull run
+        with open(self.simulation_dir.joinpath('diag_hydro.00000')) as f:
+            diag_file = f.read()
+            if 'The model finished successfully.......' in diag_file:
+                self.run_status = 0
+            else:
+                self.run_status = 1
+
+        #Setup output file attributes
+
+        #Get diag files
+        self.diag_files = list(self.simulation_dir.glob('diag_hydro.*'))
+
         return('Model run completed successfully')
 
+    # Load channel files
+    def open_channel_files(self, load: bool = False) -> str:
+        """Open channel files as an xarray dataset and return dataset as new attribute
+        Args:
+            load:Optional, load data into memory. Not recommended for large datasets
+
+        Returns:
+            Message indicating success and name of channel_data attribute
+        """
+
+        #check that the model ran
+        if 'self.run_status' in locals():
+            channel_files = list(self.simulation_dir.glob('*CHRTOUT*'))
+            self.channel_data = xr.open_mfdataset(channel_files, concat_dim='Time')
+            if load:
+                self.channel_data = self.channel_data
+            return ('Channel data loaded to channel_data attribute')
+        else:
+            raise 'Simulation has not been run'
+
+    # Load restart files
+    def open_hydro_rst_files(self, load: bool = False) -> str:
+        """Open hydro restart files as an xarray dataset and return dataset as new attribute
+        Args:
+            load:Optional, load data into memory. Not recommended for large datasets
+
+        Returns:
+            Message indicating success and name of hydro_restart_data attribute
+        """
+        # check that the model ran
+        if 'self.run_status' in locals():
+            hydro_rst_files = list(self.simulation_dir.glob('*HYDRO_RST*'))
+            self.hydro_rst_data = xr.open_mfdataset(hydro_rst_files, concat_dim='Time')
+            if load:
+                self.hydro_rst_data = self.hydro_rst_data.load()
+            return ('Hydro restart data loaded to hydro_rst_data attribute')
+        else:
+            raise 'Simulation has not been run'
 
 def main():
     #Make wrfModel object
@@ -298,3 +347,5 @@ def main():
     wrfSim = wrf_hydro_simulation(wrfModel, wrfDomain)
     wrfSim.make_run_dir('/home/docker/test/run2')
     wrfSim.run()
+
+#MAke a class for model output files, e.g. __class__(channel_files) -> wrf_hydro_ts

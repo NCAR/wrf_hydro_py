@@ -39,6 +39,9 @@ def domain_to_namelist(file,patch_file=None,output_file=''):
 #namelist1='/Volumes/d1/jmills/NCAR-docker/wrf_hydro_docker/domains/croton_NY/domain/Gridded/hydro.namelist'
 #namelist2='/Volumes/d1/jmills/NCAR-docker/wrf_hydro_docker/domains/croton_NY/domain/Reach/hydro.namelist'
 
+import f90nml
+import json
+from deepdiff import DeepDiff
 def diff_namelist(namelist1,namelist2):
     #Read namelists into dicts
     namelist1=f90nml.read(namelist1).todict()

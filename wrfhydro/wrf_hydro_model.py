@@ -4,6 +4,8 @@ from shutil import copyfile
 import xarray as xr
 import f90nml
 import json
+from copy import copy
+from os import chdir, chmod
 
 #wrf_hydro_model class
 class wrf_hydro_model(object):
@@ -12,8 +14,14 @@ class wrf_hydro_model(object):
 
     """
 
-    def __init__(self, source_dir,new_compile_dir=None):
-        """Return a starter wrf_hydro_model object"""
+    def __init__(self, source_dir: str, new_compile_dir: str = None):
+        """Create a wrf_hydro_model object.
+        Args:
+            source_dir: Directory containing the source code, e.g. 'wrf_hydro_nwm/trunk/NDHMS'.
+            new_compile_dir: Optional, new directory to to hold results of code compilation.
+        Returns:
+            A wrf_hydro_model object.
+        """
 
         #Setup directory paths
         self.source_dir = Path(source_dir)
@@ -25,20 +33,36 @@ class wrf_hydro_model(object):
             if self.compile_dir.is_dir() is False: self.compile_dir.mkdir(parents=True)
 
         #Load master namelists
-        self.base_hydro_namelists = json.load(open(self.source_dir.joinpath('base_hydro_namelists.json')))
-        self.base_hrldas_namelists = json.load(open(self.source_dir.joinpath('base_namelists_hrldas.json')))
+        self.hydro_namelists = json.load(open(self.source_dir.joinpath('hydro_namelists.json')))
+        self.hrldas_namelists = json.load(open(self.source_dir.joinpath('hrldas_namelists.json')))
 
-    def compile(self, compiler,compile_options={'WRF_HYDRO':1,'HYDRO_D':1,'SPATIAL_SOIL':1,'WRF_HYDRO_RAPID':0,
-                                        'WRFIO_NCD_LARGE_FILE_SUPPORT':1,'NCEP_WCOSS':1,'WRF_HYDRO_NUDGING':0}):
+        #Get code version
+        with open(self.source_dir.joinpath('.version')) as f:
+            self.version = f.read()
 
+    def compile(self, compiler: str,compile_options: dict = None) -> str:
+        """Compiles WRF-Hydro using specified compiler and compile options.
+        Args:
+            compiler: The compiler to use, must be one of 'pgi','gfort','ifort', or 'luna'
+            compile_options: Changes to default compile-time options. Defaults are {'WRF_HYDRO':1,'HYDRO_D':1,
+            'SPATIAL_SOIL':1,'WRF_HYDRO_RAPID':0,'WRFIO_NCD_LARGE_FILE_SUPPORT':1,'NCEP_WCOSS':1,'WRF_HYDRO_NUDGING':0}
+
+        Returns:
+            Success of compilation and compile directory used. Sets additional attributes to
+            wrf_hydro_model
+
+        """
         #Make dictionary of compiler options
         compilers = {'pgi':'1',
                      'gfort':'2',
                      'ifort':'3',
                      'luna':'4'}
 
-        #Add compiler and compile options as attributes
-        self.compile_options = compile_options
+        #Add compiler and compile options as attributes and update if needed
+        self.compile_options = {'WRF_HYDRO':1,'HYDRO_D':1,'SPATIAL_SOIL':1,'WRF_HYDRO_RAPID':0,
+                                        'WRFIO_NCD_LARGE_FILE_SUPPORT':1,'NCEP_WCOSS':1,'WRF_HYDRO_NUDGING':0}
+        if compile_options is not None:
+            self.compile_options.update(compile_options)
         self.compiler = compiler
 
         #Get directroy for setEnvar
@@ -46,33 +70,58 @@ class wrf_hydro_model(object):
 
         #Write setEnvar file
         with open(set_vars,'w') as file:
-            for option, value in compile_options.items():
+            for option, value in self.compile_options.items():
                 file.write("export {}={}\n".format(option, value))
 
         #Compile
-        configure_path = str(self.source_dir.joinpath('configure'))
-        compile_noah_mp_path = str(self.source_dir.joinpath('compile_offline_NoahMP.sh'))
-        subprocess.run(['bash',configure_path,
+        #Change to source code directory for compile time
+        chdir(self.source_dir)
+
+        #configure_path = str(self.source_dir.joinpath('configure'))
+        #compile_noah_mp_path = str(self.source_dir.joinpath('compile_offline_NoahMP.sh'))
+        subprocess.run(['./configure',
                         compilers[compiler]])
-        subprocess.run(['bash',compile_noah_mp_path,
+        subprocess.run(['./compile_offline_NoahMP.sh',
                         str(set_vars)])
+
+        #Open permissions on compiled files
+        subprocess.run(['chmod','-R','777',str(self.source_dir.joinpath('Run'))])
 
         #Wrf hydro always puts files in source directory under a new directory called 'Run'
         #Copy files to new directory if its not the same as the source code directory
         if self.compile_dir.parent is not self.source_dir:
-            for file in self.compile_dir.glob('*.TBL'):
-                copyfile(file,str(self.compile_dir))
-            copyfile(str(self.compile_dir.glob('wrf_hydro.exe')),str(self.compile_dir))
+            for file in self.source_dir.joinpath('Run').glob('*.TBL'):
+                copyfile(file,str(self.compile_dir.joinpath(file.name)))
+
+            copyfile(str(self.source_dir.joinpath('Run').joinpath('wrf_hydro.exe')),
+                     str(self.compile_dir.joinpath('wrf_hydro.exe')))
+        #Open permissions on copied compiled files
+        subprocess.run(['chmod', '-R', '777', str(self.compile_dir)])
+
+        return('Model successfully compiled into ' + str(self.compile_dir))
 
 class wrf_hydro_domain(object):
-    def __init__(self,domain_top_dir,namelist_patch_file='namelist_patches.json',forcing_dir='FORCING',domain_dir='DOMAIN',
-                 restart_dir='RESTART'):
-        """Return a starter wrf_hydro_domain object"""
+    def __init__(self,domain_top_dir: str, domain_config: str, namelist_patch_file: str = 'namelist_patches.json',
+                 forcing_dir: str = 'FORCING',domain_dir:str = 'DOMAIN',restart_dir:str = 'RESTART'):
+        """Create a wrf_hydro_domain object.
+        Args:
+            domain_top_dir: Parent directory containing all domain directories and files. All files and folders are
+            relative to this directory
+            domain_config: The domain configuration to use, options are 'NWM','Gridded', or 'Reach'
+            namelist_patch_file: Filename of json file containing namelist patches
+            forcing_dir: Directory containing forcing data
+            domain_dir: Directory containing domain files
+            restart_dir: Directory containing restart files
+        Returns:
+            A wrf_hydro_domain object
+        """
         self.domain_top_dir = Path(domain_top_dir)
+        self.domain_config = domain_config
+        self.namelist_patch_file = self.domain_top_dir.joinpath(namelist_patch_file)
         self.forcing_dir = self.domain_top_dir.joinpath(forcing_dir)
         self.domain_dir = self.domain_top_dir.joinpath(domain_dir)
         self.restart_dir = self.domain_top_dir.joinpath(restart_dir)
-        self.namelist_patch_file = self.domain_top_dir.joinpath(namelist_patch_file)
+
         #######################
         # Validate inputs
         if self.domain_top_dir.is_dir() is False:
@@ -85,46 +134,76 @@ class wrf_hydro_domain(object):
             raise IOError(str(self.restart_dir) + ' directory not found in ' + str(self.domain_top_dir))
         if self.namelist_patch_file.is_file() is False:
             raise IOError(str(self.namelist_patch_file) + ' file not found in ' + str(self.domain_top_dir))
-            #######################
+        #######################
 
         #Load namelist patches
         self.namelist_patches = json.load(open(self.namelist_patch_file))
 
-        #Determine conifguration from namelist
-        #self.configuration = self.namelist_patches['configuration']
+    def open_forcing_files(self,load: bool = False) -> str:
+        """Open forcing files as an xarray dataset and return dataset as new attribute
+        Args:
+            load:Optional, load data into memory. Not recommended for large datasets
 
-    def open_forcing_files(self,load=False):
+        Returns:
+            Message indicating success and name of forcing_data attribute
+        """
         forcing_files = list(self.forcing_dir.glob('*'))
         self.forcing_data=xr.open_mfdataset(forcing_files,concat_dim='Time')
         if load:
             self.forcing_data = self.forcing_data.load()
         return('Forcing data loaded to forcing_data attribute')
 
-    def open_restart_files(self,load=False):
+    def open_restart_files(self,load: bool = False) -> str:
+        """Open restart files as an xarray dataset and return dataset as new attribute
+        Args:
+            load:Optional, load data into memory. Not recommended for large datasets
+
+        Returns:
+            Message indicating success and name of forcing_data attribute
+        """
         restart_files = list(self.restart_dir.glob('*'))
         self.restart_data=xr.open_mfdataset(restart_files,concat_dim='Time')
         if load:
             self.restart_data = self.restart_data.load()
-        return('Forcing data loaded to forcing_data attribute')
+        return('Restart data loaded to restart_data attribute')
 
 
 class wrf_hydro_simulation(object):
-    def __init__(self, wrf_hydro_model,wrf_hydro_domain):
-        """Return a starter wrf_hydro_simulation object"""
+    def __init__(self, wrf_hydro_model: object,wrf_hydro_domain: object):
+        """Create a wrf_hydro_simulation object
+        Args:
+            wrf_hydro_model: A wrf_hydro_model object
+            wrf_hydro_domain: A wrf_hydro_domain object
+        Returns:
+            A wrf_hydro_simulation object
+        """
 
         #assign objects to self
-        self.model = wrf_hydro_model
-        self.domain = wrf_hydro_domain
+        self.model = copy(wrf_hydro_model)
+        self.domain = copy(wrf_hydro_domain)
 
-    def make_run_dir(self,simulation_dir):
-        """Function to create run directory for a wrf_hydro simulation.
+        #Create namelists
+        self.hydro_namelist = dict(self.model.hydro_namelists[self.model.version][self.domain.domain_config])
+        self.hydro_namelist['hydro_nlist'].update(self.domain.namelist_patches[self.model.version]\
+                                                      [self.domain.domain_config]['hydro_namelist']['hydro_nlist'])
+        self.hydro_namelist['nudging_nlist'].update(self.domain.namelist_patches[self.model.version]\
+                                                        [self.domain.domain_config]['hydro_namelist']['nudging_nlist'])
+
+        self.namelist_hrldas = dict(self.model.hrldas_namelists[self.model.version][self.domain.domain_config])
+        self.namelist_hrldas['noahlsm_offline'].update(self.domain.namelist_patches[self.model.version]\
+                                                           [self.domain.domain_config]['namelist_hrldas']\
+                                                           ['noahlsm_offline'])
+        self.namelist_hrldas['wrf_hydro_offline'].update(self.domain.namelist_patches[self.model.version]\
+                                                           [self.domain.domain_config]['namelist_hrldas']\
+                                                           ['wrf_hydro_offline'])
+
+    def make_run_dir(self,simulation_dir: str):
+        """Create run directory for a wrf_hydro simulation.
         Args:
-            simulation_dir: String or path-like object indicating directory for simulation files.
-            domain_config_dir: The directory containing the domain configuration of interest, e.g. /domain/NWM
+            simulation_dir: Directory to use for simulation files and output.
 
         Returns:
             A string indicating success of directory creation and a new attribute to the object, simulation dir
-
         """
 
         #########################
@@ -135,55 +214,87 @@ class wrf_hydro_simulation(object):
 
         ###Candidate compile files
         # Get list of table file paths
-        candidate_table_files = list(self.model.compile_dir.glob('*.TBL'))
+        table_files = list(self.model.compile_dir.glob('*.TBL'))
 
         # Get wrf_hydro.exe file path
-        candidate_wrf_exe = self.model.compile_dir.joinpath('wrf_hydro.exe')
-
-        # Get namelist paths
-        hydro_namelist = self.domain.namelist_patches
-        namelist_hrldas = self.domain.namelist_patches
+        wrf_exe = self.model.compile_dir.joinpath('wrf_hydro.exe')
 
         # make directories and symmlink in files
-        self.simulation_dir.mkdir()
+        if self.simulation_dir.is_dir() is not True:
+            self.simulation_dir.mkdir(parents=True)
+        else:
+            raise IOError(str(self.simulation_dir) + ' directory already exists')
 
         # Loop to make symlinks for each TBL file
-        for from_file in candidate_table_files:
+        for from_file in table_files:
             # Create file paths to symlink
             to_file = self.simulation_dir.joinpath(from_file.name)
             # Create symlinks
             to_file.symlink_to(from_file)
+
         # Symlink in exe
-        self.simulation_dir.joinpath(candidate_wrf_exe.name).symlink_to(candidate_wrf_exe)
+        self.simulation_dir.joinpath(wrf_exe.name).symlink_to(wrf_exe)
 
         # Symlink in forcing
-        self.simulation_dir.joinpath(self.domain.forcing_dir.name).symlink_to(self.domain.forcing_dir, target_is_directory=True)
+        self.simulation_dir.joinpath(self.domain.forcing_dir.name).symlink_to(self.domain.forcing_dir,
+                                                                              target_is_directory=True)
         # Symlink in DOMAIN
-        self.simulation_dir.joinpath(self.domain.domain_dir.name).symlink_to(self.domain.domain_dir, target_is_directory=True)
+        self.simulation_dir.joinpath(self.domain.domain_dir.name).symlink_to(self.domain.domain_dir,
+                                                                             target_is_directory=True)
         # Symlink in RESTART
-        self.simulation_dir.joinpath(self.domain.restart_dir.name).symlink_to(self.domain.restart_dir, target_is_directory=True)
-        # Symlink in hydro.namelist
-        #self.simulation_dir.joinpath(hydro_namelist.name).symlink_to(hydro_namelist)
-        # Symlink in namelist.hrldas
-        #self.simulation_dir.joinpath(namelist_hrldas.name).symlink_to(namelist_hrldas)
+        self.simulation_dir.joinpath(self.domain.restart_dir.name).symlink_to(self.domain.restart_dir,
+                                                                              target_is_directory=True)
+
+        # write hydro.namelist
+        f90nml.write(self.hydro_namelist,
+                     self.simulation_dir.joinpath('hydro.namelist'))
+        # write namelist.hrldas
+        f90nml.write(self.namelist_hrldas,
+                     self.simulation_dir.joinpath('namelist.hrldas'))
 
         return ('Successfully created simulation directory ' + str(self.simulation_dir))
 
 
-    def run(self,run_hydro_options,run_hrlds_options):
-        print('placeholder')
+    def run(self,num_cores: int = 2) -> str:
+        """Run the wrf_hydro simulation
+        Args:
+            run_command: The command to execute the model. Defaults to prepared mpiexec command using num_cores argument.
+            Otherwise, supply a list that can be passed to subprocess.run.
+            num_cores: Optional, the number of cores to using default run_command
 
+        Returns:
+            A string indicating success of run and new attributes to the object
 
+        TODO:
+            Add option for custom run commands to deal with job schedulers
+        """
+        chdir(self.simulation_dir)
+        subprocess.run(['mpiexec','-np',str(num_cores),'./wrf_hydro.exe'])
+
+        return('Model run completed successfully')
 
 
 def main():
-    # Try it out
+    #Make wrfModel object
     wrfModel = wrf_hydro_model('/Volumes/d1/jmills/tempTests/wrf_hydro_nwm/trunk/NDHMS','/Volumes/d1/jmills/tempTests/Run')
-    wrfModel.compile('gfort')
+    #Compile it
+    #wrfModel.compile('gfort',compile_options=None)
+    #Create domain object
     domain = wrf_hydro_domain('/Volumes/d1/jmills/NCAR-docker/wrf_hydro_docker/domains/croton_NY/domain',
+                              domain_config='NWM',
                               domain_dir='NWM/DOMAIN',
                               restart_dir='NWM/RESTART')
-
     wrfSim=wrf_hydro_simulation(wrfModel,domain)
     wrfSim.make_run_dir('/Volumes/d1/jmills/tempTests/sim')
 
+
+    #docker testing
+    #from wrf_hydro_model import *
+    wrfModel = wrf_hydro_model('/home/docker/wrf_hydro_nwm/trunk/NDHMS','/home/docker/test/compile')
+    wrfModel.compile('gfort')
+
+    wrfDomain = wrf_hydro_domain('/home/docker/domain/croton_NY',domain_config='NWM',domain_dir='NWM/DOMAIN',restart_dir='NWM/RESTART')
+
+    wrfSim = wrf_hydro_simulation(wrfModel, wrfDomain)
+    wrfSim.make_run_dir('/home/docker/test/run2')
+    wrfSim.run()

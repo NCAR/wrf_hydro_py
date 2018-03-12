@@ -99,3 +99,9 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+#macstuff
+.DS_Store
+
+#Pycharm stuff
+/.idea

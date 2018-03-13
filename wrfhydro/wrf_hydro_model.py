@@ -7,6 +7,19 @@ import json
 from copy import copy
 from os import chdir, chmod
 
+
+#########################
+###File object classes
+#Class for timeseries files
+class wrf_hydro_ts(object):
+    def open(self):
+        return(xr.open_mfdataset(self, concat_dim='Time'))
+
+class wrf_hydro_data(object):
+    def open(self):
+        return (xr.open_dataset(self))
+#########################
+###Classes for constructing and running a wrf_hydro simulation
 #wrf_hydro_model class
 class wrf_hydro_model(object):
     """The beginning of wrf_hydro python api
@@ -134,36 +147,19 @@ class wrf_hydro_domain(object):
             raise IOError(str(self.namelist_patch_file) + ' file not found in ' + str(self.domain_top_dir))
         #######################
 
-        #Load namelist patches
+        #Setup file attributes
+        #namelist patches
         self.namelist_patches = json.load(open(self.namelist_patch_file))
 
-    def open_forcing_files(self,load: bool = False) -> str:
-        """Open forcing files as an xarray dataset and return dataset as new attribute
-        Args:
-            load:Optional, load data into memory. Not recommended for large datasets
+        #forcing files
+        self.forcing_files = wrf_hydro_ts(list(self.forcing_dir.glob('*')))#JMCHECK - handle non-forcing files in forcing dir?
 
-        Returns:
-            Message indicating success and name of forcing_data attribute
-        """
-        forcing_files = list(self.forcing_dir.glob('*'))
-        self.forcing_data=xr.open_mfdataset(forcing_files,concat_dim='Time')
-        if load:
-            self.forcing_data = self.forcing_data.load()
-        return('Forcing data loaded to forcing_data attribute')
+        #restart files
+        self.restart_files = wrf_hydro_ts(list(self.forcing_dir.glob('*')))
 
-    def open_restart_files(self,load: bool = False) -> str:
-        """Open restart files as an xarray dataset and return dataset as new attribute
-        Args:
-            load:Optional, load data into memory. Not recommended for large datasets
-
-        Returns:
-            Message indicating success and name of forcing_data attribute
-        """
-        restart_files = list(self.restart_dir.glob('*'))
-        self.restart_data=xr.open_mfdataset(restart_files,concat_dim='Time')
-        if load:
-            self.restart_data = self.restart_data.load()
-        return('Restart data loaded to restart_data attribute')
+        #TODO - add in a search function to grab the proper routelnk
+        #TODO - this might need to belong in the wrf_hydro_sim since routelink needs to be pulled by model version number
+        self.route_link = self.namelist_patch_file
 
 
 class wrf_hydro_simulation(object):
@@ -277,51 +273,24 @@ class wrf_hydro_simulation(object):
             else:
                 self.run_status = 1
 
-        #Setup output file attributes
+        if self.run_status == 0:
+            #Setup output file attributes
+            #Get diag files
+            self.diag_files = list(self.simulation_dir.glob('diag_hydro.*'))
 
-        #Get diag files
-        self.diag_files = list(self.simulation_dir.glob('diag_hydro.*'))
+            #Get channel files
+            self.channel_files = wrf_hydro_ts(list(self.simulation_dir.glob('*CHRTOUT*')))
 
-        return('Model run completed successfully')
-
-    # Load channel files
-    def open_channel_files(self, load: bool = False) -> str:
-        """Open channel files as an xarray dataset and return dataset as new attribute
-        Args:
-            load:Optional, load data into memory. Not recommended for large datasets
-
-        Returns:
-            Message indicating success and name of channel_data attribute
-        """
-
-        #check that the model ran
-        if 'self.run_status' in locals():
-            channel_files = list(self.simulation_dir.glob('*CHRTOUT*'))
-            self.channel_data = xr.open_mfdataset(channel_files, concat_dim='Time')
-            if load:
-                self.channel_data = self.channel_data
-            return ('Channel data loaded to channel_data attribute')
+            #TODO - Add additinal file types, restarts, lakes, etc.
+            return('Model run completed successfully')
         else:
-            raise 'Simulation has not been run'
+            return ('Model run failed')
 
-    # Load restart files
-    def open_hydro_rst_files(self, load: bool = False) -> str:
-        """Open hydro restart files as an xarray dataset and return dataset as new attribute
-        Args:
-            load:Optional, load data into memory. Not recommended for large datasets
-
-        Returns:
-            Message indicating success and name of hydro_restart_data attribute
-        """
-        # check that the model ran
-        if 'self.run_status' in locals():
-            hydro_rst_files = list(self.simulation_dir.glob('*HYDRO_RST*'))
-            self.hydro_rst_data = xr.open_mfdataset(hydro_rst_files, concat_dim='Time')
-            if load:
-                self.hydro_rst_data = self.hydro_rst_data.load()
-            return ('Hydro restart data loaded to hydro_rst_data attribute')
-        else:
-            raise 'Simulation has not been run'
+##################################
+##################################
+##################################
+#END OF MODULE
+##################################
 
 def main():
     #Make wrfModel object
@@ -348,4 +317,6 @@ def main():
     wrfSim.make_run_dir('/home/docker/test/run2')
     wrfSim.run()
 
-#MAke a class for model output files, e.g. __class__(channel_files) -> wrf_hydro_ts
+#############################
+###Classes for testing
+

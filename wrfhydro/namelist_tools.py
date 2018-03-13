@@ -42,15 +42,24 @@ def domain_to_namelist(file,patch_file=None,output_file=''):
 import f90nml
 import json
 from deepdiff import DeepDiff
+from pprint import pprint
+
 def diff_namelist(namelist1,namelist2):
-    #Read namelists into dicts
-    namelist1=f90nml.read(namelist1).todict()
-    namelist2=f90nml.read(namelist2).todict()
+    def diff_namelist(namelist1, namelist2, **kwargs):
+        # Read namelists into dicts
+        namelist1 = f90nml.read(namelist1)
+        namelist2 = f90nml.read(namelist2)
+        # Diff the namelists
+        differences = DeepDiff(namelist1, namelist2, ignore_order=True, **kwargs)
+        pprint.pprint(differences)
+        differences_dict = dict(differences)
+        return (differences_dict)
 
-    #Diff the namelists
-    differences=dict(DeepDiff(namelist1,namelist2,ignore_order=True))
-
-    return(differences['values_changed'])
+    template_nlst = '/wrf_hydro_nwm/trunk/NDHMS/template/HYDRO/hydro.namelist'
+    run_nlst = 'hydro.namelist'
+    dd = diff_namelist(template_nlst, run_nlst)
+    dd = diff_namelist(template_nlst, run_nlst, view='tree')
+    pprint(dd)
 
 # def main():
 #     inputFile = argv[1]

@@ -135,32 +135,40 @@ class WrfHydroModel(object):
         # Compile
         # Change to source code directory for compile time
         chdir(self.source_dir)
-        subprocess.run(['./configure', compiler])
-        subprocess.run(['./compile_offline_NoahMP.sh', str(compile_options_file)])
+        self.configure_log = subprocess.run(['./configure', compiler],
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE)
+        self.compile_log = subprocess.run(['./compile_offline_NoahMP.sh',
+                                           str(compile_options_file)],
+                                          stdout=subprocess.PIPE,
+                                          stderr=subprocess.PIPE)
 
-        # Open permissions on compiled files
-        subprocess.run(['chmod','-R','777',str(self.source_dir.joinpath('Run'))])
+        if self.configure_log.returncode == 0:
+            # Open permissions on compiled files
+            subprocess.run(['chmod','-R','777',str(self.source_dir.joinpath('Run'))])
 
-        # Wrf hydro always puts files in source directory under a new directory called 'Run'
-        # Copy files to new directory if its not the same as the source code directory
-        if self.compile_dir.parent is not self.source_dir:
-            for file in self.source_dir.joinpath('Run').glob('*.TBL'):
-                copyfile(file,str(self.compile_dir.joinpath(file.name)))
+            # Wrf hydro always puts files in source directory under a new directory called 'Run'
+            # Copy files to new directory if its not the same as the source code directory
+            if self.compile_dir.parent is not self.source_dir:
+                for file in self.source_dir.joinpath('Run').glob('*.TBL'):
+                    copyfile(file,str(self.compile_dir.joinpath(file.name)))
 
-            copyfile(str(self.source_dir.joinpath('Run').joinpath('wrf_hydro.exe')),
-                     str(self.compile_dir.joinpath('wrf_hydro.exe')))
+                copyfile(str(self.source_dir.joinpath('Run').joinpath('wrf_hydro.exe')),
+                         str(self.compile_dir.joinpath('wrf_hydro.exe')))
 
-            #Remove old files
-            rmtree(self.source_dir.joinpath('Run'))
+                #Remove old files
+                rmtree(self.source_dir.joinpath('Run'))
 
-        # Open permissions on copied compiled files
-        subprocess.run(['chmod', '-R', '777', str(self.compile_dir)])
+            # Open permissions on copied compiled files
+            subprocess.run(['chmod', '-R', '777', str(self.compile_dir)])
 
-        # Save the object out to the compile directory
-        with open(self.compile_dir.joinpath('WrfHydroModel.pkl'), 'wb') as f:
-            pickle.dump(self, f, 2)
+            # Save the object out to the compile directory
+            with open(self.compile_dir.joinpath('WrfHydroModel.pkl'), 'wb') as f:
+                pickle.dump(self, f, 2)
 
-        return('Model successfully compiled into ' + str(self.compile_dir))
+            return('Model successfully compiled into ' + str(self.compile_dir))
+        else:
+            return ('Model did not successfully compile')
 
     # Define a reset method
     def reset(self,confirm: str):

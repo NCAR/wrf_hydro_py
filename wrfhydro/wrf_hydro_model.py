@@ -10,13 +10,11 @@ from uuid import uuid4
 import pickle
 
 #########################
-# File object classes
-# TODO: JLM: what is a "file object"
+# netcdf file object classes
 
-
-class wrf_hydro_ts(list):
+class WrfHydroTs(list):
     def open(self):
-        """Open a wrf_hydro_ts object
+        """Open a WrfHydroTs object
         Args:
             self
         Returns:
@@ -25,9 +23,9 @@ class wrf_hydro_ts(list):
         return(xr.open_mfdataset(self, concat_dim='Time'))
 
     
-class wrf_hydro_data(list):
+class WrfHydroStatic(list):
     def open(self):
-        """Open a wrf_hydro_data object
+        """Open a WrfHydroStatic object
         Args:
             self
         Returns:
@@ -40,20 +38,17 @@ class wrf_hydro_data(list):
 # Classes for constructing and running a wrf_hydro simulation
 
 
-class wrf_hydro_model(object):
-    """The beginning of wrf_hydro python api
-    Attributes:
-
-    """
+class WrfHydroModel(object):
+    # TODO - Add in docstring describing attributes for each class
     def __init__(self, source_dir: str):
-        """Create a wrf_hydro_model object.
+        """Create a WrfHydroModel object.
         Args:
             source_dir: Directory containing the source code, e.g.
                'wrf_hydro_nwm/trunk/NDHMS'.
             new_compile_dir: Optional, new directory to to hold results
                of code compilation.
         Returns:
-            A wrf_hydro_model object.
+            A WrfHydroModel object.
         """
 
         # Setup directory paths
@@ -85,11 +80,11 @@ class wrf_hydro_model(object):
                      'NCEP_WCOSS':1, 'WRF_HYDRO_NUDGING':0 }
         Returns:
             Success of compilation and compile directory used. Sets additional
-            attributes to wrf_hydro_model
+            attributes to WrfHydroModel
 
         """
         # TODO: JLM: I think compile_options should be mutually exclusive with
-        #            (version, configuration) where these specfy compile options in
+        #           (version, configuration) where these specfy compile options in
         #            a JSON file.
         
         # A bunch of ugly logic to check compile directory.
@@ -162,7 +157,7 @@ class wrf_hydro_model(object):
         subprocess.run(['chmod', '-R', '777', str(self.compile_dir)])
 
         # Save the object out to the compile directory
-        with open(self.compile_dir.joinpath('wrf_hydro_model.pkl'), 'wb') as f:
+        with open(self.compile_dir.joinpath('WrfHydroModel.pkl'), 'wb') as f:
             pickle.dump(self, f, 2)
 
         return('Model successfully compiled into ' + str(self.compile_dir))
@@ -181,21 +176,21 @@ class wrf_hydro_model(object):
             atts_to_delete = ['compile_dir', 'object_id', 'compile_options', 'compiler']
             for att in atts_to_delete:
                 self.__delattr__(att)
-            return('Compile directory deleted and wrf_hydro_model object returned ' +
+            return('Compile directory deleted and WrfHydroModel object returned ' +
                    'to pre-compile state.')
         else:
             return("Confirm argument must be 'y' to proceed with reset.")
 
         
 # WRF-Hydro Domain object
-class wrf_hydro_domain(object):
+class WrfHydroDomain(object):
     def __init__(self,domain_top_dir: str,
                  domain_config: str,
                  namelist_patch_file: str = 'namelist_patches.json',
                  forcing_dir: str = 'FORCING',
                  domain_dir: str = 'DOMAIN',
                  restart_dir: str = 'RESTART'):
-        """Create a wrf_hydro_domain object.
+        """Create a WrfHydroDomain object.
         Args:
             domain_top_dir: Parent directory containing all domain directories and files. 
                 All files and folders are
@@ -207,7 +202,7 @@ class wrf_hydro_domain(object):
             domain_dir: Directory containing domain files
             restart_dir: Directory containing restart files
         Returns:
-            A wrf_hydro_domain object
+            A WrfHydroDomain object
         """
 
         # Set directory and file paths
@@ -241,34 +236,34 @@ class wrf_hydro_domain(object):
         self.namelist_patches = json.load(open(self.namelist_patch_file))
 
         # forcing files
-        self.forcing_files = wrf_hydro_ts(list(self.forcing_dir.glob('*')))
+        self.forcing_files = WrfHydroTs(list(self.forcing_dir.glob('*')))
         # TODO TJM - handle non-forcing files in forcing dir?
 
         # restart files
-        self.restart_files = wrf_hydro_ts(list(self.restart_dir.glob('*')))
+        self.restart_files = WrfHydroTs(list(self.restart_dir.glob('*')))
 
         # TODO TJM - add in a search function to grab the proper routelnk
-        # TODO TJM - this might need to belong in the wrf_hydro_sim since routelink
+        #            this might need to belong in the wrf_hydro_sim since routelink
         #            needs to be pulled by model version number
         # self.route_link = self.namelist_patch_file
 
 
-class wrf_hydro_simulation(object):
+class WrfHydroSim(object):
     def __init__(self, wrf_hydro_model: object,
                  wrf_hydro_domain: object,
                  domain_model_version = None):
-        """Create a wrf_hydro_simulation object
+        """Create a WrfHydroSim object
         Args:
-            wrf_hydro_model: A wrf_hydro_model object
-            wrf_hydro_domain: A wrf_hydro_domain object
+            wrf_hydro_model: A WrfHydroModel object
+            wrf_hydro_domain: A WrfHydroDomain object
         Returns:
-            A wrf_hydro_simulation object
+            A WrfHydroSim object
         """
         # assign copies of objects to self
         self.model = copy(wrf_hydro_model)
         self.domain = copy(wrf_hydro_domain)
 
-        # Assign domain version used if specified to version other than the wrf_hydro_model
+        # Assign domain version used if specified to version other than the WrfHydroModel
         if domain_model_version is not None and domain_model_version != self.model.version:
             self.domain_model_version = domain_model_version
 
@@ -371,7 +366,7 @@ class wrf_hydro_simulation(object):
             self.diag = list(self.simulation_dir.glob('diag_hydro.*'))
 
             # Get channel files
-            self.channel_rt = wrf_hydro_ts(list(self.simulation_dir.glob('*CHRTOUT*')))
+            self.channel_rt = WrfHydroTs(list(self.simulation_dir.glob('*CHRTOUT*')))
 
             # TODO TJM - Add additinal file types, restarts, lakes, etc.
 
@@ -403,7 +398,7 @@ class wrf_hydro_simulation(object):
             atts_to_delete = ['simulation_dir', 'run_status', 'output_files', 'object_id']
             for att in atts_to_delete:
                 self.__delattr__(att)
-            return('compile directory deleted and wrf_hydro_model object returned to ' +
+            return('compile directory deleted and WrfHydroModel object returned to ' +
                    'pre-compile state')
         else:
             return("confirm argument must be 'y' to proceed with reset")
@@ -414,28 +409,28 @@ class wrf_hydro_simulation(object):
 
 def main():
     # Make wrfModel object
-    wrfModel = wrf_hydro_model('/Volumes/d1/jmills/tempTests/wrf_hydro_nwm/trunk/NDHMS',
+    wrfModel = WrfHydroModel('/Volumes/d1/jmills/tempTests/wrf_hydro_nwm/trunk/NDHMS',
                                '/Volumes/d1/jmills/tempTests/Run')
     # Compile it
     # wrfModel.compile('gfort',compile_options=None)
     # Create domain object
     croton_dom_top_path = '/Volumes/d1/jmills/NCAR-docker/wrf_hydro_docker/domains/croton_NY/domain'
-    domain = wrf_hydro_domain(croton_dom_top_path,
-                              domain_config='NWM',
-                              domain_dir='NWM/DOMAIN',
-                              restart_dir='NWM/RESTART')
-    wrfSim = wrf_hydro_simulation(wrfModel, domain)
+    domain = WrfHydroDomain(croton_dom_top_path,
+                            domain_config='NWM',
+                            domain_dir='NWM/DOMAIN',
+                            restart_dir='NWM/RESTART')
+    wrfSim = WrfHydroSim(wrfModel, domain)
     wrfSim.make_run_dir('/Volumes/d1/jmills/tempTests/sim')
 
 
     # docker testing
-    # from wrf_hydro_model import *
-    wrfModel = wrf_hydro_model('/home/docker/wrf_hydro_nwm/trunk/NDHMS')
+    # from WrfHydroModel import *
+    wrfModel = WrfHydroModel('/home/docker/wrf_hydro_nwm/trunk/NDHMS')
     wrfModel.compile('gfort', '/home/docker/test/compile', overwrite=True)
 
-    wrfDomain = wrf_hydro_domain('/home/docker/domain/croton_NY',
-                                 domain_config='NWM',
-                                 domain_dir='NWM/DOMAIN',
-                                 restart_dir='NWM/RESTART')
+    wrfDomain = WrfHydroDomain('/home/docker/domain/croton_NY',
+                               domain_config='NWM',
+                               domain_dir='NWM/DOMAIN',
+                               restart_dir='NWM/RESTART')
 
-    wrf_hydro_simulation(wrfModel, wrfDomain.run('/home/docker/test/run'))
+    WrfHydroSim(wrfModel, wrfDomain.run('/home/docker/test/run'))

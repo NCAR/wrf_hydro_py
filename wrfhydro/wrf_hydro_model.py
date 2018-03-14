@@ -92,6 +92,7 @@ class wrf_hydro_model(object):
         #            (version, configuration) where these specfy compile options in
         #            a JSON file.
         
+        # A bunch of ugly logic to check compile directory.
         if compile_dir is None:
             self.compile_dir = self.source_dir.joinpath('Run')
         else:
@@ -120,7 +121,7 @@ class wrf_hydro_model(object):
         #     raise PermissionError('Compile directory owned by another model object. ' +
         #                           'Object id in file .uid does not match self.object_id')
 
-        #Add compiler and compile options as attributes and update if needed
+        # Add compiler and compile options as attributes and update if needed
         self.compiler = compiler
         self.compile_options = {'WRF_HYDRO':1, 'HYDRO_D':1, 'SPATIAL_SOIL':1,
                                 'WRF_HYDRO_RAPID':0, 'WRFIO_NCD_LARGE_FILE_SUPPORT':1,
@@ -157,16 +158,16 @@ class wrf_hydro_model(object):
             #Remove old files
             rmtree(self.source_dir.joinpath('Run'))
 
-        #Open permissions on copied compiled files
+        # Open permissions on copied compiled files
         subprocess.run(['chmod', '-R', '777', str(self.compile_dir)])
 
-        #Save the object out to the compile directory
+        # Save the object out to the compile directory
         with open(self.compile_dir.joinpath('wrf_hydro_model.pkl'), 'wb') as f:
             pickle.dump(self, f, 2)
 
         return('Model successfully compiled into ' + str(self.compile_dir))
 
-    #Define a reset method
+    # Define a reset method
     def reset(self,confirm: str):
         """Deletes the entire contents of the compile directory and resets object to 
            pre-compile state
@@ -208,7 +209,6 @@ class wrf_hydro_domain(object):
         Returns:
             A wrf_hydro_domain object
         """
-        # TODO TJM - Ask JM about a better name for the top-level domain folder
 
         # Set directory and file paths
         self.domain_top_dir = Path(domain_top_dir)
@@ -376,6 +376,7 @@ class wrf_hydro_simulation(object):
             # TODO TJM - Add additinal file types, restarts, lakes, etc.
 
             # create a UID for the simulation and save in file
+
             self.object_id = str(uuid4())
             with open(self.simulation_dir.joinpath('.uid'), 'w') as f:
                 f.write(self.object_id)

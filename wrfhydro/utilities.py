@@ -15,7 +15,7 @@ def compare_restarts(candidate_restart: str,
         ref_restarts: The path for the reference restart file
         exclude_vars: A list of strings containing variables names to exclude from the comparison
     Returns:
-        A string containing results of the diff
+        Either a pandas dataframe if possible or subprocess object
     """
 
     #Convert exclude_vars list into a comman separated string

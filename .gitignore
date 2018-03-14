@@ -105,3 +105,6 @@ ENV/
 
 #Pycharm stuff
 /.idea
+
+#Emacs
+*~

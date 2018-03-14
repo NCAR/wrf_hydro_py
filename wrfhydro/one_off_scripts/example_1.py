@@ -14,11 +14,11 @@ ncores_sim = wrf_hydro_simulation(model, domain).run()
 restart_sim = wrf_hydro_simulation(model, domain)
 
 #Additional scripting to edit the namelist
-#reference_run_sim = wrf_hydro_simulation(wrfModel, wrfDomain).run()
+#reference_run_sim = WrfHydroSim(wrfModel, wrfDomain).run()
 
 #wrfSim.make_run_dir('/home/docker/test/run2')
 #candidate_run_sim.run()
 
-#candidate_wrfModel = wrf_hydro_model('/home/docker/wrf_hydro_nwm/trunk/NDHMS',
+#candidate_wrfModel = WrfHydroModel('/home/docker/wrf_hydro_nwm/trunk/NDHMS',
 #                                     '/home/docker/test/compile')
 #candidate_wrfModel.compile('gfort')

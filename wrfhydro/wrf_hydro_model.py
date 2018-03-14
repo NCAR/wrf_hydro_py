@@ -61,20 +61,23 @@ class wrf_hydro_model(object):
         with open(self.source_dir.joinpath('.version')) as f:
             self.version = f.read()
 
-    def compile(self, compiler: str, compile_dir: str = None, overwrite: bool = False, compile_options: dict = None) -> str:
+    def compile(self, compiler: str, compile_dir: str = None, overwrite: bool = False,
+                compile_options: dict = None) -> str:
         """Compiles WRF-Hydro using specified compiler and compile options.
         Args:
             compiler: The compiler to use, must be one of 'pgi','gfort','ifort', or 'luna'
             compile_dir: A non-existant directory to use for compilation.
             overwrite: Overwrite compile directory if exists.
-            compile_options: Changes to default compile-time options. Defaults are {'WRF_HYDRO':1,'HYDRO_D':1,
-            'SPATIAL_SOIL':1,'WRF_HYDRO_RAPID':0,'WRFIO_NCD_LARGE_FILE_SUPPORT':1,'NCEP_WCOSS':1,'WRF_HYDRO_NUDGING':0}
+            compile_options: Changes to default compile-time options. Defaults are
+            {'WRF_HYDRO':1,'HYDRO_D':1,'SPATIAL_SOIL':1,'WRF_HYDRO_RAPID':0,
+            'WRFIO_NCD_LARGE_FILE_SUPPORT':1,'NCEP_WCOSS':1,'WRF_HYDRO_NUDGING':0}
         Returns:
             Success of compilation and compile directory used. Sets additional attributes to
             wrf_hydro_model
 
         """
 
+        #A bunch of ugly logic to check compile directory.
         if compile_dir is None:
             self.compile_dir = self.source_dir.joinpath('Run')
         else:
@@ -189,7 +192,6 @@ class wrf_hydro_domain(object):
         Returns:
             A wrf_hydro_domain object
         """
-        # TODO - Ask JM about a better name for the top-level domain folder
 
         #Set directory and file paths
         self.domain_top_dir = Path(domain_top_dir)
@@ -343,9 +345,7 @@ class wrf_hydro_simulation(object):
             #Get channel files
             self.channel_rt = wrf_hydro_ts(list(self.simulation_dir.glob('*CHRTOUT*')))
 
-            #
-
-            #TODO - Add additinal file types, restarts, lakes, etc.
+            # TODO - Add additinal file types, restarts, lakes, etc.
 
             #create a UID for the simulation and save in file
             self.object_id = str(uuid4())

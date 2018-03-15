@@ -4,10 +4,11 @@ from shutil import copyfile, rmtree
 import xarray as xr
 import f90nml
 import json
-from copy import copy
+from copy import deepcopy
 from os import chdir
 from uuid import uuid4
 import pickle
+from warnings import warn
 
 #########################
 # netcdf file object classes
@@ -22,7 +23,6 @@ class WrfHydroTs(list):
         """
         return(xr.open_mfdataset(self, concat_dim='Time'))
 
-    
 class WrfHydroStatic(list):
     def open(self):
         """Open a WrfHydroStatic object
@@ -135,32 +135,40 @@ class WrfHydroModel(object):
         # Compile
         # Change to source code directory for compile time
         chdir(self.source_dir)
-        subprocess.run(['./configure', compiler])
-        subprocess.run(['./compile_offline_NoahMP.sh', str(compile_options_file)])
+        self.configure_log = subprocess.run(['./configure', compiler],
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE)
+        self.compile_log = subprocess.run(['./compile_offline_NoahMP.sh',
+                                           str(compile_options_file)],
+                                          stdout=subprocess.PIPE,
+                                          stderr=subprocess.PIPE)
 
-        # Open permissions on compiled files
-        subprocess.run(['chmod','-R','777',str(self.source_dir.joinpath('Run'))])
+        if self.configure_log.returncode == 0:
+            # Open permissions on compiled files
+            subprocess.run(['chmod','-R','777',str(self.source_dir.joinpath('Run'))])
 
-        # Wrf hydro always puts files in source directory under a new directory called 'Run'
-        # Copy files to new directory if its not the same as the source code directory
-        if self.compile_dir.parent is not self.source_dir:
-            for file in self.source_dir.joinpath('Run').glob('*.TBL'):
-                copyfile(file,str(self.compile_dir.joinpath(file.name)))
+            # Wrf hydro always puts files in source directory under a new directory called 'Run'
+            # Copy files to new directory if its not the same as the source code directory
+            if self.compile_dir.parent is not self.source_dir:
+                for file in self.source_dir.joinpath('Run').glob('*.TBL'):
+                    copyfile(file,str(self.compile_dir.joinpath(file.name)))
 
-            copyfile(str(self.source_dir.joinpath('Run').joinpath('wrf_hydro.exe')),
-                     str(self.compile_dir.joinpath('wrf_hydro.exe')))
+                copyfile(str(self.source_dir.joinpath('Run').joinpath('wrf_hydro.exe')),
+                         str(self.compile_dir.joinpath('wrf_hydro.exe')))
 
-            #Remove old files
-            rmtree(self.source_dir.joinpath('Run'))
+                #Remove old files
+                rmtree(self.source_dir.joinpath('Run'))
 
-        # Open permissions on copied compiled files
-        subprocess.run(['chmod', '-R', '777', str(self.compile_dir)])
+            # Open permissions on copied compiled files
+            subprocess.run(['chmod', '-R', '777', str(self.compile_dir)])
 
-        # Save the object out to the compile directory
-        with open(self.compile_dir.joinpath('WrfHydroModel.pkl'), 'wb') as f:
-            pickle.dump(self, f, 2)
+            # Save the object out to the compile directory
+            with open(self.compile_dir.joinpath('WrfHydroModel.pkl'), 'wb') as f:
+                pickle.dump(self, f, 2)
 
-        return('Model successfully compiled into ' + str(self.compile_dir))
+            return('Model successfully compiled into ' + str(self.compile_dir))
+        else:
+            return ('Model did not successfully compile')
 
     # Define a reset method
     def reset(self,confirm: str):
@@ -259,9 +267,9 @@ class WrfHydroSim(object):
         Returns:
             A WrfHydroSim object
         """
-        # assign copies of objects to self
-        self.model = copy(wrf_hydro_model)
-        self.domain = copy(wrf_hydro_domain)
+        # assign objects to self
+        self.model = wrf_hydro_model
+        self.domain = wrf_hydro_domain
 
         # Assign domain version used if specified to version other than the WrfHydroModel
         if domain_model_version is not None and domain_model_version != self.model.version:
@@ -269,14 +277,14 @@ class WrfHydroSim(object):
 
         # Create namelists
         self.hydro_namelist = \
-            dict(self.model.hydro_namelists[self.model.version][self.domain.domain_config])
+            self.model.hydro_namelists[self.model.version][self.domain.domain_config]
         self.hydro_namelist['hydro_nlist'].update(self.domain.namelist_patches[self.model.version]
             [self.domain.domain_config]['hydro_namelist']['hydro_nlist'])
         self.hydro_namelist['nudging_nlist'].update(self.domain.namelist_patches[self.model.version]
             [self.domain.domain_config]['hydro_namelist']['nudging_nlist'])
 
         self.namelist_hrldas = \
-            dict(self.model.hrldas_namelists[self.model.version][self.domain.domain_config])
+            self.model.hrldas_namelists[self.model.version][self.domain.domain_config]
         self.namelist_hrldas['noahlsm_offline'].update(self.domain.namelist_patches
             [self.model.version][self.domain.domain_config]['namelist_hrldas']['noahlsm_offline'])
         self.namelist_hrldas['wrf_hydro_offline'].update(self.domain.namelist_patches
@@ -381,9 +389,11 @@ class WrfHydroSim(object):
             with open(self.simulation_dir.joinpath('wrf_hydro_sim.pkl'), 'wb') as f:
                 pickle.dump(self, f, 2)
 
-            return('Model run completed successfully')
+            print('Model run succeeded')
+            return deepcopy(self)
         else:
-            return ('Model run failed')
+            warn('Model run failed')
+            return deepcopy(self)
 
     # Define a reset method
     def reset(self, confirm: str):
@@ -408,21 +418,6 @@ class WrfHydroSim(object):
 ##################################
 
 def main():
-    # Make wrfModel object
-    wrfModel = WrfHydroModel('/Volumes/d1/jmills/tempTests/wrf_hydro_nwm/trunk/NDHMS',
-                               '/Volumes/d1/jmills/tempTests/Run')
-    # Compile it
-    # wrfModel.compile('gfort',compile_options=None)
-    # Create domain object
-    croton_dom_top_path = '/Volumes/d1/jmills/NCAR-docker/wrf_hydro_docker/domains/croton_NY/domain'
-    domain = WrfHydroDomain(croton_dom_top_path,
-                            domain_config='NWM',
-                            domain_dir='NWM/DOMAIN',
-                            restart_dir='NWM/RESTART')
-    wrfSim = WrfHydroSim(wrfModel, domain)
-    wrfSim.make_run_dir('/Volumes/d1/jmills/tempTests/sim')
-
-
     # docker testing
     # from WrfHydroModel import *
     wrfModel = WrfHydroModel('/home/docker/wrf_hydro_nwm/trunk/NDHMS')
@@ -433,4 +428,4 @@ def main():
                                domain_dir='NWM/DOMAIN',
                                restart_dir='NWM/RESTART')
 
-    WrfHydroSim(wrfModel, wrfDomain.run('/home/docker/test/run'))
+    WrfHydroSim(wrfModel, wrfDomain).run(simulation_dir='/home/docker/test/run',num_cores=2)

@@ -1,20 +1,49 @@
-import unittest
+class FundamentalTest(object):
+    def __init__(self,candidate_sim,reference_sim):
+        self.candidate_sim = candidate_sim
+        self.reference_sim = reference_sim
 
-class TestRestart
+    ###Compile questions
+    def test_compile_candidate(self, compiler: str,
+                compile_dir: str = None,
+                overwrite: bool = False,
+                compile_options: dict = None):
+
+        self.candidate_sim.compile(compiler,
+                                   compile_dir,
+                                   overwrite,
+                                   compile_options)
+
+        if self.candidate_sim.compile.compile_log.return_code != 0:
+            exit(1)
+            # TODO - Dont want to exit, better to print an error and return using try:
+
+    def test_compile_reference(self, compiler: str = None,
+                compile_dir: str = None,
+                overwrite: bool = False,
+                compile_options: dict = None):
+
+        if compiler == None:
+            compiler = self.candidate_sim.compiler
+        if compile_dir == None:
+            compile_dir = self.candidate_sim.compile_dir
+        if compile_options == None:
+            compile_options = self.candidate_sim.compile_options
+
+        self.reference_sim.compile(compiler,
+                                   compile_dir,
+                                   overwrite,
+                                   compile_options)
+
+    ###Run questions
+
+    ###NCores questions
+
+    ###Restart questions
+
+    ###Regression questions
 
 
-class TestStringMethods(unittest.TestCase):
-
-    def test_upper(self):
-        self.assertEqual('foo'.upper(), 'FOO')
-
-    def test_isupper(self):
-        self.assertTrue('FOO'.isupper())
-        self.assertFalse('Foo'.isupper())
-
-    def test_split(self):
-        s = 'hello world'
-        self.assertEqual(s.split(), ['hello', 'world'])
-        # check that s.split fails when the separator is not a string
-        with self.assertRaises(TypeError):
-            s.split(2)
+        if self.reference_sim.compile.compile_log.return_code != 0:
+            exit(1)
+            # TODO - Dont want to exit, better to print an error and return using try:

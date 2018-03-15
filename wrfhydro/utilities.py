@@ -5,13 +5,12 @@ from warnings import warn
 import f90nml
 from deepdiff import DeepDiff
 
-def compare_nc_nccmp(candidate_restart: str,
-                     ref_restart: str,
+def compare_nc_nccmp(candidate_nc: str,
+                     reference_nc: str,
                      nccmp_options: list = ['--data','--metadata','--force','--quiet'],
-                     exclude_vars: list = ['ACMELT','ACSNOW','SFCRUNOFF','UDRUNOFF','ACCPRCP',
-                                           'ACCECAN','ACCEDIR','ACCETRAN','qstrmvolrt']):
+                     exclude_vars: list = None):
 
-    """Function to compare two restart files
+    """Compare two netcdf files using nccmp
     Args:
         candidate_restart: The path for the candidate restart file
         ref_restarts: The path for the reference restart file
@@ -22,6 +21,9 @@ def compare_nc_nccmp(candidate_restart: str,
     Returns:
         Either a pandas dataframe if possible or subprocess object
     """
+    #Try and set files to strings
+    candidate_nc = str(candidate_nc)
+    reference_nc = str(reference_nc)
 
     # Make list to pass to subprocess
     command_list=['nccmp']
@@ -37,8 +39,8 @@ def compare_nc_nccmp(candidate_restart: str,
         #append
         command_list.append('-x ' + exclude_vars)
 
-    command_list.append(candidate_restart)
-    command_list.append(ref_restart)
+    command_list.append(candidate_nc)
+    command_list.append(reference_nc)
 
     #Run the subprocess to call nccmp
     proc = subprocess.run(command_list,
@@ -63,6 +65,33 @@ def compare_nc_nccmp(candidate_restart: str,
     else:
         return 'No differences found'
 
+
+def compare_restarts(candidate_files: list,
+                     reference_files: list,
+                     nccmp_options: list = ['--data', '--metadata', '--force', '--quiet'],
+                     exclude_vars: list = ['ACMELT','ACSNOW','SFCRUNOFF','UDRUNOFF','ACCPRCP',
+                                           'ACCECAN','ACCEDIR','ACCETRAN','qstrmvolrt']):
+    """Compare lists of netcdf files in two directories. Files must have common names
+    Args:
+        candidate_restart: The path for the candidate restart file
+        ref_restarts: The path for the reference restart file
+    Returns:
+        A named list of either a pandas dataframes if possible or subprocess objects
+    """
+
+    ref_dir = reference_files[0].parent
+    output_list = []
+    for file_candidate in candidate_files:
+        file_reference = ref_dir.joinpath(file_candidate.name)
+        if file_reference.is_file():
+            nccmp_out = compare_nc_nccmp(candidate_nc=file_candidate,
+                                         reference_nc=file_reference,
+                                         nccmp_options=nccmp_options,
+                                         exclude_vars=exclude_vars)
+            output_list.append(nccmp_out)
+        else:
+            warn(str(file_candidate) + 'not found in ' + str(ref_dir))
+    return(output_list)
 
 def diff_namelist(namelist1: str, namelist2: str, **kwargs) -> dict:
     """Diff two fortran namelist files and return a dictionary of differences.

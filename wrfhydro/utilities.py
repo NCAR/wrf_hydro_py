@@ -33,7 +33,7 @@ def compare_nc_nccmp(candidate_nc: str,
 
     command_list.append('-S')
 
-    if len(exclude_vars) != 0:
+    if exclude_vars is not None:
         # Convert exclude_vars list into a comman separated string
         exclude_vars = ','.join(exclude_vars)
         #append
@@ -57,13 +57,11 @@ def compare_nc_nccmp(candidate_nc: str,
         # Open stringio object as pandas dataframe
         try:
             nccmp_out = pd.read_table(output,delim_whitespace=True,header=0)
-            return (nccmp_out)
+            return nccmp_out
         except:
             warn('Probleming reading nccmp output to pandas dataframe,'
                  'returning as subprocess object')
             return proc
-    else:
-        return 'No differences found'
 
 
 def compare_restarts(candidate_files: list,
@@ -91,7 +89,7 @@ def compare_restarts(candidate_files: list,
             output_list.append(nccmp_out)
         else:
             warn(str(file_candidate) + 'not found in ' + str(ref_dir))
-    return(output_list)
+    return output_list
 
 def diff_namelist(namelist1: str, namelist2: str, **kwargs) -> dict:
     """Diff two fortran namelist files and return a dictionary of differences.
@@ -111,3 +109,34 @@ def diff_namelist(namelist1: str, namelist2: str, **kwargs) -> dict:
     differences = DeepDiff(namelist1, namelist2, ignore_order=True, **kwargs)
     differences_dict = dict(differences)
     return (differences_dict)
+
+
+####Classes
+class RestartDiffs(object):
+    def __init__(self, candidate_sim, reference_sim,
+                 nccmp_options: list = ['--data','--metadata', '--force', '--quiet'],
+                 exclude_vars: list = ['ACMELT','ACSNOW','SFCRUNOFF','UDRUNOFF','ACCPRCP',
+                                       'ACCECAN','ACCEDIR','ACCETRAN','qstrmvolrt']):
+
+        #Add a dictionary with counts of diffs
+        self.diff_counts = {}
+
+        if len(candidate_sim.restart_hydro) != 0:
+            self.hydro = compare_restarts(candidate_files=candidate_sim.restart_hydro,
+                                          reference_files=reference_sim.restart_hydro)
+            diff_counts = len(self.hydro) - self.hydro.count(None)
+            self.diff_counts.update({'hydro':diff_counts})
+
+        if len(candidate_sim.restart_lsm) != 0:
+            self.lsm = compare_restarts(candidate_files=candidate_sim.restart_lsm,
+                                        reference_files=reference_sim.restart_lsm)
+            diff_counts = len(self.lsm) - self.lsm.count(None)
+            self.diff_counts.update({'lsm':diff_counts})
+
+        if len(candidate_sim.restart_nudging) != 0:
+            self.nudging = compare_restarts(
+                candidate_files=candidate_sim.restart_nudging,
+                reference_files=reference_sim.restart_nudging)
+            diff_counts = len(self.nudging) - self.nudging.count(None)
+            self.diff_counts.update({'nudging':diff_counts})
+

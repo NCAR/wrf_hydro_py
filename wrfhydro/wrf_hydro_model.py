@@ -1,5 +1,5 @@
 import subprocess
-from pathlib import Path
+from pathlib import Path, PosixPath
 from shutil import copyfile, rmtree
 import xarray as xr
 import f90nml
@@ -22,7 +22,7 @@ class WrfHydroTs(list):
         """
         return(xr.open_mfdataset(self, concat_dim='Time'))
 
-class WrfHydroStatic(list):
+class WrfHydroStatic(PosixPath):
     def open(self):
         """Open a WrfHydroStatic object
         Args:
@@ -383,8 +383,8 @@ class WrfHydroSim(object):
         # Run the model
         chdir(run_object.simulation_dir)
         run_object.run_log = subprocess.run(['mpiexec','-np',str(num_cores),'./wrf_hydro.exe'],
-                                      stdout=subprocess.PIPE,
-                                      stderr=subprocess.PIPE)
+                                            stdout=subprocess.PIPE,
+                                            stderr=subprocess.PIPE)
 
         # String match diag files for successfull run
         with open(run_object.simulation_dir.joinpath('diag_hydro.00000')) as f:
@@ -396,20 +396,56 @@ class WrfHydroSim(object):
 
         if run_object.run_status == 0:
 
+            #####################
+            # Grab outputs as WrfHydroXX classes of file paths
+
             # TODO TJM - Make all files fall under an 'output_files' attirbute
-            # Get diag files
+
+            ## Get diag files
             run_object.diag = list(run_object.simulation_dir.glob('diag_hydro.*'))
 
-            # Get channel files
+            ## Get channel files
             if len(list(run_object.simulation_dir.glob('*CHRTOUT*'))) > 0:
-                run_object.channel_rt = WrfHydroTs(list(run_object.simulation_dir.glob('*CHRTOUT*')))
+                run_object.channel_rt = WrfHydroTs(list(
+                    run_object.simulation_dir.glob('*CHRTOUT*')
+                ))
             if len(list(run_object.simulation_dir.glob('*CHANOBS*'))) > 0:
-                run_object.chanobs = WrfHydroTs(list(run_object.simulation_dir.glob('*CHANOBS*')))
+                run_object.chanobs = WrfHydroTs(list(
+                    run_object.simulation_dir.glob('*CHANOBS*')
+                ))
 
-            # Get restart files
-            run_object.hydro_restart = WrfHydroTs(list(run_object.simulation_dir.glob('HYDRO_RST*')))
-            run_object.lsm_restart = WrfHydroTs(list(run_object.simulation_dir.glob('RESTART*')))
-            run_object.nudging_restart = WrfHydroTs(list(run_object.simulation_dir.glob('nudgingLastObs*')))
+            ## Get restart files and sort by modified time
+            ### Hydro restarts
+            run_object.restart_hydro = []
+            for file in run_object.simulation_dir.glob('HYDRO_RST*'):
+                file = WrfHydroStatic(file)
+                run_object.restart_hydro.append(file)
+
+            if len(run_object.restart_hydro) > 0:
+                run_object.restart_hydro = sorted(run_object.restart_hydro,
+                                                  key=lambda file: file.stat().st_mtime_ns)
+
+            ### LSM Restarts
+            run_object.restart_lsm = []
+            for file in run_object.simulation_dir.glob('RESTART*'):
+                file = WrfHydroStatic(file)
+                run_object.restart_lsm.append(file)
+
+            if len(run_object.restart_lsm) > 0:
+                run_object.restart_lsm = sorted(run_object.restart_lsm,
+                                                key=lambda file: file.stat().st_mtime_ns)
+
+            ### Nudging restarts
+            run_object.restart_nudging = []
+            for file in run_object.simulation_dir.glob('nudgingLastObs*'):
+                file = WrfHydroStatic(file)
+                run_object.restart_nudging.append(file)
+
+            if len(run_object.restart_nudging) > 0:
+                run_object.restart_nudging = sorted(run_object.restart_nudging,
+                                                    key=lambda file: file.stat().st_mtime_ns)
+
+            #####################
 
             # create a UID for the simulation and save in file
             run_object.object_id = str(uuid4())

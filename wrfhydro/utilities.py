@@ -125,20 +125,20 @@ class RestartDiffs(object):
         if len(candidate_sim.restart_hydro) != 0:
             self.hydro = compare_restarts(candidate_files=candidate_sim.restart_hydro,
                                           reference_files=reference_sim.restart_hydro)
-            diff_counts = len(self.hydro) - self.hydro.count(None)
+            diff_counts = sum(1 for _ in filter(None.__ne__, self.hydro))
             self.diff_counts.update({'hydro':diff_counts})
 
         if len(candidate_sim.restart_lsm) != 0:
             self.lsm = compare_restarts(candidate_files=candidate_sim.restart_lsm,
                                         reference_files=reference_sim.restart_lsm)
-            diff_counts = len(self.lsm) - self.lsm.count(None)
+            diff_counts = sum(1 for _ in filter(None.__ne__, self.lsm))
             self.diff_counts.update({'lsm':diff_counts})
 
         if len(candidate_sim.restart_nudging) != 0:
             self.nudging = compare_restarts(
                 candidate_files=candidate_sim.restart_nudging,
                 reference_files=reference_sim.restart_nudging)
-            diff_counts = len(self.nudging) - self.nudging.count(None)
+            diff_counts = sum(1 for _ in filter(None.__ne__, self.nudging))
             self.diff_counts.update({'nudging':diff_counts})
 
 

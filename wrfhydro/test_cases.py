@@ -1,11 +1,12 @@
 from pathlib import Path
 from shutil import rmtree
 from utilities import *
+from copy import deepcopy
 
 class FundamentalTest(object):
     def __init__(self,candidate_sim,reference_sim,test_output_dir,overwrite = False):
-        self.candidate_sim = candidate_sim
-        self.reference_sim = reference_sim
+        self.candidate_sim = deepcopy(candidate_sim)
+        self.reference_sim = deepcopy(reference_sim)
         self.test_output_dir = Path(test_output_dir)
         self.test_results = {}
 
@@ -17,6 +18,13 @@ class FundamentalTest(object):
                 self.test_output_dir.mkdir()
             else:
                 raise IOError(str(self.test_output_dir) + ' directory already exists')
+
+        ###########
+        # Enforce some namelist options up front
+
+        # Make sure the lsm and hydro restart timesteps are output the same
+        hydro_rst_dt = self.candidate_sim.hydro_namelist['hydro_nlist']['rst_dt']
+        self.candidate_sim.namelist_hrldas['noahlsm_offline']['restart_frequency_hours'] = int(hydro_rst_dt/60)
 
     ###Compile questions
     def test_compile_candidate(self, compiler: str,
@@ -123,52 +131,66 @@ class FundamentalTest(object):
             self.test_results.update({'diff_ncores': 'fail -' + diff_status})
 
     #Perfect restarts question
-    def test_prestart_candidate(self, num_cores: int = 2):
-        #Check the the namelists are properly configured
+    def test_perfrestart_candidate(self, num_cores: int = 2):
+        #Make deep copy since changing namelist optoins
+        perfrestart_sim = deepcopy(self.candidate_sim)
 
         # Set simulation directory
         simulation_dir = self.test_output_dir.joinpath('restart_candidate')
 
-        # #Get the correct restarts
-        # #Restarts are sorted on modified time in nanoseconds
-        # hydro_restart_times = {}
-        # for hydro_file in self.candidate_sim.restart_hydro:
-        #     hydro_dataset = hydro_file.open()
-        #     hydro_restart_times.append({str(hydro_file): hydro_dataset.Restart_Time})
-        #
-        # lsm_restart_times = {}
-        # for lsm_file in self.candidate_sim.restart_lsm:
-        #     lsm_dataset = lsm_file.open()
-        #     lsm_restart_times.append({str(lsm_file): lsm_dataset.START_DATE})
-        #
-        # nudging_restart_times = {}
-        # for nudging_file in self.candidate_sim.restart_nudging:
-        #     nudging_dataset = nudging_file.open()
-        #     nudging_restart_times.append({str(nudging_file): nudging_dataset.Restart_Time})
+        #Make directory so that symlinks can be placed
+        simulation_dir.mkdir(parents=True)
 
-        self.candidate_sim.hydro_namelist['hydro_nlist'].update(
-            {'restart_file': str(self.candidate_sim.restart_hydro[0])})
+        # Symlink restarts files to new directory and modify namelistrestart files
 
-        self.candidate_sim.hydro_namelist['nudging_nlist'].update(
-            {'nudginglastobsfile': str(self.candidate_sim.restart_nudging[0])})
+        # Hydro
+        hydro_rst = self.candidate_run.restart_hydro[0]
+        new_hydro_rst_path = simulation_dir.joinpath(hydro_rst.name)
+        new_hydro_rst_path.symlink_to(hydro_rst)
 
-        self.candidate_sim.namelist_hrldas['noahlsm_offline'].update(
-            {'restart_filename_requested': str(self.candidate_sim.restart_lsm[0])}
-        )
+        perfrestart_sim.hydro_namelist['hydro_nlist'].update(
+            {'restart_file': str(new_hydro_rst_path)})
+
+        # LSM
+        lsm_rst = self.candidate_run.restart_lsm[0]
+        new_lsm_rst_path = simulation_dir.joinpath(lsm_rst.name)
+        new_lsm_rst_path.symlink_to(lsm_rst)
+
+        perfrestart_sim.namelist_hrldas['noahlsm_offline'].update(
+            {'restart_filename_requested': str(simulation_dir.joinpath(lsm_rst.name))})
+
+        # Nudging
+        if len(self.candidate_run.restart_nudging) > 0:
+            nudging_rst = self.candidate_run.restart_nudging[0]
+            new_nudging_rst_path = simulation_dir.joinpath(nudging_rst.name)
+            new_nudging_rst_path.symlink_to(nudging_rst)
+
+            perfrestart_sim.hydro_namelist['nudging_nlist'].update(
+                {'nudginglastobsfile': str(simulation_dir.joinpath(nudging_rst.name))})
 
         # Run the simulation
-        self.candidate_prestart_run = self.candidate_sim.run(simulation_dir, num_cores)
+        self.candidate_perfrestart_run = perfrestart_sim.run(simulation_dir, num_cores,mode='a')
 
         # Check subprocess and model run status
-        if self.candidate_restart_run.run_log.returncode != 0 | \
-                self.candidate_prestart_run.run_status != 0:
+        if self.candidate_perfrestart_run.run_log.returncode != 0 | \
+                self.candidate_perfrestart_run.run_status != 0:
             self.test_results.update({'run_restart': 'fail'})
         else:
             self.test_results.update({'run_restart': 'pass'})
 
         #Check against initial run
-        self.prestart_restart_diffs = RestartDiffs(self.candidate_prestart_run,
+        self.perfstart_restart_diffs = RestartDiffs(self.candidate_perfrestart_run,
                                                  self.candidate_run)
+
+        #Check that all restart diffs are None
+        if all(value == 0 for value in self.perfstart_restart_diffs.diff_counts.values()):
+            self.test_results.update({'diff_perfrestart': 'pass'})
+        else:
+            diff_status = ''
+            for key in self.perfstart_restart_diffs.diff_counts.keys():
+                diff_status = diff_status + str(key) + ':' + \
+                              str(self.perfstart_restart_diffs.diff_counts[key]) + ' '
+            self.test_results.update({'diff_perfrestart': 'fail -' + diff_status})
 
     #regression question
     def test_regression(self, num_cores: int = 2):

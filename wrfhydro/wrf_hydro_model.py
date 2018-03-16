@@ -287,7 +287,7 @@ class WrfHydroSim(object):
     def run(self,
             simulation_dir: str,
             num_cores: int = 2,
-            overwrite: bool = False) -> str:
+            mode: str = 'r') -> str:
         """Run the wrf_hydro simulation
         Args:
             run_command: The command to execute the model. Defaults to prepared mpiexec
@@ -316,11 +316,14 @@ class WrfHydroSim(object):
             if run_object.simulation_dir.is_dir() is False:
                 run_object.simulation_dir.mkdir(parents=True)
             else:
-                if run_object.simulation_dir.is_dir() is True and overwrite is True:
+                if run_object.simulation_dir.is_dir() is True and mode == 'w':
                     rmtree(str(run_object.simulation_dir))
                     run_object.simulation_dir.mkdir(parents=True)
+                elif run_object.simulation_dir.is_dir() is True and mode == 'r':
+                    raise PermissionError('Run directory already exists and mode = r')
                 else:
-                    raise PermissionError('Run directory already exists and overwrite = False')
+                    warn('Existing run directory will be used for simulation')
+
 
             ### Check that compile object uid matches compile directory uid
             ### This is to ensure that a new model has not been compiled into that directory unknowingly

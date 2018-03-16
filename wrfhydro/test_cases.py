@@ -124,34 +124,36 @@ class FundamentalTest(object):
 
     #Perfect restarts question
     def test_prestart_candidate(self, num_cores: int = 2):
+        #Check the the namelists are properly configured
 
         # Set simulation directory
         simulation_dir = self.test_output_dir.joinpath('restart_candidate')
 
-        #Get the correct restarts
-        #Make dict of filename and restart time
-        hydro_restart_times = {}
-        for hydro_file in self.candidate_sim.restart_hydro:
-            hydro_dataset = hydro_file.open()
-            hydro_restart_times.append({str(hydro_file): hydro_dataset.Restart_Time})
-
-        # TODO - Get restart time out of lsm
-
-        lsm_restart_times = {}
-        for lsm_file in self.candidate_sim.restart_lsm:
-            lsm_dataset = lsm_file.open()
-            lsm_restart_times.append({str(lsm_file): lsm_dataset.START_DATE})
-
-        nudging_restart_times = {}
-        for nudging_file in self.candidate_sim.restart_nudging:
-            nudging_dataset = nudging_file.open()
-            nudging_restart_times.append({str(nudging_file): nudging_dataset.Restart_Time})
+        # #Get the correct restarts
+        # #Restarts are sorted on modified time in nanoseconds
+        # hydro_restart_times = {}
+        # for hydro_file in self.candidate_sim.restart_hydro:
+        #     hydro_dataset = hydro_file.open()
+        #     hydro_restart_times.append({str(hydro_file): hydro_dataset.Restart_Time})
+        #
+        # lsm_restart_times = {}
+        # for lsm_file in self.candidate_sim.restart_lsm:
+        #     lsm_dataset = lsm_file.open()
+        #     lsm_restart_times.append({str(lsm_file): lsm_dataset.START_DATE})
+        #
+        # nudging_restart_times = {}
+        # for nudging_file in self.candidate_sim.restart_nudging:
+        #     nudging_dataset = nudging_file.open()
+        #     nudging_restart_times.append({str(nudging_file): nudging_dataset.Restart_Time})
 
         self.candidate_sim.hydro_namelist['hydro_nlist'].update(
-            {'restart_file': str(self.candidate_sim.restart_hydro[1])})
+            {'restart_file': str(self.candidate_sim.restart_hydro[0])})
+
+        self.candidate_sim.hydro_namelist['nudging_nlist'].update(
+            {'nudginglastobsfile': str(self.candidate_sim.restart_nudging[0])})
 
         self.candidate_sim.namelist_hrldas['noahlsm_offline'].update(
-            {'restart_filename_requested': str(self.candidate_sim.restart_lsm[1])}
+            {'restart_filename_requested': str(self.candidate_sim.restart_lsm[0])}
         )
 
         # Run the simulation

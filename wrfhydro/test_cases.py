@@ -224,4 +224,4 @@ class FundamentalTest(object):
             for key in self.regression_diffs.diff_counts.keys():
                 diff_status = diff_status + str(key) + ':' + \
                               str(self.regression_diffs.diff_counts[key]) + ' '
-            self.test_results.update({'diff_regression': 'fail -' + diff_status})
+            self.test_results.update({'diff_regression': 'fail- ' + diff_status})

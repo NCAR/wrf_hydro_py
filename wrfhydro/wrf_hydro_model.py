@@ -161,9 +161,9 @@ class WrfHydroModel(object):
             with open(self.compile_dir.joinpath('WrfHydroModel.pkl'), 'wb') as f:
                 pickle.dump(self, f, 2)
 
-            return('Model successfully compiled into ' + str(self.compile_dir))
+            print('Model successfully compiled into ' + str(self.compile_dir))
         else:
-            return ('Model did not successfully compile')
+            print('Model did not successfully compile')
 
 # WRF-Hydro Domain object
 class WrfHydroDomain(object):
@@ -481,19 +481,3 @@ class WrfHydroSim(object):
             warn('Model run failed')
             return run_object
 
-
-# END OF MODULE
-##################################
-
-def main():
-    # docker testing
-    # from WrfHydroModel import *
-    wrfModel = WrfHydroModel('/home/docker/wrf_hydro_nwm/trunk/NDHMS')
-    wrfModel.compile('gfort', '/home/docker/test/compile', overwrite=True)
-
-    wrfDomain = WrfHydroDomain('/home/docker/domain/croton_NY',
-                               domain_config='NWM',
-                               domain_dir='NWM/DOMAIN',
-                               restart_dir='NWM/RESTART')
-
-    WrfHydroSim(wrfModel, wrfDomain).run(simulation_dir='/home/docker/test/run',num_cores=2)

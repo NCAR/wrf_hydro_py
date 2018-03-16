@@ -2,6 +2,7 @@ from pathlib import Path
 from shutil import rmtree
 from utilities import *
 from copy import deepcopy
+from datetime import datetime
 
 class FundamentalTest(object):
     def __init__(self,candidate_sim,reference_sim,test_output_dir,overwrite = False):
@@ -167,6 +168,22 @@ class FundamentalTest(object):
 
             perfrestart_sim.hydro_namelist['nudging_nlist'].update(
                 {'nudginglastobsfile': str(simulation_dir.joinpath(nudging_rst.name))})
+
+        #Move simulation start time to restart time in hydro restart file
+        start_dt = hydro_rst.open()
+        start_dt = datetime.strptime(start_dt.Restart_Time,'%Y-%m-%d_%H:%M:%S')
+        perfrestart_sim.namelist_hrldas['noahlsm_offline'].update(
+            {'start_year': start_dt.year,
+             'start_month': start_dt.month,
+             'start_day': start_dt.day,
+             'start_hour': start_dt.hour,
+             'start_min': start_dt.minute})
+
+        #Adjust duration to be shorter by restart time delta in days
+        hydro_rst_dt = self.candidate_sim.hydro_namelist['hydro_nlist']['rst_dt']
+        previous_duration =  self.candidate_run.namelist_hrldas['noahlsm_offline']['kday']
+        new_duration = int(previous_duration - hydro_rst_dt/60/24)
+        perfrestart_sim.namelist_hrldas['noahlsm_offline'].update({'kday':new_duration})
 
         # Run the simulation
         self.candidate_perfrestart_run = perfrestart_sim.run(simulation_dir, num_cores,mode='a')

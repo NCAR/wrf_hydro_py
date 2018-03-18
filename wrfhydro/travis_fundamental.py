@@ -24,14 +24,9 @@ domain = WrfHydroDomain(domain_top_dir=domain_dir,
 
 #Setup a candidate simulation
 candidate_sim = WrfHydroSim(candidate_model,domain)
-candidate_sim.hydro_namelist['hydro_nlist'].update({'rst_dt': 480})
-candidate_sim.namelist_hrldas['noahlsm_offline'].update({'restart_frequency_hours': 8})
-candidate_sim.namelist_hrldas['noahlsm_offline'].update({'kday': 1})
 
 #Setup a reference simulation
 reference_sim = WrfHydroSim(reference_model,domain)
-reference_sim.hydro_namelist['hydro_nlist'].update({'rst_dt': 480})
-reference_sim.namelist_hrldas['noahlsm_offline'].update({'kday': 1})
 
 #Create a test class
 testCase = FundamentalTest(candidate_sim,reference_sim,output_dir,overwrite=True)

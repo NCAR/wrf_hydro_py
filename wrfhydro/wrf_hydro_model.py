@@ -477,7 +477,8 @@ class WrfHydroSim(object):
             else:
                 warn('Model run failed')
                 return run_object
-        except:
+        except Exception as e:
             warn('Model run failed')
+            print(e)
             return run_object
 

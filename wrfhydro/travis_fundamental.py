@@ -1,6 +1,6 @@
 #Import modules
 
-from sys import argv
+from sys import argv, exit
 from wrf_hydro_model import *
 from test_cases import *
 from utilities import *

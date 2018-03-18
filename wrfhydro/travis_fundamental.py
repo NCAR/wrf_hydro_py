@@ -12,10 +12,10 @@ reference_dir = str(argv[3])
 output_dir = str(argv[4])
 
 #Setup a candidate model
-candidate_model = WrfHydroModel('/home/docker/wrf_hydro_nwm/trunk/NDHMS')
+candidate_model = WrfHydroModel(candidate_dir)
 
 #Setup a reference model
-reference_model = WrfHydroModel('/home/docker/wrf_hydro_nwm/trunk/NDHMS')
+reference_model = WrfHydroModel(reference_dir)
 
 #Setup a domain
 domain = WrfHydroDomain(domain_top_dir=domain_dir,
@@ -29,10 +29,10 @@ candidate_sim = WrfHydroSim(candidate_model,domain)
 reference_sim = WrfHydroSim(reference_model,domain)
 
 #Create a test class
-testCase = FundamentalTest(candidate_sim,reference_sim,'/home/docker/test',overwrite=True)
+testCase = FundamentalTest(candidate_sim,reference_sim,output_dir,overwrite=True)
 
 #Run all tests
-testCase.run_tests(output_file=output_dir)
+testCase.run_tests(output_file=output_dir+'test_out.pkl')
 
 # Exit with testCase exit code
 exit(testCase.exit_code)

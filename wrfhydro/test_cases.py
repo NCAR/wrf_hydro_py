@@ -3,13 +3,15 @@ from shutil import rmtree
 from utilities import *
 from copy import deepcopy
 from datetime import datetime
-
+import pickle
+from pprint import pprint
 class FundamentalTest(object):
     def __init__(self,candidate_sim,reference_sim,test_output_dir,overwrite = False):
         self.candidate_sim = deepcopy(candidate_sim)
         self.reference_sim = deepcopy(reference_sim)
         self.test_output_dir = Path(test_output_dir)
         self.test_results = {}
+        self.exit_code = 0
 
         if self.test_output_dir.is_dir() is False:
             self.test_output_dir.mkdir(parents=True)
@@ -31,7 +33,7 @@ class FundamentalTest(object):
     def test_compile_candidate(self, compiler: str,
                                overwrite: bool = False,
                                compile_options: dict = None):
-
+        print('Candidate compile test')
         compile_dir = self.test_output_dir.joinpath('compile_candidate')
 
         #Compile the model
@@ -42,12 +44,15 @@ class FundamentalTest(object):
         #Check compilation status
         if self.candidate_sim.model.compile_log.returncode != 0:
             self.test_results.update({'compile_candidate':'fail'})
+            self.exit_code = 1
         else:
             self.test_results.update({'compile_candidate':'pass'})
+        print('Test completed')
 
     def test_compile_reference(self, compiler: str = None,
                                overwrite: bool = False,
                                compile_options: dict = None):
+        print('Reference compile test')
 
         compile_dir = self.test_output_dir.joinpath('compile_reference')
 
@@ -66,11 +71,15 @@ class FundamentalTest(object):
         # Check compilation status
         if self.reference_sim.model.compile_log.returncode != 0:
             self.test_results.update({'compile_reference':'fail'})
+            self.exit_code = 1
         else:
             self.test_results.update({'compile_reference':'pass'})
+        print('Test completed')
+
 
     ###Run questions
     def test_run_candidate(self,num_cores: int = 2):
+        print('Candidate run test')
 
         #Set simulation directory
         simulation_dir = self.test_output_dir.joinpath('run_candidate')
@@ -81,10 +90,16 @@ class FundamentalTest(object):
         #Check subprocess and model run status
         if self.candidate_run.run_log.returncode != 0 | self.candidate_run.run_status != 0:
             self.test_results.update({'run_candidate':'fail'})
+            self.exit_code = 1
         else:
             self.test_results.update({'run_candidate': 'pass'})
 
+        print('Test completed')
+
+
     def test_run_reference(self, num_cores: int = 2):
+        print('Reference run test')
+
         #Set simulation directory
         simulation_dir = self.test_output_dir.joinpath('run_reference')
 
@@ -99,11 +114,16 @@ class FundamentalTest(object):
         # Check subprocess and model run status
         if self.reference_run.run_log.returncode != 0 | self.reference_run.run_status != 0:
             self.test_results.update({'run_reference': 'fail'})
+            self.exit_code = 1
         else:
             self.test_results.update({'run_reference': 'pass'})
 
+        print('Test completed')
+
+
     #Ncores question
     def test_ncores_candidate(self, num_cores: int = 1):
+        print('Candidate ncores test')
 
         # Set simulation directory
         simulation_dir = self.test_output_dir.joinpath('ncores_candidate')
@@ -114,6 +134,7 @@ class FundamentalTest(object):
         # Check subprocess and model run status
         if self.candidate_ncores_run.run_log.returncode != 0 | self.candidate_ncores_run.run_status != 0:
             self.test_results.update({'run_ncores': 'fail'})
+            self.exit_code = 1
         else:
             self.test_results.update({'run_ncores': 'pass'})
 
@@ -130,9 +151,15 @@ class FundamentalTest(object):
                 diff_status = diff_status + str(key) + ':' + \
                               str(self.ncores_restart_diffs.diff_counts[key]) + ' '
             self.test_results.update({'diff_ncores': 'fail -' + diff_status})
+            self.exit_code = 1
+
+        print('Test completed')
+
 
     #Perfect restarts question
     def test_perfrestart_candidate(self, num_cores: int = 2):
+        print('Candidate perfect restart test')
+
         #Make deep copy since changing namelist optoins
         perfrestart_sim = deepcopy(self.candidate_sim)
 
@@ -192,6 +219,7 @@ class FundamentalTest(object):
         if self.candidate_perfrestart_run.run_log.returncode != 0 | \
                 self.candidate_perfrestart_run.run_status != 0:
             self.test_results.update({'run_restart': 'fail'})
+            self.exit_code = 1
         else:
             self.test_results.update({'run_restart': 'pass'})
 
@@ -208,9 +236,13 @@ class FundamentalTest(object):
                 diff_status = diff_status + str(key) + ':' + \
                               str(self.perfstart_restart_diffs.diff_counts[key]) + ' '
             self.test_results.update({'diff_perfrestart': 'fail -' + diff_status})
+            self.exit_code = 1
+        print('Test completed')
+
 
     #regression question
     def test_regression(self, num_cores: int = 2):
+        print('Regression test')
 
         #Check regression
         self.regression_diffs = RestartDiffs(self.candidate_run,
@@ -225,3 +257,24 @@ class FundamentalTest(object):
                 diff_status = diff_status + str(key) + ':' + \
                               str(self.regression_diffs.diff_counts[key]) + ' '
             self.test_results.update({'diff_regression': 'fail- ' + diff_status})
+            self.exit_code = 1
+        print('Test completed')
+
+
+    #Run method to execute all tests
+    def run_tests(self,compiler: str = 'gfort',output_file ='test_out.pkl'):
+        self.test_compile_candidate(compiler)
+        self.test_run_candidate()
+        self.test_ncores_candidate()
+        self.test_perfrestart_candidate()
+        self.test_compile_reference(compiler)
+        self.test_run_reference()
+        self.test_regression()
+
+        pprint(self.test_results)
+        if output_file is not None:
+            # Save the object out to the compile directory
+            with open(self.test_output_dir.joinpath(output_file), 'wb') as f:
+                pickle.dump(self, f, 2)
+
+

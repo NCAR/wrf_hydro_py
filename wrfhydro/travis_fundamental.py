@@ -32,7 +32,7 @@ reference_sim = WrfHydroSim(reference_model,domain)
 testCase = FundamentalTest(candidate_sim,reference_sim,output_dir,overwrite=True)
 
 #Run all tests
-testCase.run_tests(output_file=output_dir+'test_out.pkl')
+testCase.run_tests(output_file='test_out.pkl')
 
 # Exit with testCase exit code
 exit(testCase.exit_code)

@@ -202,10 +202,11 @@ class WrfHydroDomain(object):
         self.hydro_files = []
         for key, value in domain_hydro_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
-            if file_path.suffix =='.nc':
-                self.hydro_files.append(WrfHydroStatic(file_path))
-            else:
-                self.hydro_files.append(file_path)
+            if file_path.is_file() is True:
+                if file_path.suffix =='.nc':
+                    self.hydro_files.append(WrfHydroStatic(file_path))
+                else:
+                    self.hydro_files.append(file_path)
 
         # Create file paths from nudging namelist
         domain_nudging_nlist = self.namelist_patches[self.model_version][self.domain_config
@@ -214,10 +215,11 @@ class WrfHydroDomain(object):
         self.nudging_files = []
         for key, value in domain_nudging_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
-            if file_path.suffix =='.nc':
-                self.nudging_files.append(WrfHydroStatic(file_path))
-            else:
-                self.nudging_files.append(file_path)
+            if file_path.is_file() is True:
+                if file_path.suffix =='.nc':
+                    self.nudging_files.append(WrfHydroStatic(file_path))
+                else:
+                    self.nudging_files.append(file_path)
 
         # Create symlinks from lsm namelist
         domain_lsm_nlist = \
@@ -477,7 +479,8 @@ class WrfHydroSim(object):
             else:
                 warn('Model run failed')
                 return run_object
-        except:
+        except Exception as e:
             warn('Model run failed')
+            print(e)
             return run_object
 

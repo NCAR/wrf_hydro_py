@@ -11,6 +11,10 @@ candidate_dir = str(argv[2])
 reference_dir = str(argv[3])
 output_dir = str(argv[4])
 
+domain_dir='/home/docker/domain/croton_lite'
+candidate_dir='/home/docker/candidate'
+reference_dir=candidate_dir
+output_dir='test123'
 #Setup a candidate model
 candidate_model = WrfHydroModel(candidate_dir)
 

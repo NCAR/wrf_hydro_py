@@ -1,24 +1,17 @@
-import wrf_hydro_model
-repo_path = '/Users/jamesmcc/WRF_Hydro/wrf_hydro_nwm_myFork'
-model = wrf_hydro_model(repo_path)
+import sys
+sys.path.insert(0, '/home/docker/wrf_hydro_py/wrfhydro')
 
-model.compile('gfort')
+from wrf_hydro_model import *
+from test_cases import *
+from utilities import *
 
-domain = wrf_hydro_domain('/home/docker/domain/croton_NY',
+wrfModel = WrfHydroModel('/home/docker/wrf_hydro_nwm/trunk/NDHMS')
+wrfDomain = WrfHydroDomain(domain_top_dir='/home/docker/domain/croton_NY',
                           domain_config='NWM',
-                          domain_dir='NWM/DOMAIN',
-                          restart_dir='NWM/RESTART')
+                           model_version='v1.2.1')
 
-run_sim = wrf_hydro_simulation(model, domain).run()
-ncores_sim = wrf_hydro_simulation(model, domain).run()
-restart_sim = wrf_hydro_simulation(model, domain)
+wrfModel.compile('gfort')
 
-#Additional scripting to edit the namelist
-#reference_run_sim = WrfHydroSim(wrfModel, wrfDomain).run()
+wrfSim = WrfHydroSim(wrfModel,wrfDomain)
 
-#wrfSim.make_run_dir('/home/docker/test/run2')
-#candidate_run_sim.run()
-
-#candidate_wrfModel = WrfHydroModel('/home/docker/wrf_hydro_nwm/trunk/NDHMS',
-#                                     '/home/docker/test/compile')
-#candidate_wrfModel.compile('gfort')
+modelRun = wrfSim.run('/home/docker/testRun1',overwrite=True)

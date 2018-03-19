@@ -53,7 +53,7 @@ class FundamentalTest(object):
             print('Test completed')
         except Exception as e:
             warn('Candidate compile test did not complete: ')
-            warn(print(e))
+            print(e)
             self.test_results.update({'compile_candidate': 'fail'})
             self.exit_code = 1
 
@@ -86,7 +86,7 @@ class FundamentalTest(object):
             print('Test completed')
         except Exception as e:
             warn('Reference compile test did not complete: ')
-            warn(print(e))
+            print(e)
             self.test_results.update({'compile_reference': 'fail'})
             self.exit_code = 1
 
@@ -112,7 +112,7 @@ class FundamentalTest(object):
             print('Test completed')
         except Exception as e:
             warn('Candidate run test did not complete: ')
-            warn(print(e))
+            print(e)
             self.test_results.update({'run_candidate': 'fail'})
             self.exit_code = 1
 
@@ -141,7 +141,7 @@ class FundamentalTest(object):
             print('Test completed')
         except Exception as e:
             warn('Reference run test did not complete: ')
-            warn(print(e))
+            print(e)
             self.test_results.update({'run_reference': 'fail'})
             self.exit_code = 1
 
@@ -181,7 +181,7 @@ class FundamentalTest(object):
             print('Test completed')
         except Exception as e:
             warn('Candidate ncores test did not complete: ')
-            warn(print(e))
+            print(e)
             self.test_results.update({'run_ncores': 'fail'})
             self.exit_code = 1
 
@@ -270,7 +270,7 @@ class FundamentalTest(object):
             print('Test completed')
         except Exception as e:
             warn('Candidate perfect restart test did not complete: ')
-            warn(print(e))
+            print(e)
             self.test_results.update({'run_restart': 'fail'})
             self.exit_code = 1
 
@@ -297,7 +297,7 @@ class FundamentalTest(object):
             print('Test completed')
         except Exception as e:
             warn('Regression test did not complete: ')
-            warn(print(e))
+            print(e)
             self.test_results.update({'diff_regression': 'fail'})
             self.exit_code = 1
 

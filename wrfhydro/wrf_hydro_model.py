@@ -477,7 +477,7 @@ class WrfHydroRun(object):
                     self.run_status = 0
         except Exception as e:
             warn('Could not parse diag files')
-            warn(print(e))
+            print(e)
 
         if self.run_status == 0:
 

@@ -27,7 +27,7 @@ class FundamentalTest(object):
         ###########
         # Enforce some namelist options up front
 
-        # Make sure the lsm and hydro restart timesteps are output the same
+        # Make sure the lsm and hydro restart output timesteps are the same
         hydro_rst_dt = self.candidate_sim.hydro_namelist['hydro_nlist']['rst_dt']
         self.candidate_sim.namelist_hrldas['noahlsm_offline']['restart_frequency_hours'] = int(hydro_rst_dt/60)
 

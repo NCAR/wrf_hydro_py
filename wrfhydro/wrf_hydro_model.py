@@ -50,12 +50,14 @@ class WrfHydroModel(object):
         """
 
         # Setup directory paths
-        #: Path: Path object for source code directory.
         self.source_dir = Path(source_dir)
+        """Path: Path object for source code directory."""
+
         # Load master namelists
         self.hydro_namelists = \
             json.load(open(self.source_dir.joinpath('hydro_namelists.json')))
         """dict: Master dictionary of all hydro.namelists stored with the source code."""
+
         self.hrldas_namelists = \
             json.load(open(self.source_dir.joinpath('hrldas_namelists.json')))
         """dict: Master dictionary of all namelist.hrldas stored with the source code."""

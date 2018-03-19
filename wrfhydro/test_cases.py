@@ -238,7 +238,8 @@ class FundamentalTest(object):
 
             #Adjust duration to be shorter by restart time delta in days
             hydro_rst_dt = self.candidate_sim.hydro_namelist['hydro_nlist']['rst_dt']
-            previous_duration =  self.candidate_run.namelist_hrldas['noahlsm_offline']['kday']
+            previous_duration =  self.candidate_run.simulation.namelist_hrldas['noahlsm_offline'][
+                'kday']
             new_duration = int(previous_duration - hydro_rst_dt/60/24)
             perfrestart_sim.namelist_hrldas['noahlsm_offline'].update({'kday':new_duration})
 

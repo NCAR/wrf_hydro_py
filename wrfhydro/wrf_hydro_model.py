@@ -338,18 +338,13 @@ class WrfHydroSim(object):
             Add option for custom run commands to deal with job schedulers
         """
         #Make copy of simulation object to alter and return
-        try:
-            simulation = deepcopy(self)
-            run_object = WrfHydroRun(wrf_hydro_simulation=simulation,
-                                     simulation_dir=simulation_dir,
-                                     num_cores=num_cores,
-                                     mode=mode)
-            print('Model run succeeded')
-            return run_object
-        except Exception as e:
-            warn('Model run failed')
-            print(e)
-            return run_object
+        simulation = deepcopy(self)
+        run_object = WrfHydroRun(wrf_hydro_simulation=simulation,
+                                 simulation_dir=simulation_dir,
+                                 num_cores=num_cores,
+                                 mode=mode)
+        print('Model run succeeded')
+        return run_object
 
 
 class WrfHydroRun(object):

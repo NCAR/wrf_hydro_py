@@ -325,7 +325,7 @@ class WrfHydroSim(object):
     def run(self,
             simulation_dir: str,
             num_cores: int = 2,
-            mode: str = 'r') -> WrfHydroRun:
+            mode: str = 'r') -> object:
         """Run the wrf_hydro simulation
         Args:
             simulation_dir: The path to the directory to use for run

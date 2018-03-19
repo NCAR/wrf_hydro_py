@@ -35,10 +35,7 @@ class WrfHydroStatic(PosixPath):
 
 #########################
 # Classes for constructing and running a wrf_hydro simulation
-
-
 class WrfHydroModel(object):
-    # TODO - Add in docstring describing attributes for each class
     def __init__(self, source_dir: str):
         """Create a WrfHydroModel object.
         Args:

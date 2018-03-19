@@ -36,7 +36,7 @@ class FundamentalTest(object):
                                overwrite: bool = False,
                                compile_options: dict = None):
         try:
-            print('Candidate compile test')
+            #print('Candidate compile test')
             compile_dir = self.output_dir.joinpath('compile_candidate')
 
             #Compile the model
@@ -50,7 +50,7 @@ class FundamentalTest(object):
                 self.exit_code = 1
             else:
                 self.results.update({'compile_candidate':'pass'})
-            print('Test completed')
+            #print('Test completed')
         except Exception as e:
             warn('Candidate compile test did not complete: ')
             print(e)
@@ -61,7 +61,7 @@ class FundamentalTest(object):
                                overwrite: bool = False,
                                compile_options: dict = None):
         try:
-            print('Reference compile test')
+            #print('Reference compile test')
 
             compile_dir = self.output_dir.joinpath('compile_reference')
 
@@ -83,7 +83,7 @@ class FundamentalTest(object):
                 self.exit_code = 1
             else:
                 self.results.update({'compile_reference':'pass'})
-            print('Test completed')
+            #print('Test completed')
         except Exception as e:
             warn('Reference compile test did not complete: ')
             print(e)
@@ -94,7 +94,7 @@ class FundamentalTest(object):
     ###Run questions
     def test_run_candidate(self,num_cores: int = 2):
         try:
-            print('Candidate run test')
+            #print('Candidate run test')
 
             #Set simulation directory
             simulation_dir = self.output_dir.joinpath('run_candidate')
@@ -109,7 +109,7 @@ class FundamentalTest(object):
             else:
                 self.results.update({'run_candidate': 'pass'})
 
-            print('Test completed')
+           #print('Test completed')
         except Exception as e:
             warn('Candidate run test did not complete: ')
             print(e)
@@ -118,7 +118,7 @@ class FundamentalTest(object):
 
     def test_run_reference(self, num_cores: int = 2):
         try:
-            print('Reference run test')
+            #print('Reference run test')
 
             #Set simulation directory
             simulation_dir = self.output_dir.joinpath('run_reference')
@@ -138,7 +138,7 @@ class FundamentalTest(object):
             else:
                 self.results.update({'run_reference': 'pass'})
 
-            print('Test completed')
+            #print('Test completed')
         except Exception as e:
             warn('Reference run test did not complete: ')
             print(e)
@@ -148,7 +148,7 @@ class FundamentalTest(object):
     #Ncores question
     def test_ncores_candidate(self, num_cores: int = 1):
         try:
-            print('Candidate ncores test')
+            #print('Candidate ncores test')
 
             # Set simulation directory
             simulation_dir = self.output_dir.joinpath('ncores_candidate')
@@ -178,7 +178,7 @@ class FundamentalTest(object):
                 self.results.update({'diff_ncores': 'fail -' + diff_status})
                 self.exit_code = 1
 
-            print('Test completed')
+            #print('Test completed')
         except Exception as e:
             warn('Candidate ncores test did not complete: ')
             print(e)
@@ -188,7 +188,7 @@ class FundamentalTest(object):
     #Perfect restarts question
     def test_perfrestart_candidate(self, num_cores: int = 2):
         try:
-            print('Candidate perfect restart test')
+            #print('Candidate perfect restart test')
 
             #Make deep copy since changing namelist optoins
             perfrestart_sim = deepcopy(self.candidate_sim)
@@ -268,7 +268,7 @@ class FundamentalTest(object):
                                   str(self.perfstart_restart_diffs.diff_counts[key]) + ' '
                 self.results.update({'diff_perfrestart': 'fail -' + diff_status})
                 self.exit_code = 1
-            print('Test completed')
+            #print('Test completed')
         except Exception as e:
             warn('Candidate perfect restart test did not complete: ')
             print(e)
@@ -279,7 +279,7 @@ class FundamentalTest(object):
     #regression question
     def test_regression(self, num_cores: int = 2):
         try:
-            print('Regression test')
+            #print('Regression test')
 
             #Check regression
             self.regression_diffs = RestartDiffs(self.candidate_run,
@@ -295,7 +295,7 @@ class FundamentalTest(object):
                                   str(self.regression_diffs.diff_counts[key]) + ' '
                 self.results.update({'diff_regression': 'fail- ' + diff_status})
                 self.exit_code = 1
-            print('Test completed')
+            #print('Test completed')
         except Exception as e:
             warn('Regression test did not complete: ')
             print(e)

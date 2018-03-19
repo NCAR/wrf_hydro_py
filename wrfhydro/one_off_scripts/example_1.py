@@ -21,4 +21,4 @@ wrfModel.compile('gfort')
 
 wrfSim = WrfHydroSim(wrfModel,wrfDomain)
 
-modelRun = wrfSim.run('/home/docker/testRun1',overwrite=True)
+modelRun = wrfSim.run('/home/docker/testRun1',mode='w')

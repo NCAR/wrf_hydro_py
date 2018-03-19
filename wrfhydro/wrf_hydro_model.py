@@ -391,10 +391,10 @@ class WrfHydroRun(object):
 
         ### Check that compile object uid matches compile directory uid
         ### This is to ensure that a new model has not been compiled into that directory unknowingly
-        with open(self.model.compile_dir.joinpath('.uid')) as f:
+        with open(self.simulation.model.compile_dir.joinpath('.uid')) as f:
             compile_uid = f.read()
 
-        if self.model.object_id != compile_uid:
+        if self.simulation.model.object_id != compile_uid:
             raise PermissionError('object id mismatch between WrfHydroModel object and'
                                   'WrfHydroModel.compile_dir directory. Directory may have been'
                                   'used for another compile')
@@ -404,57 +404,57 @@ class WrfHydroRun(object):
         # Convert strings to Path objects
 
         # Loop to make symlinks for each TBL file
-        for from_file in self.model.table_files:
+        for from_file in self.simulation.model.table_files:
             # Create file paths to symlink
             to_file = self.simulation_dir.joinpath(from_file.name)
             # Create symlinks
             to_file.symlink_to(from_file)
 
         # Symlink in exe
-        wrf_hydro_exe = self.model.wrf_hydro_exe
+        wrf_hydro_exe = self.simulation.model.wrf_hydro_exe
         self.simulation_dir.joinpath(wrf_hydro_exe.name).symlink_to(wrf_hydro_exe)
 
         # Symlink in forcing
-        forcing_dir = self.domain.forcing_dir
+        forcing_dir = self.simulation.domain.forcing_dir
         self.simulation_dir.joinpath(forcing_dir.name). \
             symlink_to(forcing_dir, target_is_directory=True)
 
         # create DOMAIN directory and symlink in files
         # Symlink in hydro_files
-        for file_path in self.domain.hydro_files:
+        for file_path in self.simulation.domain.hydro_files:
             # Get new file path for run directory, relative to the top-level domain directory
             # This is needed to ensure the path matches the domain namelist
-            relative_path = file_path.relative_to(self.domain.domain_top_dir)
+            relative_path = file_path.relative_to(self.simulation.domain.domain_top_dir)
             symlink_path = self.simulation_dir.joinpath(relative_path)
             if symlink_path.parent.is_dir() is False:
                 symlink_path.parent.mkdir(parents=True)
             symlink_path.symlink_to(file_path)
 
         # Symlink in nudging files
-        for file_path in self.domain.nudging_files:
+        for file_path in self.simulation.domain.nudging_files:
             # Get new file path for run directory, relative to the top-level domain directory
             # This is needed to ensure the path matches the domain namelist
-            relative_path = file_path.relative_to(self.domain.domain_top_dir)
+            relative_path = file_path.relative_to(self.simulation.domain.domain_top_dir)
             symlink_path = self.simulation_dir.joinpath(relative_path)
             if symlink_path.parent.is_dir() is False:
                 symlink_path.parent.mkdir(parents=True)
             symlink_path.symlink_to(file_path)
 
         # Symlink in lsm files
-        for file_path in self.domain.lsm_files:
+        for file_path in self.simulation.domain.lsm_files:
             # Get new file path for run directory, relative to the top-level domain directory
             # This is needed to ensure the path matches the domain namelist
-            relative_path = file_path.relative_to(self.domain.domain_top_dir)
+            relative_path = file_path.relative_to(self.simulation.domain.domain_top_dir)
             symlink_path = self.simulation_dir.joinpath(relative_path)
             if symlink_path.parent.is_dir() is False:
                 symlink_path.parent.mkdir(parents=True)
             symlink_path.symlink_to(file_path)
 
         # write hydro.namelist
-        f90nml.write(self.hydro_namelist,
+        f90nml.write(self.simulation.hydro_namelist,
                      self.simulation_dir.joinpath('hydro.namelist'))
         # write namelist.hrldas
-        f90nml.write(self.namelist_hrldas,
+        f90nml.write(self.simulation.namelist_hrldas,
                      self.simulation_dir.joinpath('namelist.hrldas'))
 
         # Run the model

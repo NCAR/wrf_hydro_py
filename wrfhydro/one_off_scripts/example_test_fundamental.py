@@ -7,14 +7,14 @@ from test_cases import *
 from utilities import *
 
 #Setup a domain
-domain = WrfHydroDomain(domain_top_dir='/home/docker/domain/croton_NY',
+domain = WrfHydroDomain(domain_top_dir='/home/docker/domain/croton_lite',
                            domain_config='NWM',
                            model_version='v1.2.1')
 #Setup a candidate model
-candidate_model = WrfHydroModel('/home/docker/wrf_hydro_nwm/trunk/NDHMS')
+candidate_model = WrfHydroModel('/home/docker/wrf_hydro_nwm_public/trunk/NDHMS')
 
 #Setup a reference model
-reference_model = WrfHydroModel('/home/docker/wrf_hydro_nwm/trunk/NDHMS')
+reference_model = WrfHydroModel('/home/docker/wrf_hydro_nwm_public/trunk/NDHMS')
 
 #Setup a candidate simulation
 candidate_sim = WrfHydroSim(candidate_model,domain)

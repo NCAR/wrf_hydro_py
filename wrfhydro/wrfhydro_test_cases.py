@@ -1,17 +1,17 @@
-from pathlib import Path
-from shutil import rmtree
+import pathlib
+import shutil
 from utilities import *
-from copy import deepcopy
-from datetime import datetime
+import deepcopy
+import datetime as dt
 import pickle
 from pprint import pprint
-from warnings import warn
+import warnings
 
 class FundamentalTest(object):
     def __init__(self,candidate_sim,reference_sim,output_dir,overwrite = False):
-        self.candidate_sim = deepcopy(candidate_sim)
-        self.reference_sim = deepcopy(reference_sim)
-        self.output_dir = Path(output_dir)
+        self.candidate_sim = copy.deepcopy(candidate_sim)
+        self.reference_sim = copy.deepcopy(reference_sim)
+        self.output_dir = pathlib.Path(output_dir)
         self.results = {}
         self.exit_code = None
 
@@ -19,7 +19,7 @@ class FundamentalTest(object):
             self.output_dir.mkdir(parents=True)
         else:
             if self.output_dir.is_dir() is True and overwrite is True:
-                rmtree(str(self.output_dir))
+                shutil.rmtree(str(self.output_dir))
                 self.output_dir.mkdir()
             else:
                 raise IOError(str(self.output_dir) + ' directory already exists')
@@ -52,7 +52,7 @@ class FundamentalTest(object):
                 self.results.update({'compile_candidate':'pass'})
             #print('Test completed')
         except Exception as e:
-            warn('Candidate compile test did not complete: ')
+            warnings.warn('Candidate compile test did not complete: ')
             print(e)
             self.results.update({'compile_candidate': 'fail'})
             self.exit_code = 1
@@ -85,7 +85,7 @@ class FundamentalTest(object):
                 self.results.update({'compile_reference':'pass'})
             #print('Test completed')
         except Exception as e:
-            warn('Reference compile test did not complete: ')
+            warnings.warn('Reference compile test did not complete: ')
             print(e)
             self.results.update({'compile_reference': 'fail'})
             self.exit_code = 1
@@ -111,7 +111,7 @@ class FundamentalTest(object):
 
            #print('Test completed')
         except Exception as e:
-            warn('Candidate run test did not complete: ')
+            warnings.warn('Candidate run test did not complete: ')
             print(e)
             self.results.update({'run_candidate': 'fail'})
             self.exit_code = 1
@@ -140,7 +140,7 @@ class FundamentalTest(object):
 
             #print('Test completed')
         except Exception as e:
-            warn('Reference run test did not complete: ')
+            warnings.warn('Reference run test did not complete: ')
             print(e)
             self.results.update({'run_reference': 'fail'})
             self.exit_code = 1
@@ -180,7 +180,7 @@ class FundamentalTest(object):
 
             #print('Test completed')
         except Exception as e:
-            warn('Candidate ncores test did not complete: ')
+            warnings.warn('Candidate ncores test did not complete: ')
             print(e)
             self.results.update({'run_ncores': 'fail'})
             self.exit_code = 1
@@ -191,7 +191,7 @@ class FundamentalTest(object):
             #print('Candidate perfect restart test')
 
             #Make deep copy since changing namelist optoins
-            perfrestart_sim = deepcopy(self.candidate_sim)
+            perfrestart_sim = copy.deepcopy(self.candidate_sim)
 
             # Set simulation directory
             simulation_dir = self.output_dir.joinpath('restart_candidate')
@@ -228,7 +228,7 @@ class FundamentalTest(object):
 
             #Move simulation start time to restart time in hydro restart file
             start_dt = hydro_rst.open()
-            start_dt = datetime.strptime(start_dt.Restart_Time,'%Y-%m-%d_%H:%M:%S')
+            start_dt = dt.datetime.strptime(start_dt.Restart_Time,'%Y-%m-%d_%H:%M:%S')
             perfrestart_sim.namelist_hrldas['noahlsm_offline'].update(
                 {'start_year': start_dt.year,
                  'start_month': start_dt.month,
@@ -270,7 +270,7 @@ class FundamentalTest(object):
                 self.exit_code = 1
             #print('Test completed')
         except Exception as e:
-            warn('Candidate perfect restart test did not complete: ')
+            warnings.warn('Candidate perfect restart test did not complete: ')
             print(e)
             self.results.update({'run_restart': 'fail'})
             self.exit_code = 1
@@ -297,7 +297,7 @@ class FundamentalTest(object):
                 self.exit_code = 1
             #print('Test completed')
         except Exception as e:
-            warn('Regression test did not complete: ')
+            warnings.warn('Regression test did not complete: ')
             print(e)
             self.results.update({'diff_regression': 'fail'})
             self.exit_code = 1

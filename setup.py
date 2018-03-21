@@ -9,18 +9,4 @@ setup(
     author='Joe Mills',
     author_email='jmills@ucar.edu',
     description='Crude API for the WRF-Hydro model',
-    # install_requires=[
-    #     'copy',
-    #     'subprocess',
-    #     'pandas',
-    #     'warnings',
-    #     'f90nml',
-    #     'deepdiff',
-    #     'json',
-    #     'pathlib',
-    #     'xarray',
-    #     'uuid',
-    #     'pickle',
-    #     'datetime'
-    # ],
 )

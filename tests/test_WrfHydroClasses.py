@@ -1,16 +1,15 @@
 import sys
 sys.path.insert(0, '/home/docker/wrf_hydro_py/wrfhydro')
 
-import pytest
-from pathlib import Path
+import pathlib
 from wrf_hydro_model import *
 import pickle
-from deepdiff import DeepDiff
-from copy import deepcopy
+import deepdiff
+import copy
 
 ##################################
 # Directories for import and for test data, used for making expected datasets
-testDataDir = Path('/home/docker/wrf_hydro_py/tests/data')
+# testDataDir = pathlib.Path('/home/docker/wrf_hydro_py/tests/data')
 ##################################
 
 ##################################
@@ -37,7 +36,7 @@ def test_domain_nwm(datadir_copy):
                                    model_version='v1.2.1')
 
     # Compare to expected to new
-    diffs = DeepDiff(domain_object_expected,domain_object)
+    diffs = deepdiff.DeepDiff(domain_object_expected,domain_object)
     assert diffs == {}
 ##################################
 
@@ -53,7 +52,7 @@ def test_domain_nwm(datadir_copy):
 # model_object_precompile = WrfHydroModel(source_dir=source_dir)
 #
 # # Make post compile object
-# model_object_postcompile = deepcopy(model_object_precompile)
+# model_object_postcompile = copy.deepcopy(model_object_precompile)
 # model_object_postcompile.compile('gfort',compile_dir = compile_dir,
 #                                                             overwrite=True)
 #
@@ -80,11 +79,11 @@ def test_model_nwm(datadir_copy):
     model_object_precompile = WrfHydroModel(source_dir=source_dir)
 
     # Make post compile object
-    model_object_postcompile = deepcopy(model_object_precompile)
+    model_object_postcompile = copy.deepcopy(model_object_precompile)
     model_object_postcompile.compile('gfort',compile_dir=compile_dir,overwrite=True)
 
     # Compare to expected pre-compile object
-    diffs_precompile = DeepDiff(model_objects_expected['model_object_precompile'],
+    diffs_precompile = deepdiff.DeepDiff(model_objects_expected['model_object_precompile'],
                                 model_object_precompile)
     assert diffs_precompile == {}
 
@@ -92,7 +91,7 @@ def test_model_nwm(datadir_copy):
     postcompile_expected = model_objects_expected['model_object_postcompile']
 
     # check that the model compiled successfully
-    diffs_compile_options = DeepDiff(model_object_postcompile.compile_options,
+    diffs_compile_options = deepdiff.DeepDiff(model_object_postcompile.compile_options,
                                      postcompile_expected.compile_options,
                                      ignore_order=True)
     assert diffs_compile_options == {}

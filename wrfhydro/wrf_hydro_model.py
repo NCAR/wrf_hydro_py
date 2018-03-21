@@ -5,7 +5,7 @@ import xarray as xr
 import f90nml
 import json
 from copy import deepcopy
-from os import chdir
+from os import chdir, getcwd
 from uuid import uuid4
 import pickle
 from warnings import warn
@@ -50,7 +50,7 @@ class WrfHydroModel(object):
         """
 
         # Setup directory paths
-        self.source_dir = Path(source_dir)
+        self.source_dir = Path(source_dir).absolute()
         """Path: Path object for source code directory."""
 
         # Load master namelists
@@ -97,7 +97,7 @@ class WrfHydroModel(object):
             self.compile_dir = self.source_dir.joinpath('Run')
             """Path: Path object pointing to the compile directory."""
         else:
-            self.compile_dir = Path(compile_dir)
+            self.compile_dir = Path(compile_dir).absolute()
             """Path: Path object pointing to the compile directory."""
             if self.compile_dir.is_dir() is False:
                 self.compile_dir.mkdir(parents=True)
@@ -124,6 +124,7 @@ class WrfHydroModel(object):
                 file.write("export {}={}\n".format(option, value))
 
         # Compile
+        current_wd=getcwd()
         # Change to source code directory for compile time
         chdir(self.source_dir)
         self.configure_log = subprocess.run(['./configure', compiler],
@@ -132,10 +133,12 @@ class WrfHydroModel(object):
         """CompletedProcess: The subprocess object generated at configure."""
 
         self.compile_log = subprocess.run(['./compile_offline_NoahMP.sh',
-                                           str(compile_options_file)],
+                                           str(compile_options_file.absolute())],
                                           stdout=subprocess.PIPE,
                                           stderr=subprocess.PIPE)
         """CompletedProcess: The subprocess object generated at compile."""
+        # Change to back to previous working directory
+        chdir(current_wd)
 
         # Add in unique ID file to match this object to prevent assosciating
         # this directory with another object
@@ -204,7 +207,7 @@ class WrfHydroDomain(object):
 
         ###Instantiate arguments to object
         # Make file paths
-        self.domain_top_dir = Path(domain_top_dir)
+        self.domain_top_dir = Path(domain_top_dir).absolute()
         """Path: Paths to *.TBL files generated at compile-time."""
 
         self.namelist_patch_file = self.domain_top_dir.joinpath(namelist_patch_file)
@@ -460,12 +463,13 @@ class WrfHydroRun(object):
                      self.simulation_dir.joinpath('namelist.hrldas'))
 
         # Run the model
+        current_wd=getcwd()
         chdir(self.simulation_dir)
         self.run_log = subprocess.run(['mpiexec', '-np', str(num_cores), './wrf_hydro.exe'],
                                       stdout=subprocess.PIPE,
                                       stderr=subprocess.PIPE)
         """CompletedProcess: The subprocess returned from the run call"""
-
+        chdir(current_wd)
 
         try:
             self.run_status = 1

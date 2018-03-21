@@ -1,0 +1,37 @@
+sudo: required
+language: python
+python:
+  - 3.5
+  - 3.6
+services:
+  - docker
+
+before_install:
+  - TRAVIS_HOME_DIR=/home/travis_dir
+  - sudo mkdir $TRAVIS_HOME_DIR
+  - sudo chmod -R 777 $TRAVIS_HOME_DIR
+  - docker pull wrfhydro/dev:conda
+  - git clone https://github.com/NCAR/wrf_hydro_py.git $TRAVIS_HOME_DIR
+script:
+    - docker run -v $TRAVIS_HOME_DIR/wrf_hydro_py:/home/docker/wrf_hydro_py wrfhydro/dev:conda pytest /home/docker/wrf_hydro_py/tests
+
+# after_failure:
+#   - echo $TRAVIS_HOME_DIR
+#   - echo $TEST_OUT_DIR_TRAVIS
+#   - mkdir $TRAVIS_HOME_DIR/dockerBuild
+#   - mkdir $TRAVIS_HOME_DIR/dockerBuild/test_out
+#   - cp -r $TEST_OUT_DIR_TRAVIS $TRAVIS_HOME_DIR/dockerBuild/test_out
+#   - cd $TRAVIS_HOME_DIR/dockerBuild
+#   - touch Dockerfile
+#   - echo "FROM alpine" >> Dockerfile
+#   - echo "MAINTAINER jmills@ucar.edu" >> Dockerfile
+#   - echo "RUN mkdir /home/docker" >> Dockerfile
+#   - echo "COPY test_out/ /home/docker/" >> Dockerfile
+#   - echo "RUN chmod -R 777 $TEST_OUT_DIR_DOCKER" >> Dockerfile
+#   - echo "RUN chmod -R 777 /home/docker" >> Dockerfile
+#   - echo "VOLUME /home/docker" >> Dockerfile
+#   - echo "WORKDIR /home/docker"  >> Dockerfile
+#   - docker build -t wrfhydro/travis_builds_private:$TRAVIS_BUILD_NUMBER .
+#   - docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
+#   - docker push wrfhydro/travis_builds_private:$TRAVIS_BUILD_NUMBER
+

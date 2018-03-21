@@ -1,14 +1,14 @@
 import subprocess
-from pathlib import Path, PosixPath
-from shutil import copyfile, rmtree
+import pathlib
+import shutil
 import xarray as xr
 import f90nml
 import json
-from copy import deepcopy
-from os import chdir
-from uuid import uuid4
+import copy
+import os
+import uuid
 import pickle
-from warnings import warn
+import warnings
 #########################
 # netcdf file object classes
 
@@ -22,7 +22,7 @@ class WrfHydroTs(list):
         """
         return(xr.open_mfdataset(self, concat_dim='Time'))
 
-class WrfHydroStatic(PosixPath):
+class WrfHydroStatic(pathlib.PosixPath):
     def open(self):
         """Open a WrfHydroStatic object
         Args:
@@ -50,8 +50,8 @@ class WrfHydroModel(object):
         """
 
         # Setup directory paths
-        self.source_dir = Path(source_dir)
-        """Path: Path object for source code directory."""
+        self.source_dir = pathlib.Path(source_dir).absolute()
+        """pathlib.Path: pathlib.Path object for source code directory."""
 
         # Load master namelists
         self.hydro_namelists = \
@@ -95,15 +95,15 @@ class WrfHydroModel(object):
         # A bunch of ugly logic to check compile directory.
         if compile_dir is None:
             self.compile_dir = self.source_dir.joinpath('Run')
-            """Path: Path object pointing to the compile directory."""
+            """pathlib.Path: pathlib.Path object pointing to the compile directory."""
         else:
-            self.compile_dir = Path(compile_dir)
-            """Path: Path object pointing to the compile directory."""
+            self.compile_dir = pathlib.Path(compile_dir).absolute()
+            """pathlib.Path: pathlib.Path object pointing to the compile directory."""
             if self.compile_dir.is_dir() is False:
                 self.compile_dir.mkdir(parents=True)
             else:
                 if self.compile_dir.is_dir() is True and overwrite is True:
-                    rmtree(str(self.compile_dir))
+                    shutil.rmtree(str(self.compile_dir))
                     self.compile_dir.mkdir()
                 else:
                     raise IOError(str(self.compile_dir) + ' directory already exists')
@@ -124,22 +124,25 @@ class WrfHydroModel(object):
                 file.write("export {}={}\n".format(option, value))
 
         # Compile
+        current_wd=os.getcwd()
         # Change to source code directory for compile time
-        chdir(self.source_dir)
+        os.chdir(self.source_dir)
         self.configure_log = subprocess.run(['./configure', compiler],
                                             stdout=subprocess.PIPE,
                                             stderr=subprocess.PIPE)
         """CompletedProcess: The subprocess object generated at configure."""
 
         self.compile_log = subprocess.run(['./compile_offline_NoahMP.sh',
-                                           str(compile_options_file)],
+                                           str(compile_options_file.absolute())],
                                           stdout=subprocess.PIPE,
                                           stderr=subprocess.PIPE)
         """CompletedProcess: The subprocess object generated at compile."""
+        # Change to back to previous working directory
+        os.chdir(current_wd)
 
         # Add in unique ID file to match this object to prevent assosciating
         # this directory with another object
-        self.object_id = str(uuid4())
+        self.object_id = str(uuid.uuid4())
         """str: A unique id to join object to compile directory."""
 
         with open(self.compile_dir.joinpath('.uid'),'w') as f:
@@ -153,13 +156,13 @@ class WrfHydroModel(object):
             # Copy files to new directory if its not the same as the source code directory
             if str(self.compile_dir.parent) != str(self.source_dir):
                 for file in self.source_dir.joinpath('Run').glob('*.TBL'):
-                    copyfile(file,str(self.compile_dir.joinpath(file.name)))
+                    shutil.copyfile(file,str(self.compile_dir.joinpath(file.name)))
 
-                copyfile(str(self.source_dir.joinpath('Run').joinpath('wrf_hydro.exe')),
+                shutil.copyfile(str(self.source_dir.joinpath('Run').joinpath('wrf_hydro.exe')),
                          str(self.compile_dir.joinpath('wrf_hydro.exe')))
 
                 #Remove old files
-                rmtree(self.source_dir.joinpath('Run'))
+                shutil.rmtree(self.source_dir.joinpath('Run'))
 
             # Open permissions on copied compiled files
             subprocess.run(['chmod', '-R', '777', str(self.compile_dir)])
@@ -167,11 +170,11 @@ class WrfHydroModel(object):
             #Get file lists as attributes
             # Get list of table file paths
             self.table_files = list(self.compile_dir.glob('*.TBL'))
-            """list: Paths to *.TBL files generated at compile-time."""
+            """list: pathlib.Paths to *.TBL files generated at compile-time."""
 
             # Get wrf_hydro.exe file path
             self.wrf_hydro_exe = self.compile_dir.joinpath('wrf_hydro.exe')
-            """Path: Path to wrf_hydro.exe file generated at compile-time."""
+            """pathlib.Path: pathlib.Path to wrf_hydro.exe file generated at compile-time."""
 
             # Save the object out to the compile directory
             with open(self.compile_dir.joinpath('WrfHydroModel.pkl'), 'wb') as f:
@@ -204,11 +207,11 @@ class WrfHydroDomain(object):
 
         ###Instantiate arguments to object
         # Make file paths
-        self.domain_top_dir = Path(domain_top_dir)
-        """Path: Paths to *.TBL files generated at compile-time."""
+        self.domain_top_dir = pathlib.Path(domain_top_dir).absolute()
+        """pathlib.Path: pathlib.Paths to *.TBL files generated at compile-time."""
 
         self.namelist_patch_file = self.domain_top_dir.joinpath(namelist_patch_file)
-        """Path: Path to the namelist_patches json file."""
+        """pathlib.Path: pathlib.Path to the namelist_patches json file."""
 
         # Load namelist patches
         self.namelist_patches = json.load(open(self.namelist_patch_file, 'r'))
@@ -284,15 +287,15 @@ class WrfHydroSim(object):
             A WrfHydroSim object
         """
         # assign objects to self
-        self.model = deepcopy(wrf_hydro_model)
+        self.model = copy.deepcopy(wrf_hydro_model)
         """WrfHydroModel: A copy of the WrfHydroModel object used for the simulation"""
 
-        self.domain = deepcopy(wrf_hydro_domain)
+        self.domain = copy.deepcopy(wrf_hydro_domain)
         """WrfHydroDomain: A copy of the WrfHydroDomain object used for the simulation"""
 
         # Create namelists
         self.hydro_namelist = \
-            deepcopy(self.model.hydro_namelists[self.model.version][self.domain.domain_config])
+            copy.deepcopy(self.model.hydro_namelists[self.model.version][self.domain.domain_config])
         """dict: A copy of the hydro_namelist used by the WrfHydroModel for the specified model 
         version and domain configuration"""
 
@@ -309,7 +312,7 @@ class WrfHydroSim(object):
                                                     ['nudging_nlist'])
 
         self.namelist_hrldas = \
-            deepcopy(self.model.hrldas_namelists[self.model.version][self.domain.domain_config])
+            copy.deepcopy(self.model.hrldas_namelists[self.model.version][self.domain.domain_config])
         """dict: A copy of the hrldas_namelist used by the WrfHydroModel for the specified model 
         version and domain configuration"""
 
@@ -340,7 +343,7 @@ class WrfHydroSim(object):
             Add option for custom run commands to deal with job schedulers
         """
         #Make copy of simulation object to alter and return
-        simulation = deepcopy(self)
+        simulation = copy.deepcopy(self)
         run_object = WrfHydroRun(wrf_hydro_simulation=simulation,
                                  simulation_dir=simulation_dir,
                                  num_cores=num_cores,
@@ -376,20 +379,20 @@ class WrfHydroRun(object):
         """int: The number of cores used for the run"""
 
         # Add sim dir
-        self.simulation_dir = Path(simulation_dir)
-        """Path: Path to the directory used for the run"""
+        self.simulation_dir = pathlib.Path(simulation_dir)
+        """pathlib.Path: pathlib.Path to the directory used for the run"""
 
         # Make directory if it does not exists
         if self.simulation_dir.is_dir() is False:
             self.simulation_dir.mkdir(parents=True)
         else:
             if self.simulation_dir.is_dir() is True and mode == 'w':
-                rmtree(str(self.simulation_dir))
+                shutil.rmtree(str(self.simulation_dir))
                 self.simulation_dir.mkdir(parents=True)
             elif self.simulation_dir.is_dir() is True and mode == 'r':
                 raise PermissionError('Run directory already exists and mode = r')
             else:
-                warn('Existing run directory will be used for simulation')
+                warnings.warn('Existing run directory will be used for simulation')
 
         ### Check that compile object uid matches compile directory uid
         ### This is to ensure that a new model has not been compiled into that directory unknowingly
@@ -403,7 +406,7 @@ class WrfHydroRun(object):
         ###########################################################################
         # MAKE RUN DIRECTORIES
         # Construct all file/dir paths
-        # Convert strings to Path objects
+        # Convert strings to pathlib.Path objects
 
         # Loop to make symlinks for each TBL file
         for from_file in self.simulation.model.table_files:
@@ -460,12 +463,13 @@ class WrfHydroRun(object):
                      self.simulation_dir.joinpath('namelist.hrldas'))
 
         # Run the model
-        chdir(self.simulation_dir)
+        current_wd=os.getcwd()
+        os.chdir(self.simulation_dir)
         self.run_log = subprocess.run(['mpiexec', '-np', str(num_cores), './wrf_hydro.exe'],
                                       stdout=subprocess.PIPE,
                                       stderr=subprocess.PIPE)
         """CompletedProcess: The subprocess returned from the run call"""
-
+        os.chdir(current_wd)
 
         try:
             self.run_status = 1
@@ -476,7 +480,7 @@ class WrfHydroRun(object):
                 if 'The model finished successfully.......' in diag_file:
                     self.run_status = 0
         except Exception as e:
-            warn('Could not parse diag files')
+            warnings.warn('Could not parse diag files')
             print(e)
 
         if self.run_status == 0:
@@ -488,7 +492,7 @@ class WrfHydroRun(object):
 
             ## Get diag files
             self.diag = list(self.simulation_dir.glob('diag_hydro.*'))
-            """list: Paths to diag files generated at run time"""
+            """list: pathlib.Paths to diag files generated at run time"""
 
             ## Get channel files
             if len(list(self.simulation_dir.glob('*CHRTOUT*'))) > 0:
@@ -536,7 +540,7 @@ class WrfHydroRun(object):
             #####################
 
             # create a UID for the simulation and save in file
-            self.object_id = str(uuid4())
+            self.object_id = str(uuid.uuid4())
             """str: A unique id to join object to run directory."""
             with open(self.simulation_dir.joinpath('.uid'), 'w') as f:
                 f.write(self.object_id)
@@ -548,4 +552,4 @@ class WrfHydroRun(object):
 
             print('Model run succeeded')
         else:
-            warn('Model run failed')
+            warnings.warn('Model run failed')

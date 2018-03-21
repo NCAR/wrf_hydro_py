@@ -30,6 +30,10 @@ testCase.test_compile_candidate('gfort',overwrite=True,compile_options={'WRF_HYD
 testCase.test_run_candidate()
 testCase.test_ncores_candidate()
 testCase.test_perfrestart_candidate()
-testCase.test_compile_reference('gfort',overwrite=True,compile_options={'WRF_HYDRO_NUDGING': 0})
+testCase.test_compile_reference('gfort',overwrite=True,compile_options={'WRF_HYDRO_NUDGING': 1})
 testCase.test_run_reference()
 testCase.test_regression()
+
+print(testCase.results)
+
+exit(testCase.exit_code)

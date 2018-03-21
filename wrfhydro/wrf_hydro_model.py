@@ -35,12 +35,11 @@ class WrfHydroStatic(PosixPath):
 
 #########################
 # Classes for constructing and running a wrf_hydro simulation
-
-
 class WrfHydroModel(object):
-    # TODO - Add in docstring describing attributes for each class
+    """Class for a WRF-Hydro model, which consitutes the model source code and compiled binary.
+    """
     def __init__(self, source_dir: str):
-        """Create a WrfHydroModel object.
+        """Instantiate a WrfHydroModel object.
         Args:
             source_dir: Directory containing the source code, e.g.
                'wrf_hydro_nwm/trunk/NDHMS'.
@@ -52,19 +51,26 @@ class WrfHydroModel(object):
 
         # Setup directory paths
         self.source_dir = Path(source_dir)
+        """Path: Path object for source code directory."""
 
         # Load master namelists
         self.hydro_namelists = \
             json.load(open(self.source_dir.joinpath('hydro_namelists.json')))
+        """dict: Master dictionary of all hydro.namelists stored with the source code."""
+
         self.hrldas_namelists = \
             json.load(open(self.source_dir.joinpath('hrldas_namelists.json')))
+        """dict: Master dictionary of all namelist.hrldas stored with the source code."""
 
         # Load compile options
         self.compile_options = json.load(open(self.source_dir.joinpath('compile_options.json')))
+        """dict: Compile-time options. Defaults are loaded from json file stored with source 
+        code."""
 
         # Get code version
         with open(self.source_dir.joinpath('.version')) as f:
             self.version = f.read()
+        """str: Source code version from .version file stored with the source code."""
 
     def compile(self, compiler: str,
                 compile_dir: str = None,
@@ -89,8 +95,10 @@ class WrfHydroModel(object):
         # A bunch of ugly logic to check compile directory.
         if compile_dir is None:
             self.compile_dir = self.source_dir.joinpath('Run')
+            """Path: Path object pointing to the compile directory."""
         else:
             self.compile_dir = Path(compile_dir)
+            """Path: Path object pointing to the compile directory."""
             if self.compile_dir.is_dir() is False:
                 self.compile_dir.mkdir(parents=True)
             else:
@@ -102,6 +110,7 @@ class WrfHydroModel(object):
 
         # Add compiler and compile options as attributes and update if needed
         self.compiler = compiler
+        """str: The compiler chosen at compile time."""
 
         if compile_options is not None:
             self.compile_options.update(compile_options)
@@ -120,14 +129,19 @@ class WrfHydroModel(object):
         self.configure_log = subprocess.run(['./configure', compiler],
                                             stdout=subprocess.PIPE,
                                             stderr=subprocess.PIPE)
+        """CompletedProcess: The subprocess object generated at configure."""
+
         self.compile_log = subprocess.run(['./compile_offline_NoahMP.sh',
                                            str(compile_options_file)],
                                           stdout=subprocess.PIPE,
                                           stderr=subprocess.PIPE)
+        """CompletedProcess: The subprocess object generated at compile."""
 
         # Add in unique ID file to match this object to prevent assosciating
         # this directory with another object
         self.object_id = str(uuid4())
+        """str: A unique id to join object to compile directory."""
+
         with open(self.compile_dir.joinpath('.uid'),'w') as f:
             f.write(self.object_id)
 
@@ -153,9 +167,11 @@ class WrfHydroModel(object):
             #Get file lists as attributes
             # Get list of table file paths
             self.table_files = list(self.compile_dir.glob('*.TBL'))
+            """list: Paths to *.TBL files generated at compile-time."""
 
             # Get wrf_hydro.exe file path
             self.wrf_hydro_exe = self.compile_dir.joinpath('wrf_hydro.exe')
+            """Path: Path to wrf_hydro.exe file generated at compile-time."""
 
             # Save the object out to the compile directory
             with open(self.compile_dir.joinpath('WrfHydroModel.pkl'), 'wb') as f:
@@ -167,12 +183,15 @@ class WrfHydroModel(object):
 
 # WRF-Hydro Domain object
 class WrfHydroDomain(object):
+    """Class for a WRF-Hydro domain, which consitutes all domain-specific files needed for a
+    simulation.
+    """
     def __init__(self,
                  domain_top_dir: str,
                  domain_config: str,
                  model_version: str,
                  namelist_patch_file: str = 'namelist_patches.json'):
-        """Create a WrfHydroDomain object
+        """Instantiate a WrfHydroDomain object
         Args:
             domain_top_dir: Parent directory containing all domain directories and files.
             domain_config: The domain configuration to use, options are 'NWM',
@@ -186,13 +205,20 @@ class WrfHydroDomain(object):
         ###Instantiate arguments to object
         # Make file paths
         self.domain_top_dir = Path(domain_top_dir)
+        """Path: Paths to *.TBL files generated at compile-time."""
+
         self.namelist_patch_file = self.domain_top_dir.joinpath(namelist_patch_file)
+        """Path: Path to the namelist_patches json file."""
 
         # Load namelist patches
         self.namelist_patches = json.load(open(self.namelist_patch_file, 'r'))
+        """dict: Domain-specific namelist settings."""
 
         self.model_version = model_version
+        """str: Specified source-code version for which the domain is to be used."""
+
         self.domain_config = domain_config
+        """str: Specified configuration for which the domain is to be used, e.g. 'NWM'"""
         ###
 
         # Create file paths from hydro namelist
@@ -200,6 +226,7 @@ class WrfHydroDomain(object):
             'hydro_namelist']['hydro_nlist']
 
         self.hydro_files = []
+        """list: Files specified in hydro_nlist section of the domain namelist patches"""
         for key, value in domain_hydro_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
             if file_path.is_file() is True:
@@ -213,6 +240,8 @@ class WrfHydroDomain(object):
         ]['hydro_namelist']['nudging_nlist']
 
         self.nudging_files = []
+        """list: Files specified in nudging_nlist section of the domain namelist patches"""
+
         for key, value in domain_nudging_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
             if file_path.is_file() is True:
@@ -223,10 +252,11 @@ class WrfHydroDomain(object):
 
         # Create symlinks from lsm namelist
         domain_lsm_nlist = \
-        self.namelist_patches[self.model_version][self.domain_config]['namelist_hrldas'
-        ]["noahlsm_offline"]
+            self.namelist_patches[self.model_version][self.domain_config]['namelist_hrldas'
+            ]["noahlsm_offline"]
 
         self.lsm_files = []
+        """list: Files specified in noahlsm_offline section of the domain namelist patches"""
         for key, value in domain_lsm_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
 
@@ -242,10 +272,11 @@ class WrfHydroDomain(object):
 
 
 class WrfHydroSim(object):
+    """Class for a WRF-Hydro simulation, which is comprised of a WrfHydroModel and a WrfHydroDomain.
+    """
     def __init__(self, wrf_hydro_model: object,
-                 wrf_hydro_domain: object,
-                 domain_model_version = None):
-        """Create a WrfHydroSim object
+                 wrf_hydro_domain: object):
+        """Instantiates a WrfHydroSim object
         Args:
             wrf_hydro_model: A WrfHydroModel object
             wrf_hydro_domain: A WrfHydroDomain object
@@ -254,11 +285,16 @@ class WrfHydroSim(object):
         """
         # assign objects to self
         self.model = deepcopy(wrf_hydro_model)
+        """WrfHydroModel: A copy of the WrfHydroModel object used for the simulation"""
+
         self.domain = deepcopy(wrf_hydro_domain)
+        """WrfHydroDomain: A copy of the WrfHydroDomain object used for the simulation"""
 
         # Create namelists
         self.hydro_namelist = \
             deepcopy(self.model.hydro_namelists[self.model.version][self.domain.domain_config])
+        """dict: A copy of the hydro_namelist used by the WrfHydroModel for the specified model 
+        version and domain configuration"""
 
         self.hydro_namelist['hydro_nlist'].update(self.domain.namelist_patches
                                                   [self.model.version]
@@ -274,6 +310,8 @@ class WrfHydroSim(object):
 
         self.namelist_hrldas = \
             deepcopy(self.model.hrldas_namelists[self.model.version][self.domain.domain_config])
+        """dict: A copy of the hrldas_namelist used by the WrfHydroModel for the specified model 
+        version and domain configuration"""
 
         self.namelist_hrldas['noahlsm_offline'].update(self.domain.namelist_patches
                                                        [self.model.version]
@@ -289,198 +327,225 @@ class WrfHydroSim(object):
     def run(self,
             simulation_dir: str,
             num_cores: int = 2,
-            mode: str = 'r') -> str:
+            mode: str = 'r') -> object:
         """Run the wrf_hydro simulation
         Args:
-            run_command: The command to execute the model. Defaults to prepared mpiexec
-                         command using num_cores argument. Otherwise, supply a list that
-                         can be passed to subprocess.run.
+            simulation_dir: The path to the directory to use for run
             num_cores: Optional, the number of cores to using default run_command
-            overwrite: Overwrite directory if exists
-
+            mode: Write mode, 'w' for overwrite if directory exists, and 'r' for fail if
+            directory exists
         Returns:
-            A string indicating success of run and new attributes to the object
-
+            A model run object
         TODO:
             Add option for custom run commands to deal with job schedulers
         """
         #Make copy of simulation object to alter and return
-        run_object = deepcopy(self)
+        simulation = deepcopy(self)
+        run_object = WrfHydroRun(wrf_hydro_simulation=simulation,
+                                 simulation_dir=simulation_dir,
+                                 num_cores=num_cores,
+                                 mode=mode)
+        print('Model run succeeded')
+        return run_object
+
+
+class WrfHydroRun(object):
+    def __init__(self,
+                 wrf_hydro_simulation: WrfHydroSim,
+                 simulation_dir: str,
+                 num_cores: int = 2,
+                 mode: str = 'r'
+                 ):
+        """Instantiate a WrfHydroRun object, including running the simulation
+        Args:
+            wrf_hydro_simulation: A WrfHydroSim object to run
+            simulation_dir: The path to the directory to use for run
+            num_cores: Optional, the number of cores to using default run_command
+            mode: Write mode, 'w' for overwrite if directory exists, and 'r' for fail if
+            directory exists
+        Returns:
+            A WrfHydroRun object
+        TODO:
+            Add option for custom run commands to deal with job schedulers
+        """
+        self.simulation = wrf_hydro_simulation
+        """WrfHydroSim: The WrfHydroSim object used for the run"""
+
+        # add num cores as attribute
+        self.num_cores = num_cores
+        """int: The number of cores used for the run"""
+
+        # Add sim dir
+        self.simulation_dir = Path(simulation_dir)
+        """Path: Path to the directory used for the run"""
+
+        # Make directory if it does not exists
+        if self.simulation_dir.is_dir() is False:
+            self.simulation_dir.mkdir(parents=True)
+        else:
+            if self.simulation_dir.is_dir() is True and mode == 'w':
+                rmtree(str(self.simulation_dir))
+                self.simulation_dir.mkdir(parents=True)
+            elif self.simulation_dir.is_dir() is True and mode == 'r':
+                raise PermissionError('Run directory already exists and mode = r')
+            else:
+                warn('Existing run directory will be used for simulation')
+
+        ### Check that compile object uid matches compile directory uid
+        ### This is to ensure that a new model has not been compiled into that directory unknowingly
+        with open(self.simulation.model.compile_dir.joinpath('.uid')) as f:
+            compile_uid = f.read()
+
+        if self.simulation.model.object_id != compile_uid:
+            raise PermissionError('object id mismatch between WrfHydroModel object and'
+                                  'WrfHydroModel.compile_dir directory. Directory may have been'
+                                  'used for another compile')
+        ###########################################################################
+        # MAKE RUN DIRECTORIES
+        # Construct all file/dir paths
+        # Convert strings to Path objects
+
+        # Loop to make symlinks for each TBL file
+        for from_file in self.simulation.model.table_files:
+            # Create file paths to symlink
+            to_file = self.simulation_dir.joinpath(from_file.name)
+            # Create symlinks
+            to_file.symlink_to(from_file)
+
+        # Symlink in exe
+        wrf_hydro_exe = self.simulation.model.wrf_hydro_exe
+        self.simulation_dir.joinpath(wrf_hydro_exe.name).symlink_to(wrf_hydro_exe)
+
+        # Symlink in forcing
+        forcing_dir = self.simulation.domain.forcing_dir
+        self.simulation_dir.joinpath(forcing_dir.name). \
+            symlink_to(forcing_dir, target_is_directory=True)
+
+        # create DOMAIN directory and symlink in files
+        # Symlink in hydro_files
+        for file_path in self.simulation.domain.hydro_files:
+            # Get new file path for run directory, relative to the top-level domain directory
+            # This is needed to ensure the path matches the domain namelist
+            relative_path = file_path.relative_to(self.simulation.domain.domain_top_dir)
+            symlink_path = self.simulation_dir.joinpath(relative_path)
+            if symlink_path.parent.is_dir() is False:
+                symlink_path.parent.mkdir(parents=True)
+            symlink_path.symlink_to(file_path)
+
+        # Symlink in nudging files
+        for file_path in self.simulation.domain.nudging_files:
+            # Get new file path for run directory, relative to the top-level domain directory
+            # This is needed to ensure the path matches the domain namelist
+            relative_path = file_path.relative_to(self.simulation.domain.domain_top_dir)
+            symlink_path = self.simulation_dir.joinpath(relative_path)
+            if symlink_path.parent.is_dir() is False:
+                symlink_path.parent.mkdir(parents=True)
+            symlink_path.symlink_to(file_path)
+
+        # Symlink in lsm files
+        for file_path in self.simulation.domain.lsm_files:
+            # Get new file path for run directory, relative to the top-level domain directory
+            # This is needed to ensure the path matches the domain namelist
+            relative_path = file_path.relative_to(self.simulation.domain.domain_top_dir)
+            symlink_path = self.simulation_dir.joinpath(relative_path)
+            if symlink_path.parent.is_dir() is False:
+                symlink_path.parent.mkdir(parents=True)
+            symlink_path.symlink_to(file_path)
+
+        # write hydro.namelist
+        f90nml.write(self.simulation.hydro_namelist,
+                     self.simulation_dir.joinpath('hydro.namelist'))
+        # write namelist.hrldas
+        f90nml.write(self.simulation.namelist_hrldas,
+                     self.simulation_dir.joinpath('namelist.hrldas'))
+
+        # Run the model
+        chdir(self.simulation_dir)
+        self.run_log = subprocess.run(['mpiexec', '-np', str(num_cores), './wrf_hydro.exe'],
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE)
+        """CompletedProcess: The subprocess returned from the run call"""
+
 
         try:
-            #add num cores as attribute
-            run_object.num_cores = num_cores
-
-            #Add sim dir
-            run_object.simulation_dir = Path(simulation_dir)
-
-            #Make directory if it does not exists
-            if run_object.simulation_dir.is_dir() is False:
-                run_object.simulation_dir.mkdir(parents=True)
-            else:
-                if run_object.simulation_dir.is_dir() is True and mode == 'w':
-                    rmtree(str(run_object.simulation_dir))
-                    run_object.simulation_dir.mkdir(parents=True)
-                elif run_object.simulation_dir.is_dir() is True and mode == 'r':
-                    raise PermissionError('Run directory already exists and mode = r')
-                else:
-                    warn('Existing run directory will be used for simulation')
-
-
-            ### Check that compile object uid matches compile directory uid
-            ### This is to ensure that a new model has not been compiled into that directory unknowingly
-            with open(run_object.model.compile_dir.joinpath('.uid')) as f:
-                compile_uid = f.read()
-
-            if run_object.model.object_id != compile_uid:
-                raise PermissionError('object id mismatch between WrfHydroModel object and'
-                                      'WrfHydroModel.compile_dir directory. Directory may have been'
-                                      'used for another compile')
-            ###########################################################################
-            # MAKE RUN DIRECTORIES
-            # Construct all file/dir paths
-            # TODO- Make all symlinks from namelist, NOT arguments or assumed folder structure
-            # Convert strings to Path objects
-
-            # Loop to make symlinks for each TBL file
-            for from_file in run_object.model.table_files:
-                # Create file paths to symlink
-                to_file = run_object.simulation_dir.joinpath(from_file.name)
-                # Create symlinks
-                to_file.symlink_to(from_file)
-
-            # Symlink in exe
-            wrf_hydro_exe = run_object.model.wrf_hydro_exe
-            run_object.simulation_dir.joinpath(wrf_hydro_exe.name).symlink_to(wrf_hydro_exe)
-
-            # Symlink in forcing
-            forcing_dir = run_object.domain.forcing_dir
-            run_object.simulation_dir.joinpath(forcing_dir.name). \
-                symlink_to(forcing_dir, target_is_directory=True)
-
-            # create DOMAIN directory and symlink in files
-            # Symlink in hydro_files
-            for file_path in run_object.domain.hydro_files:
-                # Get new file path for run directory, relative to the top-level domain directory
-                # This is needed to ensure the path matches the domain namelist
-                relative_path = file_path.relative_to(run_object.domain.domain_top_dir)
-                symlink_path = run_object.simulation_dir.joinpath(relative_path)
-                if symlink_path.parent.is_dir() is False:
-                    symlink_path.parent.mkdir(parents=True)
-                symlink_path.symlink_to(file_path)
-
-            # Symlink in nudging files
-            for file_path in run_object.domain.nudging_files:
-                # Get new file path for run directory, relative to the top-level domain directory
-                # This is needed to ensure the path matches the domain namelist
-                relative_path = file_path.relative_to(run_object.domain.domain_top_dir)
-                symlink_path = run_object.simulation_dir.joinpath(relative_path)
-                if symlink_path.parent.is_dir() is False:
-                    symlink_path.parent.mkdir(parents=True)
-                symlink_path.symlink_to(file_path)
-
-            # Symlink in lsm files
-            for file_path in run_object.domain.lsm_files:
-                # Get new file path for run directory, relative to the top-level domain directory
-                # This is needed to ensure the path matches the domain namelist
-                relative_path = file_path.relative_to(run_object.domain.domain_top_dir)
-                symlink_path = run_object.simulation_dir.joinpath(relative_path)
-                if symlink_path.parent.is_dir() is False:
-                    symlink_path.parent.mkdir(parents=True)
-                symlink_path.symlink_to(file_path)
-
-
-            # write hydro.namelist
-            f90nml.write(run_object.hydro_namelist,
-                         run_object.simulation_dir.joinpath('hydro.namelist'))
-            # write namelist.hrldas
-            f90nml.write(run_object.namelist_hrldas,
-                         run_object.simulation_dir.joinpath('namelist.hrldas'))
-
-            # Run the model
-            chdir(run_object.simulation_dir)
-            run_object.run_log = subprocess.run(['mpiexec','-np',str(num_cores),'./wrf_hydro.exe'],
-                                                stdout=subprocess.PIPE,
-                                                stderr=subprocess.PIPE)
-
+            self.run_status = 1
+            """int: exit status of the run"""
             # String match diag files for successfull run
-            with open(run_object.simulation_dir.joinpath('diag_hydro.00000')) as f:
+            with open(self.simulation_dir.joinpath('diag_hydro.00000')) as f:
                 diag_file = f.read()
                 if 'The model finished successfully.......' in diag_file:
-                    run_object.run_status = 0
-                else:
-                    run_object.run_status = 1
-
-            if run_object.run_status == 0:
-
-                #####################
-                # Grab outputs as WrfHydroXX classes of file paths
-
-                # TODO TJM - Make all files fall under an 'output_files' attirbute
-
-                ## Get diag files
-                run_object.diag = list(run_object.simulation_dir.glob('diag_hydro.*'))
-
-                ## Get channel files
-                if len(list(run_object.simulation_dir.glob('*CHRTOUT*'))) > 0:
-                    run_object.channel_rt = WrfHydroTs(list(
-                        run_object.simulation_dir.glob('*CHRTOUT*')
-                    ))
-                if len(list(run_object.simulation_dir.glob('*CHANOBS*'))) > 0:
-                    run_object.chanobs = WrfHydroTs(list(
-                        run_object.simulation_dir.glob('*CHANOBS*')
-                    ))
-
-                ## Get restart files and sort by modified time
-                ### Hydro restarts
-                run_object.restart_hydro = []
-                for file in run_object.simulation_dir.glob('HYDRO_RST*'):
-                    file = WrfHydroStatic(file)
-                    run_object.restart_hydro.append(file)
-
-                if len(run_object.restart_hydro) > 0:
-                    run_object.restart_hydro = sorted(run_object.restart_hydro,
-                                                      key=lambda file: file.stat().st_mtime_ns)
-
-                ### LSM Restarts
-                run_object.restart_lsm = []
-                for file in run_object.simulation_dir.glob('RESTART*'):
-                    file = WrfHydroStatic(file)
-                    run_object.restart_lsm.append(file)
-
-                if len(run_object.restart_lsm) > 0:
-                    run_object.restart_lsm = sorted(run_object.restart_lsm,
-                                                    key=lambda file: file.stat().st_mtime_ns)
-
-                ### Nudging restarts
-                run_object.restart_nudging = []
-                for file in run_object.simulation_dir.glob('nudgingLastObs*'):
-                    file = WrfHydroStatic(file)
-                    run_object.restart_nudging.append(file)
-
-                if len(run_object.restart_nudging) > 0:
-                    run_object.restart_nudging = sorted(run_object.restart_nudging,
-                                                        key=lambda file: file.stat().st_mtime_ns)
-
-                #####################
-
-                # create a UID for the simulation and save in file
-                run_object.object_id = str(uuid4())
-                with open(run_object.simulation_dir.joinpath('.uid'), 'w') as f:
-                    f.write(run_object.object_id)
-
-                # Save object to simulation directory
-                # Save the object out to the compile directory
-                with open(run_object.simulation_dir.joinpath('wrf_hydro_sim.pkl'), 'wb') as f:
-                    pickle.dump(run_object, f, 2)
-
-                print('Model run succeeded')
-                return run_object
-            else:
-                warn('Model run failed')
-                return run_object
+                    self.run_status = 0
         except Exception as e:
-            warn('Model run failed')
+            warn('Could not parse diag files')
             print(e)
-            return run_object
 
+        if self.run_status == 0:
+
+            #####################
+            # Grab outputs as WrfHydroXX classes of file paths
+
+            # TODO TJM - Make all files fall under an 'output_files' attirbute
+
+            ## Get diag files
+            self.diag = list(self.simulation_dir.glob('diag_hydro.*'))
+            """list: Paths to diag files generated at run time"""
+
+            ## Get channel files
+            if len(list(self.simulation_dir.glob('*CHRTOUT*'))) > 0:
+                self.channel_rt = WrfHydroTs(list(self.simulation_dir.glob('*CHRTOUT*')))
+                """WrfHydroTs: Timeseries dataset of CHRTOUT files"""
+
+            if len(list(self.simulation_dir.glob('*CHANOBS*'))) > 0:
+                self.chanobs = WrfHydroTs(list(self.simulation_dir.glob('*CHANOBS*')))
+                """WrfHydroTs: Timeseries dataset of CHANOBS files"""
+
+            ## Get restart files and sort by modified time
+            ### Hydro restarts
+            self.restart_hydro = []
+            """list: List of HYDRO_RST WrfHydroStatic objects"""
+            for file in self.simulation_dir.glob('HYDRO_RST*'):
+                file = WrfHydroStatic(file)
+                self.restart_hydro.append(file)
+
+            if len(self.restart_hydro) > 0:
+                self.restart_hydro = sorted(self.restart_hydro,
+                                            key=lambda file: file.stat().st_mtime_ns)
+
+            ### LSM Restarts
+            self.restart_lsm = []
+            """list: List of RESTART WrfHydroStatic objects"""
+            for file in self.simulation_dir.glob('RESTART*'):
+                file = WrfHydroStatic(file)
+                self.restart_lsm.append(file)
+
+            if len(self.restart_lsm) > 0:
+                self.restart_lsm = sorted(self.restart_lsm,
+                                          key=lambda file: file.stat().st_mtime_ns)
+
+            ### Nudging restarts
+            self.restart_nudging = []
+            """list: List of nudgingLastObs WrfHydroStatic objects"""
+            for file in self.simulation_dir.glob('nudgingLastObs*'):
+                file = WrfHydroStatic(file)
+                self.restart_nudging.append(file)
+
+            if len(self.restart_nudging) > 0:
+                self.restart_nudging = sorted(self.restart_nudging,
+                                              key=lambda file: file.stat().st_mtime_ns)
+
+            #####################
+
+            # create a UID for the simulation and save in file
+            self.object_id = str(uuid4())
+            """str: A unique id to join object to run directory."""
+            with open(self.simulation_dir.joinpath('.uid'), 'w') as f:
+                f.write(self.object_id)
+
+            # Save object to simulation directory
+            # Save the object out to the compile directory
+            with open(self.simulation_dir.joinpath('wrf_hydro_sim.pkl'), 'wb') as f:
+                pickle.dump(self, f, 2)
+
+            print('Model run succeeded')
+        else:
+            warn('Model run failed')

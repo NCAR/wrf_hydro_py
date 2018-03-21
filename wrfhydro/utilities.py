@@ -122,27 +122,35 @@ class RestartDiffs(object):
         #Add a dictionary with counts of diffs
         self.diff_counts = {}
 
-        if len(candidate_sim.restart_hydro) != 0:
+        if len(candidate_sim.restart_hydro) != 0 and len(reference_sim.restart_hydro) != 0:
             self.hydro = compare_restarts(candidate_files=candidate_sim.restart_hydro,
                                           reference_files=reference_sim.restart_hydro)
             diff_counts = sum(1 for _ in filter(None.__ne__, self.hydro))
             self.diff_counts.update({'hydro':diff_counts})
+        else:
+            warn('length of candidate_sim.restart_hydro or reference_sim.restart_hydro is 0')
 
-        if len(candidate_sim.restart_lsm) != 0:
+        if len(candidate_sim.restart_lsm) != 0 and len(reference_sim.restart_lsm) != 0:
             self.lsm = compare_restarts(candidate_files=candidate_sim.restart_lsm,
                                         reference_files=reference_sim.restart_lsm)
             diff_counts = sum(1 for _ in filter(None.__ne__, self.lsm))
             self.diff_counts.update({'lsm':diff_counts})
+        else:
+            warn('length of candidate_sim.restart_lsm or reference_sim.restart_lsm is 0')
 
-        if len(candidate_sim.restart_nudging) != 0:
+        if len(candidate_sim.restart_nudging) != 0 and len(reference_sim.restart_nudging) != 0:
             self.nudging = compare_restarts(
                 candidate_files=candidate_sim.restart_nudging,
                 reference_files=reference_sim.restart_nudging)
             diff_counts = sum(1 for _ in filter(None.__ne__, self.nudging))
             self.diff_counts.update({'nudging':diff_counts})
+        else:
+            warn('length of candidate_sim.restart_nudging or reference_sim.restart_nudging is 0')
 
 
 class DomainDirectory(object):
+    """An object that represents a WRF-Hydro domain directory. Primarily used as a utility class
+    for WrfHydroDomain"""
     def __init__(self,
                  domain_top_dir: str,
                  domain_config: str,

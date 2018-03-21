@@ -1,4 +1,4 @@
-#Import modules
+# Import modules
 
 from sys import argv, exit
 from wrf_hydro_model import *
@@ -11,27 +11,27 @@ candidate_dir = str(argv[2])
 reference_dir = str(argv[3])
 output_dir = str(argv[4])
 
-#Setup a candidate model
+# Setup a candidate model
 candidate_model = WrfHydroModel(candidate_dir)
 
-#Setup a reference model
+# Setup a reference model
 reference_model = WrfHydroModel(reference_dir)
 
-#Setup a domain
+# Setup a domain
 domain = WrfHydroDomain(domain_top_dir=domain_dir,
                            domain_config='NWM',
                            model_version=candidate_model.version)
 
-#Setup a candidate simulation
+# Setup a candidate simulation
 candidate_sim = WrfHydroSim(candidate_model,domain)
 
-#Setup a reference simulation
+# Setup a reference simulation
 reference_sim = WrfHydroSim(reference_model,domain)
 
-#Create a test class
+# Create a test class
 testCase = FundamentalTest(candidate_sim,reference_sim,output_dir,overwrite=True)
 
-#Run all tests
+# Run all tests
 testCase.run_tests(output_file='test_out.pkl')
 
 # Exit with testCase exit code

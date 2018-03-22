@@ -546,7 +546,7 @@ class WrfHydroRun(object):
 
             # Save object to simulation directory
             # Save the object out to the compile directory
-            with open(self.simulation_dir.joinpath('wrf_hydro_sim.pkl'), 'wb') as f:
+            with open(self.simulation_dir.joinpath('WrfHydroRun.pkl'), 'wb') as f:
                 pickle.dump(self, f, 2)
 
             print('Model run succeeded')

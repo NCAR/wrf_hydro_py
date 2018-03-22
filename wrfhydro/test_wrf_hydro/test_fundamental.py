@@ -173,7 +173,7 @@ def test_regression(output_dir):
     candidate_run_expected = pickle.load(open(output_dir / 'run_candidate', "rb"))
     reference_run_expected = pickle.load(open(output_dir / 'run_reference', "rb"))
     #Check regression
-    regression_diffs = RestartDiffs(candidate_run,reference_run)
+    regression_diffs = RestartDiffs(candidate_run_expected,reference_run_expected)
 
     ## Check hydro restarts
     for diff in regression_diffs.hydro:

@@ -1,0 +1,1 @@
+This folder contains geospatial files for use with lakes off. A namelist with the required changes is also included.

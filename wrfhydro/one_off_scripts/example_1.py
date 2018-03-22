@@ -1,7 +1,10 @@
 WRF_HYDRO_NWM_PATH=/Users/${USER}/WRF_Hydro/wrf_hydro_nwm_myFork
-WRF_HYDRO_PY_PATH-/Users/${USER}/WRF_Hydro/wrf_hydro_py
+WRF_HYDRO_PY_PATH=/Users/${USER}/WRF_Hydro/wrf_hydro_py
 
 docker create --name croton wrfhydro/domains:croton_NY
+## The complement when youre done with it:
+## docker rm -v sixmile_channel-only_test
+
 docker run -it \
     -v ${WRF_HYDRO_NWM_PATH}:/wrf_hydro_nwm \
     -v ${WRF_HYDRO_PY_PATH}:/home/docker/wrf_hydro_py \
@@ -15,12 +18,8 @@ python
 #######################################################
 import sys
 from pprint import pprint
-
-# What does this line do?
 sys.path.insert(0, '/home/docker/wrf_hydro_py/wrfhydro')
-
 from wrf_hydro_model import *
-from test_cases import *
 from utilities import *
 
 # ######################################################
@@ -38,14 +37,9 @@ theModel = WrfHydroModel('/home/docker/wrf_hydro_nwm/trunk/NDHMS')
 # on the model object, the namelists are used only in simulation objects (where
 # the model is actually run on a domain).
 
-# 1. Compile options are not yet version/configed in the json namelist?
-#    Are these even being used currently?
-#    CLEARLY NOT, NUDGING NEEDS SET TO 1 for NWM. CHRIST ALMIGHTY.
+# Compile options are not yet version/configed in the json namelist
 pprint(theModel.compile_options)
 
-# 2. The NWM configuration should be NWM-AnA (we may eventually have all 4 configurations in there).
-# The configuration required for perfect restarts is actually slightly
-# different than NWM in the nudging options, we may want to differentiate that.
 pprint(theModel.hrldas_namelists)
 
 pprint(theModel.hydro_namelists)
@@ -54,7 +48,7 @@ pprint(theModel.source_dir)
 pprint(theModel.version)
 
 # The only method on the model (it is independent of domain).
-# 3. Should be able to pass version/configuration to the compile. Currently not args.
+# Should be able to pass version/configuration to the compile. Currently not args.
 # What are other arguments here? Might just show help.
 theModel.compile('gfort')
 # The compilation results in the following new attributes/slots
@@ -66,9 +60,10 @@ pprint(theModel.wrf_hydro_exe)
 # The parameter table files which result from compiling.
 pprint(theModel.table_files)
 # Logs of config and compile
-pprint(theModel.configure_log)
-# pretty print not working so hot on the CompletedProcess object... 
-pprint(theModel.compile_log)
+print(theModel.configure_log.stdout.decode('utf-8'))
+print(theModel.configure_log.stderr.decode('utf-8'))
+print(theModel.compile_log.stdout.decode('utf-8'))
+prtin(theModel.compile_log.stderr.decode('utf-8'))
 # An object that needs some description......
 pprint(theModel.object_id)
 
@@ -90,8 +85,6 @@ pprint(theDomain.nudging_files)
 # base namelists that were in the model object. Note that none of these are physics
 # options, they are only domain-specific files, domain-specific times, and restart
 # output frequencies.
-# 4. forcing_timestep should probably NOT be in the NWM patches.
-#    output_timestep  should probably NOT be in the NWM patches.
 # The patches are held in/with the individual domains. The patch files is
 # specified here
 pprint(theDomain.namelist_patch_file)
@@ -99,20 +92,11 @@ pprint(theDomain.namelist_patch_file)
 pprint(theDomain.namelist_patches)
 
 # The specific hydro and lsm files found in the patches are listed in the following fields. 
-# 5. What is the necessity of these versus just keeping them in the patche objects
+# These are patch fields which are files and can be opened with xarray.
 pprint(theDomain.hydro_files)
-# 6. What are these, why wrapped in a class?
-#[WrfHydroStatic('/home/docker/domain/croton_NY/NWM/DOMAIN/geo_em.nc'),
-# WrfHydroStatic('/home/docker/domain/croton_NY/NWM/DOMAIN/Fulldom.nc'),
-# WrfHydroStatic('/home/docker/domain/croton_NY/NWM/DOMAIN/HYDRO_TBL_2D.nc'),
-# WrfHydroStatic('/home/docker/domain/croton_NY/NWM/DOMAIN/geospatial_data_template_land_GIS.nc'),
-# PosixPath('/home/docker/domain/croton_NY/NWM/RESTART/HYDRO_RST.2011082600_DOMAIN1'),
-# WrfHydroStatic('/home/docker/domain/croton_NY/NWM/DOMAIN/RouteLink.nc'),
-# WrfHydroStatic('/home/docker/domain/croton_NY/NWM/DOMAIN/LAKEPARM.nc'),
-# WrfHydroStatic('/home/docker/domain/croton_NY/NWM/DOMAIN/GWBUCKPARM.nc'),
-# WrfHydroStatic('/home/docker/domain/croton_NY/NWM/DOMAIN/spatialweights.nc')]
-pprint(theDomain.lsm_files)
 
+# WrfHydroStatic objects can be opened via xarray?
+pprint(theDomain.lsm_files)
 
 
 # ######################################################
@@ -123,19 +107,16 @@ pprint(theDomain.lsm_files)
 theSim = WrfHydroSim(theModel, theDomain)
 
 pprint(theSim.hydro_namelist)
-# 7. A bit awkward with the namelist*s* convention, but might have no other choice
-# since we are stuck with the actual poor convention? namelist_hrldas vs hrldas_namelists.
 pprint(theSim.namelist_hrldas)
 
 # Edit an object in theDom
 id1=theSim.model.object_id
 # '3451646a-2cae-4b1f-9c38-bd8725e1c55f'
- 
-# Compile again and see the object_id in theSim.model change
+
+# Dress up the example to show the object is copied. A small point.
 theModel.compile('gfort', compile_options={'WRF_HYDRO_NUDGING':1})
 theModel.object_id
 theSim.model.object_id
-# WAIT!!! HUH???????? theSim.model.object_id did NOT change.
 
 ##
 theRun = theSim.run('/home/docker/testRun1', overwrite=True)

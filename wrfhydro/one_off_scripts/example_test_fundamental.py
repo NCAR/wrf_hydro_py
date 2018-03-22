@@ -4,6 +4,9 @@ WRF_HYDRO_NWM_PATH=/Users/${USER}/WRF_Hydro/wrf_hydro_nwm_myFork
 WRF_HYDRO_PY_PATH=/Users/${USER}/WRF_Hydro/wrf_hydro_py
 
 docker create --name croton wrfhydro/domains:croton_NY
+## The complement when youre done with it:
+## docker rm -v sixmile_channel-only_test
+
 docker run -it \
     -v ${WRF_HYDRO_NWM_PATH}:/wrf_hydro_nwm \
     -v ${WRF_HYDRO_PY_PATH}:/home/docker/wrf_hydro_py \
@@ -55,7 +58,11 @@ testCase.test_run_candidate()
 testCase.test_ncores_candidate()
 
 testCase.test_perfrestart_candidate()
+testCase.test_compile_reference('gfort',overwrite=True,compile_options={'WRF_HYDRO_NUDGING': 1})
 
-testCase.test_compile_reference('gfort',overwrite=True,compile_options={'WRF_HYDRO_NUDGING': 0})
 testCase.test_run_reference()
 testCase.test_regression()
+
+print(testCase.results)
+
+exit(testCase.exit_code)

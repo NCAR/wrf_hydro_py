@@ -1,15 +1,15 @@
 # Import modules
 
-from sys import argv, exit
+import sys
 from wrf_hydro_model import *
-from test_cases import *
+from wrfhydro_test_cases import *
 from utilities import *
 
 # Get domain, reference, and candidate from command line arguments
-domain_dir = str(argv[1])
-candidate_dir = str(argv[2])
-reference_dir = str(argv[3])
-output_dir = str(argv[4])
+domain_dir = str(sys.argv[1])
+candidate_dir = str(sys.argv[2])
+reference_dir = str(sys.argv[3])
+output_dir = str(sys.argv[4])
 
 # Setup a candidate model
 candidate_model = WrfHydroModel(candidate_dir)
@@ -34,5 +34,5 @@ testCase = FundamentalTest(candidate_sim,reference_sim,output_dir,overwrite=True
 # Run all tests
 testCase.run_tests(output_file='test_out.pkl')
 
-# Exit with testCase exit code
-exit(testCase.exit_code)
+# Exit with testCase sys.exit code
+sys.exit(testCase.exit_code)

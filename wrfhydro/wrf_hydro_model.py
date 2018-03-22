@@ -348,7 +348,6 @@ class WrfHydroSim(object):
                                  simulation_dir=simulation_dir,
                                  num_cores=num_cores,
                                  mode=mode)
-        print('Model run succeeded')
         return run_object
 
 

@@ -6,7 +6,7 @@ services:
 #before_install:
 #  - TRAVIS_HOME_DIR=/home/travis_dir
 #  - sudo mkdir $TRAVIS_HOME_DIR
-#  - sudo chmod -R 777 $TRAVIS_HOME_DIR
+  - sudo chmod -R 777 $TRAVIS_BUILD_DIR
   - docker pull wrfhydro/dev:conda
 #  - git clone https://github.com/NCAR/wrf_hydro_py.git $TRAVIS_HOME_DIR
 

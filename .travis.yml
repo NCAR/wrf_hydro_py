@@ -13,7 +13,7 @@ before_install:
 #  - git clone https://github.com/NCAR/wrf_hydro_py.git $TRAVIS_HOME_DIR
 
 script:
-  - docker run -v $TRAVIS_BUILD_DIR:/home/docker/wrf_hydro_py  wrfhydro/dev:conda /bin/bash -c "cp -r /home/docker/wrf_hydro_py/ /home/docker/wrf_hydro_py_unmounted/; pytest /home/docker/wrf_hydro_py_unmounted/wrfhydro/tests"
+  - docker run -v $TRAVIS_BUILD_DIR:/home/docker/wrf_hydro_py  wrfhydro/dev:conda pytest /home/docker/wrf_hydro_py/wrfhydro/tests
 
 # after_failure:
 #   - echo $TRAVIS_HOME_DIR

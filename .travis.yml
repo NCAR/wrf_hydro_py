@@ -6,14 +6,15 @@ python:
 services:
   - docker
 
-before_install:
-  - TRAVIS_HOME_DIR=/home/travis_dir
-  - sudo mkdir $TRAVIS_HOME_DIR
-  - sudo chmod -R 777 $TRAVIS_HOME_DIR
+#before_install:
+#  - TRAVIS_HOME_DIR=/home/travis_dir
+#  - sudo mkdir $TRAVIS_HOME_DIR
+#  - sudo chmod -R 777 $TRAVIS_HOME_DIR
   - docker pull wrfhydro/dev:conda
-  - git clone https://github.com/NCAR/wrf_hydro_py.git $TRAVIS_HOME_DIR
+#  - git clone https://github.com/NCAR/wrf_hydro_py.git $TRAVIS_HOME_DIR
+
 script:
-  - docker run -v $TRAVIS_HOME_DIR/wrf_hydro_py:/home/docker/wrf_hydro_py wrfhydro/dev:conda pytest /home/docker/wrf_hydro_py/tests
+  - docker run -v $TRAVIS_BUILD_DIR:/home/docker/wrf_hydro_py wrfhydro/dev:conda pytest /home/docker/wrf_hydro_py/wrfhydro/tests
 
 # after_failure:
 #   - echo $TRAVIS_HOME_DIR

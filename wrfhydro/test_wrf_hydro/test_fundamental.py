@@ -56,10 +56,10 @@ def test_run_candidate(candidate_sim,output_dir):
 
 def test_run_reference(reference_sim,output_dir):
     #Set simulation directory
-    simulation_dir = OUTPUT_DIR / 'run_reference'
+    simulation_dir = output_dir / 'run_reference'
 
     # Run the simulation
-    reference_run = REFERENCE_SIM.run(simulation_dir,2)
+    reference_run = reference_sim.run(simulation_dir,2)
 
     # Check subprocess and model run status
     assert reference_run.run_log.returncode == 0
@@ -94,7 +94,7 @@ def test_ncores_candidate(candidate_sim,output_dir):
 
 
 #Perfect restarts question
-def test_perfrestart_candidate(output_dir,candidate_sim):
+def test_perfrestart_candidate(candidate_sim,output_dir):
     # Load initial run model object
     candidate_run_expected = pickle.load(open(output_dir / 'run_candidate/WrfHydroRun.pkl', "rb"))
 

@@ -46,5 +46,5 @@ def reference_sim(request):
 
 @pytest.fixture(scope="session")
 def output_dir(request):
-    domain_dir = Path(request.config.getoption("--output_dir"))
-    return domain_dir
+    output_dir = Path(request.config.getoption("--output_dir"))
+    return output_dir

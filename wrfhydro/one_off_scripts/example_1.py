@@ -28,8 +28,6 @@ from utilities import *
 # What is the argument? Are there more arguments?
 theModel = WrfHydroModel('/home/docker/wrf_hydro_nwm/trunk/NDHMS')
 
-# --- these are our concerns, dude ---
-
 # The attributes of the model object.
 # Note: menus of both compile options and namelists (run-time options) are now in the
 # repository. These menus of namelists come in with the creation of the model

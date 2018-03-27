@@ -487,8 +487,6 @@ class WrfHydroRun(object):
             #####################
             # Grab outputs as WrfHydroXX classes of file paths
 
-            # TODO TJM - Make all files fall under an 'output_files' attirbute
-
             ## Get diag files
             self.diag = list(self.simulation_dir.glob('diag_hydro.*'))
             """list: pathlib.Paths to diag files generated at run time"""

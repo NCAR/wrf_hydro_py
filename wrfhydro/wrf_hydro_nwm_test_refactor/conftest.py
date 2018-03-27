@@ -1,4 +1,9 @@
 import pytest
+import sys
+sys.path.insert(0, '/home/docker/wrf_hydro_py/wrfhydro')
+
+import pathlib
+from wrf_hydro_model import *
 
 def pytest_addoption(parser):
     parser.addoption('--domain_dir', action='store', help='domain directory')
@@ -46,5 +51,7 @@ def reference_sim(request):
 
 @pytest.fixture(scope="session")
 def output_dir(request):
-    output_dir = Path(request.config.getoption("--output_dir"))
+    output_dir = pathlib.Path(request.config.getoption("--output_dir"))
+    if output_dir.is_dir() is False:
+        output_dir.mkdir()
     return output_dir

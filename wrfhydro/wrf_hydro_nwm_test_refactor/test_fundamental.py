@@ -1,31 +1,35 @@
 import sys
 sys.path.insert(0, '/home/docker/wrf_hydro_py/wrfhydro')
 
-import pathlib
 from wrf_hydro_model import *
+from utilities import *
+import shutil
 import pickle
-import deepdiff
+import datetime as dt
 import copy
+import warnings
 import pytest
+
+#docker@da16b70279a1:~/wrf_hydro_py/wrfhydro$ pytest wrf_hydro_nwm_test_refactor --domain_dir
+# /home/docker/wrf_hydro_py/wrfhydro/tests/data/domain --candidate_dir /home/docker/wrf_hydro_py/wrfhydro/tests/data/wrf_hydro_nwm/source --reference_dir /home/docker/wrf_hydro_py/wrfhydro/tests/data/wrf_hydro_nwm/source --output_dir /home/docker/tests
 
 ##################################
 ####Setup the test with a domain, a candidate, and a reference
 # Get domain, reference, candidate, and optional output directory from command line arguments
 # Setup a domain
 
-# Make sure the lsm and hydro restart output timesteps are the same
-#hydro_rst_dt = CANDIDATE_SIM.hydro_namelist['hydro_nlist']['rst_dt']
-#CANDIDATE_SIM.namelist_hrldas['noahlsm_offline']['restart_frequency_hours'] = int(hydro_rst_dt/60)
 
 ##################################
 # Define tests
 
-###Compile questions
+###Compile questionscompiler,
 def test_compile_candidate(candidate_sim,output_dir):
     compile_dir = output_dir / 'compile_candidate'
 
     # Compile the model
-    candidate_sim.model.compile(compile_dir,'gfort')
+    candidate_sim.model.compile(compiler = 'gfort',
+                                compile_dir = compile_dir,
+                                overwrite=True)
 
     # Check compilation status
     assert candidate_sim.model.compile_log.returncode == 0
@@ -35,7 +39,9 @@ def test_compile_reference(reference_sim,output_dir):
     compile_dir = output_dir / 'compile_reference'
 
     # Compile the model
-    reference_sim.model.compile(compile_dir,'gfort')
+    reference_sim.model.compile(compiler = 'gfort',
+                                compile_dir = compile_dir,
+                                overwrite=True)
 
     # Check compilation status
     assert reference_sim.model.compile_log.returncode == 0
@@ -48,7 +54,9 @@ def test_run_candidate(candidate_sim,output_dir):
     simulation_dir = output_dir / 'run_candidate'
 
     # Run the simulation
-    candidate_run = candidate_sim.run(simulation_dir,2)
+    candidate_run = candidate_sim.run(simulation_dir=simulation_dir,
+                                      num_cores=2,
+                                      mode='w')
 
     # Check subprocess and model run status
     assert candidate_run.run_log.returncode == 0
@@ -59,7 +67,9 @@ def test_run_reference(reference_sim,output_dir):
     simulation_dir = output_dir / 'run_reference'
 
     # Run the simulation
-    reference_run = reference_sim.run(simulation_dir,2)
+    reference_run = reference_sim.run(simulation_dir=simulation_dir,
+                                      num_cores=2,
+                                      mode='w')
 
     # Check subprocess and model run status
     assert reference_run.run_log.returncode == 0
@@ -75,7 +85,9 @@ def test_ncores_candidate(candidate_sim,output_dir):
     simulation_dir = output_dir.joinpath('ncores_candidate')
 
     # Run the simulation
-    candidate_ncores_run = candidate_sim.run(simulation_dir, 1)
+    candidate_ncores_run = candidate_sim.run(simulation_dir=simulation_dir,
+                                      num_cores=1,
+                                             mode='w')
 
     #Check against initial run
     ncores_restart_diffs = RestartDiffs(candidate_ncores_run,candidate_run_expected)
@@ -96,21 +108,24 @@ def test_ncores_candidate(candidate_sim,output_dir):
 #Perfect restarts question
 def test_perfrestart_candidate(candidate_sim,output_dir):
     # Load initial run model object
-    candidate_run_expected = pickle.load(open(output_dir / 'run_candidate/WrfHydroRun.pkl', "rb"))
+    candidate_run_expected = pickle.load(open(output_dir / 'run_candidate' / 'WrfHydroRun.pkl',
+                                              "rb"))
 
     #Make deep copy since changing namelist optoins
     perfrestart_sim = copy.deepcopy(candidate_sim)
 
     # Set simulation directory
-    simulation_dir = output_dir.joinpath('restart_candidate')
+    simulation_dir = output_dir / 'restart_candidate'
 
     #Make directory so that symlinks can be placed
+    if simulation_dir.is_dir() is True:
+        shutil.rmtree(str(simulation_dir))
     simulation_dir.mkdir(parents=True)
 
     # Symlink restarts files to new directory and modify namelistrestart files
 
     # Hydro
-    hydro_rst = candidate_sim.restart_hydro[0]
+    hydro_rst = candidate_run_expected.restart_hydro[0]
     new_hydro_rst_path = simulation_dir.joinpath(hydro_rst.name)
     new_hydro_rst_path.symlink_to(hydro_rst)
 
@@ -118,7 +133,7 @@ def test_perfrestart_candidate(candidate_sim,output_dir):
         {'restart_file': str(new_hydro_rst_path)})
 
     # LSM
-    lsm_rst = candidate_sim.restart_lsm[0]
+    lsm_rst = candidate_run_expected.restart_lsm[0]
     new_lsm_rst_path = simulation_dir.joinpath(lsm_rst.name)
     new_lsm_rst_path.symlink_to(lsm_rst)
 
@@ -126,7 +141,7 @@ def test_perfrestart_candidate(candidate_sim,output_dir):
         {'restart_filename_requested': str(simulation_dir.joinpath(lsm_rst.name))})
 
     # Nudging
-    if len(candidate_sim.restart_nudging) > 0:
+    if len(candidate_run_expected.restart_nudging) > 0:
         nudging_rst = candidate_run_expected.restart_nudging[0]
         new_nudging_rst_path = simulation_dir.joinpath(nudging_rst.name)
         new_nudging_rst_path.symlink_to(nudging_rst)
@@ -145,14 +160,18 @@ def test_perfrestart_candidate(candidate_sim,output_dir):
          'start_min': start_dt.minute})
 
     #Adjust duration to be shorter by restart time delta in days
-    hydro_rst_dt = candidate_sim.hydro_namelist['hydro_nlist']['rst_dt']
+    hydro_rst_dt = perfrestart_sim.hydro_namelist['hydro_nlist']['rst_dt']
     previous_duration =  candidate_run_expected.simulation.namelist_hrldas['noahlsm_offline'][
         'kday']
     new_duration = int(previous_duration - hydro_rst_dt/60/24)
     perfrestart_sim.namelist_hrldas['noahlsm_offline'].update({'kday':new_duration})
 
     # Run the simulation
-    candidate_perfrestart_run = perfrestart_sim.run(simulation_dir, 1,mode='a')
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        candidate_perfrestart_run = perfrestart_sim.run(simulation_dir=simulation_dir,
+                                                        num_cores=2,
+                                                        mode='a')
 
     #Check against initial run
     perfstart_restart_diffs = RestartDiffs(candidate_perfrestart_run,candidate_run_expected)
@@ -170,8 +189,10 @@ def test_perfrestart_candidate(candidate_sim,output_dir):
 
 #regression question
 def test_regression(output_dir):
-    candidate_run_expected = pickle.load(open(output_dir / 'run_candidate', "rb"))
-    reference_run_expected = pickle.load(open(output_dir / 'run_reference', "rb"))
+    candidate_run_expected = pickle.load(open(output_dir / 'run_candidate' / 'WrfHydroRun.pkl',
+                                              "rb"))
+    reference_run_expected = pickle.load(open(output_dir / 'run_reference' / 'WrfHydroRun.pkl',
+                                              "rb"))
     #Check regression
     regression_diffs = RestartDiffs(candidate_run_expected,reference_run_expected)
 

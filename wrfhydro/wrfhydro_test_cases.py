@@ -1,7 +1,7 @@
 import pathlib
 import shutil
 from utilities import *
-import deepcopy
+import copy
 import datetime as dt
 import pickle
 from pprint import pprint

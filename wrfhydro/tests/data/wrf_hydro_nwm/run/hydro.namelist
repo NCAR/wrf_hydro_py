@@ -1,0 +1,63 @@
+&hydro_nlist
+    aggfactrt = 4
+    channel_option = 2
+    chanobs_domain = 1
+    chanrtswcrt = 1
+    chrtout_domain = 0
+    chrtout_grid = 0
+    dtrt_ch = 300
+    dtrt_ter = 10
+    dxrt = 250.0
+    frxst_pts_out = 0
+    geo_finegrid_flnm = './NWM/DOMAIN/Fulldom.nc'
+    geo_static_flnm = './NWM/DOMAIN/geo_em.nc'
+    gw_restart = 1
+    gwbaseswcrt = 1
+    gwbuckparm_file = './NWM/DOMAIN/GWBUCKPARM.nc'
+    hydrotbl_f = './NWM/DOMAIN/HYDRO_TBL_2D.nc'
+    igrid = 1
+    io_config_outputs = 2
+    io_form_outputs = 4
+    land_spatial_meta_flnm = './NWM/DOMAIN/geospatial_data_template_land_GIS.nc',
+    lsmout_domain = 0
+    nsoil = 4
+    order_to_write = 1
+    out_dt = 60
+    outlake = 0
+    output_channelbucket_influx = 0
+    output_gw = 0
+    ovrtswcrt = 1
+    restart_file = './NWM/RESTART/HYDRO_RST.2011082600_DOMAIN1'
+    route_lake_f = './NWM/DOMAIN/LAKEPARM.nc'
+    route_link_f = './NWM/DOMAIN/RouteLink.nc'
+    rst_bi_in = 0
+    rst_bi_out = 0
+    rst_dt = 480
+    rst_typ = 1
+    rstrt_swc = 0
+    rt_option = 1
+    rtout_domain = 0
+    split_output_count = 1
+    subrtswcrt = 1
+    sys_cpl = 1
+    t0outputflag = 0
+    teradj_solar = 0
+    udmap_file = './NWM/DOMAIN/spatialweights.nc'
+    udmp_opt = 1
+    zsoil8 = -0.1, -0.4, -1.0, -2.0
+/
+
+&nudging_nlist
+    biaswindowbeforet0 = .false.
+    invdisttimeweightbias = .true.
+    maxagepairsbiaspersist = 24
+    minnumpairsbiaspersist = 8
+    nlastobs = 480
+    noconstinterfbias = .false.
+    nudginglastobsfile = 'notAFile.junk'
+    nudgingparamfile = './NWM/DOMAIN/nudgingParams.nc'
+    persistbias = .true.
+    readtimesliceparallel = .true.
+    temporalpersistence = .true.
+    timeslicepath = './NWM/nudgingTimeSliceObs/'
+/

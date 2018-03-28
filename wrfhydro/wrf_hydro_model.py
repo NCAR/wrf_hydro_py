@@ -487,8 +487,6 @@ class WrfHydroRun(object):
             #####################
             # Grab outputs as WrfHydroXX classes of file paths
 
-            # TODO TJM - Make all files fall under an 'output_files' attirbute
-
             ## Get diag files
             self.diag = list(self.simulation_dir.glob('diag_hydro.*'))
             """list: pathlib.Paths to diag files generated at run time"""
@@ -546,7 +544,7 @@ class WrfHydroRun(object):
 
             # Save object to simulation directory
             # Save the object out to the compile directory
-            with open(self.simulation_dir.joinpath('wrf_hydro_sim.pkl'), 'wb') as f:
+            with open(self.simulation_dir.joinpath('WrfHydroRun.pkl'), 'wb') as f:
                 pickle.dump(self, f, 2)
 
             print('Model run succeeded')

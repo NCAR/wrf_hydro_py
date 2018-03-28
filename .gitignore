@@ -111,3 +111,6 @@ ENV/
 
 #Testing stuff
 .pytest_cache/
+
+#distribution stuff
+/dist

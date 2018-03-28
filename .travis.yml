@@ -1,5 +1,9 @@
 sudo: required
-language: bash
+language: python
+
+matrix:
+ include:
+  - python: 3.6
 
 services:
   - docker

@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='wrfhydro',
-    version='0.0.1',
+    version='0.0.4',
     packages=['wrfhydro'],
     url='https://github.com/NCAR/wrf_hydro_py',
     license='MIT',

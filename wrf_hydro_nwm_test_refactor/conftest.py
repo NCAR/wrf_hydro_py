@@ -1,9 +1,8 @@
 import pytest
 import sys
-sys.path.insert(0, '/home/docker/wrf_hydro_py/wrfhydro')
-
 import pathlib
-from wrf_hydro_model import *
+from wrfhydro.utilities import *
+from wrfhydro.wrf_hydro_model import *
 
 def pytest_addoption(parser):
     parser.addoption('--domain_dir', action='store', help='domain directory')

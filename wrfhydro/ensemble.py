@@ -1,89 +1,160 @@
 from wrf_hydro_model import *
-import copy
 from boltons.iterutils import remap
+import copy
+
+def copy_member(member,
+                do_copy: bool):
+    if do_copy:
+        return(copy.deepcopy(member))
+    else:
+        return(member)
 
 #########################
 # Classes for constructing and running a wrf_hydro simulation
 class WrfHydroEnsembleSim(object):
     """Class for a WRF-Hydro model, which consitutes the model source code and compiled binary.
     """
-    def __init__(self, source_list: list):
+    def __init__(self,
+                 members: list,
+                 ensemble_dir: str='' ):
         """Instantiate a WrfHydroEnsembleSim object.
         Args:
-            source_dir: Directory containing the source code, e.g.
-               'wrf_hydro_nwm/trunk/NDHMS'.
-            new_compile_dir: Optional, new directory to to hold results
-               of code compilation.
+            members: 
+            ensemble_dir: Optional, 
         Returns:
-            A WrfHydroModel object.
+            A WrfHydroEnsembleSim object.
         """
-
-        # Accessing a object in a list is a pain.
-        # Perhaps define member as a method and ensemble_sims
-        # Let e.member(1).attribute be the access or to the 
-        
-        # The members live in a list.
-        self.ensemble_sims = source_list
+        self.__members = []
+        self.members = members
+        self.__members_dict = {}
         """list: of WrfHydroSim objects."""
 
-        self.N = len(source_list)
-        #"""int: The number of ensemble members."""
+        # Several simulation properties are not specified
+        # until run time. Place them here
+        self.ens_dir = ''
+
+
+    # Data to store in the ensemble object
+    # 1) list of simulations = the ensemble
+    # 2) N = __len__(), @property
+    # 3) ensemble dir, the directory containing the ensemble member_dir run dirs
 
 
     def __len__(self):
-        return( len(self.ensemble_sims) )
+        return( len(self.members) )
 
-    N = __len__()
+    
+    # The "canonical" name for len
+    @property
+    def N(self):
+        return(self.__len__())
 
 
+    # Data to store with the "member" simulations, conceptually this
+    # data belongs to the members:
+    # 1) member number
+    # 2) description
+    # 3) member_dir
+    # 4) forcing_source_dir
+    #
+    # Ensemblize the individual members.
+    # Except for changing the Class definition, why
+    # would I define a child class instead of just adding attributes?
 
-    # Would be nice if the chaining had completion for the return objects.
-    # Hard to figure that out... 
-    def member(self, index: int):
-        if self.N == 0:
-            return(None)
-        return(self.ensemble_sims[index])
 
-        
-        # TODO JLM: do we want to stash metadata with each ensemble member, do we need a
-        #           super class of WrfHydroSim that has metadata fields like "ens member",
-        #           "description"?
+    @property
+    def members(self):
+        return(self.__members)
 
-    def add_member(self,
-                   new_member: WrfHydroSim, 
-                   copy_new_member: bool=True):
-        if copy_new_member:
-            self.ensemble_sims.append(copy.deepcopy(new_member))
-        else:
-            self.ensemble_sims.append(new_member)
+    @members.setter
+    def members(self,
+                     new_members: list, 
+                     copy_members: bool=True):
 
-        
+        if( type(new_members) is not list ):
+            new_members = [ new_members ]
+
+        for nn in new_members:
+            self.__members.append(copy_member(nn, copy_members))
+            # If copying an existing ensemble member, nuke the metadata
+            # number is the detector for all ensemble metadata.
+            if hasattr(nn, 'number'):
+                delattr(self.__members[len(self.__members)-1], 'number')
+
+        # Put refs to these properties in the ensemble objects
+        for mm in range(len(self.__members)):
+            if not hasattr(self.__members[mm], 'number'):
+                self.__members[mm].number = -1
+                self.__members[mm].description = ''
+                self.__members[mm].run_dir = ''
+                self.__members[mm].forcing_source_dir = ''
+
+
+    # A quick way to setup a basic ensemble from a single sim.
     def replicate_member(self,
                          N: int,
-                         copy_new_member: bool=True):
-        # N is the final ensemble size.
-        # TODO JLM: only run this if e.N==1
-        for nn in range(1,N):
-            self.add_member(self.ensemble_sims[0])
+                         copy_members: bool=True):
+        if self.N > 1:
+            print('WTF mate?')
+        else:
+            self.members = [ self.members[0] for nn in range(N-1) ]
+
+            
+    @property        
+    def members_dict(self):
+        m_dict = self.__members_dict
+        for mm in range(len(self.members)):
+            self.members[mm].number = mm
+        m_dict['number'] = [ mm.number for mm in self.members ]
+        m_dict['description'] = [ mm.description for mm in self.members ]
+        m_dict['run_dir'] = [ mm.run_dir for mm in self.members ]
+        m_dict['forcing_source_dir'] = [ mm.forcing_source_dir for mm in self.members ]
+        return(m_dict)
+
+    @members_dict.setter
+    def members_dict(self,
+                     att_path_key: str,
+                     values: list): 
+        m_dict = self.__members_dict
+
+        m_dict[att_path_key] =[]
+        
+        att_path_key_tuple =  tuple(map(str, att_path_key.split('/')))
+        att_key = att_path_key_tuple[len(key_path_tuple)-1]
+        att_path = key_path_tuple[0:(len(key_path_tuple)-1)]
+
+        def visit(path, key, value):
+            if path == att_path:
+                if key == 'att_key':
+                    m_dict[att_path_key] = m_dict[att_path_key].append(value)
+
+        for mm in self.members:            
+            remap(mm.__dict__, visit=visit)
+
 
         
-    def get_ens_attributes(self, attribute, the_key):
+    # Would want a method for detecting differences between ensemble members
+    # instead of just specifying them... 
+                                         
 
-        # Parse up the attribute
-        return_list = []
-        
-        def visit_path_key(path, key, value):
-            if key == the_key:
-                return_list.append(value) #print(path, key, value)
-                return key, value
-            return key, value
 
-        def remap_path_key(ll):
-            return(remap(ll, visit_path_key))
+    # def get_ens_attributes(self, attribute, the_key):
+
+    #     # Parse up the attribute
+    #     return_list = []
         
-        att_list = [remap_path_key(getattr(i, attribute)) for i in self.ensemble_sims ]
-        #att_list = [ i.hydro_namelist['nudging_nlist']['nlastobs'] for i in self.ensemble_sims ]
-        return(return_list)
+    #     def visit_path_key(path, key, value):
+    #         if key == the_key:
+    #             return_list.append(value) #print(path, key, value)
+    #             return key, value
+    #         return key, value
+
+    #     def remap_path_key(ll):
+    #         return(remap(ll, visit_path_key))
+        
+    #     att_list = [remap_path_key(getattr(i, attribute)) for i in self.members ]
+    #     #att_list = [ i.hydro_namelist['nudging_nlist']['nlastobs'] for i in self.members ]
+    #     return(return_list)
         
 
 #Ens:

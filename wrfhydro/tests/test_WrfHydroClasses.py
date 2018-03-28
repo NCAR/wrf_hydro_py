@@ -306,7 +306,7 @@ def test_run_nwm(datadir_copy):
     # Load expected objects
     expected_dir = datadir_copy["expected"]
     run_object_expected = pickle.load(open(expected_dir / 'test_run_nwm.pkl', "rb"))
-    simulation_object_expected = pickle.load(open(testDataDir / 'expected/test_simulation_nwm.pkl',
+    simulation_object_expected = pickle.load(open(expected_dir / 'test_simulation_nwm.pkl',
                                              "rb"))
 
     # Generate new objects
@@ -357,8 +357,8 @@ def test_run_nwm(datadir_copy):
     # Load expected objects
     expected_dir = datadir_copy["expected"]
     run_object_expected = pickle.load(open(expected_dir / 'test_run_nwm_public.pkl', "rb"))
-    simulation_object_expected = pickle.load(open(testDataDir /
-                                                  'expected/test_simulation_nwm_public.pkl',
+    simulation_object_expected = pickle.load(open(expected_dir /
+                                                  'test_simulation_nwm_public.pkl',
                                              "rb"))
 
     # Generate new objects

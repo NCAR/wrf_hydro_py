@@ -1,8 +1,5 @@
-import sys
-sys.path.insert(0, '/home/docker/wrf_hydro_py/wrfhydro')
-
 import pathlib
-from wrf_hydro_model import *
+from wrfhydropy.model_classes import *
 import pickle
 import deepdiff
 import copy

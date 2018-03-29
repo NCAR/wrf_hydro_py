@@ -1,20 +1,13 @@
 wrfhydro package
 ================
 
-Subpackages
------------
-
-.. toctree::
-
-    wrfhydro.tests
-
 Submodules
 ----------
 
 wrfhydro.utilities module
 -------------------------
 
-.. automodule:: wrfhydro.utilities
+.. automodule:: wrfhydropy.utilities
     :members:
     :undoc-members:
     :show-inheritance:
@@ -22,7 +15,7 @@ wrfhydro.utilities module
 wrfhydro.wrf\_hydro\_model module
 ---------------------------------
 
-.. automodule:: wrfhydro.wrf_hydro_model
+.. automodule:: wrfhydropy.wrf_hydro_model
     :members:
     :undoc-members:
     :show-inheritance:
@@ -31,7 +24,7 @@ wrfhydro.wrf\_hydro\_model module
 Module contents
 ---------------
 
-.. automodule:: wrfhydro
+.. automodule:: wrfhydropy
     :members:
     :undoc-members:
     :show-inheritance:

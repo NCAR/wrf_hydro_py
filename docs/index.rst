@@ -1,9 +1,9 @@
-.. wrfhydro documentation master file, created by
+.. wrfhydropy documentation master file, created by
    sphinx-quickstart on Wed Mar 28 17:29:58 2018.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to wrfhydro's documentation!
+Welcome to wrfhydropy's documentation!
 ====================================
 
 .. toctree::

@@ -1,9 +1,9 @@
 from setuptools import setup
 
 setup(
-    name='wrfhydro',
-    version='0.0.5',
-    packages=['wrfhydro'],
+    name='wrfhydropy',
+    version='0.0.1',
+    packages=['wrfhydropy'],
     url='https://github.com/NCAR/wrf_hydro_py',
     license='MIT',
     install_requires=['pandas','f90nml','deepdiff','pathlib','xarray','datetime','pytest','pytest-datadir-ng'],

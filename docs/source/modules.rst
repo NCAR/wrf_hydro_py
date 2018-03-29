@@ -1,5 +1,5 @@
-wrfhydro
-========
+wrfhydropy
+==========
 
 .. toctree::
    :maxdepth: 4

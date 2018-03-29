@@ -6,7 +6,7 @@ import copy
 
 ##################################
 # Directories for import and for test data, used for making expected datasets
-# testDataDir = pathlib.Path('/home/docker/wrf_hydro_py/wrfhydro/tests/data')
+# testDataDir = pathlib.Path('/home/docker/wrf_hydro_py/wrfhydropy/tests/data')
 ##################################
 
 ##################################

@@ -15,7 +15,7 @@
  IXRT, JXRT =           33          64
  End of OV_routing call...
  OV routing called and returned...
- Timing: Overland Routing  accumulated time--   1.40000004E-02
+ Timing: Overland Routing  accumulated time--   1.49999997E-02
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
  Timing: GwBaseflow  accumulated time--   0.00000000    
@@ -35,12 +35,12 @@
  Ndg: finish find_timeslice_file
  Ndg: no timeSliceFile at this time: 2011-08-26_01:00:00
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--   1.99999996E-02
+ Timing: Channel Routing  accumulated time--   2.19999999E-02
  Beginning Aggregation...
  Finished Aggregation...
  before call output_chrt
  end calling output functions
- ***DATE=2011-08-26_01:00:00 294.70694   2.75808    Timing:   0.59 Cumulative:        0.59  SFLX:   0.00
+ ***DATE=2011-08-26_01:00:00 294.70694   2.75808    Timing:   0.62 Cumulative:        0.62  SFLX:   0.00
  read forcing data at 2011-08-26_01:00:00./FORCING/2011082602.LDASIN_DOMAIN1
  Beginning Disaggregation...
  After Disaggregation...
@@ -50,7 +50,7 @@
  call subsurface routing xx= , yy =          64          33
  finish calling ROUTE_SUBSURFACE            1
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   1.00000005E-03
+ Timing: Subsurface Routing  accumulated time--   0.00000000    
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -58,10 +58,10 @@
  IXRT, JXRT =           33          64
  End of OV_routing call...
  OV routing called and returned...
- Timing: Overland Routing  accumulated time--   2.70000007E-02
+ Timing: Overland Routing  accumulated time--   2.99999993E-02
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   1.00000005E-03
+ Timing: GwBaseflow  accumulated time--   0.00000000    
  Ndg: start find_timeslice_file
  Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_01:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
  Ndg: file found:  F
@@ -73,12 +73,12 @@
  Ndg: finish find_timeslice_file
  Ndg: no timeSliceFile at this time: 2011-08-26_02:00:00
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--   3.79999988E-02
+ Timing: Channel Routing  accumulated time--   4.19999994E-02
  Beginning Aggregation...
  Finished Aggregation...
  before call output_chrt
  end calling output functions
- ***DATE=2011-08-26_02:00:00 294.37000   2.75507    Timing:   0.08 Cumulative:        0.67  SFLX:   0.00
+ ***DATE=2011-08-26_02:00:00 294.37000   2.75507    Timing:   0.08 Cumulative:        0.70  SFLX:   0.00
  read forcing data at 2011-08-26_02:00:00./FORCING/2011082603.LDASIN_DOMAIN1
  Beginning Disaggregation...
  After Disaggregation...
@@ -96,10 +96,10 @@
  IXRT, JXRT =           33          64
  End of OV_routing call...
  OV routing called and returned...
- Timing: Overland Routing  accumulated time--   4.19999994E-02
+ Timing: Overland Routing  accumulated time--   4.69999984E-02
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   1.00000005E-03
+ Timing: GwBaseflow  accumulated time--   0.00000000    
  Ndg: start find_timeslice_file
  Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_02:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
  Ndg: file found:  F
@@ -111,12 +111,12 @@
  Ndg: finish find_timeslice_file
  Ndg: no timeSliceFile at this time: 2011-08-26_03:00:00
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--   5.79999983E-02
+ Timing: Channel Routing  accumulated time--   6.30000010E-02
  Beginning Aggregation...
  Finished Aggregation...
  before call output_chrt
  end calling output functions
- ***DATE=2011-08-26_03:00:00 294.07346   2.75206    Timing:   0.08 Cumulative:        0.75  SFLX:   0.00
+ ***DATE=2011-08-26_03:00:00 294.07346   2.75206    Timing:   0.09 Cumulative:        0.79  SFLX:   0.00
  read forcing data at 2011-08-26_03:00:00./FORCING/2011082604.LDASIN_DOMAIN1
  Beginning Disaggregation...
  After Disaggregation...
@@ -134,10 +134,10 @@
  IXRT, JXRT =           33          64
  End of OV_routing call...
  OV routing called and returned...
- Timing: Overland Routing  accumulated time--   5.70000000E-02
+ Timing: Overland Routing  accumulated time--   6.39999956E-02
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   1.00000005E-03
+ Timing: GwBaseflow  accumulated time--   0.00000000    
  Ndg: start find_timeslice_file
  Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_03:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
  Ndg: file found:  F
@@ -149,12 +149,12 @@
  Ndg: finish find_timeslice_file
  Ndg: no timeSliceFile at this time: 2011-08-26_04:00:00
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--   7.50000030E-02
+ Timing: Channel Routing  accumulated time--   8.10000002E-02
  Beginning Aggregation...
  Finished Aggregation...
  before call output_chrt
  end calling output functions
- ***DATE=2011-08-26_04:00:00 293.82990   2.74904    Timing:   0.07 Cumulative:        0.82  SFLX:   0.00
+ ***DATE=2011-08-26_04:00:00 293.82990   2.74904    Timing:   0.08 Cumulative:        0.87  SFLX:   0.00
  read forcing data at 2011-08-26_04:00:00./FORCING/2011082605.LDASIN_DOMAIN1
  Beginning Disaggregation...
  After Disaggregation...
@@ -172,10 +172,10 @@
  IXRT, JXRT =           33          64
  End of OV_routing call...
  OV routing called and returned...
- Timing: Overland Routing  accumulated time--   7.19999969E-02
+ Timing: Overland Routing  accumulated time--   7.99999982E-02
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   1.00000005E-03
+ Timing: GwBaseflow  accumulated time--   0.00000000    
  Ndg: start find_timeslice_file
  Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_04:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
  Ndg: file found:  F
@@ -187,12 +187,12 @@
  Ndg: finish find_timeslice_file
  Ndg: no timeSliceFile at this time: 2011-08-26_05:00:00
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--   9.40000042E-02
+ Timing: Channel Routing  accumulated time--   9.89999995E-02
  Beginning Aggregation...
  Finished Aggregation...
  before call output_chrt
  end calling output functions
- ***DATE=2011-08-26_05:00:00 293.61734   2.74603    Timing:   0.08 Cumulative:        0.90  SFLX:   0.00
+ ***DATE=2011-08-26_05:00:00 293.61734   2.74603    Timing:   0.08 Cumulative:        0.95  SFLX:   0.00
  read forcing data at 2011-08-26_05:00:00./FORCING/2011082606.LDASIN_DOMAIN1
  Beginning Disaggregation...
  After Disaggregation...
@@ -210,10 +210,10 @@
  IXRT, JXRT =           33          64
  End of OV_routing call...
  OV routing called and returned...
- Timing: Overland Routing  accumulated time--   8.69999975E-02
+ Timing: Overland Routing  accumulated time--   9.60000008E-02
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   1.00000005E-03
+ Timing: GwBaseflow  accumulated time--   0.00000000    
  Ndg: start find_timeslice_file
  Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_05:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
  Ndg: file found:  F
@@ -225,12 +225,12 @@
  Ndg: finish find_timeslice_file
  Ndg: no timeSliceFile at this time: 2011-08-26_06:00:00
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.112000003    
+ Timing: Channel Routing  accumulated time--  0.119000003    
  Beginning Aggregation...
  Finished Aggregation...
  before call output_chrt
  end calling output functions
- ***DATE=2011-08-26_06:00:00 293.32483   2.74301    Timing:   0.08 Cumulative:        0.98  SFLX:   0.00
+ ***DATE=2011-08-26_06:00:00 293.32483   2.74301    Timing:   0.09 Cumulative:        1.04  SFLX:   0.00
  read forcing data at 2011-08-26_06:00:00./FORCING/2011082607.LDASIN_DOMAIN1
  Beginning Disaggregation...
  After Disaggregation...
@@ -248,10 +248,10 @@
  IXRT, JXRT =           33          64
  End of OV_routing call...
  OV routing called and returned...
- Timing: Overland Routing  accumulated time--  0.100999996    
+ Timing: Overland Routing  accumulated time--  0.109999999    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   2.00000009E-03
+ Timing: GwBaseflow  accumulated time--   0.00000000    
  Ndg: start find_timeslice_file
  Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_06:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
  Ndg: file found:  F
@@ -263,12 +263,12 @@
  Ndg: finish find_timeslice_file
  Ndg: no timeSliceFile at this time: 2011-08-26_07:00:00
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.130999997    
+ Timing: Channel Routing  accumulated time--  0.140000001    
  Beginning Aggregation...
  Finished Aggregation...
  before call output_chrt
  end calling output functions
- ***DATE=2011-08-26_07:00:00 293.05212   2.74000    Timing:   0.08 Cumulative:        1.05  SFLX:   0.00
+ ***DATE=2011-08-26_07:00:00 293.05212   2.74000    Timing:   0.08 Cumulative:        1.13  SFLX:   0.00
  read forcing data at 2011-08-26_07:00:00./FORCING/2011082608.LDASIN_DOMAIN1
  Beginning Disaggregation...
  After Disaggregation...
@@ -286,10 +286,10 @@
  IXRT, JXRT =           33          64
  End of OV_routing call...
  OV routing called and returned...
- Timing: Overland Routing  accumulated time--  0.116999999    
+ Timing: Overland Routing  accumulated time--  0.125000000    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   2.00000009E-03
+ Timing: GwBaseflow  accumulated time--   0.00000000    
  Ndg: start find_timeslice_file
  Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_07:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
  Ndg: file found:  F
@@ -301,7 +301,7 @@
  Ndg: finish find_timeslice_file
  Ndg: no timeSliceFile at this time: 2011-08-26_08:00:00
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.148999989    
+ Timing: Channel Routing  accumulated time--  0.159999996    
  Beginning Aggregation...
  Finished Aggregation...
  yw check output restart at 2011-08-26_00:00
@@ -309,7 +309,7 @@
  before call output_chrt
  end calling output functions
  ***DATE=2011-08-26_08:00:00 292.80429   2.73699 Write restart at 2011-08-26_08
-    Timing:   0.15 Cumulative:        1.20  SFLX:   0.00
+    Timing:   0.15 Cumulative:        1.28  SFLX:   0.00
  read forcing data at 2011-08-26_08:00:00./FORCING/2011082609.LDASIN_DOMAIN1
  Beginning Disaggregation...
  After Disaggregation...
@@ -327,10 +327,10 @@
  IXRT, JXRT =           33          64
  End of OV_routing call...
  OV routing called and returned...
- Timing: Overland Routing  accumulated time--  0.131999999    
+ Timing: Overland Routing  accumulated time--  0.140000001    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   2.00000009E-03
+ Timing: GwBaseflow  accumulated time--   0.00000000    
  Ndg: start find_timeslice_file
  Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_08:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
  Ndg: file found:  F
@@ -342,51 +342,13 @@
  Ndg: finish find_timeslice_file
  Ndg: no timeSliceFile at this time: 2011-08-26_09:00:00
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.167999983    
+ Timing: Channel Routing  accumulated time--  0.178999990    
  Beginning Aggregation...
  Finished Aggregation...
  before call output_chrt
  end calling output functions
- ***DATE=2011-08-26_09:00:00 292.49301   2.73397    Timing:   0.06 Cumulative:        1.26  SFLX:   0.00
+ ***DATE=2011-08-26_09:00:00 292.49301   2.73397    Timing:   0.06 Cumulative:        1.34  SFLX:   0.00
  read forcing data at 2011-08-26_09:00:00./FORCING/2011082610.LDASIN_DOMAIN1
- Beginning Disaggregation...
- After Disaggregation...
- Beginning SUB_routing...
- Routing method is            1  direction.
- calling subsurface routing subroutine...Opt.            1
- call subsurface routing xx= , yy =          64          33
- finish calling ROUTE_SUBSURFACE            1
- SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   2.00000009E-03
- Beginning OV_routing...
- Routing method is            1  direction.
- calling OV_RTNG 
- OV_RTNG  DT_FRAC, DT, DTRT_TER   360.000000       3600.00000       10.0000000    
- IXRT, JXRT =           33          64
- End of OV_routing call...
- OV routing called and returned...
- Timing: Overland Routing  accumulated time--  0.147000000    
- *****yw******start simp_gw_buck 
- *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   3.00000003E-03
- Ndg: start find_timeslice_file
- Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_09:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
- Ndg: file found:  F
- Ndg: finish find_timeslice_file
- Ndg: no timeSliceFile at this time: 2011-08-26_09:30:00
- Ndg: start find_timeslice_file
- Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_10:00:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
- Ndg: file found:  F
- Ndg: finish find_timeslice_file
- Ndg: no timeSliceFile at this time: 2011-08-26_10:00:00
- *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.185999990    
- Beginning Aggregation...
- Finished Aggregation...
- before call output_chrt
- end calling output functions
- ***DATE=2011-08-26_10:00:00 292.26468   2.73096    Timing:   0.08 Cumulative:        1.34  SFLX:   0.00
- read forcing data at 2011-08-26_10:00:00./FORCING/2011082611.LDASIN_DOMAIN1
  Beginning Disaggregation...
  After Disaggregation...
  Beginning SUB_routing...
@@ -403,10 +365,48 @@
  IXRT, JXRT =           33          64
  End of OV_routing call...
  OV routing called and returned...
- Timing: Overland Routing  accumulated time--  0.160999998    
+ Timing: Overland Routing  accumulated time--  0.155000001    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   4.00000019E-03
+ Timing: GwBaseflow  accumulated time--   0.00000000    
+ Ndg: start find_timeslice_file
+ Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_09:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
+ Ndg: file found:  F
+ Ndg: finish find_timeslice_file
+ Ndg: no timeSliceFile at this time: 2011-08-26_09:30:00
+ Ndg: start find_timeslice_file
+ Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_10:00:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
+ Ndg: file found:  F
+ Ndg: finish find_timeslice_file
+ Ndg: no timeSliceFile at this time: 2011-08-26_10:00:00
+ *****yw******end drive_CHANNEL 
+ Timing: Channel Routing  accumulated time--  0.201999992    
+ Beginning Aggregation...
+ Finished Aggregation...
+ before call output_chrt
+ end calling output functions
+ ***DATE=2011-08-26_10:00:00 292.26468   2.73096    Timing:   0.09 Cumulative:        1.42  SFLX:   0.00
+ read forcing data at 2011-08-26_10:00:00./FORCING/2011082611.LDASIN_DOMAIN1
+ Beginning Disaggregation...
+ After Disaggregation...
+ Beginning SUB_routing...
+ Routing method is            1  direction.
+ calling subsurface routing subroutine...Opt.            1
+ call subsurface routing xx= , yy =          64          33
+ finish calling ROUTE_SUBSURFACE            1
+ SUBROUTE routing called and returned...
+ Timing: Subsurface Routing  accumulated time--   4.00000019E-03
+ Beginning OV_routing...
+ Routing method is            1  direction.
+ calling OV_RTNG 
+ OV_RTNG  DT_FRAC, DT, DTRT_TER   360.000000       3600.00000       10.0000000    
+ IXRT, JXRT =           33          64
+ End of OV_routing call...
+ OV routing called and returned...
+ Timing: Overland Routing  accumulated time--  0.169000000    
+ *****yw******start simp_gw_buck 
+ *****yw******end simp_gw_buck 
+ Timing: GwBaseflow  accumulated time--   1.00000005E-03
  Ndg: start find_timeslice_file
  Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_10:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
  Ndg: file found:  F
@@ -418,12 +418,12 @@
  Ndg: finish find_timeslice_file
  Ndg: no timeSliceFile at this time: 2011-08-26_11:00:00
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.205999985    
+ Timing: Channel Routing  accumulated time--  0.220999986    
  Beginning Aggregation...
  Finished Aggregation...
  before call output_chrt
  end calling output functions
- ***DATE=2011-08-26_11:00:00 292.10727   2.72795    Timing:   0.08 Cumulative:        1.42  SFLX:   0.00
+ ***DATE=2011-08-26_11:00:00 292.10727   2.72795    Timing:   0.08 Cumulative:        1.51  SFLX:   0.00
  read forcing data at 2011-08-26_11:00:00./FORCING/2011082612.LDASIN_DOMAIN1
  Beginning Disaggregation...
  After Disaggregation...
@@ -441,10 +441,10 @@
  IXRT, JXRT =           33          64
  End of OV_routing call...
  OV routing called and returned...
- Timing: Overland Routing  accumulated time--  0.174999997    
+ Timing: Overland Routing  accumulated time--  0.184000000    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   4.00000019E-03
+ Timing: GwBaseflow  accumulated time--   1.00000005E-03
  Ndg: start find_timeslice_file
  Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_11:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
  Ndg: file found:  F
@@ -456,89 +456,13 @@
  Ndg: finish find_timeslice_file
  Ndg: no timeSliceFile at this time: 2011-08-26_12:00:00
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.225999981    
+ Timing: Channel Routing  accumulated time--  0.239999980    
  Beginning Aggregation...
  Finished Aggregation...
  before call output_chrt
  end calling output functions
- ***DATE=2011-08-26_12:00:00 292.46146   2.72493    Timing:   0.08 Cumulative:        1.50  SFLX:   0.00
+ ***DATE=2011-08-26_12:00:00 292.46146   2.72493    Timing:   0.08 Cumulative:        1.59  SFLX:   0.00
  read forcing data at 2011-08-26_12:00:00./FORCING/2011082613.LDASIN_DOMAIN1
- Beginning Disaggregation...
- After Disaggregation...
- Beginning SUB_routing...
- Routing method is            1  direction.
- calling subsurface routing subroutine...Opt.            1
- call subsurface routing xx= , yy =          64          33
- finish calling ROUTE_SUBSURFACE            1
- SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   4.00000019E-03
- Beginning OV_routing...
- Routing method is            1  direction.
- calling OV_RTNG 
- OV_RTNG  DT_FRAC, DT, DTRT_TER   360.000000       3600.00000       10.0000000    
- IXRT, JXRT =           33          64
- End of OV_routing call...
- OV routing called and returned...
- Timing: Overland Routing  accumulated time--  0.187999994    
- *****yw******start simp_gw_buck 
- *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   4.00000019E-03
- Ndg: start find_timeslice_file
- Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_12:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
- Ndg: file found:  F
- Ndg: finish find_timeslice_file
- Ndg: no timeSliceFile at this time: 2011-08-26_12:30:00
- Ndg: start find_timeslice_file
- Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_13:00:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
- Ndg: file found:  F
- Ndg: finish find_timeslice_file
- Ndg: no timeSliceFile at this time: 2011-08-26_13:00:00
- *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.244999975    
- Beginning Aggregation...
- Finished Aggregation...
- before call output_chrt
- end calling output functions
- ***DATE=2011-08-26_13:00:00 292.90701   2.72192    Timing:   0.08 Cumulative:        1.57  SFLX:   0.00
- read forcing data at 2011-08-26_13:00:00./FORCING/2011082614.LDASIN_DOMAIN1
- Beginning Disaggregation...
- After Disaggregation...
- Beginning SUB_routing...
- Routing method is            1  direction.
- calling subsurface routing subroutine...Opt.            1
- call subsurface routing xx= , yy =          64          33
- finish calling ROUTE_SUBSURFACE            1
- SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   4.00000019E-03
- Beginning OV_routing...
- Routing method is            1  direction.
- calling OV_RTNG 
- OV_RTNG  DT_FRAC, DT, DTRT_TER   360.000000       3600.00000       10.0000000    
- IXRT, JXRT =           33          64
- End of OV_routing call...
- OV routing called and returned...
- Timing: Overland Routing  accumulated time--  0.201999992    
- *****yw******start simp_gw_buck 
- *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   4.00000019E-03
- Ndg: start find_timeslice_file
- Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_13:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
- Ndg: file found:  F
- Ndg: finish find_timeslice_file
- Ndg: no timeSliceFile at this time: 2011-08-26_13:30:00
- Ndg: start find_timeslice_file
- Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_14:00:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
- Ndg: file found:  F
- Ndg: finish find_timeslice_file
- Ndg: no timeSliceFile at this time: 2011-08-26_14:00:00
- *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.265999973    
- Beginning Aggregation...
- Finished Aggregation...
- before call output_chrt
- end calling output functions
- ***DATE=2011-08-26_14:00:00 293.46722   2.71890    Timing:   0.08 Cumulative:        1.65  SFLX:   0.00
- read forcing data at 2011-08-26_14:00:00./FORCING/2011082615.LDASIN_DOMAIN1
  Beginning Disaggregation...
  After Disaggregation...
  Beginning SUB_routing...
@@ -555,10 +479,86 @@
  IXRT, JXRT =           33          64
  End of OV_routing call...
  OV routing called and returned...
- Timing: Overland Routing  accumulated time--  0.214999989    
+ Timing: Overland Routing  accumulated time--  0.196999997    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   4.00000019E-03
+ Timing: GwBaseflow  accumulated time--   1.00000005E-03
+ Ndg: start find_timeslice_file
+ Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_12:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
+ Ndg: file found:  F
+ Ndg: finish find_timeslice_file
+ Ndg: no timeSliceFile at this time: 2011-08-26_12:30:00
+ Ndg: start find_timeslice_file
+ Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_13:00:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
+ Ndg: file found:  F
+ Ndg: finish find_timeslice_file
+ Ndg: no timeSliceFile at this time: 2011-08-26_13:00:00
+ *****yw******end drive_CHANNEL 
+ Timing: Channel Routing  accumulated time--  0.260999978    
+ Beginning Aggregation...
+ Finished Aggregation...
+ before call output_chrt
+ end calling output functions
+ ***DATE=2011-08-26_13:00:00 292.90701   2.72192    Timing:   0.09 Cumulative:        1.67  SFLX:   0.00
+ read forcing data at 2011-08-26_13:00:00./FORCING/2011082614.LDASIN_DOMAIN1
+ Beginning Disaggregation...
+ After Disaggregation...
+ Beginning SUB_routing...
+ Routing method is            1  direction.
+ calling subsurface routing subroutine...Opt.            1
+ call subsurface routing xx= , yy =          64          33
+ finish calling ROUTE_SUBSURFACE            1
+ SUBROUTE routing called and returned...
+ Timing: Subsurface Routing  accumulated time--   6.00000052E-03
+ Beginning OV_routing...
+ Routing method is            1  direction.
+ calling OV_RTNG 
+ OV_RTNG  DT_FRAC, DT, DTRT_TER   360.000000       3600.00000       10.0000000    
+ IXRT, JXRT =           33          64
+ End of OV_routing call...
+ OV routing called and returned...
+ Timing: Overland Routing  accumulated time--  0.211999997    
+ *****yw******start simp_gw_buck 
+ *****yw******end simp_gw_buck 
+ Timing: GwBaseflow  accumulated time--   1.00000005E-03
+ Ndg: start find_timeslice_file
+ Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_13:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
+ Ndg: file found:  F
+ Ndg: finish find_timeslice_file
+ Ndg: no timeSliceFile at this time: 2011-08-26_13:30:00
+ Ndg: start find_timeslice_file
+ Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_14:00:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
+ Ndg: file found:  F
+ Ndg: finish find_timeslice_file
+ Ndg: no timeSliceFile at this time: 2011-08-26_14:00:00
+ *****yw******end drive_CHANNEL 
+ Timing: Channel Routing  accumulated time--  0.279999971    
+ Beginning Aggregation...
+ Finished Aggregation...
+ before call output_chrt
+ end calling output functions
+ ***DATE=2011-08-26_14:00:00 293.46722   2.71890    Timing:   0.09 Cumulative:        1.76  SFLX:   0.00
+ read forcing data at 2011-08-26_14:00:00./FORCING/2011082615.LDASIN_DOMAIN1
+ Beginning Disaggregation...
+ After Disaggregation...
+ Beginning SUB_routing...
+ Routing method is            1  direction.
+ calling subsurface routing subroutine...Opt.            1
+ call subsurface routing xx= , yy =          64          33
+ finish calling ROUTE_SUBSURFACE            1
+ SUBROUTE routing called and returned...
+ Timing: Subsurface Routing  accumulated time--   6.00000052E-03
+ Beginning OV_routing...
+ Routing method is            1  direction.
+ calling OV_RTNG 
+ OV_RTNG  DT_FRAC, DT, DTRT_TER   360.000000       3600.00000       10.0000000    
+ IXRT, JXRT =           33          64
+ End of OV_routing call...
+ OV routing called and returned...
+ Timing: Overland Routing  accumulated time--  0.226999998    
+ *****yw******start simp_gw_buck 
+ *****yw******end simp_gw_buck 
+ Timing: GwBaseflow  accumulated time--   1.00000005E-03
  Ndg: start find_timeslice_file
  Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_14:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
  Ndg: file found:  F
@@ -570,12 +570,12 @@
  Ndg: finish find_timeslice_file
  Ndg: no timeSliceFile at this time: 2011-08-26_15:00:00
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.285999984    
+ Timing: Channel Routing  accumulated time--  0.300999969    
  Beginning Aggregation...
  Finished Aggregation...
  before call output_chrt
  end calling output functions
- ***DATE=2011-08-26_15:00:00 294.15057   2.71589    Timing:   0.08 Cumulative:        1.73  SFLX:   0.00
+ ***DATE=2011-08-26_15:00:00 294.15057   2.71589    Timing:   0.08 Cumulative:        1.83  SFLX:   0.00
  read forcing data at 2011-08-26_15:00:00./FORCING/2011082616.LDASIN_DOMAIN1
  Beginning Disaggregation...
  After Disaggregation...
@@ -593,10 +593,10 @@
  IXRT, JXRT =           33          64
  End of OV_routing call...
  OV routing called and returned...
- Timing: Overland Routing  accumulated time--  0.228999987    
+ Timing: Overland Routing  accumulated time--  0.240999997    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   5.00000035E-03
+ Timing: GwBaseflow  accumulated time--   2.00000009E-03
  Ndg: start find_timeslice_file
  Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_15:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
  Ndg: file found:  F
@@ -608,7 +608,7 @@
  Ndg: finish find_timeslice_file
  Ndg: no timeSliceFile at this time: 2011-08-26_16:00:00
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.304999977    
+ Timing: Channel Routing  accumulated time--  0.321999967    
  Beginning Aggregation...
  Finished Aggregation...
  yw check output restart at 2011-08-26_00:00
@@ -616,7 +616,7 @@
  before call output_chrt
  end calling output functions
  ***DATE=2011-08-26_16:00:00 294.85071   2.71288 Write restart at 2011-08-26_16
-    Timing:   0.15 Cumulative:        1.89  SFLX:   0.00
+    Timing:   0.19 Cumulative:        2.02  SFLX:   0.00
  read forcing data at 2011-08-26_16:00:00./FORCING/2011082617.LDASIN_DOMAIN1
  Beginning Disaggregation...
  After Disaggregation...
@@ -626,7 +626,7 @@
  call subsurface routing xx= , yy =          64          33
  finish calling ROUTE_SUBSURFACE            1
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   7.00000068E-03
+ Timing: Subsurface Routing  accumulated time--   6.00000052E-03
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -634,10 +634,10 @@
  IXRT, JXRT =           33          64
  End of OV_routing call...
  OV routing called and returned...
- Timing: Overland Routing  accumulated time--  0.242999986    
+ Timing: Overland Routing  accumulated time--  0.254999995    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   6.00000052E-03
+ Timing: GwBaseflow  accumulated time--   2.00000009E-03
  Ndg: start find_timeslice_file
  Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_16:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
  Ndg: file found:  F
@@ -649,12 +649,12 @@
  Ndg: finish find_timeslice_file
  Ndg: no timeSliceFile at this time: 2011-08-26_17:00:00
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.324999988    
+ Timing: Channel Routing  accumulated time--  0.341999978    
  Beginning Aggregation...
  Finished Aggregation...
  before call output_chrt
  end calling output functions
- ***DATE=2011-08-26_17:00:00 295.50201   2.70986    Timing:   0.06 Cumulative:        1.95  SFLX:   0.00
+ ***DATE=2011-08-26_17:00:00 295.50201   2.70986    Timing:   0.06 Cumulative:        2.08  SFLX:   0.00
  read forcing data at 2011-08-26_17:00:00./FORCING/2011082618.LDASIN_DOMAIN1
  Beginning Disaggregation...
  After Disaggregation...
@@ -664,7 +664,7 @@
  call subsurface routing xx= , yy =          64          33
  finish calling ROUTE_SUBSURFACE            1
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   7.00000068E-03
+ Timing: Subsurface Routing  accumulated time--   6.00000052E-03
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -672,10 +672,10 @@
  IXRT, JXRT =           33          64
  End of OV_routing call...
  OV routing called and returned...
- Timing: Overland Routing  accumulated time--  0.256999999    
+ Timing: Overland Routing  accumulated time--  0.268000007    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   6.00000052E-03
+ Timing: GwBaseflow  accumulated time--   2.00000009E-03
  Ndg: start find_timeslice_file
  Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_17:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
  Ndg: file found:  F
@@ -687,12 +687,12 @@
  Ndg: finish find_timeslice_file
  Ndg: no timeSliceFile at this time: 2011-08-26_18:00:00
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.344999999    
+ Timing: Channel Routing  accumulated time--  0.360999972    
  Beginning Aggregation...
  Finished Aggregation...
  before call output_chrt
  end calling output functions
- ***DATE=2011-08-26_18:00:00 296.25378   2.70685    Timing:   0.09 Cumulative:        2.03  SFLX:   0.00
+ ***DATE=2011-08-26_18:00:00 296.25378   2.70685    Timing:   0.08 Cumulative:        2.15  SFLX:   0.00
  read forcing data at 2011-08-26_18:00:00./FORCING/2011082619.LDASIN_DOMAIN1
  Beginning Disaggregation...
  After Disaggregation...
@@ -702,7 +702,7 @@
  call subsurface routing xx= , yy =          64          33
  finish calling ROUTE_SUBSURFACE            1
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   7.00000068E-03
+ Timing: Subsurface Routing  accumulated time--   6.00000052E-03
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -710,10 +710,10 @@
  IXRT, JXRT =           33          64
  End of OV_routing call...
  OV routing called and returned...
- Timing: Overland Routing  accumulated time--  0.270999998    
+ Timing: Overland Routing  accumulated time--  0.282000005    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   6.00000052E-03
+ Timing: GwBaseflow  accumulated time--   2.00000009E-03
  Ndg: start find_timeslice_file
  Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_18:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
  Ndg: file found:  F
@@ -725,13 +725,89 @@
  Ndg: finish find_timeslice_file
  Ndg: no timeSliceFile at this time: 2011-08-26_19:00:00
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.365000010    
+ Timing: Channel Routing  accumulated time--  0.378999978    
  Beginning Aggregation...
  Finished Aggregation...
  before call output_chrt
  end calling output functions
- ***DATE=2011-08-26_19:00:00 296.72089   2.70384    Timing:   0.08 Cumulative:        2.12  SFLX:   0.00
+ ***DATE=2011-08-26_19:00:00 296.72089   2.70384    Timing:   0.08 Cumulative:        2.24  SFLX:   0.00
  read forcing data at 2011-08-26_19:00:00./FORCING/2011082620.LDASIN_DOMAIN1
+ Beginning Disaggregation...
+ After Disaggregation...
+ Beginning SUB_routing...
+ Routing method is            1  direction.
+ calling subsurface routing subroutine...Opt.            1
+ call subsurface routing xx= , yy =          64          33
+ finish calling ROUTE_SUBSURFACE            1
+ SUBROUTE routing called and returned...
+ Timing: Subsurface Routing  accumulated time--   6.00000052E-03
+ Beginning OV_routing...
+ Routing method is            1  direction.
+ calling OV_RTNG 
+ OV_RTNG  DT_FRAC, DT, DTRT_TER   360.000000       3600.00000       10.0000000    
+ IXRT, JXRT =           33          64
+ End of OV_routing call...
+ OV routing called and returned...
+ Timing: Overland Routing  accumulated time--  0.296000004    
+ *****yw******start simp_gw_buck 
+ *****yw******end simp_gw_buck 
+ Timing: GwBaseflow  accumulated time--   2.00000009E-03
+ Ndg: start find_timeslice_file
+ Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_19:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
+ Ndg: file found:  F
+ Ndg: finish find_timeslice_file
+ Ndg: no timeSliceFile at this time: 2011-08-26_19:30:00
+ Ndg: start find_timeslice_file
+ Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_20:00:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
+ Ndg: file found:  F
+ Ndg: finish find_timeslice_file
+ Ndg: no timeSliceFile at this time: 2011-08-26_20:00:00
+ *****yw******end drive_CHANNEL 
+ Timing: Channel Routing  accumulated time--  0.396999985    
+ Beginning Aggregation...
+ Finished Aggregation...
+ before call output_chrt
+ end calling output functions
+ ***DATE=2011-08-26_20:00:00 296.95172   2.70082    Timing:   0.08 Cumulative:        2.31  SFLX:   0.00
+ read forcing data at 2011-08-26_20:00:00./FORCING/2011082621.LDASIN_DOMAIN1
+ Beginning Disaggregation...
+ After Disaggregation...
+ Beginning SUB_routing...
+ Routing method is            1  direction.
+ calling subsurface routing subroutine...Opt.            1
+ call subsurface routing xx= , yy =          64          33
+ finish calling ROUTE_SUBSURFACE            1
+ SUBROUTE routing called and returned...
+ Timing: Subsurface Routing  accumulated time--   6.00000052E-03
+ Beginning OV_routing...
+ Routing method is            1  direction.
+ calling OV_RTNG 
+ OV_RTNG  DT_FRAC, DT, DTRT_TER   360.000000       3600.00000       10.0000000    
+ IXRT, JXRT =           33          64
+ End of OV_routing call...
+ OV routing called and returned...
+ Timing: Overland Routing  accumulated time--  0.309000015    
+ *****yw******start simp_gw_buck 
+ *****yw******end simp_gw_buck 
+ Timing: GwBaseflow  accumulated time--   2.00000009E-03
+ Ndg: start find_timeslice_file
+ Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_20:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
+ Ndg: file found:  F
+ Ndg: finish find_timeslice_file
+ Ndg: no timeSliceFile at this time: 2011-08-26_20:30:00
+ Ndg: start find_timeslice_file
+ Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_21:00:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
+ Ndg: file found:  F
+ Ndg: finish find_timeslice_file
+ Ndg: no timeSliceFile at this time: 2011-08-26_21:00:00
+ *****yw******end drive_CHANNEL 
+ Timing: Channel Routing  accumulated time--  0.414999992    
+ Beginning Aggregation...
+ Finished Aggregation...
+ before call output_chrt
+ end calling output functions
+ ***DATE=2011-08-26_21:00:00 296.97620   2.69781    Timing:   0.08 Cumulative:        2.39  SFLX:   0.00
+ read forcing data at 2011-08-26_21:00:00./FORCING/2011082622.LDASIN_DOMAIN1
  Beginning Disaggregation...
  After Disaggregation...
  Beginning SUB_routing...
@@ -748,86 +824,10 @@
  IXRT, JXRT =           33          64
  End of OV_routing call...
  OV routing called and returned...
- Timing: Overland Routing  accumulated time--  0.284999996    
+ Timing: Overland Routing  accumulated time--  0.322000027    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   6.00000052E-03
- Ndg: start find_timeslice_file
- Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_19:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
- Ndg: file found:  F
- Ndg: finish find_timeslice_file
- Ndg: no timeSliceFile at this time: 2011-08-26_19:30:00
- Ndg: start find_timeslice_file
- Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_20:00:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
- Ndg: file found:  F
- Ndg: finish find_timeslice_file
- Ndg: no timeSliceFile at this time: 2011-08-26_20:00:00
- *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.388000011    
- Beginning Aggregation...
- Finished Aggregation...
- before call output_chrt
- end calling output functions
- ***DATE=2011-08-26_20:00:00 296.95172   2.70082    Timing:   0.09 Cumulative:        2.20  SFLX:   0.00
- read forcing data at 2011-08-26_20:00:00./FORCING/2011082621.LDASIN_DOMAIN1
- Beginning Disaggregation...
- After Disaggregation...
- Beginning SUB_routing...
- Routing method is            1  direction.
- calling subsurface routing subroutine...Opt.            1
- call subsurface routing xx= , yy =          64          33
- finish calling ROUTE_SUBSURFACE            1
- SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   8.00000038E-03
- Beginning OV_routing...
- Routing method is            1  direction.
- calling OV_RTNG 
- OV_RTNG  DT_FRAC, DT, DTRT_TER   360.000000       3600.00000       10.0000000    
- IXRT, JXRT =           33          64
- End of OV_routing call...
- OV routing called and returned...
- Timing: Overland Routing  accumulated time--  0.299999982    
- *****yw******start simp_gw_buck 
- *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   6.00000052E-03
- Ndg: start find_timeslice_file
- Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_20:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
- Ndg: file found:  F
- Ndg: finish find_timeslice_file
- Ndg: no timeSliceFile at this time: 2011-08-26_20:30:00
- Ndg: start find_timeslice_file
- Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_21:00:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
- Ndg: file found:  F
- Ndg: finish find_timeslice_file
- Ndg: no timeSliceFile at this time: 2011-08-26_21:00:00
- *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.407000005    
- Beginning Aggregation...
- Finished Aggregation...
- before call output_chrt
- end calling output functions
- ***DATE=2011-08-26_21:00:00 296.97620   2.69781    Timing:   0.08 Cumulative:        2.28  SFLX:   0.00
- read forcing data at 2011-08-26_21:00:00./FORCING/2011082622.LDASIN_DOMAIN1
- Beginning Disaggregation...
- After Disaggregation...
- Beginning SUB_routing...
- Routing method is            1  direction.
- calling subsurface routing subroutine...Opt.            1
- call subsurface routing xx= , yy =          64          33
- finish calling ROUTE_SUBSURFACE            1
- SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   9.00000054E-03
- Beginning OV_routing...
- Routing method is            1  direction.
- calling OV_RTNG 
- OV_RTNG  DT_FRAC, DT, DTRT_TER   360.000000       3600.00000       10.0000000    
- IXRT, JXRT =           33          64
- End of OV_routing call...
- OV routing called and returned...
- Timing: Overland Routing  accumulated time--  0.314999968    
- *****yw******start simp_gw_buck 
- *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   6.00000052E-03
+ Timing: GwBaseflow  accumulated time--   2.00000009E-03
  Ndg: start find_timeslice_file
  Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_21:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
  Ndg: file found:  F
@@ -839,12 +839,12 @@
  Ndg: finish find_timeslice_file
  Ndg: no timeSliceFile at this time: 2011-08-26_22:00:00
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.425999999    
+ Timing: Channel Routing  accumulated time--  0.433999985    
  Beginning Aggregation...
  Finished Aggregation...
  before call output_chrt
  end calling output functions
- ***DATE=2011-08-26_22:00:00 296.73016   2.69479    Timing:   0.08 Cumulative:        2.37  SFLX:   0.00
+ ***DATE=2011-08-26_22:00:00 296.73016   2.69479    Timing:   0.08 Cumulative:        2.47  SFLX:   0.00
  read forcing data at 2011-08-26_22:00:00./FORCING/2011082623.LDASIN_DOMAIN1
  Beginning Disaggregation...
  After Disaggregation...
@@ -854,7 +854,7 @@
  call subsurface routing xx= , yy =          64          33
  finish calling ROUTE_SUBSURFACE            1
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   1.00000007E-02
+ Timing: Subsurface Routing  accumulated time--   7.00000068E-03
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -862,10 +862,10 @@
  IXRT, JXRT =           33          64
  End of OV_routing call...
  OV routing called and returned...
- Timing: Overland Routing  accumulated time--  0.327999979    
+ Timing: Overland Routing  accumulated time--  0.336000025    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   7.00000068E-03
+ Timing: GwBaseflow  accumulated time--   2.00000009E-03
  Ndg: start find_timeslice_file
  Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_22:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
  Ndg: file found:  F
@@ -877,12 +877,12 @@
  Ndg: finish find_timeslice_file
  Ndg: no timeSliceFile at this time: 2011-08-26_23:00:00
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.444000006    
+ Timing: Channel Routing  accumulated time--  0.453999996    
  Beginning Aggregation...
  Finished Aggregation...
  before call output_chrt
  end calling output functions
- ***DATE=2011-08-26_23:00:00 296.29926   2.69178    Timing:   0.08 Cumulative:        2.44  SFLX:   0.00
+ ***DATE=2011-08-26_23:00:00 296.29926   2.69178    Timing:   0.08 Cumulative:        2.55  SFLX:   0.00
  read forcing data at 2011-08-26_23:00:00./FORCING/2011082700.LDASIN_DOMAIN1
  Beginning Disaggregation...
  After Disaggregation...
@@ -892,7 +892,7 @@
  call subsurface routing xx= , yy =          64          33
  finish calling ROUTE_SUBSURFACE            1
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   1.00000007E-02
+ Timing: Subsurface Routing  accumulated time--   7.00000068E-03
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -900,10 +900,10 @@
  IXRT, JXRT =           33          64
  End of OV_routing call...
  OV routing called and returned...
- Timing: Overland Routing  accumulated time--  0.341999978    
+ Timing: Overland Routing  accumulated time--  0.351000011    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   7.00000068E-03
+ Timing: GwBaseflow  accumulated time--   2.00000009E-03
  Ndg: start find_timeslice_file
  Ndg: timeSlice file: ./NWM/nudgingTimeSliceObs/2011-08-26_23:30:00.15min.usgsTimeSlice.ncdf                                                                                                                                                                                          
  Ndg: file found:  F
@@ -915,7 +915,7 @@
  Ndg: finish find_timeslice_file
  Ndg: no timeSliceFile at this time: 2011-08-27_00:00:00
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.464000016    
+ Timing: Channel Routing  accumulated time--  0.472999990    
  Beginning Aggregation...
  Finished Aggregation...
  yw check output restart at 2011-08-26_00:00
@@ -923,5 +923,5 @@
  before call output_chrt
  end calling output functions
  ***DATE=2011-08-27_00:00:00 295.58752   2.68877 Write restart at 2011-08-27_00
-    Timing:   0.15 Cumulative:        2.60  SFLX:   0.00
+    Timing:   0.16 Cumulative:        2.71  SFLX:   0.00
  The model finished successfully.......

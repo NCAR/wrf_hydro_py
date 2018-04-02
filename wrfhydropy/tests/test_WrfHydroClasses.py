@@ -26,8 +26,9 @@ import copy
 #     pickle.dump(domain_object, f, 2)
 
 ## Define test
-def test_domain_nwm(datadir_copy):
-    """The WrfHydroDomain class is constructed properly for NWM private"""
+def test_domain_nwm(datadir_copy,capsys):
+    with capsys.disabled():
+        print("Question: The WrfHydroDomain class is constructed properly for NWM private?")
     # Load expected object
     expected_dir = datadir_copy["expected"]
     domain_object_expected = pickle.load(open(expected_dir / 'test_domain_nwm.pkl',"rb"))
@@ -56,8 +57,9 @@ def test_domain_nwm(datadir_copy):
 #     pickle.dump(domain_object, f, 2)
 
 ## Define test
-def test_domain_nwm_public(datadir_copy):
-    """The WrfHydroDomain class is constructed properly for NWM public"""
+def test_domain_nwm_public(datadir_copy, capsys):
+    with capsys.disabled():
+        print("Question: The WrfHydroDomain class is constructed properly for NWM public?")
     # Load expected object
     expected_dir = datadir_copy["expected"]
     domain_object_expected = pickle.load(open(expected_dir / 'test_domain_nwm_public.pkl',"rb"))
@@ -103,8 +105,9 @@ def test_domain_nwm_public(datadir_copy):
 #     pickle.dump(model_test_objects, f, 2)
 
 ## Define test
-def test_model_nwm(datadir_copy):
-    """WrfHydroModel object is able to compile NWM private"""
+def test_model_nwm(datadir_copy,capsys):
+    with capsys.disabled():
+        print("Question: WrfHydroModel object is able to compile NWM private?")
     # Load expected object
     expected_dir = datadir_copy["expected"]
     model_objects_expected = pickle.load(open(expected_dir / 'test_model_nwm.pkl',"rb"))
@@ -164,8 +167,9 @@ def test_model_nwm(datadir_copy):
 #     pickle.dump(model_test_objects, f, 2)
 
 ## Define test
-def test_model_nwm_public(datadir_copy):
-    """WrfHydroModel object is able to compile NWM public"""
+def test_model_nwm_public(datadir_copy,capsys):
+    with capsys.disabled():
+        print("Question: WrfHydroModel object is able to compile NWM public?")
 
     # Load expected object
     expected_dir = datadir_copy["expected"]
@@ -220,8 +224,9 @@ def test_model_nwm_public(datadir_copy):
 #     pickle.dump(simulation_object, f, 2)
 
 # Define test
-def test_simulation_nwm(datadir_copy):
-    """WrfHydroSim object is constructed properly for NWM private"""
+def test_simulation_nwm(datadir_copy,capsys):
+    with capsys.disabled():
+        print("Question: WrfHydroSim object is constructed properly for NWM private?")
 
     # Load expected objects
     expected_dir = datadir_copy["expected"]
@@ -256,8 +261,9 @@ def test_simulation_nwm(datadir_copy):
 #     pickle.dump(simulation_object, f, 2)
 
 # Define test
-def test_simulation_nwm_public(datadir_copy):
-    """WrfHydroSim object is constructed properly for NWM public"""
+def test_simulation_nwm_public(datadir_copy,capsys):
+    with capsys.disabled():
+        print("Question: WrfHydroSim object is constructed properly for NWM public?")
 
     # Load expected objects
     expected_dir = datadir_copy["expected"]
@@ -297,8 +303,9 @@ def test_simulation_nwm_public(datadir_copy):
 #     pickle.dump(run_object, f, 2)
 
 # Define test
-def test_run_nwm(datadir_copy):
-    """WrfHydroSim object is able to run NWM private"""
+def test_run_nwm(datadir_copy,capsys):
+    with capsys.disabled():
+        print("Question: WrfHydroSim object is able to run NWM private?")
 
     # Load expected objects
     expected_dir = datadir_copy["expected"]
@@ -348,8 +355,9 @@ def test_run_nwm(datadir_copy):
 # with open(testDataDir / 'expected/test_run_nwm_public.pkl', 'wb') as f:
 #     pickle.dump(run_object, f, 2)
 
-def test_run_nwm(datadir_copy):
-    """WrfHydroSim object is able to run NWM public"""
+def test_run_nwm(datadir_copy,capsys):
+    with capsys.disabled():
+        print("Question: WrfHydroSim object is able to run NWM public?")
 
     # Load expected objects
     expected_dir = datadir_copy["expected"]

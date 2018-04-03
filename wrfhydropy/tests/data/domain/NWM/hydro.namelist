@@ -10,14 +10,14 @@ sys_cpl = 1
 GEO_STATIC_FLNM = "./DOMAIN/geo_em.nc"
 
 ! Specify the high-resolution routing terrain input data file (e.g.: "Fulldom_hires.nc")
-GEO_FINEGRID_FLNM = "./DOMAIN/Fulldom.nc"
+GEO_FINEGRID_FLNM = "./DOMAIN/Fulldom_hires.nc"
 
 ! Specify the spatial hydro parameters file (e.g.: "HYDRO_TBL_2D.nc")
 ! If you specify a filename and the file does not exist, it will be created for you.
 HYDROTBL_F = "./DOMAIN/HYDRO_TBL_2D.nc"
 
 ! Specify spatial metadata file for land surface grid. (e.g.: "geospatial_data_template_land_GIS.nc")
-LAND_SPATIAL_META_FLNM = "./DOMAIN/geospatial_data_template_land_GIS.nc"
+LAND_SPATIAL_META_FLNM = "./DOMAIN/GEOGRID_LDASOUT_Spatial_Metadata.nc"
 
 ! Specify the name of the restart file if starting from restart...comment out with '!' if not...
 RESTART_FILE  = 'RESTART/HYDRO_RST.2011082600_DOMAIN1'
@@ -142,7 +142,7 @@ CHANRTSWCRT = 1
 channel_option = 2
 
 ! Specify the reach file for reach-based routing options (e.g.: "Route_Link.nc")
-route_link_f = "./DOMAIN/RouteLink.nc"
+route_link_f = "./DOMAIN/Route_Link.nc"
 
 ! Specify the lake parameter file (e.g.: "LAKEPARM_comm_v5.nc")
 ! Note: If this line is commented out, the code will use LAKEPARM.TBL.
@@ -167,13 +167,13 @@ udmap_file = "./DOMAIN/spatialweights.nc"
 &NUDGING_nlist
 
 ! Path to the "timeslice" observation files.
-timeSlicePath = "./nudgingTimeSliceObs/"
+!timeSlicePath = "./nudgingTimeSliceObs/"
 
-nudgingParamFile = "./DOMAIN/nudgingParams.nc"
+!nudgingParamFile = "./DOMAIN/nudgingParams.nc"
 
 ! nudgingLastObsFile defaults to '', which will look for nudgingLastObs.YYYY-mm-dd_HH:MM:SS.nc
 !   **AT THE INITALIZATION TIME OF THE RUN**. Set to a missing file to use no restart.
-nudgingLastObsFile   = 'notAFile.junk'
+!nudgingLastObsFile   = 'notAFile.junk'
 
 !! Parallel input of nudging timeslice observation files?
 readTimesliceParallel = .TRUE.

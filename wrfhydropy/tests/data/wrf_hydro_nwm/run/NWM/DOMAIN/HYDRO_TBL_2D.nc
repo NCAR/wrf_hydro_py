@@ -1,1 +1,0 @@
-/home/docker/wrf_hydro_py/wrfhydropy/tests/data/domain/NWM/DOMAIN/HYDRO_TBL_2D.nc

@@ -53,10 +53,10 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   3.23366839E-06
- Timing: Overland Routing  accumulated time--   1.20000001E-02
+ Timing: Overland Routing  accumulated time--   1.40000004E-02
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   1.00000005E-03
+ Timing: GwBaseflow  accumulated time--   0.00000000    
  Ndg: start setup_stream_nudging
  Ndg: obsHydroTime: 2011-08-26_00:00:00
  Ndg: start find_timeslice_file
@@ -93,7 +93,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--   2.40000002E-02
+ Timing: Channel Routing  accumulated time--   2.30000000E-02
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   2.59287655E-04
@@ -110,8 +110,8 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):    7.0312500000000000E-002
- ***DATE=2011-08-26_01:00:00 294.67358   2.75808    Timing:   0.61 Cumulative:        0.61  SFLX:   0.00
+ accumulated time (s):    7.4218750000000000E-002
+ ***DATE=2011-08-26_01:00:00 294.67358   2.75808    Timing:   0.56 Cumulative:        0.56  SFLX:   0.00
  read forcing data at 2011-08-26_01:00:00./FORCING/2011082602.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -166,10 +166,10 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   3.46696470E-06
- Timing: Overland Routing  accumulated time--   2.69999988E-02
+ Timing: Overland Routing  accumulated time--   2.80000009E-02
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   1.00000005E-03
+ Timing: GwBaseflow  accumulated time--   0.00000000    
  Ndg: start setup_stream_nudging
  Ndg: obsHydroTime: 2011-08-26_01:00:00
  Ndg: start find_timeslice_file
@@ -201,7 +201,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--   4.39999998E-02
+ Timing: Channel Routing  accumulated time--   4.19999994E-02
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   2.13447958E-04
@@ -218,8 +218,8 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):   0.14843750000000000     
- ***DATE=2011-08-26_02:00:00 294.33456   2.75507    Timing:   0.09 Cumulative:        0.70  SFLX:   0.00
+ accumulated time (s):   0.14062500000000000     
+ ***DATE=2011-08-26_02:00:00 294.33456   2.75507    Timing:   0.08 Cumulative:        0.63  SFLX:   0.00
  read forcing data at 2011-08-26_02:00:00./FORCING/2011082603.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -274,10 +274,10 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   3.77383549E-06
- Timing: Overland Routing  accumulated time--   4.19999994E-02
+ Timing: Overland Routing  accumulated time--   4.30000015E-02
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   1.00000005E-03
+ Timing: GwBaseflow  accumulated time--   0.00000000    
  Ndg: start setup_stream_nudging
  Ndg: obsHydroTime: 2011-08-26_02:00:00
  Ndg: start find_timeslice_file
@@ -309,7 +309,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--   6.30000010E-02
+ Timing: Channel Routing  accumulated time--   6.09999970E-02
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   1.97580084E-04
@@ -326,8 +326,8 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):   0.21875000000000000     
- ***DATE=2011-08-26_03:00:00 294.03595   2.75206    Timing:   0.08 Cumulative:        0.78  SFLX:   0.00
+ accumulated time (s):   0.20703125000000000     
+ ***DATE=2011-08-26_03:00:00 294.03595   2.75206    Timing:   0.08 Cumulative:        0.71  SFLX:   0.00
  read forcing data at 2011-08-26_03:00:00./FORCING/2011082604.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -360,7 +360,7 @@
  WB_SUB!SMC2   609.001221    
  WB_SUB!Residual   1.06278248E-03
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   1.00000005E-03
+ Timing: Subsurface Routing  accumulated time--   2.00000009E-03
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -382,10 +382,10 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   4.05241735E-06
- Timing: Overland Routing  accumulated time--   5.70000000E-02
+ Timing: Overland Routing  accumulated time--   5.70000038E-02
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   1.00000005E-03
+ Timing: GwBaseflow  accumulated time--   0.00000000    
  Ndg: start setup_stream_nudging
  Ndg: obsHydroTime: 2011-08-26_03:00:00
  Ndg: start find_timeslice_file
@@ -417,7 +417,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--   8.20000023E-02
+ Timing: Channel Routing  accumulated time--   7.79999942E-02
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   1.68163329E-04
@@ -434,8 +434,8 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):   0.28906250000000000     
- ***DATE=2011-08-26_04:00:00 293.78357   2.74904    Timing:   0.08 Cumulative:        0.86  SFLX:   0.00
+ accumulated time (s):   0.26953125000000000     
+ ***DATE=2011-08-26_04:00:00 293.78357   2.74904    Timing:   0.07 Cumulative:        0.77  SFLX:   0.00
  read forcing data at 2011-08-26_04:00:00./FORCING/2011082605.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -468,7 +468,7 @@
  WB_SUB!SMC2   608.911377    
  WB_SUB!Residual   1.14591047E-03
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   1.00000005E-03
+ Timing: Subsurface Routing  accumulated time--   2.00000009E-03
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -490,7 +490,7 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   4.38967254E-06
- Timing: Overland Routing  accumulated time--   7.10000023E-02
+ Timing: Overland Routing  accumulated time--   7.00000077E-02
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
  Timing: GwBaseflow  accumulated time--   1.00000005E-03
@@ -525,7 +525,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.100000001    
+ Timing: Channel Routing  accumulated time--   9.69999954E-02
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   1.52587891E-04
@@ -542,8 +542,8 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):   0.35937500000000000     
- ***DATE=2011-08-26_05:00:00 293.56131   2.74603    Timing:   0.08 Cumulative:        0.94  SFLX:   0.00
+ accumulated time (s):   0.33203125000000000     
+ ***DATE=2011-08-26_05:00:00 293.56131   2.74603    Timing:   0.07 Cumulative:        0.85  SFLX:   0.00
  read forcing data at 2011-08-26_05:00:00./FORCING/2011082606.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -598,7 +598,7 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   4.78816219E-06
- Timing: Overland Routing  accumulated time--   8.60000029E-02
+ Timing: Overland Routing  accumulated time--   8.60000104E-02
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
  Timing: GwBaseflow  accumulated time--   1.00000005E-03
@@ -633,7 +633,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.119000003    
+ Timing: Channel Routing  accumulated time--  0.119999997    
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   1.42475590E-04
@@ -650,8 +650,8 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):   0.42968750000000000     
- ***DATE=2011-08-26_06:00:00 293.24530   2.74301    Timing:   0.08 Cumulative:        1.02  SFLX:   0.00
+ accumulated time (s):   0.40234375000000000     
+ ***DATE=2011-08-26_06:00:00 293.24530   2.74301    Timing:   0.08 Cumulative:        0.93  SFLX:   0.00
  read forcing data at 2011-08-26_06:00:00./FORCING/2011082607.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -684,7 +684,7 @@
  WB_SUB!SMC2   608.738647    
  WB_SUB!Residual   1.46591850E-03
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   3.00000003E-03
+ Timing: Subsurface Routing  accumulated time--   2.00000009E-03
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -706,7 +706,7 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   5.06034121E-06
- Timing: Overland Routing  accumulated time--  0.101000004    
+ Timing: Overland Routing  accumulated time--   9.90000069E-02
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
  Timing: GwBaseflow  accumulated time--   1.00000005E-03
@@ -741,7 +741,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.136999995    
+ Timing: Channel Routing  accumulated time--  0.141000003    
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   1.34918839E-04
@@ -758,8 +758,8 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):   0.50000000000000000     
- ***DATE=2011-08-26_07:00:00 292.94882   2.74000    Timing:   0.07 Cumulative:        1.09  SFLX:   0.00
+ accumulated time (s):   0.46484375000000000     
+ ***DATE=2011-08-26_07:00:00 292.94882   2.74000    Timing:   0.07 Cumulative:        1.00  SFLX:   0.00
  read forcing data at 2011-08-26_07:00:00./FORCING/2011082608.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -792,7 +792,7 @@
  WB_SUB!SMC2   608.649963    
  WB_SUB!Residual   1.66182034E-03
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   3.00000003E-03
+ Timing: Subsurface Routing  accumulated time--   2.00000009E-03
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -814,7 +814,7 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   5.31878322E-06
- Timing: Overland Routing  accumulated time--  0.116000004    
+ Timing: Overland Routing  accumulated time--  0.112000003    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
  Timing: GwBaseflow  accumulated time--   1.00000005E-03
@@ -849,7 +849,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.155999988    
+ Timing: Channel Routing  accumulated time--  0.160999998    
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   1.29651278E-04
@@ -870,10 +870,10 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):   0.60156250000000000     
+ accumulated time (s):   0.56640625000000000     
  ***DATE=2011-08-26_08:00:00 292.67715   2.73699 Write restart at 2011-08-26_08
  output_flnm = ".//RESTART.2011082608_DOMAIN1"
-    Timing:   0.12 Cumulative:        1.22  SFLX:   0.00
+    Timing:   0.13 Cumulative:        1.13  SFLX:   0.00
  read forcing data at 2011-08-26_08:00:00./FORCING/2011082609.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -906,7 +906,7 @@
  WB_SUB!SMC2   608.559631    
  WB_SUB!Residual   1.21866912E-03
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   4.00000019E-03
+ Timing: Subsurface Routing  accumulated time--   3.00000003E-03
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -928,7 +928,7 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   5.58013562E-06
- Timing: Overland Routing  accumulated time--  0.130999997    
+ Timing: Overland Routing  accumulated time--  0.126000002    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
  Timing: GwBaseflow  accumulated time--   1.00000005E-03
@@ -963,7 +963,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.174999982    
+ Timing: Channel Routing  accumulated time--  0.178999990    
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   1.27837062E-04
@@ -980,8 +980,8 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):   0.67187500000000000     
- ***DATE=2011-08-26_09:00:00 292.37531   2.73397    Timing:   0.08 Cumulative:        1.30  SFLX:   0.00
+ accumulated time (s):   0.63281250000000000     
+ ***DATE=2011-08-26_09:00:00 292.37531   2.73397    Timing:   0.07 Cumulative:        1.20  SFLX:   0.00
  read forcing data at 2011-08-26_09:00:00./FORCING/2011082610.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -1014,7 +1014,7 @@
  WB_SUB!SMC2   608.471069    
  WB_SUB!Residual   1.32753700E-03
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   4.00000019E-03
+ Timing: Subsurface Routing  accumulated time--   3.00000003E-03
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -1036,10 +1036,10 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   5.89748379E-06
- Timing: Overland Routing  accumulated time--  0.145999998    
+ Timing: Overland Routing  accumulated time--  0.140000001    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   1.00000005E-03
+ Timing: GwBaseflow  accumulated time--   2.00000009E-03
  Ndg: start setup_stream_nudging
  Ndg: obsHydroTime: 2011-08-26_09:00:00
  Ndg: start find_timeslice_file
@@ -1071,7 +1071,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.194999978    
+ Timing: Channel Routing  accumulated time--  0.196999997    
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   9.76175070E-05
@@ -1088,8 +1088,8 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):   0.74218750000000000     
- ***DATE=2011-08-26_10:00:00 292.15952   2.73096    Timing:   0.08 Cumulative:        1.38  SFLX:   0.00
+ accumulated time (s):   0.70312500000000000     
+ ***DATE=2011-08-26_10:00:00 292.15952   2.73096    Timing:   0.08 Cumulative:        1.28  SFLX:   0.00
  read forcing data at 2011-08-26_10:00:00./FORCING/2011082611.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -1122,7 +1122,7 @@
  WB_SUB!SMC2   608.383484    
  WB_SUB!Residual   1.55131891E-03
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   4.00000019E-03
+ Timing: Subsurface Routing  accumulated time--   3.00000003E-03
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -1144,10 +1144,10 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   6.18095510E-06
- Timing: Overland Routing  accumulated time--  0.160999998    
+ Timing: Overland Routing  accumulated time--  0.153999999    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   1.00000005E-03
+ Timing: GwBaseflow  accumulated time--   3.00000003E-03
  Ndg: start setup_stream_nudging
  Ndg: obsHydroTime: 2011-08-26_10:00:00
  Ndg: start find_timeslice_file
@@ -1179,7 +1179,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.214999974    
+ Timing: Channel Routing  accumulated time--  0.214000002    
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   6.88657165E-05
@@ -1196,8 +1196,8 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):   0.82031250000000000     
- ***DATE=2011-08-26_11:00:00 292.01578   2.72795    Timing:   0.08 Cumulative:        1.46  SFLX:   0.00
+ accumulated time (s):   0.76562500000000000     
+ ***DATE=2011-08-26_11:00:00 292.01578   2.72795    Timing:   0.07 Cumulative:        1.35  SFLX:   0.00
  read forcing data at 2011-08-26_11:00:00./FORCING/2011082612.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -1252,10 +1252,10 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   5.91436401E-06
- Timing: Overland Routing  accumulated time--  0.174999997    
+ Timing: Overland Routing  accumulated time--  0.167999998    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   1.00000005E-03
+ Timing: GwBaseflow  accumulated time--   3.00000003E-03
  Ndg: start setup_stream_nudging
  Ndg: obsHydroTime: 2011-08-26_11:00:00
  Ndg: start find_timeslice_file
@@ -1287,7 +1287,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.233999968    
+ Timing: Channel Routing  accumulated time--  0.233999997    
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   6.83236867E-05
@@ -1304,8 +1304,8 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):   0.89062500000000000     
- ***DATE=2011-08-26_12:00:00 292.39566   2.72493    Timing:   0.08 Cumulative:        1.54  SFLX:   0.00
+ accumulated time (s):   0.83203125000000000     
+ ***DATE=2011-08-26_12:00:00 292.39566   2.72493    Timing:   0.08 Cumulative:        1.42  SFLX:   0.00
  read forcing data at 2011-08-26_12:00:00./FORCING/2011082613.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -1360,10 +1360,10 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   4.75568231E-06
- Timing: Overland Routing  accumulated time--  0.188999996    
+ Timing: Overland Routing  accumulated time--  0.180999994    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   1.00000005E-03
+ Timing: GwBaseflow  accumulated time--   3.00000003E-03
  Ndg: start setup_stream_nudging
  Ndg: obsHydroTime: 2011-08-26_12:00:00
  Ndg: start find_timeslice_file
@@ -1395,7 +1395,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.256999969    
+ Timing: Channel Routing  accumulated time--  0.252000004    
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   1.51611865E-04
@@ -1412,8 +1412,8 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):   0.96093750000000000     
- ***DATE=2011-08-26_13:00:00 292.86572   2.72192    Timing:   0.08 Cumulative:        1.61  SFLX:   0.00
+ accumulated time (s):   0.89453125000000000     
+ ***DATE=2011-08-26_13:00:00 292.86572   2.72192    Timing:   0.07 Cumulative:        1.50  SFLX:   0.00
  read forcing data at 2011-08-26_13:00:00./FORCING/2011082614.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -1446,7 +1446,7 @@
  WB_SUB!SMC2   607.874146    
  WB_SUB!Residual   7.83609226E-04
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   4.00000019E-03
+ Timing: Subsurface Routing  accumulated time--   5.00000035E-03
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -1468,10 +1468,10 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   3.28605529E-06
- Timing: Overland Routing  accumulated time--  0.202999994    
+ Timing: Overland Routing  accumulated time--  0.193999991    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   1.00000005E-03
+ Timing: GwBaseflow  accumulated time--   3.00000003E-03
  Ndg: start setup_stream_nudging
  Ndg: obsHydroTime: 2011-08-26_13:00:00
  Ndg: start find_timeslice_file
@@ -1503,7 +1503,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.275999963    
+ Timing: Channel Routing  accumulated time--  0.270000011    
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   1.96179375E-04
@@ -1520,8 +1520,8 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):    1.0312500000000000     
- ***DATE=2011-08-26_14:00:00 293.45438   2.71890    Timing:   0.08 Cumulative:        1.70  SFLX:   0.00
+ accumulated time (s):   0.95703125000000000     
+ ***DATE=2011-08-26_14:00:00 293.45438   2.71890    Timing:   0.07 Cumulative:        1.57  SFLX:   0.00
  read forcing data at 2011-08-26_14:00:00./FORCING/2011082615.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -1554,7 +1554,7 @@
  WB_SUB!SMC2   607.578125    
  WB_SUB!Residual   8.84416513E-04
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   5.00000035E-03
+ Timing: Subsurface Routing  accumulated time--   6.00000052E-03
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -1576,10 +1576,10 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   1.60653144E-06
- Timing: Overland Routing  accumulated time--  0.214999989    
+ Timing: Overland Routing  accumulated time--  0.205999985    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   2.00000009E-03
+ Timing: GwBaseflow  accumulated time--   3.00000003E-03
  Ndg: start setup_stream_nudging
  Ndg: obsHydroTime: 2011-08-26_14:00:00
  Ndg: start find_timeslice_file
@@ -1611,7 +1611,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.296999961    
+ Timing: Channel Routing  accumulated time--  0.289000005    
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   2.01115385E-04
@@ -1628,8 +1628,8 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):    1.1093750000000000     
- ***DATE=2011-08-26_15:00:00 294.17139   2.71589    Timing:   0.08 Cumulative:        1.78  SFLX:   0.00
+ accumulated time (s):    1.0195312500000000     
+ ***DATE=2011-08-26_15:00:00 294.17139   2.71589    Timing:   0.07 Cumulative:        1.64  SFLX:   0.00
  read forcing data at 2011-08-26_15:00:00./FORCING/2011082616.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -1662,7 +1662,7 @@
  WB_SUB!SMC2   607.245300    
  WB_SUB!Residual   9.75570641E-04
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   5.00000035E-03
+ Timing: Subsurface Routing  accumulated time--   6.00000052E-03
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -1684,10 +1684,10 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   5.87955583E-07
- Timing: Overland Routing  accumulated time--  0.227999985    
+ Timing: Overland Routing  accumulated time--  0.218999982    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   2.00000009E-03
+ Timing: GwBaseflow  accumulated time--   3.00000003E-03
  Ndg: start setup_stream_nudging
  Ndg: obsHydroTime: 2011-08-26_15:00:00
  Ndg: start find_timeslice_file
@@ -1719,7 +1719,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.315999955    
+ Timing: Channel Routing  accumulated time--  0.307000011    
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   2.23640352E-04
@@ -1740,10 +1740,10 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):    1.2031250000000000     
+ accumulated time (s):    1.1093750000000000     
  ***DATE=2011-08-26_16:00:00 294.89740   2.71288 Write restart at 2011-08-26_16
  output_flnm = ".//RESTART.2011082616_DOMAIN1"
-    Timing:   0.13 Cumulative:        1.90  SFLX:   0.00
+    Timing:   0.11 Cumulative:        1.75  SFLX:   0.00
  read forcing data at 2011-08-26_16:00:00./FORCING/2011082617.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -1776,7 +1776,7 @@
  WB_SUB!SMC2   606.893799    
  WB_SUB!Residual   1.01231597E-03
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   5.00000035E-03
+ Timing: Subsurface Routing  accumulated time--   7.00000068E-03
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -1798,10 +1798,10 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   1.31374691E-07
- Timing: Overland Routing  accumulated time--  0.241999984    
+ Timing: Overland Routing  accumulated time--  0.230999976    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   2.00000009E-03
+ Timing: GwBaseflow  accumulated time--   3.00000003E-03
  Ndg: start setup_stream_nudging
  Ndg: obsHydroTime: 2011-08-26_16:00:00
  Ndg: start find_timeslice_file
@@ -1833,7 +1833,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.335999966    
+ Timing: Channel Routing  accumulated time--  0.327000022    
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   2.36605294E-04
@@ -1850,8 +1850,8 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):    1.2656250000000000     
- ***DATE=2011-08-26_17:00:00 295.57291   2.70986    Timing:   0.08 Cumulative:        1.98  SFLX:   0.00
+ accumulated time (s):    1.1796875000000000     
+ ***DATE=2011-08-26_17:00:00 295.57291   2.70986    Timing:   0.08 Cumulative:        1.83  SFLX:   0.00
  read forcing data at 2011-08-26_17:00:00./FORCING/2011082618.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -1884,7 +1884,7 @@
  WB_SUB!SMC2   606.470825    
  WB_SUB!Residual   1.19425543E-03
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   6.00000052E-03
+ Timing: Subsurface Routing  accumulated time--   7.00000068E-03
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -1906,10 +1906,10 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   1.04773790E-09
- Timing: Overland Routing  accumulated time--  0.255999982    
+ Timing: Overland Routing  accumulated time--  0.243999973    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   2.00000009E-03
+ Timing: GwBaseflow  accumulated time--   3.00000003E-03
  Ndg: start setup_stream_nudging
  Ndg: obsHydroTime: 2011-08-26_17:00:00
  Ndg: start find_timeslice_file
@@ -1941,7 +1941,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.355999976    
+ Timing: Channel Routing  accumulated time--  0.345000029    
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   2.39357352E-04
@@ -1958,8 +1958,8 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):    1.3281250000000000     
- ***DATE=2011-08-26_18:00:00 296.34473   2.70685    Timing:   0.08 Cumulative:        2.06  SFLX:   0.00
+ accumulated time (s):    1.2421875000000000     
+ ***DATE=2011-08-26_18:00:00 296.34473   2.70685    Timing:   0.07 Cumulative:        1.90  SFLX:   0.00
  read forcing data at 2011-08-26_18:00:00./FORCING/2011082619.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -1992,7 +1992,7 @@
  WB_SUB!SMC2   606.089661    
  WB_SUB!Residual   3.74128111E-04
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   7.00000068E-03
+ Timing: Subsurface Routing  accumulated time--   8.00000038E-03
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -2014,10 +2014,10 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   1.45519152E-09
- Timing: Overland Routing  accumulated time--  0.268999994    
+ Timing: Overland Routing  accumulated time--  0.255999982    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
- Timing: GwBaseflow  accumulated time--   2.00000009E-03
+ Timing: GwBaseflow  accumulated time--   3.00000003E-03
  Ndg: start setup_stream_nudging
  Ndg: obsHydroTime: 2011-08-26_18:00:00
  Ndg: start find_timeslice_file
@@ -2049,7 +2049,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.373999983    
+ Timing: Channel Routing  accumulated time--  0.363000035    
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   2.26288103E-04
@@ -2066,8 +2066,8 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):    1.3984375000000000     
- ***DATE=2011-08-26_19:00:00 296.80984   2.70384    Timing:   0.08 Cumulative:        2.14  SFLX:   0.00
+ accumulated time (s):    1.3046875000000000     
+ ***DATE=2011-08-26_19:00:00 296.80984   2.70384    Timing:   0.07 Cumulative:        1.97  SFLX:   0.00
  read forcing data at 2011-08-26_19:00:00./FORCING/2011082620.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -2100,7 +2100,7 @@
  WB_SUB!SMC2   605.736694    
  WB_SUB!Residual   8.14098865E-04
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   8.00000038E-03
+ Timing: Subsurface Routing  accumulated time--   9.00000054E-03
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -2122,7 +2122,7 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   1.77533366E-09
- Timing: Overland Routing  accumulated time--  0.282999992    
+ Timing: Overland Routing  accumulated time--  0.267999977    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
  Timing: GwBaseflow  accumulated time--   3.00000003E-03
@@ -2157,7 +2157,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.391999990    
+ Timing: Channel Routing  accumulated time--  0.388000041    
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   2.19994225E-04
@@ -2174,8 +2174,8 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):    1.4687500000000000     
- ***DATE=2011-08-26_20:00:00 297.03473   2.70082    Timing:   0.08 Cumulative:        2.22  SFLX:   0.00
+ accumulated time (s):    1.3789062500000000     
+ ***DATE=2011-08-26_20:00:00 297.03473   2.70082    Timing:   0.08 Cumulative:        2.05  SFLX:   0.00
  read forcing data at 2011-08-26_20:00:00./FORCING/2011082621.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -2208,7 +2208,7 @@
  WB_SUB!SMC2   605.438965    
  WB_SUB!Residual   9.05885361E-04
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   9.00000054E-03
+ Timing: Subsurface Routing  accumulated time--   1.00000007E-02
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -2230,7 +2230,7 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual  -8.26548785E-09
- Timing: Overland Routing  accumulated time--  0.296000004    
+ Timing: Overland Routing  accumulated time--  0.280999988    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
  Timing: GwBaseflow  accumulated time--   3.00000003E-03
@@ -2265,7 +2265,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.409999996    
+ Timing: Channel Routing  accumulated time--  0.406000048    
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   2.18369998E-04
@@ -2282,8 +2282,8 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):    1.5390625000000000     
- ***DATE=2011-08-26_21:00:00 297.04889   2.69781    Timing:   0.08 Cumulative:        2.30  SFLX:   0.00
+ accumulated time (s):    1.4414062500000000     
+ ***DATE=2011-08-26_21:00:00 297.04889   2.69781    Timing:   0.07 Cumulative:        2.13  SFLX:   0.00
  read forcing data at 2011-08-26_21:00:00./FORCING/2011082622.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -2338,7 +2338,7 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   2.79396772E-09
- Timing: Overland Routing  accumulated time--  0.309000015    
+ Timing: Overland Routing  accumulated time--  0.294999987    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
  Timing: GwBaseflow  accumulated time--   3.00000003E-03
@@ -2373,7 +2373,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.430000007    
+ Timing: Channel Routing  accumulated time--  0.425000042    
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   2.24465504E-04
@@ -2390,8 +2390,8 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):    1.6093750000000000     
- ***DATE=2011-08-26_22:00:00 296.79141   2.69479    Timing:   0.08 Cumulative:        2.37  SFLX:   0.00
+ accumulated time (s):    1.5078125000000000     
+ ***DATE=2011-08-26_22:00:00 296.79141   2.69479    Timing:   0.07 Cumulative:        2.20  SFLX:   0.00
  read forcing data at 2011-08-26_22:00:00./FORCING/2011082623.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -2424,7 +2424,7 @@
  WB_SUB!SMC2   605.081909    
  WB_SUB!Residual   8.33475962E-04
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   1.10000009E-02
+ Timing: Subsurface Routing  accumulated time--   1.00000007E-02
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -2446,7 +2446,7 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   1.21071935E-08
- Timing: Overland Routing  accumulated time--  0.323000014    
+ Timing: Overland Routing  accumulated time--  0.306999981    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
  Timing: GwBaseflow  accumulated time--   3.00000003E-03
@@ -2481,7 +2481,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.449000001    
+ Timing: Channel Routing  accumulated time--  0.445000052    
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   2.39174813E-04
@@ -2498,8 +2498,8 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):    1.6796875000000000     
- ***DATE=2011-08-26_23:00:00 296.36823   2.69178    Timing:   0.08 Cumulative:        2.45  SFLX:   0.00
+ accumulated time (s):    1.5742187500000000     
+ ***DATE=2011-08-26_23:00:00 296.36823   2.69178    Timing:   0.07 Cumulative:        2.27  SFLX:   0.00
  read forcing data at 2011-08-26_23:00:00./FORCING/2011082700.LDASIN_DOMAIN1
  Beginning Disaggregation...
  Disagg Mass Bal: 
@@ -2532,7 +2532,7 @@
  WB_SUB!SMC2   604.984131    
  WB_SUB!Residual   8.27043317E-04
  SUBROUTE routing called and returned...
- Timing: Subsurface Routing  accumulated time--   1.20000010E-02
+ Timing: Subsurface Routing  accumulated time--   1.00000007E-02
  Beginning OV_routing...
  Routing method is            1  direction.
  calling OV_RTNG 
@@ -2554,7 +2554,7 @@
  WB_OV!Qbdry1  -13.0980244    
  WB_OV!Qbdry2  -13.0980244    
  WB_OV!Residual   5.18048182E-09
- Timing: Overland Routing  accumulated time--  0.336000025    
+ Timing: Overland Routing  accumulated time--  0.318999976    
  *****yw******start simp_gw_buck 
  *****yw******end simp_gw_buck 
  Timing: GwBaseflow  accumulated time--   3.00000003E-03
@@ -2589,7 +2589,7 @@
  Ndg: finish nudge_term_all
  Ndg: finish nudge_term_all
  *****yw******end drive_CHANNEL 
- Timing: Channel Routing  accumulated time--  0.467999995    
+ Timing: Channel Routing  accumulated time--  0.464000046    
  Beginning Aggregation...
  Agg Mass Bal: 
  WB_AGG!InfxsDiff   2.57679261E-04
@@ -2610,10 +2610,10 @@
  before call output_chrt
  WARNING: Unable to find crs in LAND spatial metadata file
  end calling output functions
- accumulated time (s):    1.7812500000000000     
+ accumulated time (s):    1.6601562500000000     
  ***DATE=2011-08-27_00:00:00 295.63498   2.68877 Write restart at 2011-08-27_00
  output_flnm = ".//RESTART.2011082700_DOMAIN1"
-    Timing:   0.13 Cumulative:        2.58  SFLX:   0.00
+    Timing:   0.11 Cumulative:        2.38  SFLX:   0.00
  Ndg: start finish_stream_nudging
  Ndg: end of finish_stream_nudging
  The model finished successfully.......

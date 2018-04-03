@@ -1,12 +1,12 @@
 import pathlib
-from wrfhydropy.model_classes import *
+from wrfhydropy import *
 import pickle
 import deepdiff
 import copy
 
 ##################################
 # Directories for import and for test data, used for making expected datasets
-# testDataDir = pathlib.Path('/home/docker/wrf_hydro_py/wrfhydropy/tests/data')
+testDataDir = pathlib.Path('/home/docker/wrf_hydro_py/wrfhydropy/tests/data')
 ##################################
 
 ##################################
@@ -18,12 +18,12 @@ import copy
 
 ## Make expected data
 
-# domain_top_dir= testDataDir / 'domain'
-# domain_object = WrfHydroDomain(domain_top_dir=domain_top_dir,
-#                                domain_config='NWM',
-#                                model_version='v1.2.1')
-# with open(testDataDir / 'expected/test_domain_nwm.pkl', 'wb') as f:
-#     pickle.dump(domain_object, f, 2)
+domain_top_dir= testDataDir / 'domain'
+domain_object = WrfHydroDomain(domain_top_dir=domain_top_dir,
+                               domain_config='NWM',
+                               model_version='v1.2.1')
+with open(testDataDir / 'expected/test_domain_nwm.pkl', 'wb') as f:
+    pickle.dump(domain_object, f, 2)
 
 ## Define test
 def test_domain_nwm(datadir_copy,capsys):
@@ -49,12 +49,12 @@ def test_domain_nwm(datadir_copy,capsys):
 
 ## Make expected data
 
-# domain_top_dir= testDataDir / 'domain'
-# domain_object = WrfHydroDomain(domain_top_dir=domain_top_dir,
-#                                domain_config='NWM',
-#                                model_version='v1.2.1')
-# with open(testDataDir / 'expected/test_domain_nwm_public.pkl', 'wb') as f:
-#     pickle.dump(domain_object, f, 2)
+domain_top_dir= testDataDir / 'domain'
+domain_object = WrfHydroDomain(domain_top_dir=domain_top_dir,
+                               domain_config='NWM',
+                               model_version='v1.2.1')
+with open(testDataDir / 'expected/test_domain_nwm_public.pkl', 'wb') as f:
+    pickle.dump(domain_object, f, 2)
 
 ## Define test
 def test_domain_nwm_public(datadir_copy, capsys):
@@ -85,24 +85,24 @@ def test_domain_nwm_public(datadir_copy, capsys):
 
 ## Make expected data object
 
-# wrf_hydro_nwm_dir = testDataDir / 'wrf_hydro_nwm'
-# source_dir = wrf_hydro_nwm_dir / 'source'
-# compile_dir = wrf_hydro_nwm_dir / 'compiled'
-#
-# ### Make precompile object
-# model_object_precompile = WrfHydroModel(source_dir=source_dir)
-#
-# ### Make post compile object
-# model_object_postcompile = copy.deepcopy(model_object_precompile)
-# model_object_postcompile.compile('gfort',compile_dir = compile_dir,overwrite=True)
-#
-# ### Combine into one test object
-# model_test_objects = {'model_object_precompile':model_object_precompile,
-#                       'model_object_postcompile':model_object_postcompile}
-#
-# ### Pickle
-# with open(testDataDir / 'expected/test_model_nwm.pkl', 'wb') as f:
-#     pickle.dump(model_test_objects, f, 2)
+wrf_hydro_nwm_dir = testDataDir / 'wrf_hydro_nwm'
+source_dir = wrf_hydro_nwm_dir / 'source'
+compile_dir = wrf_hydro_nwm_dir / 'compiled'
+
+### Make precompile object
+model_object_precompile = WrfHydroModel(source_dir=source_dir)
+
+### Make post compile object
+model_object_postcompile = copy.deepcopy(model_object_precompile)
+model_object_postcompile.compile('gfort',compile_dir = compile_dir,overwrite=True)
+
+### Combine into one test object
+model_test_objects = {'model_object_precompile':model_object_precompile,
+                      'model_object_postcompile':model_object_postcompile}
+
+### Pickle
+with open(testDataDir / 'expected/test_model_nwm.pkl', 'wb') as f:
+    pickle.dump(model_test_objects, f, 2)
 
 ## Define test
 def test_model_nwm(datadir_copy,capsys):
@@ -146,25 +146,25 @@ def test_model_nwm(datadir_copy,capsys):
 
 ## Make expected data
 
-# ### Setup directoires
-# wrf_hydro_nwm_dir = testDataDir / 'wrf_hydro_nwm_public'
-# source_dir = wrf_hydro_nwm_dir / 'source'
-# compile_dir = wrf_hydro_nwm_dir / 'compiled'
-#
-# ### Make precompile model object
-# model_object_precompile = WrfHydroModel(source_dir=source_dir)
-#
-# ### Make post compile object
-# model_object_postcompile = copy.deepcopy(model_object_precompile)
-# model_object_postcompile.compile('gfort',compile_dir = compile_dir,overwrite=True)
-#
-# ### Combine into one test object
-# model_test_objects = {'model_object_precompile':model_object_precompile,
-#                       'model_object_postcompile':model_object_postcompile}
-#
-# ### Pickle
-# with open(testDataDir / 'expected/test_model_nwm_public.pkl', 'wb') as f:
-#     pickle.dump(model_test_objects, f, 2)
+### Setup directoires
+wrf_hydro_nwm_dir = testDataDir / 'wrf_hydro_nwm_public'
+source_dir = wrf_hydro_nwm_dir / 'source'
+compile_dir = wrf_hydro_nwm_dir / 'compiled'
+
+### Make precompile model object
+model_object_precompile = WrfHydroModel(source_dir=source_dir)
+
+### Make post compile object
+model_object_postcompile = copy.deepcopy(model_object_precompile)
+model_object_postcompile.compile('gfort',compile_dir = compile_dir,overwrite=True)
+
+### Combine into one test object
+model_test_objects = {'model_object_precompile':model_object_precompile,
+                      'model_object_postcompile':model_object_postcompile}
+
+### Pickle
+with open(testDataDir / 'expected/test_model_nwm_public.pkl', 'wb') as f:
+    pickle.dump(model_test_objects, f, 2)
 
 ## Define test
 def test_model_nwm_public(datadir_copy,capsys):
@@ -212,16 +212,16 @@ def test_model_nwm_public(datadir_copy,capsys):
 
 ## Make expected data
 
-# ### Make prerun simulation object
-# domain_object_expected = pickle.load(open(testDataDir / 'expected/test_domain_nwm.pkl', "rb"))
-# model_objects_expected = pickle.load(open(testDataDir / 'expected/test_model_nwm.pkl', "rb"))
-# model_object_postcompile_expected=model_objects_expected['model_object_postcompile']
-#
-# simulation_object = WrfHydroSim(model_object_postcompile_expected,domain_object_expected)
-#
-# ### Pickle
-# with open(testDataDir / 'expected/test_simulation_nwm.pkl', 'wb') as f:
-#     pickle.dump(simulation_object, f, 2)
+### Make prerun simulation object
+domain_object_expected = pickle.load(open(testDataDir / 'expected/test_domain_nwm.pkl', "rb"))
+model_objects_expected = pickle.load(open(testDataDir / 'expected/test_model_nwm.pkl', "rb"))
+model_object_postcompile_expected=model_objects_expected['model_object_postcompile']
+
+simulation_object = WrfHydroSim(model_object_postcompile_expected,domain_object_expected)
+
+### Pickle
+with open(testDataDir / 'expected/test_simulation_nwm.pkl', 'wb') as f:
+    pickle.dump(simulation_object, f, 2)
 
 # Define test
 def test_simulation_nwm(datadir_copy,capsys):
@@ -248,17 +248,17 @@ def test_simulation_nwm(datadir_copy,capsys):
 
 ## Make expected data
 
-# ### Make prerun simulation object
-# domain_object_expected = pickle.load(open(testDataDir / 'expected/test_domain_nwm_public.pkl',
-#     "rb"))
-# model_objects_expected = pickle.load(open(testDataDir / 'expected/test_model_nwm_public.pkl', "rb"))
-# model_object_postcompile_expected=model_objects_expected['model_object_postcompile']
-#
-# simulation_object = WrfHydroSim(model_object_postcompile_expected,domain_object_expected)
-#
-# # Pickle
-# with open(testDataDir / 'expected/test_simulation_nwm_public.pkl', 'wb') as f:
-#     pickle.dump(simulation_object, f, 2)
+### Make prerun simulation object
+domain_object_expected = pickle.load(open(testDataDir / 'expected/test_domain_nwm_public.pkl',
+    "rb"))
+model_objects_expected = pickle.load(open(testDataDir / 'expected/test_model_nwm_public.pkl', "rb"))
+model_object_postcompile_expected=model_objects_expected['model_object_postcompile']
+
+simulation_object = WrfHydroSim(model_object_postcompile_expected,domain_object_expected)
+
+# Pickle
+with open(testDataDir / 'expected/test_simulation_nwm_public.pkl', 'wb') as f:
+    pickle.dump(simulation_object, f, 2)
 
 # Define test
 def test_simulation_nwm_public(datadir_copy,capsys):
@@ -288,19 +288,19 @@ def test_simulation_nwm_public(datadir_copy,capsys):
 
 ## Make expected data
 
-# ### Get directories
-# wrf_hydro_nwm_dir = testDataDir / 'wrf_hydro_nwm'
-# run_dir = wrf_hydro_nwm_dir / 'run'
-#
-# ### Load the simulation object
-# simulation_object = pickle.load(open(testDataDir / 'expected/test_simulation_nwm.pkl', "rb"))
-#
-# ### Run the model
-# run_object = simulation_object.run(run_dir,mode='w')
-#
-# ### Pickle
-# with open(testDataDir / 'expected/test_run_nwm.pkl', 'wb') as f:
-#     pickle.dump(run_object, f, 2)
+### Get directories
+wrf_hydro_nwm_dir = testDataDir / 'wrf_hydro_nwm'
+run_dir = wrf_hydro_nwm_dir / 'run'
+
+### Load the simulation object
+simulation_object = pickle.load(open(testDataDir / 'expected/test_simulation_nwm.pkl', "rb"))
+
+### Run the model
+run_object = simulation_object.run(run_dir,mode='w')
+
+### Pickle
+with open(testDataDir / 'expected/test_run_nwm.pkl', 'wb') as f:
+    pickle.dump(run_object, f, 2)
 
 # Define test
 def test_run_nwm(datadir_copy,capsys):
@@ -341,19 +341,19 @@ def test_run_nwm(datadir_copy,capsys):
 
 ## Make expected data
 
-# ### Get directories
-# wrf_hydro_nwm_dir = testDataDir / 'wrf_hydro_nwm_public'
-# run_dir = wrf_hydro_nwm_dir / 'run'
-#
-# ### Load the simulation object
-# simulation_object = pickle.load(open(testDataDir / 'expected/test_simulation_nwm_public.pkl', "rb"))
-#
-# ### Run the model
-# run_object = simulation_object.run(run_dir,mode='w')
-#
-# ### Pickle
-# with open(testDataDir / 'expected/test_run_nwm_public.pkl', 'wb') as f:
-#     pickle.dump(run_object, f, 2)
+### Get directories
+wrf_hydro_nwm_dir = testDataDir / 'wrf_hydro_nwm_public'
+run_dir = wrf_hydro_nwm_dir / 'run'
+
+### Load the simulation object
+simulation_object = pickle.load(open(testDataDir / 'expected/test_simulation_nwm_public.pkl', "rb"))
+
+### Run the model
+run_object = simulation_object.run(run_dir,mode='w')
+
+### Pickle
+with open(testDataDir / 'expected/test_run_nwm_public.pkl', 'wb') as f:
+    pickle.dump(run_object, f, 2)
 
 def test_run_nwm(datadir_copy,capsys):
     with capsys.disabled():

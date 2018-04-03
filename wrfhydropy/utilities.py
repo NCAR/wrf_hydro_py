@@ -6,6 +6,7 @@ import f90nml
 from deepdiff import DeepDiff
 import json
 from pathlib import Path
+from wrfhydropy import *
 
 def compare_nc_nccmp(candidate_nc: str,
                      reference_nc: str,
@@ -71,12 +72,16 @@ def compare_restarts(candidate_files: list,
                      nccmp_options: list = ['--data', '--metadata', '--force', '--quiet'],
                      exclude_vars: list = ['ACMELT','ACSNOW','SFCRUNOFF','UDRUNOFF','ACCPRCP',
                                            'ACCECAN','ACCEDIR','ACCETRAN','qstrmvolrt']):
-    """Compare lists of netcdf files in two directories. Files must have common names
+    """Compare lists of netcdf restart files element-wise. Files must have common names
     Args:
-        candidate_restart: The path for the candidate restart file
-        ref_restarts: The path for the reference restart file
+        candidate_files: List of candidate restart file paths
+        reference_files: List of reference restart file paths
+        nccmp_options: List of long-form command line options passed to nccmp,
+        see http://nccmp.sourceforge.net/ for options
+        exclude_vars: A list of strings containing variables names to
+        exclude from the comparison
     Returns:
-        A named list of either a pandas dataframes if possible or subprocess objects
+        A named list of either pandas dataframes if possible or subprocess objects
     """
 
     ref_dir = reference_files[0].parent
@@ -99,7 +104,7 @@ def diff_namelist(namelist1: str, namelist2: str, **kwargs) -> dict:
     Args:
         namelist1: String containing path to the first namelist file.
         namelist2: String containing path to the second namelist file.
-        **kwargs: Additionaly arguments passed onto deepdiff.DeepDiff method
+        **kwargs: Additional arguments passed onto deepdiff.DeepDiff method
     Returns:
         The differences between the two namelists
     """
@@ -114,34 +119,65 @@ def diff_namelist(namelist1: str, namelist2: str, **kwargs) -> dict:
 
 ####Classes
 class RestartDiffs(object):
-    def __init__(self, candidate_sim, reference_sim,
+    def __init__(self,
+                 candidate_run: WrfHydroRun,
+                 reference_run: WrfHydroRun,
                  nccmp_options: list = ['--data','--metadata', '--force', '--quiet'],
                  exclude_vars: list = ['ACMELT','ACSNOW','SFCRUNOFF','UDRUNOFF','ACCPRCP',
                                        'ACCECAN','ACCEDIR','ACCETRAN','qstrmvolrt']):
+        """Calculate Diffs between restart objects for two WrfHydroRun objects
+        Args:
+            candidate_run: The candidate WrfHydroRun object
+            reference_run: The reference WrfHydroRun object
+            nccmp_options: List of long-form command line options passed to nccmp,
+            see http://nccmp.sourceforge.net/ for options
+            exclude_vars: A list of strings containing variables names to
+            exclude from the comparison
+        Returns:
+            A DomainDirectory directory object
+        """
+        # Instantiate all attributes
+        self.diff_counts = None
+        """dict: Counts of diffs by restart type"""
+        self.hydro = None
+        """list: List of pandas dataframes if possible or subprocess objects containing hydro 
+        restart file diffs"""
+        self.lsm = None
+        """list: List of pandas dataframes if possible or subprocess objects containing lsm restart 
+        file diffs"""
+        self.nudging = None
+        """list: List of pandas dataframes if possible or subprocess objects containing nudging 
+        restart file diffs"""
 
         #Add a dictionary with counts of diffs
         self.diff_counts = {}
 
-        if len(candidate_sim.restart_hydro) != 0 and len(reference_sim.restart_hydro) != 0:
-            self.hydro = compare_restarts(candidate_files=candidate_sim.restart_hydro,
-                                          reference_files=reference_sim.restart_hydro)
+        if len(candidate_run.restart_hydro) != 0 and len(reference_run.restart_hydro) != 0:
+            self.hydro = compare_restarts(candidate_files=candidate_run.restart_hydro,
+                                          reference_files=reference_run.restart_hydro,
+                                          nccmp_options = nccmp_options,
+                                          exclude_vars = exclude_vars)
             diff_counts = sum(1 for _ in filter(None.__ne__, self.hydro))
             self.diff_counts.update({'hydro':diff_counts})
         else:
             warn('length of candidate_sim.restart_hydro or reference_sim.restart_hydro is 0')
 
-        if len(candidate_sim.restart_lsm) != 0 and len(reference_sim.restart_lsm) != 0:
-            self.lsm = compare_restarts(candidate_files=candidate_sim.restart_lsm,
-                                        reference_files=reference_sim.restart_lsm)
+        if len(candidate_run.restart_lsm) != 0 and len(reference_run.restart_lsm) != 0:
+            self.lsm = compare_restarts(candidate_files=candidate_run.restart_lsm,
+                                        reference_files=reference_run.restart_lsm,
+                                        nccmp_options = nccmp_options,
+                                        exclude_vars = exclude_vars)
             diff_counts = sum(1 for _ in filter(None.__ne__, self.lsm))
             self.diff_counts.update({'lsm':diff_counts})
         else:
             warn('length of candidate_sim.restart_lsm or reference_sim.restart_lsm is 0')
 
-        if len(candidate_sim.restart_nudging) != 0 and len(reference_sim.restart_nudging) != 0:
+        if len(candidate_run.restart_nudging) != 0 and len(reference_run.restart_nudging) != 0:
             self.nudging = compare_restarts(
-                candidate_files=candidate_sim.restart_nudging,
-                reference_files=reference_sim.restart_nudging)
+                candidate_files=candidate_run.restart_nudging,
+                reference_files=reference_run.restart_nudging,
+                nccmp_options = nccmp_options,
+                exclude_vars = exclude_vars)
             diff_counts = sum(1 for _ in filter(None.__ne__, self.nudging))
             self.diff_counts.update({'nudging':diff_counts})
         else:
@@ -205,8 +241,8 @@ class DomainDirectory(object):
 
         # Create symlinks from lsm namelist
         domain_lsm_nlist = \
-        self.namelist_patches[self.model_version][self.domain_config]['namelist_hrldas'
-        ]["noahlsm_offline"]
+            self.namelist_patches[self.model_version][self.domain_config]['namelist_hrldas'
+            ]["noahlsm_offline"]
 
         self.lsm_files = []
         for key, value in domain_lsm_nlist.items():

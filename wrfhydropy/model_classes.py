@@ -48,29 +48,53 @@ class WrfHydroModel(object):
         Returns:
             A WrfHydroModel object.
         """
-
-        # Setup directory paths
-        self.source_dir = pathlib.Path(source_dir).absolute()
+        # Instantiate all attributes and methods
+        self.source_dir = None
         """pathlib.Path: pathlib.Path object for source code directory."""
+        self.hydro_namelists = None
+        """dict: Master dictionary of all hydro.namelists stored with the source code."""
+        self.hrldas_namelists = None
+        """dict: Master dictionary of all namelist.hrldas stored with the source code."""
+        self.compile_options = None
+        """dict: Compile-time options. Defaults are loaded from json file stored with source 
+        code."""
+        self.version = None
+        """str: Source code version from .version file stored with the source code."""
+        self.compile_dir = None
+        """pathlib.Path: pathlib.Path object pointing to the compile directory."""
+        self.compile_dir = None
+        """pathlib.Path: pathlib.Path object pointing to the compile directory."""
+        self.compiler = None
+        """str: The compiler chosen at compile time."""
+        self.configure_log = None
+        """CompletedProcess: The subprocess object generated at configure."""
+        self.compile_log = None
+        """CompletedProcess: The subprocess object generated at compile."""
+        self.object_id = None
+        """str: A unique id to join object to compile directory."""
+        self.table_files = None
+        """list: pathlib.Paths to *.TBL files generated at compile-time."""
+        self.wrf_hydro_exe = None
+        """pathlib.Path: pathlib.Path to wrf_hydro.exe file generated at compile-time."""
 
-        # Load master namelists
+        # Set attributes
+        ## Setup directory paths
+        self.source_dir = pathlib.Path(source_dir).absolute()
+
+        ## Load master namelists
         self.hydro_namelists = \
             json.load(open(self.source_dir.joinpath('hydro_namelists.json')))
-        """dict: Master dictionary of all hydro.namelists stored with the source code."""
 
         self.hrldas_namelists = \
             json.load(open(self.source_dir.joinpath('hrldas_namelists.json')))
-        """dict: Master dictionary of all namelist.hrldas stored with the source code."""
 
-        # Load compile options
+        ## Load compile options
         self.compile_options = json.load(open(self.source_dir.joinpath('compile_options.json')))
-        """dict: Compile-time options. Defaults are loaded from json file stored with source 
-        code."""
 
-        # Get code version
+        ## Get code version
         with open(self.source_dir.joinpath('.version')) as f:
             self.version = f.read()
-        """str: Source code version from .version file stored with the source code."""
+
 
     def compile(self, compiler: str,
                 compile_dir: str = None,
@@ -95,10 +119,8 @@ class WrfHydroModel(object):
         # A bunch of ugly logic to check compile directory.
         if compile_dir is None:
             self.compile_dir = self.source_dir.joinpath('Run')
-            """pathlib.Path: pathlib.Path object pointing to the compile directory."""
         else:
             self.compile_dir = pathlib.Path(compile_dir).absolute()
-            """pathlib.Path: pathlib.Path object pointing to the compile directory."""
             if self.compile_dir.is_dir() is False:
                 self.compile_dir.mkdir(parents=True)
             else:
@@ -110,7 +132,6 @@ class WrfHydroModel(object):
 
         # Add compiler and compile options as attributes and update if needed
         self.compiler = compiler
-        """str: The compiler chosen at compile time."""
 
         if compile_options is not None:
             self.compile_options.update(compile_options)
@@ -130,20 +151,17 @@ class WrfHydroModel(object):
         self.configure_log = subprocess.run(['./configure', compiler],
                                             stdout=subprocess.PIPE,
                                             stderr=subprocess.PIPE)
-        """CompletedProcess: The subprocess object generated at configure."""
 
         self.compile_log = subprocess.run(['./compile_offline_NoahMP.sh',
                                            str(compile_options_file.absolute())],
                                           stdout=subprocess.PIPE,
                                           stderr=subprocess.PIPE)
-        """CompletedProcess: The subprocess object generated at compile."""
         # Change to back to previous working directory
         os.chdir(current_wd)
 
         # Add in unique ID file to match this object to prevent assosciating
         # this directory with another object
         self.object_id = str(uuid.uuid4())
-        """str: A unique id to join object to compile directory."""
 
         with open(self.compile_dir.joinpath('.uid'),'w') as f:
             f.write(self.object_id)
@@ -170,11 +188,9 @@ class WrfHydroModel(object):
             #Get file lists as attributes
             # Get list of table file paths
             self.table_files = list(self.compile_dir.glob('*.TBL'))
-            """list: pathlib.Paths to *.TBL files generated at compile-time."""
 
             # Get wrf_hydro.exe file path
             self.wrf_hydro_exe = self.compile_dir.joinpath('wrf_hydro.exe')
-            """pathlib.Path: pathlib.Path to wrf_hydro.exe file generated at compile-time."""
 
             # Save the object out to the compile directory
             with open(self.compile_dir.joinpath('WrfHydroModel.pkl'), 'wb') as f:
@@ -222,6 +238,12 @@ class WrfHydroDomain(object):
 
         self.domain_config = domain_config
         """str: Specified configuration for which the domain is to be used, e.g. 'NWM'"""
+        self.hydro_files = None
+        """list: Files specified in hydro_nlist section of the domain namelist patches"""
+        self.nudging_files = None
+        """list: Files specified in nudging_nlist section of the domain namelist patches"""
+        self.lsm_files = None
+        """list: Files specified in noahlsm_offline section of the domain namelist patches"""
         ###
 
         # Create file paths from hydro namelist
@@ -229,7 +251,6 @@ class WrfHydroDomain(object):
             'hydro_namelist']['hydro_nlist']
 
         self.hydro_files = []
-        """list: Files specified in hydro_nlist section of the domain namelist patches"""
         for key, value in domain_hydro_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
             if file_path.is_file() is True:
@@ -243,7 +264,6 @@ class WrfHydroDomain(object):
         ]['hydro_namelist']['nudging_nlist']
 
         self.nudging_files = []
-        """list: Files specified in nudging_nlist section of the domain namelist patches"""
 
         for key, value in domain_nudging_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
@@ -259,7 +279,6 @@ class WrfHydroDomain(object):
             ]["noahlsm_offline"]
 
         self.lsm_files = []
-        """list: Files specified in noahlsm_offline section of the domain namelist patches"""
         for key, value in domain_lsm_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
 
@@ -300,6 +319,12 @@ class WrfHydroSim(object):
         """dict: A copy of the hydro_namelist used by the WrfHydroModel for the specified model 
         version and domain configuration"""
 
+        self.namelist_hrldas = \
+            copy.deepcopy(self.model.hrldas_namelists[self.model.version][self.domain.domain_config])
+        """dict: A copy of the hrldas_namelist used by the WrfHydroModel for the specified model 
+        version and domain configuration"""
+
+        ## Update namelists with namelist patches
         self.hydro_namelist['hydro_nlist'].update(self.domain.namelist_patches
                                                   [self.model.version]
                                                   [self.domain.domain_config]
@@ -311,11 +336,6 @@ class WrfHydroSim(object):
                                                     [self.domain.domain_config]
                                                     ['hydro_namelist']
                                                     ['nudging_nlist'])
-
-        self.namelist_hrldas = \
-            copy.deepcopy(self.model.hrldas_namelists[self.model.version][self.domain.domain_config])
-        """dict: A copy of the hrldas_namelist used by the WrfHydroModel for the specified model 
-        version and domain configuration"""
 
         self.namelist_hrldas['noahlsm_offline'].update(self.domain.namelist_patches
                                                        [self.model.version]
@@ -371,16 +391,34 @@ class WrfHydroRun(object):
         TODO:
             Add option for custom run commands to deal with job schedulers
         """
+
+        # Initialize all attributes and methods
+
+
         self.simulation = wrf_hydro_simulation
         """WrfHydroSim: The WrfHydroSim object used for the run"""
-
-        # add num cores as attribute
         self.num_cores = num_cores
         """int: The number of cores used for the run"""
-
-        # Add sim dir
         self.simulation_dir = pathlib.Path(simulation_dir)
         """pathlib.Path: pathlib.Path to the directory used for the run"""
+        self.run_log = None
+        """CompletedProcess: The subprocess returned from the run call"""
+        self.run_status = None
+        """int: exit status of the run"""
+        self.diag = None
+        """list: pathlib.Paths to diag files generated at run time"""
+        self.channel_rt = None
+        """WrfHydroTs: Timeseries dataset of CHRTOUT files"""
+        self.chanobs = None
+        """WrfHydroTs: Timeseries dataset of CHANOBS files"""
+        self.restart_hydro = None
+        """list: List of HYDRO_RST WrfHydroStatic objects"""
+        self.restart_lsm = None
+        """list: List of RESTART WrfHydroStatic objects"""
+        self.restart_nudging = None
+        """list: List of nudgingLastObs WrfHydroStatic objects"""
+        self.object_id = None
+        """str: A unique id to join object to run directory."""
 
         # Make directory if it does not exists
         if self.simulation_dir.is_dir() is False:
@@ -468,12 +506,10 @@ class WrfHydroRun(object):
         self.run_log = subprocess.run(['mpiexec', '-np', str(num_cores), './wrf_hydro.exe'],
                                       stdout=subprocess.PIPE,
                                       stderr=subprocess.PIPE)
-        """CompletedProcess: The subprocess returned from the run call"""
         os.chdir(current_wd)
 
         try:
             self.run_status = 1
-            """int: exit status of the run"""
             # String match diag files for successfull run
             with open(self.simulation_dir.joinpath('diag_hydro.00000')) as f:
                 diag_file = f.read()
@@ -490,21 +526,17 @@ class WrfHydroRun(object):
 
             ## Get diag files
             self.diag = list(self.simulation_dir.glob('diag_hydro.*'))
-            """list: pathlib.Paths to diag files generated at run time"""
 
             ## Get channel files
             if len(list(self.simulation_dir.glob('*CHRTOUT*'))) > 0:
                 self.channel_rt = WrfHydroTs(list(self.simulation_dir.glob('*CHRTOUT*')))
-                """WrfHydroTs: Timeseries dataset of CHRTOUT files"""
 
             if len(list(self.simulation_dir.glob('*CHANOBS*'))) > 0:
                 self.chanobs = WrfHydroTs(list(self.simulation_dir.glob('*CHANOBS*')))
-                """WrfHydroTs: Timeseries dataset of CHANOBS files"""
 
             ## Get restart files and sort by modified time
             ### Hydro restarts
             self.restart_hydro = []
-            """list: List of HYDRO_RST WrfHydroStatic objects"""
             for file in self.simulation_dir.glob('HYDRO_RST*'):
                 file = WrfHydroStatic(file)
                 self.restart_hydro.append(file)
@@ -513,9 +545,9 @@ class WrfHydroRun(object):
                 self.restart_hydro = sorted(self.restart_hydro,
                                             key=lambda file: file.stat().st_mtime_ns)
 
+
             ### LSM Restarts
             self.restart_lsm = []
-            """list: List of RESTART WrfHydroStatic objects"""
             for file in self.simulation_dir.glob('RESTART*'):
                 file = WrfHydroStatic(file)
                 self.restart_lsm.append(file)
@@ -523,10 +555,11 @@ class WrfHydroRun(object):
             if len(self.restart_lsm) > 0:
                 self.restart_lsm = sorted(self.restart_lsm,
                                           key=lambda file: file.stat().st_mtime_ns)
+            else:
+                self.restart_lsm = None
 
             ### Nudging restarts
             self.restart_nudging = []
-            """list: List of nudgingLastObs WrfHydroStatic objects"""
             for file in self.simulation_dir.glob('nudgingLastObs*'):
                 file = WrfHydroStatic(file)
                 self.restart_nudging.append(file)
@@ -534,12 +567,13 @@ class WrfHydroRun(object):
             if len(self.restart_nudging) > 0:
                 self.restart_nudging = sorted(self.restart_nudging,
                                               key=lambda file: file.stat().st_mtime_ns)
+            else:
+                self.restart_hydro = None
 
             #####################
 
             # create a UID for the simulation and save in file
             self.object_id = str(uuid.uuid4())
-            """str: A unique id to join object to run directory."""
             with open(self.simulation_dir.joinpath('.uid'), 'w') as f:
                 f.write(self.object_id)
 

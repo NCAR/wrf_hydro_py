@@ -2,8 +2,21 @@
 [![PyPI](https://img.shields.io/pypi/v/wrfhydropy.svg)](https://pypi.python.org/pypi/wrfhydropy)
 [![GitHub release](https://img.shields.io/github/release/NCAR/wrf_hydro_py.svg)](https://github.com/NCAR/wrf_hydro_py/releases/latest)
 
-# wrf_hydro_py
-Python API for the WRF-Hydro model
+**IMPORTANT:** This package is in the very early stages of development and the package API may change at any time. It is not recommended that this package be used for significant work until version 0.1
 
-# Style Guidlines
-Max line length: 100 chars.
+## Description
+wrfhydrpy is a Python API for the WRF-Hydro modelling system. The goal of this project is to provide a clean, feature-rich, and unified API for interacting with the many components of the WRF-Hydro modelling system.
+
+## Contributing standards
+Failure to adhere to contributing standards may result in your Pull Request being rejected.
+### Style Guidlines
+* Max line length: 100 chars.
+* docstrings: [Google style](http://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html)
+* All other guidance follows [Google style guide](https://google.github.io/styleguide/pyguide.html)
+### Testing
+All new functions or classes must be accompanied by additional unit/integration tests in the `wrf_hydro_py/wrfhydropy/tests` directory.
+If tests require complex or large data objects, those objects need to be created and placed in the `wrf_hydro_py/wrfhydropy/tests/data` directory.
+Additionally, test data should be able to reproduced using the test script. See [test_WrfHydroClasses.py](https://github.com/NCAR/wrf_hydro_py/blob/master/wrfhydropy/tests/test_WrfHydroClasses.py) for an example.
+
+## Documentation
+Documentation will be forthcoming once the API becomes more stable.

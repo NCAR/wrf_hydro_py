@@ -67,10 +67,10 @@ def compare_nc_nccmp(candidate_nc: str,
             return proc
 
 
-def compare_restarts(candidate_files: list,
-                     reference_files: list,
-                     nccmp_options: list = ['--data', '--metadata', '--force', '--quiet'],
-                     exclude_vars: list = ['ACMELT','ACSNOW','SFCRUNOFF','UDRUNOFF','ACCPRCP',
+def compare_ncfiles(candidate_files: list,
+                    reference_files: list,
+                    nccmp_options: list = ['--data', '--metadata', '--force', '--quiet'],
+                    exclude_vars: list = ['ACMELT','ACSNOW','SFCRUNOFF','UDRUNOFF','ACCPRCP',
                                            'ACCECAN','ACCEDIR','ACCETRAN','qstrmvolrt']):
     """Compare lists of netcdf restart files element-wise. Files must have common names
     Args:
@@ -97,6 +97,9 @@ def compare_restarts(candidate_files: list,
         else:
             warn(str(file_candidate) + 'not found in ' + str(ref_dir))
     return output_list
+
+###Retaining for backwards compatibility until deprecated
+compare_restarts = compare_ncfiles
 
 def diff_namelist(namelist1: str, namelist2: str, **kwargs) -> dict:
     """Diff two fortran namelist files and return a dictionary of differences.
@@ -153,27 +156,27 @@ class RestartDiffs(object):
         self.diff_counts = {}
 
         if len(candidate_run.restart_hydro) != 0 and len(reference_run.restart_hydro) != 0:
-            self.hydro = compare_restarts(candidate_files=candidate_run.restart_hydro,
-                                          reference_files=reference_run.restart_hydro,
-                                          nccmp_options = nccmp_options,
-                                          exclude_vars = exclude_vars)
+            self.hydro = compare_ncfiles(candidate_files=candidate_run.restart_hydro,
+                                         reference_files=reference_run.restart_hydro,
+                                         nccmp_options = nccmp_options,
+                                         exclude_vars = exclude_vars)
             diff_counts = sum(1 for _ in filter(None.__ne__, self.hydro))
             self.diff_counts.update({'hydro':diff_counts})
         else:
             warn('length of candidate_sim.restart_hydro or reference_sim.restart_hydro is 0')
 
         if len(candidate_run.restart_lsm) != 0 and len(reference_run.restart_lsm) != 0:
-            self.lsm = compare_restarts(candidate_files=candidate_run.restart_lsm,
-                                        reference_files=reference_run.restart_lsm,
-                                        nccmp_options = nccmp_options,
-                                        exclude_vars = exclude_vars)
+            self.lsm = compare_ncfiles(candidate_files=candidate_run.restart_lsm,
+                                       reference_files=reference_run.restart_lsm,
+                                       nccmp_options = nccmp_options,
+                                       exclude_vars = exclude_vars)
             diff_counts = sum(1 for _ in filter(None.__ne__, self.lsm))
             self.diff_counts.update({'lsm':diff_counts})
         else:
             warn('length of candidate_sim.restart_lsm or reference_sim.restart_lsm is 0')
 
         if len(candidate_run.restart_nudging) != 0 and len(reference_run.restart_nudging) != 0:
-            self.nudging = compare_restarts(
+            self.nudging = compare_ncfiles(
                 candidate_files=candidate_run.restart_nudging,
                 reference_files=reference_run.restart_nudging,
                 nccmp_options = nccmp_options,
@@ -182,78 +185,4 @@ class RestartDiffs(object):
             self.diff_counts.update({'nudging':diff_counts})
         else:
             warn('length of candidate_sim.restart_nudging or reference_sim.restart_nudging is 0')
-
-
-class DomainDirectory(object):
-    """An object that represents a WRF-Hydro domain directory. Primarily used as a utility class
-    for WrfHydroDomain"""
-    def __init__(self,
-                 domain_top_dir: str,
-                 domain_config: str,
-                 model_version: str,
-                 namelist_patch_file: str = 'namelist_patches.json'):
-        """Create a run directory of symlinks using the domain namelist patches
-        Args:
-            domain_top_dir: Parent directory containing all domain directories and files.
-            domain_config: The domain configuration to use, options are 'NWM',
-                'Gridded', or 'Reach'
-            model_version: The WRF-Hydro model version
-            namelist_patch_file: Filename of json file containing namelist patches
-        Returns:
-            A DomainDirectory directory object
-        """
-
-        ###Instantiate arguments to object
-        # Make file paths
-        self.domain_top_dir = Path(domain_top_dir)
-        self.namelist_patch_file = self.domain_top_dir.joinpath(namelist_patch_file)
-
-        # Load namelist patches
-        self.namelist_patches = json.load(open(self.namelist_patch_file, 'r'))
-
-        self.model_version = model_version
-        self.domain_config = domain_config
-        ###
-
-        # Create file paths from hydro namelist
-        domain_hydro_nlist = self.namelist_patches[self.model_version][self.domain_config][
-            'hydro_namelist']['hydro_nlist']
-
-        self.hydro_files = []
-        for key, value in domain_hydro_nlist.items():
-            file_path = self.domain_top_dir.joinpath(str(value))
-            if file_path.suffix =='.nc':
-                self.hydro_files.append(WrfHydroStatic(file_path))
-            else:
-                self.hydro_files.append(file_path)
-
-        # Create file paths from nudging namelist
-        domain_nudging_nlist = self.namelist_patches[self.model_version][self.domain_config
-        ]['hydro_namelist']['nudging_nlist']
-
-        self.nudging_files = []
-        for key, value in domain_nudging_nlist.items():
-            file_path = self.domain_top_dir.joinpath(str(value))
-            if file_path.suffix =='.nc':
-                self.nudging_files.append(WrfHydroStatic(file_path))
-            else:
-                self.nudging_files.append(file_path)
-
-        # Create symlinks from lsm namelist
-        domain_lsm_nlist = \
-            self.namelist_patches[self.model_version][self.domain_config]['namelist_hrldas'
-            ]["noahlsm_offline"]
-
-        self.lsm_files = []
-        for key, value in domain_lsm_nlist.items():
-            file_path = self.domain_top_dir.joinpath(str(value))
-
-            if file_path.is_file() is True:
-                if file_path.suffix == '.nc':
-                    self.lsm_files.append(WrfHydroStatic(file_path))
-                else:
-                    self.lsm_files.append(file_path)
-
-            if key == 'indir':
-                self.forcing = file_path
 

@@ -530,9 +530,15 @@ class WrfHydroRun(object):
             ## Get channel files
             if len(list(self.simulation_dir.glob('*CHRTOUT*'))) > 0:
                 self.channel_rt = WrfHydroTs(list(self.simulation_dir.glob('*CHRTOUT*')))
+                # ### Make relative to run dir
+                # for file in self.channel_rt:
+                #     file.relative_to(file.parent)
 
             if len(list(self.simulation_dir.glob('*CHANOBS*'))) > 0:
                 self.chanobs = WrfHydroTs(list(self.simulation_dir.glob('*CHANOBS*')))
+                # ### Make relative to run dir
+                # for file in self.chanobs:
+                #     file.relative_to(file.parent)
 
             ## Get restart files and sort by modified time
             ### Hydro restarts
@@ -585,3 +591,76 @@ class WrfHydroRun(object):
             print('Model run succeeded')
         else:
             warnings.warn('Model run failed')
+
+class DomainDirectory(object):
+    """An object that represents a WRF-Hydro domain directory. Primarily used as a utility class
+    for WrfHydroDomain"""
+    def __init__(self,
+                 domain_top_dir: str,
+                 domain_config: str,
+                 model_version: str,
+                 namelist_patch_file: str = 'namelist_patches.json'):
+        """Create a run directory of symlinks using the domain namelist patches
+        Args:
+            domain_top_dir: Parent directory containing all domain directories and files.
+            domain_config: The domain configuration to use, options are 'NWM',
+                'Gridded', or 'Reach'
+            model_version: The WRF-Hydro model version
+            namelist_patch_file: Filename of json file containing namelist patches
+        Returns:
+            A DomainDirectory directory object
+        """
+
+        ###Instantiate arguments to object
+        # Make file paths
+        self.domain_top_dir = Path(domain_top_dir)
+        self.namelist_patch_file = self.domain_top_dir.joinpath(namelist_patch_file)
+
+        # Load namelist patches
+        self.namelist_patches = json.load(open(self.namelist_patch_file, 'r'))
+
+        self.model_version = model_version
+        self.domain_config = domain_config
+        ###
+
+        # Create file paths from hydro namelist
+        domain_hydro_nlist = self.namelist_patches[self.model_version][self.domain_config][
+            'hydro_namelist']['hydro_nlist']
+
+        self.hydro_files = []
+        for key, value in domain_hydro_nlist.items():
+            file_path = self.domain_top_dir.joinpath(str(value))
+            if file_path.suffix =='.nc':
+                self.hydro_files.append(WrfHydroStatic(file_path))
+            else:
+                self.hydro_files.append(file_path)
+
+        # Create file paths from nudging namelist
+        domain_nudging_nlist = self.namelist_patches[self.model_version][self.domain_config
+        ]['hydro_namelist']['nudging_nlist']
+
+        self.nudging_files = []
+        for key, value in domain_nudging_nlist.items():
+            file_path = self.domain_top_dir.joinpath(str(value))
+            if file_path.suffix =='.nc':
+                self.nudging_files.append(WrfHydroStatic(file_path))
+            else:
+                self.nudging_files.append(file_path)
+
+        # Create symlinks from lsm namelist
+        domain_lsm_nlist = \
+            self.namelist_patches[self.model_version][self.domain_config]['namelist_hrldas'
+            ]["noahlsm_offline"]
+
+        self.lsm_files = []
+        for key, value in domain_lsm_nlist.items():
+            file_path = self.domain_top_dir.joinpath(str(value))
+
+            if file_path.is_file() is True:
+                if file_path.suffix == '.nc':
+                    self.lsm_files.append(WrfHydroStatic(file_path))
+                else:
+                    self.lsm_files.append(file_path)
+
+            if key == 'indir':
+                self.forcing = file_path

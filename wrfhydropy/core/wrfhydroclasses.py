@@ -148,19 +148,17 @@ class WrfHydroModel(object):
                 file.write("export {}={}\n".format(option, value))
 
         # Compile
-        current_wd=os.getcwd()
-        # Change to source code directory for compile time
-        os.chdir(self.source_dir)
         self.configure_log = subprocess.run(['./configure', compiler],
                                             stdout=subprocess.PIPE,
-                                            stderr=subprocess.PIPE)
+                                            stderr=subprocess.PIPE,
+                                            cwd=self.source_dir)
 
         self.compile_log = subprocess.run(['./compile_offline_NoahMP.sh',
                                            str(compile_options_file.absolute())],
                                           stdout=subprocess.PIPE,
-                                          stderr=subprocess.PIPE)
+                                          stderr=subprocess.PIPE,
+                                          cwd=self.source_dir)
         # Change to back to previous working directory
-        os.chdir(current_wd)
 
         # Add in unique ID file to match this object to prevent assosciating
         # this directory with another object
@@ -504,12 +502,10 @@ class WrfHydroRun(object):
                      self.simulation_dir.joinpath('namelist.hrldas'))
 
         # Run the model
-        current_wd=os.getcwd()
-        os.chdir(self.simulation_dir)
         self.run_log = subprocess.run(['mpiexec', '-np', str(num_cores), './wrf_hydro.exe'],
                                       stdout=subprocess.PIPE,
-                                      stderr=subprocess.PIPE)
-        os.chdir(current_wd)
+                                      stderr=subprocess.PIPE,
+                                      cwd=self.simulation_dir)
 
         try:
             self.run_status = 1

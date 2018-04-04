@@ -4,7 +4,6 @@ import deepdiff
 import copy
 import wrfhydropy
 import shutil
-import os
 import pytest
 ##################################
 # Directories for import and for test data, used for making expected datasets
@@ -15,10 +14,8 @@ import pytest
 @pytest.fixture(scope='session')
 def tmp_data_dir_public(tmpdir_factory):
     tmp_data_dir = tmpdir_factory.mktemp('tmp_data_public')
-    work_dir = pathlib.Path(os.getcwd())
-    shutil.copytree(str(work_dir / 'data/public'),tmp_data_dir / 'data',symlinks=True)
+    shutil.copytree('data/public',tmp_data_dir / 'data',symlinks=True)
     return tmp_data_dir
-
 
 ##################################
 # Domain object tests

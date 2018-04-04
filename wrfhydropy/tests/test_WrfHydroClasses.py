@@ -6,7 +6,7 @@ import copy
 
 ##################################
 # Directories for import and for test data, used for making expected datasets
-# testDataDir = pathlib.Path('/home/docker/wrf_hydro_py/wrfhydropy/tests/data')
+testDataDir = pathlib.Path('/home/docker/wrf_hydro_py/wrfhydropy/tests/data')
 ##################################
 
 ##################################
@@ -355,7 +355,7 @@ def test_run_nwm(datadir_copy,capsys):
 # with open(testDataDir / 'expected/test_run_nwm_public.pkl', 'wb') as f:
 #     pickle.dump(run_object, f, 2)
 
-def test_run_nwm(datadir_copy,capsys):
+def test_run_nwm_public(datadir_copy,capsys):
     with capsys.disabled():
         print("Question: WrfHydroSim object is able to run NWM public?")
 
@@ -387,3 +387,4 @@ def test_run_nwm(datadir_copy,capsys):
 
     for i in range(len(hydro_restarts_expected)):
         assert run_object.restart_hydro[i].name == hydro_restarts_expected[i]
+

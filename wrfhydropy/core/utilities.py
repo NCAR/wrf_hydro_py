@@ -1,12 +1,10 @@
 import subprocess
-from io import StringIO
+import io
 import pandas as pd
-from warnings import warn
+import warnings
 import f90nml
-from deepdiff import DeepDiff
-import json
-from pathlib import Path
-from wrfhydropy import *
+import deepdiff
+
 
 def compare_nc_nccmp(candidate_nc: str,
                      reference_nc: str,
@@ -53,7 +51,7 @@ def compare_nc_nccmp(candidate_nc: str,
     #Check return code
     if proc.returncode != 0:
         # Get stoud into stringio object
-        output = StringIO()
+        output = io.StringIO()
         output.write(proc.stdout.decode('utf-8'))
         output.seek(0)
 
@@ -62,7 +60,7 @@ def compare_nc_nccmp(candidate_nc: str,
             nccmp_out = pd.read_table(output,delim_whitespace=True,header=0)
             return nccmp_out
         except:
-            warn('Probleming reading nccmp output to pandas dataframe,'
+            warnings.warn('Probleming reading nccmp output to pandas dataframe,'
                  'returning as subprocess object')
             return proc
 
@@ -95,7 +93,7 @@ def compare_ncfiles(candidate_files: list,
                                          exclude_vars=exclude_vars)
             output_list.append(nccmp_out)
         else:
-            warn(str(file_candidate) + 'not found in ' + str(ref_dir))
+            warnings.warn(str(file_candidate) + 'not found in ' + str(ref_dir))
     return output_list
 
 ###Retaining for backwards compatibility until deprecated
@@ -116,73 +114,6 @@ def diff_namelist(namelist1: str, namelist2: str, **kwargs) -> dict:
     namelist1 = f90nml.read(namelist1)
     namelist2 = f90nml.read(namelist2)
     # Diff the namelists
-    differences = DeepDiff(namelist1, namelist2, ignore_order=True, **kwargs)
+    differences = deepdiff.DeepDiff(namelist1, namelist2, ignore_order=True, **kwargs)
     differences_dict = dict(differences)
     return (differences_dict)
-
-####Classes
-class RestartDiffs(object):
-    def __init__(self,
-                 candidate_run: WrfHydroRun,
-                 reference_run: WrfHydroRun,
-                 nccmp_options: list = ['--data','--metadata', '--force', '--quiet'],
-                 exclude_vars: list = ['ACMELT','ACSNOW','SFCRUNOFF','UDRUNOFF','ACCPRCP',
-                                       'ACCECAN','ACCEDIR','ACCETRAN','qstrmvolrt']):
-        """Calculate Diffs between restart objects for two WrfHydroRun objects
-        Args:
-            candidate_run: The candidate WrfHydroRun object
-            reference_run: The reference WrfHydroRun object
-            nccmp_options: List of long-form command line options passed to nccmp,
-            see http://nccmp.sourceforge.net/ for options
-            exclude_vars: A list of strings containing variables names to
-            exclude from the comparison
-        Returns:
-            A DomainDirectory directory object
-        """
-        # Instantiate all attributes
-        self.diff_counts = None
-        """dict: Counts of diffs by restart type"""
-        self.hydro = None
-        """list: List of pandas dataframes if possible or subprocess objects containing hydro 
-        restart file diffs"""
-        self.lsm = None
-        """list: List of pandas dataframes if possible or subprocess objects containing lsm restart 
-        file diffs"""
-        self.nudging = None
-        """list: List of pandas dataframes if possible or subprocess objects containing nudging 
-        restart file diffs"""
-
-        #Add a dictionary with counts of diffs
-        self.diff_counts = {}
-
-        if len(candidate_run.restart_hydro) != 0 and len(reference_run.restart_hydro) != 0:
-            self.hydro = compare_ncfiles(candidate_files=candidate_run.restart_hydro,
-                                         reference_files=reference_run.restart_hydro,
-                                         nccmp_options = nccmp_options,
-                                         exclude_vars = exclude_vars)
-            diff_counts = sum(1 for _ in filter(None.__ne__, self.hydro))
-            self.diff_counts.update({'hydro':diff_counts})
-        else:
-            warn('length of candidate_sim.restart_hydro or reference_sim.restart_hydro is 0')
-
-        if len(candidate_run.restart_lsm) != 0 and len(reference_run.restart_lsm) != 0:
-            self.lsm = compare_ncfiles(candidate_files=candidate_run.restart_lsm,
-                                       reference_files=reference_run.restart_lsm,
-                                       nccmp_options = nccmp_options,
-                                       exclude_vars = exclude_vars)
-            diff_counts = sum(1 for _ in filter(None.__ne__, self.lsm))
-            self.diff_counts.update({'lsm':diff_counts})
-        else:
-            warn('length of candidate_sim.restart_lsm or reference_sim.restart_lsm is 0')
-
-        if len(candidate_run.restart_nudging) != 0 and len(reference_run.restart_nudging) != 0:
-            self.nudging = compare_ncfiles(
-                candidate_files=candidate_run.restart_nudging,
-                reference_files=reference_run.restart_nudging,
-                nccmp_options = nccmp_options,
-                exclude_vars = exclude_vars)
-            diff_counts = sum(1 for _ in filter(None.__ne__, self.nudging))
-            self.diff_counts.update({'nudging':diff_counts})
-        else:
-            warn('length of candidate_sim.restart_nudging or reference_sim.restart_nudging is 0')
-

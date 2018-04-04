@@ -1,12 +1,12 @@
 import pathlib
-from wrfhydropy import *
 import pickle
 import deepdiff
 import copy
+import wrfhydropy
 
 ##################################
 # Directories for import and for test data, used for making expected datasets
-testDataDir = pathlib.Path('/home/docker/wrf_hydro_py/wrfhydropy/tests/data')
+# testDataDir = pathlib.Path('/home/docker/wrf_hydro_py/wrfhydropy/tests/data')
 ##################################
 
 ##################################
@@ -19,7 +19,7 @@ testDataDir = pathlib.Path('/home/docker/wrf_hydro_py/wrfhydropy/tests/data')
 ## Make expected data
 
 # domain_top_dir= testDataDir / 'domain'
-# domain_object = WrfHydroDomain(domain_top_dir=domain_top_dir,
+# domain_object = wrfhydropy.WrfHydroDomain(domain_top_dir=domain_top_dir,
 #                                domain_config='NWM',
 #                                model_version='v1.2.1')
 # with open(testDataDir / 'expected/test_domain_nwm.pkl', 'wb') as f:
@@ -35,7 +35,7 @@ def test_domain_nwm(datadir_copy,capsys):
 
     # Generate new objects
     domain_top_dir = datadir_copy["domain"]
-    domain_object = WrfHydroDomain(domain_top_dir=domain_top_dir,
+    domain_object = wrfhydropy.WrfHydroDomain(domain_top_dir=domain_top_dir,
                                    domain_config='NWM',
                                    model_version='v1.2.1')
 
@@ -50,7 +50,7 @@ def test_domain_nwm(datadir_copy,capsys):
 ## Make expected data
 
 # domain_top_dir= testDataDir / 'domain'
-# domain_object = WrfHydroDomain(domain_top_dir=domain_top_dir,
+# domain_object = wrfhydropy.WrfHydroDomain(domain_top_dir=domain_top_dir,
 #                                domain_config='NWM',
 #                                model_version='v1.2.1')
 # with open(testDataDir / 'expected/test_domain_nwm_public.pkl', 'wb') as f:
@@ -66,7 +66,7 @@ def test_domain_nwm_public(datadir_copy, capsys):
 
     # Generate new objects
     domain_top_dir = datadir_copy["domain"]
-    domain_object = WrfHydroDomain(domain_top_dir=domain_top_dir,
+    domain_object = wrfhydropy.WrfHydroDomain(domain_top_dir=domain_top_dir,
                                    domain_config='NWM',
                                    model_version='v1.2.1')
 
@@ -90,7 +90,7 @@ def test_domain_nwm_public(datadir_copy, capsys):
 # compile_dir = wrf_hydro_nwm_dir / 'compiled'
 #
 # ### Make precompile object
-# model_object_precompile = WrfHydroModel(source_dir=source_dir)
+# model_object_precompile = wrfhydropy.WrfHydroModel(source_dir=source_dir)
 #
 # ### Make post compile object
 # model_object_postcompile = copy.deepcopy(model_object_precompile)
@@ -118,7 +118,7 @@ def test_model_nwm(datadir_copy,capsys):
     compile_dir = wrf_hydro_nwm_dir / 'compiled'
 
     # Make precompile object
-    model_object_precompile = WrfHydroModel(source_dir=source_dir)
+    model_object_precompile = wrfhydropy.WrfHydroModel(source_dir=source_dir)
 
     # Make post compile object
     model_object_postcompile = copy.deepcopy(model_object_precompile)
@@ -152,7 +152,7 @@ def test_model_nwm(datadir_copy,capsys):
 # compile_dir = wrf_hydro_nwm_dir / 'compiled'
 #
 # ### Make precompile model object
-# model_object_precompile = WrfHydroModel(source_dir=source_dir)
+# model_object_precompile = wrfhydropy.WrfHydroModel(source_dir=source_dir)
 #
 # ### Make post compile object
 # model_object_postcompile = copy.deepcopy(model_object_precompile)
@@ -181,7 +181,7 @@ def test_model_nwm_public(datadir_copy,capsys):
     compile_dir = wrf_hydro_nwm_dir / 'compiled'
 
     # Make precompile object
-    model_object_precompile = WrfHydroModel(source_dir=source_dir)
+    model_object_precompile = wrfhydropy.WrfHydroModel(source_dir=source_dir)
 
     # Make post compile object
     model_object_postcompile = copy.deepcopy(model_object_precompile)
@@ -217,7 +217,7 @@ def test_model_nwm_public(datadir_copy,capsys):
 # model_objects_expected = pickle.load(open(testDataDir / 'expected/test_model_nwm.pkl', "rb"))
 # model_object_postcompile_expected=model_objects_expected['model_object_postcompile']
 #
-# simulation_object = WrfHydroSim(model_object_postcompile_expected,domain_object_expected)
+# simulation_object = wrfhydropy.WrfHydroSim(model_object_postcompile_expected,domain_object_expected)
 #
 # ### Pickle
 # with open(testDataDir / 'expected/test_simulation_nwm.pkl', 'wb') as f:
@@ -236,7 +236,7 @@ def test_simulation_nwm(datadir_copy,capsys):
 
     # Setup a simulation
     model_object_postcompile_expected=model_objects_expected['model_object_postcompile']
-    simulation_object = WrfHydroSim(model_object_postcompile_expected,domain_object_expected)
+    simulation_object = wrfhydropy.WrfHydroSim(model_object_postcompile_expected,domain_object_expected)
 
     # Compare to expected to new
     diffs = deepdiff.DeepDiff(simulation_object_expected,simulation_object)
@@ -254,7 +254,7 @@ def test_simulation_nwm(datadir_copy,capsys):
 # model_objects_expected = pickle.load(open(testDataDir / 'expected/test_model_nwm_public.pkl', "rb"))
 # model_object_postcompile_expected=model_objects_expected['model_object_postcompile']
 #
-# simulation_object = WrfHydroSim(model_object_postcompile_expected,domain_object_expected)
+# simulation_object = wrfhydropy.WrfHydroSim(model_object_postcompile_expected,domain_object_expected)
 #
 # # Pickle
 # with open(testDataDir / 'expected/test_simulation_nwm_public.pkl', 'wb') as f:
@@ -273,7 +273,7 @@ def test_simulation_nwm_public(datadir_copy,capsys):
                                                   "rb"))
     # Setup a simulation
     model_object_postcompile_expected=model_objects_expected['model_object_postcompile']
-    simulation_object = WrfHydroSim(model_object_postcompile_expected,domain_object_expected)
+    simulation_object = wrfhydropy.WrfHydroSim(model_object_postcompile_expected,domain_object_expected)
 
     # Compare to expected to new
     diffs = deepdiff.DeepDiff(simulation_object_expected,simulation_object)

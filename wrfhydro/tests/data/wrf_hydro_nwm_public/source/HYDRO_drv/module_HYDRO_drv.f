@@ -1,16 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
 !  Program Name:
 !  Author(s)/Contact(s):
 !  Abstract:
@@ -32,10 +19,14 @@
 !  User controllable options: <if applicable>
 
 module module_HYDRO_drv
+#ifdef MPP_LAND 
    use module_HYDRO_io, only:  output_rt, mpp_output_chrt, mpp_output_lakes, mpp_output_chrtgrd, &
                                restart_out_bi, restart_in_bi, mpp_output_chrt2, mpp_output_lakes2, &
                                hdtbl_in_nc, hdtbl_out
    USE module_mpp_land
+#else
+   use module_HYDRO_io, only:  output_rt, output_chrt, output_chrt2, output_lakes
+#endif
    use module_NWM_io, only: output_chrt_NWM, output_rt_NWM, output_lakes_NWM,&
                             output_chrtout_grd_NWM, output_lsmOut_NWM, &
                             output_frxstPts, output_chanObs_NWM, output_gw_NWM
@@ -53,1754 +44,18 @@ module module_HYDRO_drv
    use module_HYDRO_utils
 !   use module_namelist
    use module_lsm_forcing, only: geth_newdate
+#ifdef WRF_HYDRO_NUDGING
    use module_stream_nudging,  only: init_stream_nudging
+#endif
 
    use module_UDMAP, only: get_basn_area_nhd
    use netcdf
    
    implicit none
 
-!     NetCDF-3.
-!
-! netcdf version 3 fortran interface:
-!
+#include <netcdf.inc>
 
-!
-! external netcdf data types:
-!
-      integer nf_byte
-      integer nf_int1
-      integer nf_char
-      integer nf_short
-      integer nf_int2
-      integer nf_int
-      integer nf_float
-      integer nf_real
-      integer nf_double
-
-      parameter (nf_byte = 1)
-      parameter (nf_int1 = nf_byte)
-      parameter (nf_char = 2)
-      parameter (nf_short = 3)
-      parameter (nf_int2 = nf_short)
-      parameter (nf_int = 4)
-      parameter (nf_float = 5)
-      parameter (nf_real = nf_float)
-      parameter (nf_double = 6)
-
-!
-! default fill values:
-!
-      integer           nf_fill_byte
-      integer           nf_fill_int1
-      integer           nf_fill_char
-      integer           nf_fill_short
-      integer           nf_fill_int2
-      integer           nf_fill_int
-      real              nf_fill_float
-      real              nf_fill_real
-      doubleprecision   nf_fill_double
-
-      parameter (nf_fill_byte = -127)
-      parameter (nf_fill_int1 = nf_fill_byte)
-      parameter (nf_fill_char = 0)
-      parameter (nf_fill_short = -32767)
-      parameter (nf_fill_int2 = nf_fill_short)
-      parameter (nf_fill_int = -2147483647)
-      parameter (nf_fill_float = 9.9692099683868690e+36)
-      parameter (nf_fill_real = nf_fill_float)
-      parameter (nf_fill_double = 9.9692099683868690d+36)
-
-!
-! mode flags for opening and creating a netcdf dataset:
-!
-      integer nf_nowrite
-      integer nf_write
-      integer nf_clobber
-      integer nf_noclobber
-      integer nf_fill
-      integer nf_nofill
-      integer nf_lock
-      integer nf_share
-      integer nf_64bit_offset
-      integer nf_sizehint_default
-      integer nf_align_chunk
-      integer nf_format_classic
-      integer nf_format_64bit
-      integer nf_diskless
-      integer nf_mmap
-
-      parameter (nf_nowrite = 0)
-      parameter (nf_write = 1)
-      parameter (nf_clobber = 0)
-      parameter (nf_noclobber = 4)
-      parameter (nf_fill = 0)
-      parameter (nf_nofill = 256)
-      parameter (nf_lock = 1024)
-      parameter (nf_share = 2048)
-      parameter (nf_64bit_offset = 512)
-      parameter (nf_sizehint_default = 0)
-      parameter (nf_align_chunk = -1)
-      parameter (nf_format_classic = 1)
-      parameter (nf_format_64bit = 2)
-      parameter (nf_diskless = 8)
-      parameter (nf_mmap = 16)
-
-!
-! size argument for defining an unlimited dimension:
-!
-      integer nf_unlimited
-      parameter (nf_unlimited = 0)
-
-!
-! global attribute id:
-!
-      integer nf_global
-      parameter (nf_global = 0)
-
-!
-! implementation limits:
-!
-      integer nf_max_dims
-      integer nf_max_attrs
-      integer nf_max_vars
-      integer nf_max_name
-      integer nf_max_var_dims
-
-      parameter (nf_max_dims = 1024)
-      parameter (nf_max_attrs = 8192)
-      parameter (nf_max_vars = 8192)
-      parameter (nf_max_name = 256)
-      parameter (nf_max_var_dims = nf_max_dims)
-
-!
-! error codes:
-!
-      integer nf_noerr
-      integer nf_ebadid
-      integer nf_eexist
-      integer nf_einval
-      integer nf_eperm
-      integer nf_enotindefine
-      integer nf_eindefine
-      integer nf_einvalcoords
-      integer nf_emaxdims
-      integer nf_enameinuse
-      integer nf_enotatt
-      integer nf_emaxatts
-      integer nf_ebadtype
-      integer nf_ebaddim
-      integer nf_eunlimpos
-      integer nf_emaxvars
-      integer nf_enotvar
-      integer nf_eglobal
-      integer nf_enotnc
-      integer nf_ests
-      integer nf_emaxname
-      integer nf_eunlimit
-      integer nf_enorecvars
-      integer nf_echar
-      integer nf_eedge
-      integer nf_estride
-      integer nf_ebadname
-      integer nf_erange
-      integer nf_enomem
-      integer nf_evarsize
-      integer nf_edimsize
-      integer nf_etrunc
-
-      parameter (nf_noerr = 0)
-      parameter (nf_ebadid = -33)
-      parameter (nf_eexist = -35)
-      parameter (nf_einval = -36)
-      parameter (nf_eperm = -37)
-      parameter (nf_enotindefine = -38)
-      parameter (nf_eindefine = -39)
-      parameter (nf_einvalcoords = -40)
-      parameter (nf_emaxdims = -41)
-      parameter (nf_enameinuse = -42)
-      parameter (nf_enotatt = -43)
-      parameter (nf_emaxatts = -44)
-      parameter (nf_ebadtype = -45)
-      parameter (nf_ebaddim = -46)
-      parameter (nf_eunlimpos = -47)
-      parameter (nf_emaxvars = -48)
-      parameter (nf_enotvar = -49)
-      parameter (nf_eglobal = -50)
-      parameter (nf_enotnc = -51)
-      parameter (nf_ests = -52)
-      parameter (nf_emaxname = -53)
-      parameter (nf_eunlimit = -54)
-      parameter (nf_enorecvars = -55)
-      parameter (nf_echar = -56)
-      parameter (nf_eedge = -57)
-      parameter (nf_estride = -58)
-      parameter (nf_ebadname = -59)
-      parameter (nf_erange = -60)
-      parameter (nf_enomem = -61)
-      parameter (nf_evarsize = -62)
-      parameter (nf_edimsize = -63)
-      parameter (nf_etrunc = -64)
-!
-! error handling modes:
-!
-      integer  nf_fatal
-      integer nf_verbose
-
-      parameter (nf_fatal = 1)
-      parameter (nf_verbose = 2)
-
-!
-! miscellaneous routines:
-!
-      character*80   nf_inq_libvers
-      external       nf_inq_libvers
-
-      character*80   nf_strerror
-!                         (integer             ncerr)
-      external       nf_strerror
-
-      logical        nf_issyserr
-!                         (integer             ncerr)
-      external       nf_issyserr
-
-!
-! control routines:
-!
-      integer         nf_inq_base_pe
-!                         (integer             ncid,
-!                          integer             pe)
-      external        nf_inq_base_pe
-
-      integer         nf_set_base_pe
-!                         (integer             ncid,
-!                          integer             pe)
-      external        nf_set_base_pe
-
-      integer         nf_create
-!                         (character*(*)       path,
-!                          integer             cmode,
-!                          integer             ncid)
-      external        nf_create
-
-      integer         nf__create
-!                         (character*(*)       path,
-!                          integer             cmode,
-!                          integer             initialsz,
-!                          integer             chunksizehint,
-!                          integer             ncid)
-      external        nf__create
-
-      integer         nf__create_mp
-!                         (character*(*)       path,
-!                          integer             cmode,
-!                          integer             initialsz,
-!                          integer             basepe,
-!                          integer             chunksizehint,
-!                          integer             ncid)
-      external        nf__create_mp
-
-      integer         nf_open
-!                         (character*(*)       path,
-!                          integer             mode,
-!                          integer             ncid)
-      external        nf_open
-
-      integer         nf__open
-!                         (character*(*)       path,
-!                          integer             mode,
-!                          integer             chunksizehint,
-!                          integer             ncid)
-      external        nf__open
-
-      integer         nf__open_mp
-!                         (character*(*)       path,
-!                          integer             mode,
-!                          integer             basepe,
-!                          integer             chunksizehint,
-!                          integer             ncid)
-      external        nf__open_mp
-
-      integer         nf_set_fill
-!                         (integer             ncid,
-!                          integer             fillmode,
-!                          integer             old_mode)
-      external        nf_set_fill
-
-      integer         nf_set_default_format
-!                          (integer             format,
-!                          integer             old_format)
-      external        nf_set_default_format
-
-      integer         nf_redef
-!                         (integer             ncid)
-      external        nf_redef
-
-      integer         nf_enddef
-!                         (integer             ncid)
-      external        nf_enddef
-
-      integer         nf__enddef
-!                         (integer             ncid,
-!                          integer             h_minfree,
-!                          integer             v_align,
-!                          integer             v_minfree,
-!                          integer             r_align)
-      external        nf__enddef
-
-      integer         nf_sync
-!                         (integer             ncid)
-      external        nf_sync
-
-      integer         nf_abort
-!                         (integer             ncid)
-      external        nf_abort
-
-      integer         nf_close
-!                         (integer             ncid)
-      external        nf_close
-
-      integer         nf_delete
-!                         (character*(*)       ncid)
-      external        nf_delete
-
-!
-! general inquiry routines:
-!
-
-      integer         nf_inq
-!                         (integer             ncid,
-!                          integer             ndims,
-!                          integer             nvars,
-!                          integer             ngatts,
-!                          integer             unlimdimid)
-      external        nf_inq
-
-! new inquire path
-
-      integer nf_inq_path
-      external nf_inq_path
-
-      integer         nf_inq_ndims
-!                         (integer             ncid,
-!                          integer             ndims)
-      external        nf_inq_ndims
-
-      integer         nf_inq_nvars
-!                         (integer             ncid,
-!                          integer             nvars)
-      external        nf_inq_nvars
-
-      integer         nf_inq_natts
-!                         (integer             ncid,
-!                          integer             ngatts)
-      external        nf_inq_natts
-
-      integer         nf_inq_unlimdim
-!                         (integer             ncid,
-!                          integer             unlimdimid)
-      external        nf_inq_unlimdim
-
-      integer         nf_inq_format
-!                         (integer             ncid,
-!                          integer             format)
-      external        nf_inq_format
-
-!
-! dimension routines:
-!
-
-      integer         nf_def_dim
-!                         (integer             ncid,
-!                          character(*)        name,
-!                          integer             len,
-!                          integer             dimid)
-      external        nf_def_dim
-
-      integer         nf_inq_dimid
-!                         (integer             ncid,
-!                          character(*)        name,
-!                          integer             dimid)
-      external        nf_inq_dimid
-
-      integer         nf_inq_dim
-!                         (integer             ncid,
-!                          integer             dimid,
-!                          character(*)        name,
-!                          integer             len)
-      external        nf_inq_dim
-
-      integer         nf_inq_dimname
-!                         (integer             ncid,
-!                          integer             dimid,
-!                          character(*)        name)
-      external        nf_inq_dimname
-
-      integer         nf_inq_dimlen
-!                         (integer             ncid,
-!                          integer             dimid,
-!                          integer             len)
-      external        nf_inq_dimlen
-
-      integer         nf_rename_dim
-!                         (integer             ncid,
-!                          integer             dimid,
-!                          character(*)        name)
-      external        nf_rename_dim
-
-!
-! general attribute routines:
-!
-
-      integer         nf_inq_att
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             xtype,
-!                          integer             len)
-      external        nf_inq_att
-
-      integer         nf_inq_attid
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             attnum)
-      external        nf_inq_attid
-
-      integer         nf_inq_atttype
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             xtype)
-      external        nf_inq_atttype
-
-      integer         nf_inq_attlen
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             len)
-      external        nf_inq_attlen
-
-      integer         nf_inq_attname
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             attnum,
-!                          character(*)        name)
-      external        nf_inq_attname
-
-      integer         nf_copy_att
-!                         (integer             ncid_in,
-!                          integer             varid_in,
-!                          character(*)        name,
-!                          integer             ncid_out,
-!                          integer             varid_out)
-      external        nf_copy_att
-
-      integer         nf_rename_att
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        curname,
-!                          character(*)        newname)
-      external        nf_rename_att
-
-      integer         nf_del_att
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name)
-      external        nf_del_att
-
-!
-! attribute put/get routines:
-!
-
-      integer         nf_put_att_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             len,
-!                          character(*)        text)
-      external        nf_put_att_text
-
-      integer         nf_get_att_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          character(*)        text)
-      external        nf_get_att_text
-
-      integer         nf_put_att_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             xtype,
-!                          integer             len,
-!                          nf_int1_t           i1vals(1))
-      external        nf_put_att_int1
-
-      integer         nf_get_att_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          nf_int1_t           i1vals(1))
-      external        nf_get_att_int1
-
-      integer         nf_put_att_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             xtype,
-!                          integer             len,
-!                          nf_int2_t           i2vals(1))
-      external        nf_put_att_int2
-
-      integer         nf_get_att_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          nf_int2_t           i2vals(1))
-      external        nf_get_att_int2
-
-      integer         nf_put_att_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             xtype,
-!                          integer             len,
-!                          integer             ivals(1))
-      external        nf_put_att_int
-
-      integer         nf_get_att_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             ivals(1))
-      external        nf_get_att_int
-
-      integer         nf_put_att_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             xtype,
-!                          integer             len,
-!                          real                rvals(1))
-      external        nf_put_att_real
-
-      integer         nf_get_att_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          real                rvals(1))
-      external        nf_get_att_real
-
-      integer         nf_put_att_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             xtype,
-!                          integer             len,
-!                          double              dvals(1))
-      external        nf_put_att_double
-
-      integer         nf_get_att_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          double              dvals(1))
-      external        nf_get_att_double
-
-!
-! general variable routines:
-!
-
-      integer         nf_def_var
-!                         (integer             ncid,
-!                          character(*)        name,
-!                          integer             datatype,
-!                          integer             ndims,
-!                          integer             dimids(1),
-!                          integer             varid)
-      external        nf_def_var
-
-      integer         nf_inq_var
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             datatype,
-!                          integer             ndims,
-!                          integer             dimids(1),
-!                          integer             natts)
-      external        nf_inq_var
-
-      integer         nf_inq_varid
-!                         (integer             ncid,
-!                          character(*)        name,
-!                          integer             varid)
-      external        nf_inq_varid
-
-      integer         nf_inq_varname
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name)
-      external        nf_inq_varname
-
-      integer         nf_inq_vartype
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             xtype)
-      external        nf_inq_vartype
-
-      integer         nf_inq_varndims
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             ndims)
-      external        nf_inq_varndims
-
-      integer         nf_inq_vardimid
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             dimids(1))
-      external        nf_inq_vardimid
-
-      integer         nf_inq_varnatts
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             natts)
-      external        nf_inq_varnatts
-
-      integer         nf_rename_var
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name)
-      external        nf_rename_var
-
-      integer         nf_copy_var
-!                         (integer             ncid_in,
-!                          integer             varid,
-!                          integer             ncid_out)
-      external        nf_copy_var
-
-!
-! entire variable put/get routines:
-!
-
-      integer         nf_put_var_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        text)
-      external        nf_put_var_text
-
-      integer         nf_get_var_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        text)
-      external        nf_get_var_text
-
-      integer         nf_put_var_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          nf_int1_t           i1vals(1))
-      external        nf_put_var_int1
-
-      integer         nf_get_var_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          nf_int1_t           i1vals(1))
-      external        nf_get_var_int1
-
-      integer         nf_put_var_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          nf_int2_t           i2vals(1))
-      external        nf_put_var_int2
-
-      integer         nf_get_var_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          nf_int2_t           i2vals(1))
-      external        nf_get_var_int2
-
-      integer         nf_put_var_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             ivals(1))
-      external        nf_put_var_int
-
-      integer         nf_get_var_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             ivals(1))
-      external        nf_get_var_int
-
-      integer         nf_put_var_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          real                rvals(1))
-      external        nf_put_var_real
-
-      integer         nf_get_var_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          real                rvals(1))
-      external        nf_get_var_real
-
-      integer         nf_put_var_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          doubleprecision     dvals(1))
-      external        nf_put_var_double
-
-      integer         nf_get_var_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          doubleprecision     dvals(1))
-      external        nf_get_var_double
-
-!
-! single variable put/get routines:
-!
-
-      integer         nf_put_var1_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          character*1         text)
-      external        nf_put_var1_text
-
-      integer         nf_get_var1_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          character*1         text)
-      external        nf_get_var1_text
-
-      integer         nf_put_var1_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          nf_int1_t           i1val)
-      external        nf_put_var1_int1
-
-      integer         nf_get_var1_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          nf_int1_t           i1val)
-      external        nf_get_var1_int1
-
-      integer         nf_put_var1_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          nf_int2_t           i2val)
-      external        nf_put_var1_int2
-
-      integer         nf_get_var1_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          nf_int2_t           i2val)
-      external        nf_get_var1_int2
-
-      integer         nf_put_var1_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          integer             ival)
-      external        nf_put_var1_int
-
-      integer         nf_get_var1_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          integer             ival)
-      external        nf_get_var1_int
-
-      integer         nf_put_var1_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          real                rval)
-      external        nf_put_var1_real
-
-      integer         nf_get_var1_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          real                rval)
-      external        nf_get_var1_real
-
-      integer         nf_put_var1_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          doubleprecision     dval)
-      external        nf_put_var1_double
-
-      integer         nf_get_var1_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          doubleprecision     dval)
-      external        nf_get_var1_double
-
-!
-! variable array put/get routines:
-!
-
-      integer         nf_put_vara_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          character(*)        text)
-      external        nf_put_vara_text
-
-      integer         nf_get_vara_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          character(*)        text)
-      external        nf_get_vara_text
-
-      integer         nf_put_vara_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          nf_int1_t           i1vals(1))
-      external        nf_put_vara_int1
-
-      integer         nf_get_vara_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          nf_int1_t           i1vals(1))
-      external        nf_get_vara_int1
-
-      integer         nf_put_vara_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          nf_int2_t           i2vals(1))
-      external        nf_put_vara_int2
-
-      integer         nf_get_vara_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          nf_int2_t           i2vals(1))
-      external        nf_get_vara_int2
-
-      integer         nf_put_vara_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             ivals(1))
-      external        nf_put_vara_int
-
-      integer         nf_get_vara_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             ivals(1))
-      external        nf_get_vara_int
-
-      integer         nf_put_vara_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          real                rvals(1))
-      external        nf_put_vara_real
-
-      integer         nf_get_vara_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          real                rvals(1))
-      external        nf_get_vara_real
-
-      integer         nf_put_vara_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          doubleprecision     dvals(1))
-      external        nf_put_vara_double
-
-      integer         nf_get_vara_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          doubleprecision     dvals(1))
-      external        nf_get_vara_double
-
-!
-! strided variable put/get routines:
-!
-
-      integer         nf_put_vars_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          character(*)        text)
-      external        nf_put_vars_text
-
-      integer         nf_get_vars_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          character(*)        text)
-      external        nf_get_vars_text
-
-      integer         nf_put_vars_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          nf_int1_t           i1vals(1))
-      external        nf_put_vars_int1
-
-      integer         nf_get_vars_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          nf_int1_t           i1vals(1))
-      external        nf_get_vars_int1
-
-      integer         nf_put_vars_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          nf_int2_t           i2vals(1))
-      external        nf_put_vars_int2
-
-      integer         nf_get_vars_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          nf_int2_t           i2vals(1))
-      external        nf_get_vars_int2
-
-      integer         nf_put_vars_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             ivals(1))
-      external        nf_put_vars_int
-
-      integer         nf_get_vars_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             ivals(1))
-      external        nf_get_vars_int
-
-      integer         nf_put_vars_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          real                rvals(1))
-      external        nf_put_vars_real
-
-      integer         nf_get_vars_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          real                rvals(1))
-      external        nf_get_vars_real
-
-      integer         nf_put_vars_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          doubleprecision     dvals(1))
-      external        nf_put_vars_double
-
-      integer         nf_get_vars_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          doubleprecision     dvals(1))
-      external        nf_get_vars_double
-
-!
-! mapped variable put/get routines:
-!
-
-      integer         nf_put_varm_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          character(*)        text)
-      external        nf_put_varm_text
-
-      integer         nf_get_varm_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          character(*)        text)
-      external        nf_get_varm_text
-
-      integer         nf_put_varm_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          nf_int1_t           i1vals(1))
-      external        nf_put_varm_int1
-
-      integer         nf_get_varm_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          nf_int1_t           i1vals(1))
-      external        nf_get_varm_int1
-
-      integer         nf_put_varm_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          nf_int2_t           i2vals(1))
-      external        nf_put_varm_int2
-
-      integer         nf_get_varm_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          nf_int2_t           i2vals(1))
-      external        nf_get_varm_int2
-
-      integer         nf_put_varm_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          integer             ivals(1))
-      external        nf_put_varm_int
-
-      integer         nf_get_varm_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          integer             ivals(1))
-      external        nf_get_varm_int
-
-      integer         nf_put_varm_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          real                rvals(1))
-      external        nf_put_varm_real
-
-      integer         nf_get_varm_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          real                rvals(1))
-      external        nf_get_varm_real
-
-      integer         nf_put_varm_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          doubleprecision     dvals(1))
-      external        nf_put_varm_double
-
-      integer         nf_get_varm_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          doubleprecision     dvals(1))
-      external        nf_get_varm_double
-
-
-!     NetCDF-4.
-!     This is part of netCDF-4. Copyright 2006, UCAR, See COPYRIGHT
-!     file for distribution information.
-
-!     Netcdf version 4 fortran interface.
-
-!     $Id: netcdf4.inc,v 1.28 2010/05/25 13:53:02 ed Exp $
-
-!     New netCDF-4 types.
-      integer nf_ubyte
-      integer nf_ushort
-      integer nf_uint
-      integer nf_int64
-      integer nf_uint64
-      integer nf_string
-      integer nf_vlen
-      integer nf_opaque
-      integer nf_enum
-      integer nf_compound
-
-      parameter (nf_ubyte = 7)
-      parameter (nf_ushort = 8)
-      parameter (nf_uint = 9)
-      parameter (nf_int64 = 10)
-      parameter (nf_uint64 = 11)
-      parameter (nf_string = 12)
-      parameter (nf_vlen = 13)
-      parameter (nf_opaque = 14)
-      parameter (nf_enum = 15)
-      parameter (nf_compound = 16)
-
-!     New netCDF-4 fill values.
-      integer           nf_fill_ubyte
-      integer           nf_fill_ushort
-!      real              nf_fill_uint
-!      real              nf_fill_int64
-!      real              nf_fill_uint64
-      parameter (nf_fill_ubyte = 255)
-      parameter (nf_fill_ushort = 65535)
-
-!     New constants.
-      integer nf_format_netcdf4
-      parameter (nf_format_netcdf4 = 3)
-
-      integer nf_format_netcdf4_classic
-      parameter (nf_format_netcdf4_classic = 4)
-
-      integer nf_netcdf4
-      parameter (nf_netcdf4 = 4096)
-
-      integer nf_classic_model
-      parameter (nf_classic_model = 256)
-
-      integer nf_chunk_seq
-      parameter (nf_chunk_seq = 0)
-      integer nf_chunk_sub
-      parameter (nf_chunk_sub = 1)
-      integer nf_chunk_sizes
-      parameter (nf_chunk_sizes = 2)
-
-      integer nf_endian_native
-      parameter (nf_endian_native = 0)
-      integer nf_endian_little
-      parameter (nf_endian_little = 1)
-      integer nf_endian_big
-      parameter (nf_endian_big = 2)
-
-!     For NF_DEF_VAR_CHUNKING
-      integer nf_chunked
-      parameter (nf_chunked = 0)
-      integer nf_contiguous
-      parameter (nf_contiguous = 1)
-
-!     For NF_DEF_VAR_FLETCHER32
-      integer nf_nochecksum
-      parameter (nf_nochecksum = 0)
-      integer nf_fletcher32
-      parameter (nf_fletcher32 = 1)
-
-!     For NF_DEF_VAR_DEFLATE
-      integer nf_noshuffle
-      parameter (nf_noshuffle = 0)
-      integer nf_shuffle
-      parameter (nf_shuffle = 1)
-
-!     For NF_DEF_VAR_SZIP
-      integer nf_szip_ec_option_mask
-      parameter (nf_szip_ec_option_mask = 4)
-      integer nf_szip_nn_option_mask
-      parameter (nf_szip_nn_option_mask = 32)
-
-!     For parallel I/O.
-      integer nf_mpiio      
-      parameter (nf_mpiio = 8192)
-      integer nf_mpiposix
-      parameter (nf_mpiposix = 16384)
-      integer nf_pnetcdf
-      parameter (nf_pnetcdf = 32768)
-
-!     For NF_VAR_PAR_ACCESS.
-      integer nf_independent
-      parameter (nf_independent = 0)
-      integer nf_collective
-      parameter (nf_collective = 1)
-
-!     New error codes.
-      integer nf_ehdferr        ! Error at HDF5 layer. 
-      parameter (nf_ehdferr = -101)
-      integer nf_ecantread      ! Can't read. 
-      parameter (nf_ecantread = -102)
-      integer nf_ecantwrite     ! Can't write. 
-      parameter (nf_ecantwrite = -103)
-      integer nf_ecantcreate    ! Can't create. 
-      parameter (nf_ecantcreate = -104)
-      integer nf_efilemeta      ! Problem with file metadata. 
-      parameter (nf_efilemeta = -105)
-      integer nf_edimmeta       ! Problem with dimension metadata. 
-      parameter (nf_edimmeta = -106)
-      integer nf_eattmeta       ! Problem with attribute metadata. 
-      parameter (nf_eattmeta = -107)
-      integer nf_evarmeta       ! Problem with variable metadata. 
-      parameter (nf_evarmeta = -108)
-      integer nf_enocompound    ! Not a compound type. 
-      parameter (nf_enocompound = -109)
-      integer nf_eattexists     ! Attribute already exists. 
-      parameter (nf_eattexists = -110)
-      integer nf_enotnc4        ! Attempting netcdf-4 operation on netcdf-3 file.   
-      parameter (nf_enotnc4 = -111)
-      integer nf_estrictnc3     ! Attempting netcdf-4 operation on strict nc3 netcdf-4 file.   
-      parameter (nf_estrictnc3 = -112)
-      integer nf_enotnc3        ! Attempting netcdf-3 operation on netcdf-4 file.   
-      parameter (nf_enotnc3 = -113)
-      integer nf_enopar         ! Parallel operation on file opened for non-parallel access.   
-      parameter (nf_enopar = -114)
-      integer nf_eparinit       ! Error initializing for parallel access.   
-      parameter (nf_eparinit = -115)
-      integer nf_ebadgrpid      ! Bad group ID.   
-      parameter (nf_ebadgrpid = -116)
-      integer nf_ebadtypid      ! Bad type ID.   
-      parameter (nf_ebadtypid = -117)
-      integer nf_etypdefined    ! Type has already been defined and may not be edited. 
-      parameter (nf_etypdefined = -118)
-      integer nf_ebadfield      ! Bad field ID.   
-      parameter (nf_ebadfield = -119)
-      integer nf_ebadclass      ! Bad class.   
-      parameter (nf_ebadclass = -120)
-      integer nf_emaptype       ! Mapped access for atomic types only.   
-      parameter (nf_emaptype = -121)
-      integer nf_elatefill      ! Attempt to define fill value when data already exists. 
-      parameter (nf_elatefill = -122)
-      integer nf_elatedef       ! Attempt to define var properties, like deflate, after enddef. 
-      parameter (nf_elatedef = -123)
-      integer nf_edimscale      ! Probem with HDF5 dimscales. 
-      parameter (nf_edimscale = -124)
-      integer nf_enogrp       ! No group found.
-      parameter (nf_enogrp = -125)
-
-
-!     New functions.
-
-!     Parallel I/O.
-      integer nf_create_par
-      external nf_create_par
-
-      integer nf_open_par
-      external nf_open_par
-
-      integer nf_var_par_access
-      external nf_var_par_access
-
-!     Functions to handle groups.
-      integer nf_inq_ncid
-      external nf_inq_ncid
-
-      integer nf_inq_grps
-      external nf_inq_grps
-
-      integer nf_inq_grpname
-      external nf_inq_grpname
-
-      integer nf_inq_grpname_full
-      external nf_inq_grpname_full
-
-      integer nf_inq_grpname_len
-      external nf_inq_grpname_len
-
-      integer nf_inq_grp_parent
-      external nf_inq_grp_parent
-
-      integer nf_inq_grp_ncid
-      external nf_inq_grp_ncid
-
-      integer nf_inq_grp_full_ncid
-      external nf_inq_grp_full_ncid
-
-      integer nf_inq_varids
-      external nf_inq_varids
-
-      integer nf_inq_dimids
-      external nf_inq_dimids
-
-      integer nf_def_grp
-      external nf_def_grp
-
-!     New rename grp function
-
-      integer nf_rename_grp
-      external nf_rename_grp
-
-!     New options for netCDF variables.
-      integer nf_def_var_deflate
-      external nf_def_var_deflate
-
-      integer nf_inq_var_deflate
-      external nf_inq_var_deflate
-
-      integer nf_def_var_fletcher32
-      external nf_def_var_fletcher32
-
-      integer nf_inq_var_fletcher32
-      external nf_inq_var_fletcher32
-
-      integer nf_def_var_chunking
-      external nf_def_var_chunking
-
-      integer nf_inq_var_chunking
-      external nf_inq_var_chunking
-
-      integer nf_def_var_fill
-      external nf_def_var_fill
-
-      integer nf_inq_var_fill
-      external nf_inq_var_fill
-
-      integer nf_def_var_endian
-      external nf_def_var_endian
-
-      integer nf_inq_var_endian
-      external nf_inq_var_endian
-
-!     User defined types.
-      integer nf_inq_typeids
-      external nf_inq_typeids
-
-      integer nf_inq_typeid
-      external nf_inq_typeid
-
-      integer nf_inq_type
-      external nf_inq_type
-
-      integer nf_inq_user_type
-      external nf_inq_user_type
-
-!     User defined types - compound types.
-      integer nf_def_compound
-      external nf_def_compound
-
-      integer nf_insert_compound
-      external nf_insert_compound
-
-      integer nf_insert_array_compound
-      external nf_insert_array_compound
-
-      integer nf_inq_compound
-      external nf_inq_compound
-
-      integer nf_inq_compound_name
-      external nf_inq_compound_name
-
-      integer nf_inq_compound_size
-      external nf_inq_compound_size
-
-      integer nf_inq_compound_nfields
-      external nf_inq_compound_nfields
-
-      integer nf_inq_compound_field
-      external nf_inq_compound_field
-
-      integer nf_inq_compound_fieldname
-      external nf_inq_compound_fieldname
-
-      integer nf_inq_compound_fieldindex
-      external nf_inq_compound_fieldindex
-
-      integer nf_inq_compound_fieldoffset
-      external nf_inq_compound_fieldoffset
-
-      integer nf_inq_compound_fieldtype
-      external nf_inq_compound_fieldtype
-
-      integer nf_inq_compound_fieldndims
-      external nf_inq_compound_fieldndims
-
-      integer nf_inq_compound_fielddim_sizes
-      external nf_inq_compound_fielddim_sizes
-
-!     User defined types - variable length arrays.
-      integer nf_def_vlen
-      external nf_def_vlen
-
-      integer nf_inq_vlen
-      external nf_inq_vlen
-
-      integer nf_free_vlen
-      external nf_free_vlen
-
-!     User defined types - enums.
-      integer nf_def_enum
-      external nf_def_enum
-
-      integer nf_insert_enum
-      external nf_insert_enum
-
-      integer nf_inq_enum
-      external nf_inq_enum
-
-      integer nf_inq_enum_member
-      external nf_inq_enum_member
-
-      integer nf_inq_enum_ident
-      external nf_inq_enum_ident
-
-!     User defined types - opaque.
-      integer nf_def_opaque
-      external nf_def_opaque
-
-      integer nf_inq_opaque
-      external nf_inq_opaque
-
-!     Write and read attributes of any type, including user defined
-!     types.
-      integer nf_put_att
-      external nf_put_att
-      integer nf_get_att
-      external nf_get_att
-
-!     Write and read variables of any type, including user defined
-!     types.
-      integer nf_put_var
-      external nf_put_var
-      integer nf_put_var1
-      external nf_put_var1
-      integer nf_put_vara
-      external nf_put_vara
-      integer nf_put_vars
-      external nf_put_vars
-      integer nf_get_var
-      external nf_get_var
-      integer nf_get_var1
-      external nf_get_var1
-      integer nf_get_vara
-      external nf_get_vara
-      integer nf_get_vars
-      external nf_get_vars
-
-!     64-bit int functions.
-      integer nf_put_var1_int64
-      external nf_put_var1_int64
-      integer nf_put_vara_int64
-      external nf_put_vara_int64
-      integer nf_put_vars_int64
-      external nf_put_vars_int64
-      integer nf_put_varm_int64
-      external nf_put_varm_int64
-      integer nf_put_var_int64
-      external nf_put_var_int64
-      integer nf_get_var1_int64
-      external nf_get_var1_int64
-      integer nf_get_vara_int64
-      external nf_get_vara_int64
-      integer nf_get_vars_int64
-      external nf_get_vars_int64
-      integer nf_get_varm_int64
-      external nf_get_varm_int64
-      integer nf_get_var_int64
-      external nf_get_var_int64
-
-!     For helping F77 users with VLENs.
-      integer nf_get_vlen_element
-      external nf_get_vlen_element
-      integer nf_put_vlen_element
-      external nf_put_vlen_element
-
-!     For dealing with file level chunk cache.
-      integer nf_set_chunk_cache
-      external nf_set_chunk_cache
-      integer nf_get_chunk_cache
-      external nf_get_chunk_cache
-
-!     For dealing with per variable chunk cache.
-      integer nf_set_var_chunk_cache
-      external nf_set_var_chunk_cache
-      integer nf_get_var_chunk_cache
-      external nf_get_var_chunk_cache
-
-!     NetCDF-2.
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-! begin netcdf 2.4 backward compatibility:
-!
-
-!      
-! functions in the fortran interface
-!
-      integer nccre
-      integer ncopn
-      integer ncddef
-      integer ncdid
-      integer ncvdef
-      integer ncvid
-      integer nctlen
-      integer ncsfil
-
-      external nccre
-      external ncopn
-      external ncddef
-      external ncdid
-      external ncvdef
-      external ncvid
-      external nctlen
-      external ncsfil
-
-
-      integer ncrdwr
-      integer nccreat
-      integer ncexcl
-      integer ncindef
-      integer ncnsync
-      integer nchsync
-      integer ncndirty
-      integer nchdirty
-      integer nclink
-      integer ncnowrit
-      integer ncwrite
-      integer ncclob
-      integer ncnoclob
-      integer ncglobal
-      integer ncfill
-      integer ncnofill
-      integer maxncop
-      integer maxncdim
-      integer maxncatt
-      integer maxncvar
-      integer maxncnam
-      integer maxvdims
-      integer ncnoerr
-      integer ncebadid
-      integer ncenfile
-      integer nceexist
-      integer nceinval
-      integer nceperm
-      integer ncenotin
-      integer nceindef
-      integer ncecoord
-      integer ncemaxds
-      integer ncename
-      integer ncenoatt
-      integer ncemaxat
-      integer ncebadty
-      integer ncebadd
-      integer ncests
-      integer nceunlim
-      integer ncemaxvs
-      integer ncenotvr
-      integer nceglob
-      integer ncenotnc
-      integer ncfoobar
-      integer ncsyserr
-      integer ncfatal
-      integer ncverbos
-      integer ncentool
-
-
-!
-! netcdf data types:
-!
-      integer ncbyte
-      integer ncchar
-      integer ncshort
-      integer nclong
-      integer ncfloat
-      integer ncdouble
-
-      parameter(ncbyte = 1)
-      parameter(ncchar = 2)
-      parameter(ncshort = 3)
-      parameter(nclong = 4)
-      parameter(ncfloat = 5)
-      parameter(ncdouble = 6)
-
-!     
-!     masks for the struct nc flag field; passed in as 'mode' arg to
-!     nccreate and ncopen.
-!     
-
-!     read/write, 0 => readonly 
-      parameter(ncrdwr = 1)
-!     in create phase, cleared by ncendef 
-      parameter(nccreat = 2)
-!     on create destroy existing file 
-      parameter(ncexcl = 4)
-!     in define mode, cleared by ncendef 
-      parameter(ncindef = 8)
-!     synchronise numrecs on change (x'10')
-      parameter(ncnsync = 16)
-!     synchronise whole header on change (x'20')
-      parameter(nchsync = 32)
-!     numrecs has changed (x'40')
-      parameter(ncndirty = 64)  
-!     header info has changed (x'80')
-      parameter(nchdirty = 128)
-!     prefill vars on endef and increase of record, the default behavior
-      parameter(ncfill = 0)
-!     do not fill vars on endef and increase of record (x'100')
-      parameter(ncnofill = 256)
-!     isa link (x'8000')
-      parameter(nclink = 32768)
-
-!     
-!     'mode' arguments for nccreate and ncopen
-!     
-      parameter(ncnowrit = 0)
-      parameter(ncwrite = ncrdwr)
-      parameter(ncclob = nf_clobber)
-      parameter(ncnoclob = nf_noclobber)
-
-!     
-!     'size' argument to ncdimdef for an unlimited dimension
-!     
-      integer ncunlim
-      parameter(ncunlim = 0)
-
-!     
-!     attribute id to put/get a global attribute
-!     
-      parameter(ncglobal  = 0)
-
-!     
-!     advisory maximums:
-!     
-      parameter(maxncop = 64)
-      parameter(maxncdim = 1024)
-      parameter(maxncatt = 8192)
-      parameter(maxncvar = 8192)
-!     not enforced 
-      parameter(maxncnam = 256)
-      parameter(maxvdims = maxncdim)
-
-!     
-!     global netcdf error status variable
-!     initialized in error.c
-!     
-
-!     no error 
-      parameter(ncnoerr = nf_noerr)
-!     not a netcdf id 
-      parameter(ncebadid = nf_ebadid)
-!     too many netcdfs open 
-      parameter(ncenfile = -31)   ! nc_syserr
-!     netcdf file exists && ncnoclob
-      parameter(nceexist = nf_eexist)
-!     invalid argument 
-      parameter(nceinval = nf_einval)
-!     write to read only 
-      parameter(nceperm = nf_eperm)
-!     operation not allowed in data mode 
-      parameter(ncenotin = nf_enotindefine )   
-!     operation not allowed in define mode 
-      parameter(nceindef = nf_eindefine)   
-!     coordinates out of domain 
-      parameter(ncecoord = nf_einvalcoords)
-!     maxncdims exceeded 
-      parameter(ncemaxds = nf_emaxdims)
-!     string match to name in use 
-      parameter(ncename = nf_enameinuse)   
-!     attribute not found 
-      parameter(ncenoatt = nf_enotatt)
-!     maxncattrs exceeded 
-      parameter(ncemaxat = nf_emaxatts)
-!     not a netcdf data type 
-      parameter(ncebadty = nf_ebadtype)
-!     invalid dimension id 
-      parameter(ncebadd = nf_ebaddim)
-!     ncunlimited in the wrong index 
-      parameter(nceunlim = nf_eunlimpos)
-!     maxncvars exceeded 
-      parameter(ncemaxvs = nf_emaxvars)
-!     variable not found 
-      parameter(ncenotvr = nf_enotvar)
-!     action prohibited on ncglobal varid 
-      parameter(nceglob = nf_eglobal)
-!     not a netcdf file 
-      parameter(ncenotnc = nf_enotnc)
-      parameter(ncests = nf_ests)
-      parameter (ncentool = nf_emaxname) 
-      parameter(ncfoobar = 32)
-      parameter(ncsyserr = -31)
-
-!     
-!     global options variable. used to determine behavior of error handler.
-!     initialized in lerror.c
-!     
-      parameter(ncfatal = 1)
-      parameter(ncverbos = 2)
-
-!
-!     default fill values.  these must be the same as in the c interface.
-!
-      integer filbyte
-      integer filchar
-      integer filshort
-      integer fillong
-      real filfloat
-      doubleprecision fildoub
-
-      parameter (filbyte = -127)
-      parameter (filchar = 0)
-      parameter (filshort = -32767)
-      parameter (fillong = -2147483647)
-      parameter (filfloat = 9.9692099683868690e+36)
-      parameter (fildoub = 9.9692099683868690e+36)
-
+#ifdef HYDRO_D
   real :: timeOr = 0
   real :: timeSr = 0
   real :: timeCr = 0
@@ -1808,6 +63,7 @@ module module_HYDRO_drv
   integer :: clock_count_1 = 0
   integer :: clock_count_2 = 0
   integer :: clock_rate    = 0
+#endif
   integer :: rtout_factor
 
   integer, parameter :: r4 = selected_real_kind(4)
@@ -1817,14 +73,20 @@ module module_HYDRO_drv
 
    contains
    subroutine HYDRO_rst_out(did)
+#ifdef WRF_HYDRO_NUDGING
       use module_stream_nudging, only: output_nudging_last_obs
+#endif
       implicit none
       integer:: rst_out  
       integer did, outflag
       character(len=19) out_date
+#ifdef MPP_LAND
       character(len=19) str_tmp
+#endif
       rst_out = -99
+#ifdef MPP_LAND
    if(IO_id .eq. my_id) then
+#endif
      if(nlst_rt(did)%dt .gt. nlst_rt(did)%rst_dt*60) then
         call geth_newdate(out_date, nlst_rt(did)%startdate, nint(nlst_rt(did)%dt*rt_domain(did)%rst_counts))
      else
@@ -1843,10 +105,13 @@ module module_HYDRO_drv
            endif
      endif
 
+#ifdef MPP_LAND
    endif
      call mpp_land_bcast_int1(rst_out)
+#endif
     if(rst_out .gt. 0) then 
       write(6,*) "yw check output restart at ",nlst_rt(did)%olddate(1:16)
+#ifdef MPP_LAND
       if(nlst_rt(did)%rst_bi_out .eq. 1) then
              if(my_id .lt. 10) then
                   write(str_tmp,'(I1)') my_id 
@@ -1865,11 +130,16 @@ module module_HYDRO_drv
              call   RESTART_OUT_bi(trim("HYDRO_RST."//nlst_rt(did)%olddate(1:16)   &
                  //"_DOMAIN"//trim(nlst_rt(did)%hgrid)//"."//trim(str_tmp)),  did)
       else
+#endif
              call   RESTART_OUT_nc(trim("HYDRO_RST."//nlst_rt(did)%olddate(1:16)   &
                  //"_DOMAIN"//trim(nlst_rt(did)%hgrid)),  did)
+#ifdef MPP_LAND
       endif
+#endif
 
+#ifdef WRF_HYDRO_NUDGING
       call output_nudging_last_obs
+#endif      
    endif
 
 
@@ -1893,9 +163,17 @@ module module_HYDRO_drv
 
    outflag = -99
 
+#ifdef MPP_LAND
    if(IO_id .eq. my_id) then
+#endif
       if(nlst_rt(did)%olddate(1:19) .eq. nlst_rt(did)%startdate(1:19) .and. rt_domain(did)%his_out_counts .eq. 0) then
+#ifdef HYDRO_D
+#ifndef NCEP_WCOSS
          write(6,*) "output hydrology at time : ",nlst_rt(did)%olddate(1:19), rt_domain(did)%his_out_counts
+#else
+         write(78,*) "output hydrology at time : ",nlst_rt(did)%olddate(1:19), rt_domain(did)%his_out_counts
+#endif
+#endif
          outflag = 99
       else
          if(nlst_rt(did)%dt .gt. nlst_rt(did)%out_dt*60) then
@@ -1904,12 +182,20 @@ module module_HYDRO_drv
              call geth_newdate(out_date, nlst_rt(did)%startdate, nint(nlst_rt(did)%out_dt*60*rt_domain(did)%out_counts))
          endif
          if ( out_date(1:19) == nlst_rt(did)%olddate(1:19) ) then
+#ifdef HYDRO_D
+#ifndef NCEP_WCOSS
              write(6,*) "output hydrology at time : ",nlst_rt(did)%olddate(1:19)
+#else
+             write(78,*) "output hydrology at time : ",nlst_rt(did)%olddate(1:19)
+#endif
+#endif
              outflag = 99
          endif
       endif
+#ifdef MPP_LAND
    endif
      call mpp_land_bcast_int1(outflag)
+#endif
 
      if (rstflag .eq. 1) call HYDRO_rst_out(did) 
 
@@ -1928,7 +214,9 @@ module module_HYDRO_drv
 ! jump the ouput for the initial time when it has restart file from routing.
    rtflag = -99
    iniflag = -99
+#ifdef MPP_LAND
    if(IO_id .eq. my_id) then
+#endif
 !       if ( (trim(nlst_rt(did)%restart_file) /= "") .and. ( nlst_rt(did)%startdate(1:19) == nlst_rt(did)%olddate(1:19) ) ) then
 !#ifndef NCEP_WCOSS
 !             print*, "yyyywww restart_file = ", trim(nlst_rt(did)%restart_file) 
@@ -1938,9 +226,11 @@ module module_HYDRO_drv
           if ( nlst_rt(did)%startdate(1:19) == nlst_rt(did)%olddate(1:19) ) iniflag = 1
           if ( (trim(nlst_rt(did)%restart_file) /= "") .and. ( nlst_rt(did)%startdate(1:19) == nlst_rt(did)%olddate(1:19) ) ) rtflag = 1
 !       endif
+#ifdef MPP_LAND
    endif  
    call mpp_land_bcast_int1(rtflag)
    call mpp_land_bcast_int1(iniflag)
+#endif
 
 
 !yw keep the initial time otuput for debug
@@ -2042,8 +332,14 @@ if(nlst_rt(did)%SUBRTSWCRT         .gt. 0 .or. &
 	  endif
 ! BF end gw2d output section
 
+#ifdef HYDRO_D
+#ifndef NCEP_WCOSS
           write(6,*) "before call output_chrt"
           call flush(6)
+#else
+          write(78,*) "before call output_chrt"
+#endif
+#endif
      
            if (nlst_rt(did)%CHANRTSWCRT.eq.1.or.nlst_rt(did)%CHANRTSWCRT.eq.2) then 
 
@@ -2077,8 +373,12 @@ if(nlst_rt(did)%SUBRTSWCRT         .gt. 0 .or. &
    else
       ! Call traditional output routines
              if(nlst_rt(did)%CHRTOUT_DOMAIN  .eq. 1)  then
+#ifdef MPP_LAND
                  call mpp_output_chrt( &
                       rt_domain(did)%gnlinks,rt_domain(did)%gnlinksl,rt_domain(did)%map_l2g, &
+#else
+                 call output_chrt(  &
+#endif
                    nlst_rt(did)%igrid, nlst_rt(did)%split_output_count, &
                    RT_DOMAIN(did)%NLINKS,RT_DOMAIN(did)%ORDER, &
                    nlst_rt(did)%sincedate,nlst_rt(did)%olddate,RT_DOMAIN(did)%CHLON,&
@@ -2090,7 +390,9 @@ if(nlst_rt(did)%SUBRTSWCRT         .gt. 0 .or. &
                    RT_DOMAIN(did)%NLINKSL,nlst_rt(did)%channel_option,        &
                    rt_domain(did)%gages, rt_domain(did)%gageMiss,             &
                    nlst_rt(did)%dt                                            &
+#ifdef WRF_HYDRO_NUDGING
                    , RT_DOMAIN(did)%nudge                                     &
+#endif
                    , RT_DOMAIN(did)%accSfcLatRunoff, RT_DOMAIN(did)%accBucket &
                    , RT_DOMAIN(did)%qSfcLatRunoff,   RT_DOMAIN(did)%qBucket   &
                    , RT_DOMAIN(did)%qin_gwsubbas                              &
@@ -2098,8 +400,12 @@ if(nlst_rt(did)%SUBRTSWCRT         .gt. 0 .or. &
                    )
               else
                 if(nlst_rt(did)%CHRTOUT_DOMAIN  .eq. 2)  then
+#ifdef MPP_LAND
                      call mpp_output_chrt2(&
                           rt_domain(did)%gnlinks,rt_domain(did)%gnlinksl,rt_domain(did)%map_l2g, &
+#else
+                     call output_chrt2(  &
+#endif
                      nlst_rt(did)%igrid, nlst_rt(did)%split_output_count, &
                      RT_DOMAIN(did)%NLINKS,RT_DOMAIN(did)%ORDER,          &
                      nlst_rt(did)%sincedate,nlst_rt(did)%olddate,         &
@@ -2109,7 +415,9 @@ if(nlst_rt(did)%SUBRTSWCRT         .gt. 0 .or. &
                      str_out, nlst_rt(did)%DT,Kt,                         &
                      RT_DOMAIN(did)%NLINKSL,nlst_rt(did)%channel_option,  &
                      rt_domain(did)%linkid                                &
+#ifdef WRF_HYDRO_NUDGING
                      , RT_DOMAIN(did)%nudge &
+#endif
                      !, RT_DOMAIN(did)%QLateral, nlst_rt(did)%io_config_outputs,
                      !RT_DOMAIN(did)%velocity &
                      , RT_DOMAIN(did)%QLateral, nlst_rt(did)%io_config_outputs, vel_out &
@@ -2122,6 +430,7 @@ if(nlst_rt(did)%SUBRTSWCRT         .gt. 0 .or. &
               endif
    endif ! End of checking for io_form_outputs flag value      
       
+#ifdef MPP_LAND
               if(nlst_rt(did)%CHRTOUT_GRID  .eq. 1)  then
                  if(nlst_rt(did)%io_form_outputs .eq. 0) then
                     call mpp_output_chrtgrd(nlst_rt(did)%igrid, nlst_rt(did)%split_output_count, &
@@ -2132,6 +441,7 @@ if(nlst_rt(did)%SUBRTSWCRT         .gt. 0 .or. &
                     str_out, nlst_rt(did)%dt, nlst_rt(did)%geo_finegrid_flnm,   &
                     RT_DOMAIN(did)%gnlinks,RT_DOMAIN(did)%map_l2g,                   &
                     RT_DOMAIN(did)%g_ixrt,RT_DOMAIN(did)%g_jxrt )
+#endif
                  else
                     call output_chrtout_grd_NWM(did,nlst_rt(did)%igrid)
                  endif
@@ -2144,7 +454,11 @@ if(nlst_rt(did)%SUBRTSWCRT         .gt. 0 .or. &
                          endif
                       else
                          if(nlst_rt(did)%outlake .eq. 1) then
+#ifdef MPP_LAND
                              call mpp_output_lakes( RT_DOMAIN(did)%lake_index, &
+#else
+                             call output_lakes(  &
+#endif 
                                   nlst_rt(did)%igrid, nlst_rt(did)%split_output_count, &
                                   RT_DOMAIN(did)%NLAKES, &
                                   trim(nlst_rt(did)%sincedate), trim(nlst_rt(did)%olddate), &
@@ -2154,7 +468,11 @@ if(nlst_rt(did)%SUBRTSWCRT         .gt. 0 .or. &
                                   RT_DOMAIN(did)%RESHT,nlst_rt(did)%DT,Kt)
                          endif
                          if(nlst_rt(did)%outlake .eq. 2) then
+#ifdef MPP_LAND
                              call mpp_output_lakes2( RT_DOMAIN(did)%lake_index, &
+#else
+                             call output_lakes2(  &
+#endif
                                   nlst_rt(did)%igrid, nlst_rt(did)%split_output_count, &
                                   RT_DOMAIN(did)%NLAKES, &
                                   trim(nlst_rt(did)%sincedate), trim(nlst_rt(did)%olddate), &
@@ -2167,7 +485,13 @@ if(nlst_rt(did)%SUBRTSWCRT         .gt. 0 .or. &
                       endif ! end of check for io_form_outputs value
                endif   ! end if block of rNLAKES .gt. 0
         endif 
+#ifdef HYDRO_D
+#ifndef NCEP_WCOSS
            write(6,*) "end calling output functions"
+#else
+          write(78,*) "end calling output functions"
+#endif
+#endif
 
         endif  ! end of routing switch
 
@@ -2182,27 +506,45 @@ if(nlst_rt(did)%SUBRTSWCRT         .gt. 0 .or. &
 
 
    flag = -1
+#ifdef MPP_LAND
    if(my_id.eq.IO_id) then
+#endif
       if (trim(nlst_rt(did)%restart_file) /= "") then
           flag = 99
           rt_domain(did)%timestep_flag = 99   ! continue run
       endif 
+#ifdef MPP_LAND
    endif 
    call mpp_land_bcast_int1(flag)
+#endif
 
    nlst_rt(did)%sincedate = nlst_rt(did)%startdate
    
    if (flag.eq.99) then
 
+#ifdef MPP_LAND
      if(my_id.eq.IO_id) then
+#endif
+#ifdef HYDRO_D
+#ifndef NCEP_WCOSS
         write(6,*) "*** read restart data: ",trim(nlst_rt(did)%restart_file)
+#else
+        write(78,*) "*** read restart data: ",trim(nlst_rt(did)%restart_file)
+#endif
+#endif
+#ifdef MPP_LAND
      endif 
+#endif
 
+#ifdef MPP_LAND
       if(nlst_rt(did)%rst_bi_in .eq. 1) then
          call RESTART_IN_bi(trim(nlst_rt(did)%restart_file), did)
       else
+#endif
          call RESTART_IN_nc(trim(nlst_rt(did)%restart_file), did)
+#ifdef MPP_LAND
       endif
+#endif
 
 !yw  if (trim(nlst_rt(did)%restart_file) /= "") then 
 !yw          nlst_rt(did)%restart_file = ""
@@ -2216,11 +558,21 @@ if(nlst_rt(did)%SUBRTSWCRT         .gt. 0 .or. &
         character(len = 19) :: newdate 
         integer did
  
+#ifdef MPP_LAND
    if(IO_id.eq.my_id) then
+#endif
          call geth_newdate(newdate, nlst_rt(did)%olddate, nint( nlst_rt(did)%dt))
          nlst_rt(did)%olddate = newdate
+#ifdef HYDRO_D
+#ifndef NCEP_WCOSS
          write(6,*) "current time is ",newdate
+#else
+         write(78,*) "current time is ",newdate
+#endif
+#endif
+#ifdef MPP_LAND
    endif
+#endif
      end subroutine HYDRO_time_adv
   
      subroutine HYDRO_exe(did)
@@ -2274,7 +626,9 @@ if (nlst_rt(did)%GWBASESWCRT        .ne. 0 .or. &
          endif
       endif
 
+#ifdef HYDRO_D
       call system_clock(count=clock_count_1, count_rate=clock_rate)
+#endif
    endif !! channel_only & channelBucket_only == 0
 
 
@@ -2283,31 +637,47 @@ if (nlst_rt(did)%GWBASESWCRT        .ne. 0 .or. &
       if(nlst_rt(did)%SUBRTSWCRT .ne.0) then
          call SubsurfaceRouting_drv(did)
       endif
+#ifdef HYDRO_D
       call system_clock(count=clock_count_2, count_rate=clock_rate)
       timeSr = timeSr     + float(clock_count_2-clock_count_1)/float(clock_rate)
+#ifndef NCEP_WCOSS
       write(6,*) "Timing: Subsurface Routing  accumulated time--", timeSr
+#else
+      write(78,*) "Timing: Subsurface Routing  accumulated time--", timeSr
+#endif
+#endif
    end if !! channel_only & channelBucket_only == 0				
 
 
    ! step 3) todo split
    if(nlst_rt(did)%channel_only .eq. 0 .and. nlst_rt(did)%channelBucket_only .eq. 0) then
+#ifdef HYDRO_D
       call system_clock(count=clock_count_1, count_rate=clock_rate)
+#endif
       if(nlst_rt(did)%OVRTSWCRT .ne. 0) then
          call OverlandRouting_drv(did)
       else
          RT_DOMAIN(did)%SFCHEADSUBRT = RT_DOMAIN(did)%INFXSUBRT
          RT_DOMAIN(did)%INFXSUBRT = 0.
       endif
+#ifdef HYDRO_D
       call system_clock(count=clock_count_2, count_rate=clock_rate)
       timeOr = timeOr     + float(clock_count_2-clock_count_1)/float(clock_rate)
+#ifndef NCEP_WCOSS
       write(6,*) "Timing: Overland Routing  accumulated time--", timeOr
+#else
+      write(78,*) "Timing: Overland Routing  accumulated time--", timeOr
+#endif
+#endif
 
       RT_DOMAIN(did)%QSTRMVOLRT_TS = RT_DOMAIN(did)%QSTRMVOLRT
       RT_DOMAIN(did)%QSTRMVOLRT_ACC = RT_DOMAIN(did)%QSTRMVOLRT_ACC + RT_DOMAIN(did)%QSTRMVOLRT_TS
       
       RT_DOMAIN(did)%LAKE_INFLORT_TS = RT_DOMAIN(did)%LAKE_INFLORT-RT_DOMAIN(did)%LAKE_INFLORT_DUM
 			
+#ifdef HYDRO_D
       call system_clock(count=clock_count_1, count_rate=clock_rate)
+#endif
    end if !! channel_only & channelBucket_only == 0
 
 
@@ -2317,17 +687,31 @@ if (nlst_rt(did)%GWBASESWCRT        .ne. 0 .or. &
       if (nlst_rt(did)%GWBASESWCRT .gt. 0) then
          call driveGwBaseflow(did)
       endif
+#ifdef HYDRO_D
       call system_clock(count=clock_count_2, count_rate=clock_rate)
       timeGw = timeGw     + float(clock_count_2-clock_count_1)/float(clock_rate)
+#ifndef NCEP_WCOSS
       write(6,*) "Timing: GwBaseflow  accumulated time--", timeGw
+#else
+      write(78,*) "Timing: GwBaseflow  accumulated time--", timeGw
+#endif
+#endif	
+#ifdef HYDRO_D
       call system_clock(count=clock_count_1, count_rate=clock_rate)
+#endif
    end if !! channel_only == 0
 
    ! step 5) river channel physics
    call driveChannelRouting(did)
+#ifdef HYDRO_D
    call system_clock(count=clock_count_2, count_rate=clock_rate)
    timeCr = timeCr     + float(clock_count_2-clock_count_1)/float(clock_rate)
+#ifndef NCEP_WCOSS
    write(6,*) "Timing: Channel Routing  accumulated time--", timeCr
+#else
+   write(78,*) "Timing: Channel Routing  accumulated time--", timeCr
+#endif
+#endif
 
    !! if not channel_only
    if(nlst_rt(did)%channel_only .eq. 0 .and. nlst_rt(did)%channelBucket_only .eq. 0) then
@@ -2386,7 +770,13 @@ if (nlst_rt(did)%GWBASESWCRT.ge.1) then     ! Switch to activate/specify GW/Base
 
    if (nlst_rt(did)%GWBASESWCRT.eq.1.or.nlst_rt(did)%GWBASESWCRT.eq.2) then   ! Call simple bucket baseflow scheme
 
+#ifdef HYDRO_D
+#ifndef NCEP_WCOSS
       write(6,*) "*****yw******start simp_gw_buck "
+#else
+      write(78,*) "*****yw******start simp_gw_buck " 
+#endif
+#endif
 
       if(nlst_rt(did)%UDMP_OPT .eq. 1) then
          call simp_gw_buck_nhd(                                             &
@@ -2400,7 +790,11 @@ if (nlst_rt(did)%GWBASESWCRT.ge.1) then     ! Switch to activate/specify GW/Base
               RT_DOMAIN(did)%z_max,         RT_DOMAIN(did)%z_gwsubbas,      &
               RT_DOMAIN(did)%qout_gwsubbas, RT_DOMAIN(did)%qin_gwsubbas,    &
               nlst_rt(did)%GWBASESWCRT,     nlst_rt(did)%OVRTSWCRT,         & 
+#ifdef MPP_LAND
               RT_DOMAIN(did)%LNLINKSL,                                      &
+#else
+              RT_DOMAIN(did)%numbasns,                                      &
+#endif
               rt_domain(did)%basns_area,                                    &
               rt_domain(did)%nhdBuckMask,   nlst_rt(did)%channelBucket_only )
 
@@ -2427,13 +821,25 @@ if (nlst_rt(did)%GWBASESWCRT.ge.1) then     ! Switch to activate/specify GW/Base
 !        call output_GW_Diag(did)
 !#endif
 
+#ifdef HYDRO_D 
+#ifndef NCEP_WCOSS
            write(6,*) "*****yw******end simp_gw_buck "
+#else
+          write(78,*) "*****yw******end simp_gw_buck " 
+#endif
+#endif
 
     !!!For parameter setup runs output the percolation for each basin,
     !!!otherwise comment out this output...
     else if (nlst_rt(did)%gwBaseSwCRT .eq. 3) then
 
+#ifdef HYDRO_D
+#ifndef NCEP_WCOSS
            write(6,*) "*****bf******start 2d_gw_model "
+#else
+          write(78,*) "*****bf******start 2d_gw_model " 
+#endif
+#endif
 
 	   ! 	   compute qsgwrt  between lsm and gw with namelist selected coupling method
 	   ! 	   qsgwrt is defined on the routing grid  and needs to be aggregated for SFLX
@@ -2464,7 +870,13 @@ if (nlst_rt(did)%GWBASESWCRT.ge.1) then     ! Switch to activate/specify GW/Base
 
           gw2d(did)%istep =  gw2d(did)%istep + 1
 	  
+#ifdef HYDRO_D
+#ifndef NCEP_WCOSS
            write(6,*) "*****bf******end 2d_gw_model "
+#else
+           write(78,*) "*****bf******end 2d_gw_model "
+#endif
+#endif
       
         end if
 
@@ -2507,11 +919,15 @@ if (nlst_rt(did)%CHANRTSWCRT.eq.1 .or. nlst_rt(did)%CHANRTSWCRT.eq.2) then
        RT_DOMAIN(did)%nlinks, RT_DOMAIN(did)%NLINKSL, RT_DOMAIN(did)%LINKID, RT_DOMAIN(did)%node_area,         &
        RT_DOMAIN(did)%qout_gwsubbas, &
        RT_DOMAIN(did)%LAKEIDA, RT_DOMAIN(did)%LAKEIDM, RT_DOMAIN(did)%NLAKES, RT_DOMAIN(did)%LAKEIDX   &
+#ifdef MPP_LAND
        , RT_DOMAIN(did)%nlinks_index, RT_DOMAIN(did)%mpp_nlinks, RT_DOMAIN(did)%yw_mpp_nlinks  &
        , RT_DOMAIN(did)%LNLINKSL   &
        , RT_DOMAIN(did)%gtoNode, RT_DOMAIN(did)%toNodeInd, RT_DOMAIN(did)%nToInd      &
+#endif
        , RT_DOMAIN(did)%CH_LNKRT_SL, RT_DOMAIN(did)%landRunOff   &
+#ifdef WRF_HYDRO_NUDGING
        , RT_DOMAIN(did)%nudge &
+#endif
        , rt_domain(did)%accSfcLatRunoff,    rt_domain(did)%accBucket &
        , rt_domain(did)%qSfcLatRunoff,        rt_domain(did)%qBucket &
        , rt_domain(did)%QLateral,            rt_domain(did)%velocity &
@@ -2546,11 +962,13 @@ else
        RT_DOMAIN(did)%CHANYJ, nlst_rt(did)%channel_option, &
        RT_DOMAIN(did)%RETDEP_CHAN, RT_DOMAIN(did)%NLINKSL, RT_DOMAIN(did)%LINKID, &
        RT_DOMAIN(did)%node_area  &
+#ifdef MPP_LAND
        ,RT_DOMAIN(did)%lake_index,RT_DOMAIN(did)%link_location,&
        RT_DOMAIN(did)%mpp_nlinks,RT_DOMAIN(did)%nlinks_index, &
        RT_DOMAIN(did)%yw_mpp_nlinks  &
        , RT_DOMAIN(did)%LNLINKSL,RT_DOMAIN(did)%LLINKID &
        , rt_domain(did)%gtoNode,rt_domain(did)%toNodeInd,rt_domain(did)%nToInd  &
+#endif
        , rt_domain(did)%CH_LNKRT_SL   &
        ,nlst_rt(did)%GwBaseSwCRT, gw2d(did)%ho, gw2d(did)%qgw_chanrt, &
        nlst_rt(did)%gwChanCondSw, nlst_rt(did)%gwChanCondConstIn, &
@@ -2569,7 +987,13 @@ endif
     endif
   endif
 
+#ifdef HYDRO_D
+#ifndef NCEP_WCOSS
            write(6,*) "*****yw******end drive_CHANNEL "
+#else
+           write(78,*) "*****yw******end drive_CHANNEL " 
+#endif
+#endif
       
       end subroutine driveChannelRouting
  
@@ -2578,7 +1002,9 @@ endif
 !------------------------------------------------ 
       subroutine aggregateDomain(did)
       
+#ifdef MPP_LAND
         use module_mpp_land, only:  sum_real1, my_id, io_id, numprocs
+#endif
  
        implicit none
        integer, intent(in) :: did
@@ -2586,13 +1012,22 @@ endif
        integer :: i, j, krt, ixxrt, jyyrt, &
                   AGGFACYRT, AGGFACXRT
 
+#ifdef HYDRO_D
 ! ADCHANGE: Water balance variables
        integer :: kk
        real    :: smcrttot1,smctot2,sicetot2
        real    :: suminfxsrt1,suminfxs2
+#endif
 
+#ifdef HYDRO_D
+#ifndef NCEP_WCOSS
  	print *, "Beginning Aggregation..."
+#else
+       write(78,*) "Beginning Aggregation..."
+#endif
+#endif
 
+#ifdef HYDRO_D
 ! ADCHANGE: START Initial water balance variables
 ! ALL VARS in MM
         suminfxsrt1 = 0.
@@ -2607,12 +1042,15 @@ endif
             end do
          end do
         end do
+#ifdef MPP_LAND
 ! not tested
         CALL sum_real1(suminfxsrt1)
         CALL sum_real1(smcrttot1)
         suminfxsrt1 = suminfxsrt1/float(numprocs)
         smcrttot1 = smcrttot1/float(numprocs)
+#endif
 ! END Initial water balance variables
+#endif
 
         do J=1,RT_DOMAIN(did)%JX
           do I=1,RT_DOMAIN(did)%IX
@@ -2632,8 +1070,14 @@ endif
 
                 IXXRT=I*nlst_rt(did)%AGGFACTRT-AGGFACXRT
                 JYYRT=J*nlst_rt(did)%AGGFACTRT-AGGFACYRT
+#ifdef MPP_LAND
        if(left_id.ge.0) IXXRT=IXXRT+1
        if(down_id.ge.0) JYYRT=JYYRT+1
+#else
+!yw ????
+!       IXXRT=IXXRT+1
+!       JYYRT=JYYRT+1
+#endif
 
 !State Variables
                 RT_DOMAIN(did)%SFCHEADAGGRT = RT_DOMAIN(did)%SFCHEADAGGRT &
@@ -2671,8 +1115,14 @@ endif
                 do AGGFACXRT=nlst_rt(did)%AGGFACTRT-1,0,-1
                   IXXRT=I*nlst_rt(did)%AGGFACTRT-AGGFACXRT
                   JYYRT=J*nlst_rt(did)%AGGFACTRT-AGGFACYRT
+#ifdef MPP_LAND
        if(left_id.ge.0) IXXRT=IXXRT+1
        if(down_id.ge.0) JYYRT=JYYRT+1
+#else
+!yw ???
+!       IXXRT=IXXRT+1
+!       JYYRT=JYYRT+1
+#endif
                   if (RT_DOMAIN(did)%LSMVOL.gt.0.) then
                     RT_DOMAIN(did)%INFXSWGT(IXXRT,JYYRT) &
                                           = RT_DOMAIN(did)%SFCHEADSUBRT(IXXRT,JYYRT) &
@@ -2687,26 +1137,50 @@ endif
 
 !!!yw added for debug
                    if(RT_DOMAIN(did)%SMCRT(IXXRT,JYYRT,KRT) .lt. 0) then
+#ifndef NCEP_WCOSS
                       print*, "Error negative SMCRT", RT_DOMAIN(did)%SH2OWGT(IXXRT,JYYRT,KRT), RT_DOMAIN(did)%SMCRT(IXXRT,JYYRT,KRT),RT_DOMAIN(did)%SH2OX(I,J,KRT)
+#else
+                      write(78,*) "WARNING: negative SMCRT", RT_DOMAIN(did)%SH2OWGT(IXXRT,JYYRT,KRT), RT_DOMAIN(did)%SMCRT(IXXRT,JYYRT,KRT),RT_DOMAIN(did)%SH2OX(I,J,KRT)
+#endif
                    endif
                    if(RT_DOMAIN(did)%SH2OWGT(IXXRT,JYYRT,KRT) .lt. 0) then
+#ifndef NCEP_WCOSS
                       print *, "Error negative SH2OWGT", RT_DOMAIN(did)%SH2OWGT(IXXRT,JYYRT,KRT), RT_DOMAIN(did)%SMCRT(IXXRT,JYYRT,KRT),RT_DOMAIN(did)%SH2OX(I,J,KRT)
+#else
+                      write(78,*) "WARNING: negative SH2OWGT", RT_DOMAIN(did)%SH2OWGT(IXXRT,JYYRT,KRT), RT_DOMAIN(did)%SMCRT(IXXRT,JYYRT,KRT),RT_DOMAIN(did)%SH2OX(I,J,KRT)
+#endif
                    endif
 
 !end 
                     IF (RT_DOMAIN(did)%SMCRT(IXXRT,JYYRT,KRT) .GT. &
                         RT_DOMAIN(did)%SMCMAXRT(IXXRT,JYYRT,KRT)) THEN
 
+#ifdef HYDRO_D
+#ifndef NCEP_WCOSS
                       print *, "SMCMAX exceeded upon aggregation...", &
                            RT_DOMAIN(did)%SMCRT(IXXRT,JYYRT,KRT),  &
                            RT_DOMAIN(did)%SMCMAXRT(IXXRT,JYYRT,KRT)
+#else
+                     write(78,*) "FATAL ERROR: SMCMAX exceeded upon aggregation...", &
+                           RT_DOMAIN(did)%SMCRT(IXXRT,JYYRT,KRT),  &
+                           RT_DOMAIN(did)%SMCMAXRT(IXXRT,JYYRT,KRT) 
+#endif
+#endif
                       call hydro_stop("In module_HYDRO_drv.F aggregateDomain() - "// &
                                       "SMCMAX exceeded upon aggregation.")
                     END IF
                     IF(RT_DOMAIN(did)%SH2OX(I,J,KRT).LT.0.) THEN
+#ifdef HYDRO_D
+#ifndef NCEP_WCOSS
                       print *, "Erroneous value of SH2O...", &
                                 RT_DOMAIN(did)%SH2OX(I,J,KRT),I,J,KRT
                       print *, "Error negative SH2OX", RT_DOMAIN(did)%SH2OWGT(IXXRT,JYYRT,KRT), RT_DOMAIN(did)%SMCRT(IXXRT,JYYRT,KRT),RT_DOMAIN(did)%SH2OX(I,J,KRT)
+#else
+                     write(78,*) "Erroneous value of SH2O...", &
+                                RT_DOMAIN(did)%SH2OX(I,J,KRT),I,J,KRT
+                      write(78,*) "FATAL ERROR: negative SH2OX", RT_DOMAIN(did)%SH2OWGT(IXXRT,JYYRT,KRT), RT_DOMAIN(did)%SMCRT(IXXRT,JYYRT,KRT),RT_DOMAIN(did)%SH2OX(I,J,KRT)
+#endif
+#endif
                       call hydro_stop("In module_HYDRO_drv.F aggregateDomain() "// &
                                       "- Error negative SH2OX")
                     END IF
@@ -2716,7 +1190,9 @@ endif
                                  = RT_DOMAIN(did)%SMCRT(IXXRT,JYYRT,KRT) &
                                  / RT_DOMAIN(did)%SH2OX(I,J,KRT)
                     ELSE
+#ifdef HYDRO_D
                          print *, "Error zero SH2OX", RT_DOMAIN(did)%SH2OWGT(IXXRT,JYYRT,KRT), RT_DOMAIN(did)%SMCRT(IXXRT,JYYRT,KRT),RT_DOMAIN(did)%SH2OX(I,J,KRT)
+#endif
                          RT_DOMAIN(did)%SH2OWGT(IXXRT,JYYRT,KRT) = 0.0
                     ENDIF
 !?yw
@@ -2730,6 +1206,7 @@ endif
         end do
 
         
+#ifdef MPP_LAND
         call MPP_LAND_COM_REAL(RT_DOMAIN(did)%INFXSWGT, &
                                RT_DOMAIN(did)%IXRT,    &
                                RT_DOMAIN(did)%JXRT, 99)
@@ -2739,10 +1216,12 @@ endif
                                   RT_DOMAIN(did)%IXRT, &
 				  RT_DOMAIN(did)%JXRT, 99)
         end do
+#endif
 
 !DJG Update SMC with SICE (unchanged) and new value of SH2O from routing...
 	RT_DOMAIN(did)%SMC = RT_DOMAIN(did)%SH2OX + RT_DOMAIN(did)%SICE
 
+#ifdef HYDRO_D
 ! ADCHANGE: START Final water balance variables
 ! ALL VARS in MM
         suminfxs2 = 0.
@@ -2761,6 +1240,7 @@ endif
          end do
         end do
 
+#ifdef MPP_LAND
 ! not tested
         CALL sum_real1(suminfxs2)
         CALL sum_real1(smctot2)
@@ -2768,8 +1248,11 @@ endif
         suminfxs2 = suminfxs2/float(numprocs)
         smctot2 = smctot2/float(numprocs)
         sicetot2 = sicetot2/float(numprocs)
+#endif
 
+#ifdef MPP_LAND   
        if (my_id .eq. IO_id) then
+#endif
          print *, "Agg Mass Bal: "
          print *, "WB_AGG!InfxsDiff", suminfxs2-suminfxsrt1
          print *, "WB_AGG!Infxs1", suminfxsrt1
@@ -2780,10 +1263,19 @@ endif
          print *, "WB_AGG!SICE2", sicetot2
          print *, "WB_AGG!Residual", (suminfxs2-suminfxsrt1) + &
                          (smctot2-smcrttot1-sicetot2)
+#ifdef MPP_LAND 
 	endif
+#endif
 ! END Final water balance variables
+#endif
 
+#ifdef HYDRO_D
+#ifndef NCEP_WCOSS
  	print *, "Finished Aggregation..."
+#else
+       write(78,*) "Finished Aggregation..."
+#endif
+#endif
 
 	
       end subroutine aggregateDomain
@@ -2799,8 +1291,10 @@ endif
              do AGGFACXRT=AGGFACTRT-1,0,-1
                IXXRT=I*AGGFACTRT-AGGFACXRT
                JYYRT=J*AGGFACTRT-AGGFACYRT
+#ifdef MPP_LAND
        if(left_id.ge.0) IXXRT=IXXRT+1
        if(down_id.ge.0) JYYRT=JYYRT+1
+#endif
 !DJG Implement subgrid weighting routine...
                if( (runoff1x_in(i,j) .lt. 0) .or. (runoff1x_in(i,j) .gt. 1000) ) then
                     runoff1x(IXXRT,JYYRT) = 0
@@ -2826,7 +1320,9 @@ integer:: ix0,jx0
 integer, dimension(ix0,jx0),optional :: vegtyp, soltyp
 integer            :: iret, ncid, ascIndId
 
+#ifdef MPP_LAND
 call  MPP_LAND_INIT()
+#endif
 
 
 ! read the namelist
@@ -2841,6 +1337,7 @@ if(nlst_rt(did)%rtFlag .eq. 0) return
 call get_file_dimension(trim(nlst_rt(did)%geo_static_flnm), ix,jx)
 
 
+#ifdef MPP_LAND
 
 if (nlst_rt(did)%sys_cpl .eq. 1 .or. nlst_rt(did)%sys_cpl .eq. 4) then
    !sys_cpl: 1-- coupling with HRLDAS but running offline lsm; 
@@ -2880,12 +1377,30 @@ rt_domain(did)%g_JXRT=global_rt_ny
 rt_domain(did)%ixrt = local_rt_nx
 rt_domain(did)%jxrt = local_rt_ny
 
+#ifdef HYDRO_D
+#ifndef NCEP_WCOSS
 write(6,*) "rt_domain(did)%g_IXRT, rt_domain(did)%g_JXRT, rt_domain(did)%ixrt, rt_domain(did)%jxrt"
 write(6,*)  rt_domain(did)%g_IXRT, rt_domain(did)%g_JXRT, rt_domain(did)%ixrt, rt_domain(did)%jxrt
 write(6,*) "rt_domain(did)%ix, rt_domain(did)%jx "
 write(6,*) rt_domain(did)%ix, rt_domain(did)%jx 
 write(6,*) "global_nx, global_ny, local_nx, local_ny"
 write(6,*) global_nx, global_ny, local_nx, local_ny
+#else
+write(78,*) "rt_domain(did)%g_IXRT, rt_domain(did)%g_JXRT, rt_domain(did)%ixrt, rt_domain(did)%jxrt"
+write(78,*)  rt_domain(did)%g_IXRT, rt_domain(did)%g_JXRT, rt_domain(did)%ixrt, rt_domain(did)%jxrt
+write(78,*) "rt_domain(did)%ix, rt_domain(did)%jx "
+write(78,*) rt_domain(did)%ix, rt_domain(did)%jx 
+write(78,*) "global_nx, global_ny, local_nx, local_ny"
+write(78,*) global_nx, global_ny, local_nx, local_ny
+#endif
+#endif
+#else
+! sequential
+rt_domain(did)%ix = ix
+rt_domain(did)%jx = jx
+rt_domain(did)%ixrt = ix*nlst_rt(did)%AGGFACTRT 
+rt_domain(did)%jxrt = jx*nlst_rt(did)%AGGFACTRT
+#endif
 
       
 !      allocate rt arrays
@@ -2894,22 +1409,38 @@ write(6,*) global_nx, global_ny, local_nx, local_ny
 call getChanDim(did)
 
 
+#ifdef HYDRO_D
+#ifndef NCEP_WCOSS
 write(6,*) "finish getChanDim "
+#else
+write(78,*) "finish getChanDim "
+#endif
+#endif
 
 ! ADCHANGE: get global attributes
 ! need to set these after getChanDim since it allocates rt_domain vals to 0
      call get_file_globalatts(trim(nlst_rt(did)%geo_static_flnm), &
            rt_domain(did)%iswater, rt_domain(did)%isurban, rt_domain(did)%isoilwater)
 
+#ifdef HYDRO_D
+#ifndef NCEP_WCOSS
       write(6,*) "hydro_ini: rt_domain(did)%iswater, rt_domain(did)%isurban, rt_domain(did)%isoilwater"
       write(6,*) rt_domain(did)%iswater, rt_domain(did)%isurban, rt_domain(did)%isoilwater
+#endif
+#endif
 
 if(nlst_rt(did)%GWBASESWCRT .eq. 3 ) then
    call gw2d_allocate(did,&
         rt_domain(did)%ixrt,&
         rt_domain(did)%jxrt,&
         nlst_rt(did)%nsoil)
+#ifdef HYDRO_D
+#ifndef NCEP_WCOSS
    write(6,*) "finish gw2d_allocate"
+#else
+   write(78,*) "finish gw2d_allocate"
+#endif
+#endif
 endif
 
 ! calculate the distance between grids for routing.
@@ -2927,7 +1458,13 @@ if(nlst_rt(did)%channel_only .eq. 0 .and. nlst_rt(did)%channelBucket_only .eq. 0
 endif
 
 
+#ifdef HYDRO_D
+#ifndef NCEP_WCOSS
 write(6,*) "finish decomposion"
+#else
+write(78,*) "finish decomposion"
+#endif
+#endif
 
 
 if((nlst_rt(did)%channel_only .eq. 1 .or. nlst_rt(did)%channelBucket_only .eq. 1) .and. &
@@ -2964,18 +1501,36 @@ if(nlst_rt(did)%GWBASESWCRT .eq. 3 ) then
    call gw2d_ini(did,&
         nlst_rt(did)%dt,&
         nlst_rt(did)%dxrt0)
+#ifdef HYDRO_D                        
+#ifndef NCEP_WCOSS                      
    write(6,*) "finish gw2d_ini"      
+#else
+   write(78,*) "finish gw2d_ini" 
+#endif
+#endif
 endif
+#ifdef HYDRO_D
+#ifndef NCEP_WCOSS
 write(6,*) "finish LandRT_ini"
+#else
+write(78,*) "finish LandRT_ini" 
+#endif
+#endif
 
     
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 if(nlst_rt(did)%channel_only .eq. 0 .and. nlst_rt(did)%channelBucket_only .eq. 0) then
 
    if (nlst_rt(did)%TERADJ_SOLAR.eq.1 .and. nlst_rt(did)%CHANRTSWCRT.ne.2) then   ! Perform ter rain adjustment of incoming solar
+#ifdef MPP_LAND
       call MPP_seq_land_SO8(rt_domain(did)%SO8LD_D,rt_domain(did)%SO8LD_Vmax,&
            rt_domain(did)%TERRAIN, rt_domain(did)%dist_lsm,&
            rt_domain(did)%ix,rt_domain(did)%jx,global_nx,global_ny)
+#else
+      call seq_land_SO8(rt_domain(did)%SO8LD_D,rt_domain(did)%SO8LD_Vmax,&
+           rt_domain(did)%TERRAIN,rt_domain(did)%dist_lsm,&
+           rt_domain(did)%ix,rt_domain(did)%jx)
+#endif
    endif
 endif
 
@@ -2992,7 +1547,9 @@ if (nlst_rt(did)%CHANRTSWCRT.eq.1 .or. nlst_rt(did)%CHANRTSWCRT .eq. 2 ) then
 endif
      
 
+#ifdef WRF_HYDRO_NUDGING
 if(nlst_rt(did)%CHANRTSWCRT .ne. 0) call init_stream_nudging
+#endif
 
 
 !    if (trim(nlst_rt(did)%restart_file) == "") then
@@ -3039,1746 +1596,7 @@ end subroutine HYDRO_ini
 
       subroutine lsm_input(did,ix0,jx0,vegtyp0,soltyp0)
          implicit none
-!     NetCDF-3.
-!
-! netcdf version 3 fortran interface:
-!
-
-!
-! external netcdf data types:
-!
-      integer nf_byte
-      integer nf_int1
-      integer nf_char
-      integer nf_short
-      integer nf_int2
-      integer nf_int
-      integer nf_float
-      integer nf_real
-      integer nf_double
-
-      parameter (nf_byte = 1)
-      parameter (nf_int1 = nf_byte)
-      parameter (nf_char = 2)
-      parameter (nf_short = 3)
-      parameter (nf_int2 = nf_short)
-      parameter (nf_int = 4)
-      parameter (nf_float = 5)
-      parameter (nf_real = nf_float)
-      parameter (nf_double = 6)
-
-!
-! default fill values:
-!
-      integer           nf_fill_byte
-      integer           nf_fill_int1
-      integer           nf_fill_char
-      integer           nf_fill_short
-      integer           nf_fill_int2
-      integer           nf_fill_int
-      real              nf_fill_float
-      real              nf_fill_real
-      doubleprecision   nf_fill_double
-
-      parameter (nf_fill_byte = -127)
-      parameter (nf_fill_int1 = nf_fill_byte)
-      parameter (nf_fill_char = 0)
-      parameter (nf_fill_short = -32767)
-      parameter (nf_fill_int2 = nf_fill_short)
-      parameter (nf_fill_int = -2147483647)
-      parameter (nf_fill_float = 9.9692099683868690e+36)
-      parameter (nf_fill_real = nf_fill_float)
-      parameter (nf_fill_double = 9.9692099683868690d+36)
-
-!
-! mode flags for opening and creating a netcdf dataset:
-!
-      integer nf_nowrite
-      integer nf_write
-      integer nf_clobber
-      integer nf_noclobber
-      integer nf_fill
-      integer nf_nofill
-      integer nf_lock
-      integer nf_share
-      integer nf_64bit_offset
-      integer nf_sizehint_default
-      integer nf_align_chunk
-      integer nf_format_classic
-      integer nf_format_64bit
-      integer nf_diskless
-      integer nf_mmap
-
-      parameter (nf_nowrite = 0)
-      parameter (nf_write = 1)
-      parameter (nf_clobber = 0)
-      parameter (nf_noclobber = 4)
-      parameter (nf_fill = 0)
-      parameter (nf_nofill = 256)
-      parameter (nf_lock = 1024)
-      parameter (nf_share = 2048)
-      parameter (nf_64bit_offset = 512)
-      parameter (nf_sizehint_default = 0)
-      parameter (nf_align_chunk = -1)
-      parameter (nf_format_classic = 1)
-      parameter (nf_format_64bit = 2)
-      parameter (nf_diskless = 8)
-      parameter (nf_mmap = 16)
-
-!
-! size argument for defining an unlimited dimension:
-!
-      integer nf_unlimited
-      parameter (nf_unlimited = 0)
-
-!
-! global attribute id:
-!
-      integer nf_global
-      parameter (nf_global = 0)
-
-!
-! implementation limits:
-!
-      integer nf_max_dims
-      integer nf_max_attrs
-      integer nf_max_vars
-      integer nf_max_name
-      integer nf_max_var_dims
-
-      parameter (nf_max_dims = 1024)
-      parameter (nf_max_attrs = 8192)
-      parameter (nf_max_vars = 8192)
-      parameter (nf_max_name = 256)
-      parameter (nf_max_var_dims = nf_max_dims)
-
-!
-! error codes:
-!
-      integer nf_noerr
-      integer nf_ebadid
-      integer nf_eexist
-      integer nf_einval
-      integer nf_eperm
-      integer nf_enotindefine
-      integer nf_eindefine
-      integer nf_einvalcoords
-      integer nf_emaxdims
-      integer nf_enameinuse
-      integer nf_enotatt
-      integer nf_emaxatts
-      integer nf_ebadtype
-      integer nf_ebaddim
-      integer nf_eunlimpos
-      integer nf_emaxvars
-      integer nf_enotvar
-      integer nf_eglobal
-      integer nf_enotnc
-      integer nf_ests
-      integer nf_emaxname
-      integer nf_eunlimit
-      integer nf_enorecvars
-      integer nf_echar
-      integer nf_eedge
-      integer nf_estride
-      integer nf_ebadname
-      integer nf_erange
-      integer nf_enomem
-      integer nf_evarsize
-      integer nf_edimsize
-      integer nf_etrunc
-
-      parameter (nf_noerr = 0)
-      parameter (nf_ebadid = -33)
-      parameter (nf_eexist = -35)
-      parameter (nf_einval = -36)
-      parameter (nf_eperm = -37)
-      parameter (nf_enotindefine = -38)
-      parameter (nf_eindefine = -39)
-      parameter (nf_einvalcoords = -40)
-      parameter (nf_emaxdims = -41)
-      parameter (nf_enameinuse = -42)
-      parameter (nf_enotatt = -43)
-      parameter (nf_emaxatts = -44)
-      parameter (nf_ebadtype = -45)
-      parameter (nf_ebaddim = -46)
-      parameter (nf_eunlimpos = -47)
-      parameter (nf_emaxvars = -48)
-      parameter (nf_enotvar = -49)
-      parameter (nf_eglobal = -50)
-      parameter (nf_enotnc = -51)
-      parameter (nf_ests = -52)
-      parameter (nf_emaxname = -53)
-      parameter (nf_eunlimit = -54)
-      parameter (nf_enorecvars = -55)
-      parameter (nf_echar = -56)
-      parameter (nf_eedge = -57)
-      parameter (nf_estride = -58)
-      parameter (nf_ebadname = -59)
-      parameter (nf_erange = -60)
-      parameter (nf_enomem = -61)
-      parameter (nf_evarsize = -62)
-      parameter (nf_edimsize = -63)
-      parameter (nf_etrunc = -64)
-!
-! error handling modes:
-!
-      integer  nf_fatal
-      integer nf_verbose
-
-      parameter (nf_fatal = 1)
-      parameter (nf_verbose = 2)
-
-!
-! miscellaneous routines:
-!
-      character*80   nf_inq_libvers
-      external       nf_inq_libvers
-
-      character*80   nf_strerror
-!                         (integer             ncerr)
-      external       nf_strerror
-
-      logical        nf_issyserr
-!                         (integer             ncerr)
-      external       nf_issyserr
-
-!
-! control routines:
-!
-      integer         nf_inq_base_pe
-!                         (integer             ncid,
-!                          integer             pe)
-      external        nf_inq_base_pe
-
-      integer         nf_set_base_pe
-!                         (integer             ncid,
-!                          integer             pe)
-      external        nf_set_base_pe
-
-      integer         nf_create
-!                         (character*(*)       path,
-!                          integer             cmode,
-!                          integer             ncid)
-      external        nf_create
-
-      integer         nf__create
-!                         (character*(*)       path,
-!                          integer             cmode,
-!                          integer             initialsz,
-!                          integer             chunksizehint,
-!                          integer             ncid)
-      external        nf__create
-
-      integer         nf__create_mp
-!                         (character*(*)       path,
-!                          integer             cmode,
-!                          integer             initialsz,
-!                          integer             basepe,
-!                          integer             chunksizehint,
-!                          integer             ncid)
-      external        nf__create_mp
-
-      integer         nf_open
-!                         (character*(*)       path,
-!                          integer             mode,
-!                          integer             ncid)
-      external        nf_open
-
-      integer         nf__open
-!                         (character*(*)       path,
-!                          integer             mode,
-!                          integer             chunksizehint,
-!                          integer             ncid)
-      external        nf__open
-
-      integer         nf__open_mp
-!                         (character*(*)       path,
-!                          integer             mode,
-!                          integer             basepe,
-!                          integer             chunksizehint,
-!                          integer             ncid)
-      external        nf__open_mp
-
-      integer         nf_set_fill
-!                         (integer             ncid,
-!                          integer             fillmode,
-!                          integer             old_mode)
-      external        nf_set_fill
-
-      integer         nf_set_default_format
-!                          (integer             format,
-!                          integer             old_format)
-      external        nf_set_default_format
-
-      integer         nf_redef
-!                         (integer             ncid)
-      external        nf_redef
-
-      integer         nf_enddef
-!                         (integer             ncid)
-      external        nf_enddef
-
-      integer         nf__enddef
-!                         (integer             ncid,
-!                          integer             h_minfree,
-!                          integer             v_align,
-!                          integer             v_minfree,
-!                          integer             r_align)
-      external        nf__enddef
-
-      integer         nf_sync
-!                         (integer             ncid)
-      external        nf_sync
-
-      integer         nf_abort
-!                         (integer             ncid)
-      external        nf_abort
-
-      integer         nf_close
-!                         (integer             ncid)
-      external        nf_close
-
-      integer         nf_delete
-!                         (character*(*)       ncid)
-      external        nf_delete
-
-!
-! general inquiry routines:
-!
-
-      integer         nf_inq
-!                         (integer             ncid,
-!                          integer             ndims,
-!                          integer             nvars,
-!                          integer             ngatts,
-!                          integer             unlimdimid)
-      external        nf_inq
-
-! new inquire path
-
-      integer nf_inq_path
-      external nf_inq_path
-
-      integer         nf_inq_ndims
-!                         (integer             ncid,
-!                          integer             ndims)
-      external        nf_inq_ndims
-
-      integer         nf_inq_nvars
-!                         (integer             ncid,
-!                          integer             nvars)
-      external        nf_inq_nvars
-
-      integer         nf_inq_natts
-!                         (integer             ncid,
-!                          integer             ngatts)
-      external        nf_inq_natts
-
-      integer         nf_inq_unlimdim
-!                         (integer             ncid,
-!                          integer             unlimdimid)
-      external        nf_inq_unlimdim
-
-      integer         nf_inq_format
-!                         (integer             ncid,
-!                          integer             format)
-      external        nf_inq_format
-
-!
-! dimension routines:
-!
-
-      integer         nf_def_dim
-!                         (integer             ncid,
-!                          character(*)        name,
-!                          integer             len,
-!                          integer             dimid)
-      external        nf_def_dim
-
-      integer         nf_inq_dimid
-!                         (integer             ncid,
-!                          character(*)        name,
-!                          integer             dimid)
-      external        nf_inq_dimid
-
-      integer         nf_inq_dim
-!                         (integer             ncid,
-!                          integer             dimid,
-!                          character(*)        name,
-!                          integer             len)
-      external        nf_inq_dim
-
-      integer         nf_inq_dimname
-!                         (integer             ncid,
-!                          integer             dimid,
-!                          character(*)        name)
-      external        nf_inq_dimname
-
-      integer         nf_inq_dimlen
-!                         (integer             ncid,
-!                          integer             dimid,
-!                          integer             len)
-      external        nf_inq_dimlen
-
-      integer         nf_rename_dim
-!                         (integer             ncid,
-!                          integer             dimid,
-!                          character(*)        name)
-      external        nf_rename_dim
-
-!
-! general attribute routines:
-!
-
-      integer         nf_inq_att
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             xtype,
-!                          integer             len)
-      external        nf_inq_att
-
-      integer         nf_inq_attid
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             attnum)
-      external        nf_inq_attid
-
-      integer         nf_inq_atttype
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             xtype)
-      external        nf_inq_atttype
-
-      integer         nf_inq_attlen
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             len)
-      external        nf_inq_attlen
-
-      integer         nf_inq_attname
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             attnum,
-!                          character(*)        name)
-      external        nf_inq_attname
-
-      integer         nf_copy_att
-!                         (integer             ncid_in,
-!                          integer             varid_in,
-!                          character(*)        name,
-!                          integer             ncid_out,
-!                          integer             varid_out)
-      external        nf_copy_att
-
-      integer         nf_rename_att
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        curname,
-!                          character(*)        newname)
-      external        nf_rename_att
-
-      integer         nf_del_att
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name)
-      external        nf_del_att
-
-!
-! attribute put/get routines:
-!
-
-      integer         nf_put_att_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             len,
-!                          character(*)        text)
-      external        nf_put_att_text
-
-      integer         nf_get_att_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          character(*)        text)
-      external        nf_get_att_text
-
-      integer         nf_put_att_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             xtype,
-!                          integer             len,
-!                          nf_int1_t           i1vals(1))
-      external        nf_put_att_int1
-
-      integer         nf_get_att_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          nf_int1_t           i1vals(1))
-      external        nf_get_att_int1
-
-      integer         nf_put_att_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             xtype,
-!                          integer             len,
-!                          nf_int2_t           i2vals(1))
-      external        nf_put_att_int2
-
-      integer         nf_get_att_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          nf_int2_t           i2vals(1))
-      external        nf_get_att_int2
-
-      integer         nf_put_att_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             xtype,
-!                          integer             len,
-!                          integer             ivals(1))
-      external        nf_put_att_int
-
-      integer         nf_get_att_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             ivals(1))
-      external        nf_get_att_int
-
-      integer         nf_put_att_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             xtype,
-!                          integer             len,
-!                          real                rvals(1))
-      external        nf_put_att_real
-
-      integer         nf_get_att_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          real                rvals(1))
-      external        nf_get_att_real
-
-      integer         nf_put_att_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             xtype,
-!                          integer             len,
-!                          double              dvals(1))
-      external        nf_put_att_double
-
-      integer         nf_get_att_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          double              dvals(1))
-      external        nf_get_att_double
-
-!
-! general variable routines:
-!
-
-      integer         nf_def_var
-!                         (integer             ncid,
-!                          character(*)        name,
-!                          integer             datatype,
-!                          integer             ndims,
-!                          integer             dimids(1),
-!                          integer             varid)
-      external        nf_def_var
-
-      integer         nf_inq_var
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name,
-!                          integer             datatype,
-!                          integer             ndims,
-!                          integer             dimids(1),
-!                          integer             natts)
-      external        nf_inq_var
-
-      integer         nf_inq_varid
-!                         (integer             ncid,
-!                          character(*)        name,
-!                          integer             varid)
-      external        nf_inq_varid
-
-      integer         nf_inq_varname
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name)
-      external        nf_inq_varname
-
-      integer         nf_inq_vartype
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             xtype)
-      external        nf_inq_vartype
-
-      integer         nf_inq_varndims
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             ndims)
-      external        nf_inq_varndims
-
-      integer         nf_inq_vardimid
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             dimids(1))
-      external        nf_inq_vardimid
-
-      integer         nf_inq_varnatts
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             natts)
-      external        nf_inq_varnatts
-
-      integer         nf_rename_var
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        name)
-      external        nf_rename_var
-
-      integer         nf_copy_var
-!                         (integer             ncid_in,
-!                          integer             varid,
-!                          integer             ncid_out)
-      external        nf_copy_var
-
-!
-! entire variable put/get routines:
-!
-
-      integer         nf_put_var_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        text)
-      external        nf_put_var_text
-
-      integer         nf_get_var_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          character(*)        text)
-      external        nf_get_var_text
-
-      integer         nf_put_var_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          nf_int1_t           i1vals(1))
-      external        nf_put_var_int1
-
-      integer         nf_get_var_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          nf_int1_t           i1vals(1))
-      external        nf_get_var_int1
-
-      integer         nf_put_var_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          nf_int2_t           i2vals(1))
-      external        nf_put_var_int2
-
-      integer         nf_get_var_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          nf_int2_t           i2vals(1))
-      external        nf_get_var_int2
-
-      integer         nf_put_var_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             ivals(1))
-      external        nf_put_var_int
-
-      integer         nf_get_var_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             ivals(1))
-      external        nf_get_var_int
-
-      integer         nf_put_var_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          real                rvals(1))
-      external        nf_put_var_real
-
-      integer         nf_get_var_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          real                rvals(1))
-      external        nf_get_var_real
-
-      integer         nf_put_var_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          doubleprecision     dvals(1))
-      external        nf_put_var_double
-
-      integer         nf_get_var_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          doubleprecision     dvals(1))
-      external        nf_get_var_double
-
-!
-! single variable put/get routines:
-!
-
-      integer         nf_put_var1_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          character*1         text)
-      external        nf_put_var1_text
-
-      integer         nf_get_var1_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          character*1         text)
-      external        nf_get_var1_text
-
-      integer         nf_put_var1_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          nf_int1_t           i1val)
-      external        nf_put_var1_int1
-
-      integer         nf_get_var1_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          nf_int1_t           i1val)
-      external        nf_get_var1_int1
-
-      integer         nf_put_var1_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          nf_int2_t           i2val)
-      external        nf_put_var1_int2
-
-      integer         nf_get_var1_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          nf_int2_t           i2val)
-      external        nf_get_var1_int2
-
-      integer         nf_put_var1_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          integer             ival)
-      external        nf_put_var1_int
-
-      integer         nf_get_var1_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          integer             ival)
-      external        nf_get_var1_int
-
-      integer         nf_put_var1_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          real                rval)
-      external        nf_put_var1_real
-
-      integer         nf_get_var1_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          real                rval)
-      external        nf_get_var1_real
-
-      integer         nf_put_var1_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          doubleprecision     dval)
-      external        nf_put_var1_double
-
-      integer         nf_get_var1_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             index(1),
-!                          doubleprecision     dval)
-      external        nf_get_var1_double
-
-!
-! variable array put/get routines:
-!
-
-      integer         nf_put_vara_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          character(*)        text)
-      external        nf_put_vara_text
-
-      integer         nf_get_vara_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          character(*)        text)
-      external        nf_get_vara_text
-
-      integer         nf_put_vara_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          nf_int1_t           i1vals(1))
-      external        nf_put_vara_int1
-
-      integer         nf_get_vara_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          nf_int1_t           i1vals(1))
-      external        nf_get_vara_int1
-
-      integer         nf_put_vara_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          nf_int2_t           i2vals(1))
-      external        nf_put_vara_int2
-
-      integer         nf_get_vara_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          nf_int2_t           i2vals(1))
-      external        nf_get_vara_int2
-
-      integer         nf_put_vara_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             ivals(1))
-      external        nf_put_vara_int
-
-      integer         nf_get_vara_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             ivals(1))
-      external        nf_get_vara_int
-
-      integer         nf_put_vara_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          real                rvals(1))
-      external        nf_put_vara_real
-
-      integer         nf_get_vara_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          real                rvals(1))
-      external        nf_get_vara_real
-
-      integer         nf_put_vara_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          doubleprecision     dvals(1))
-      external        nf_put_vara_double
-
-      integer         nf_get_vara_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          doubleprecision     dvals(1))
-      external        nf_get_vara_double
-
-!
-! strided variable put/get routines:
-!
-
-      integer         nf_put_vars_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          character(*)        text)
-      external        nf_put_vars_text
-
-      integer         nf_get_vars_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          character(*)        text)
-      external        nf_get_vars_text
-
-      integer         nf_put_vars_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          nf_int1_t           i1vals(1))
-      external        nf_put_vars_int1
-
-      integer         nf_get_vars_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          nf_int1_t           i1vals(1))
-      external        nf_get_vars_int1
-
-      integer         nf_put_vars_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          nf_int2_t           i2vals(1))
-      external        nf_put_vars_int2
-
-      integer         nf_get_vars_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          nf_int2_t           i2vals(1))
-      external        nf_get_vars_int2
-
-      integer         nf_put_vars_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             ivals(1))
-      external        nf_put_vars_int
-
-      integer         nf_get_vars_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             ivals(1))
-      external        nf_get_vars_int
-
-      integer         nf_put_vars_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          real                rvals(1))
-      external        nf_put_vars_real
-
-      integer         nf_get_vars_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          real                rvals(1))
-      external        nf_get_vars_real
-
-      integer         nf_put_vars_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          doubleprecision     dvals(1))
-      external        nf_put_vars_double
-
-      integer         nf_get_vars_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          doubleprecision     dvals(1))
-      external        nf_get_vars_double
-
-!
-! mapped variable put/get routines:
-!
-
-      integer         nf_put_varm_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          character(*)        text)
-      external        nf_put_varm_text
-
-      integer         nf_get_varm_text
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          character(*)        text)
-      external        nf_get_varm_text
-
-      integer         nf_put_varm_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          nf_int1_t           i1vals(1))
-      external        nf_put_varm_int1
-
-      integer         nf_get_varm_int1
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          nf_int1_t           i1vals(1))
-      external        nf_get_varm_int1
-
-      integer         nf_put_varm_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          nf_int2_t           i2vals(1))
-      external        nf_put_varm_int2
-
-      integer         nf_get_varm_int2
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          nf_int2_t           i2vals(1))
-      external        nf_get_varm_int2
-
-      integer         nf_put_varm_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          integer             ivals(1))
-      external        nf_put_varm_int
-
-      integer         nf_get_varm_int
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          integer             ivals(1))
-      external        nf_get_varm_int
-
-      integer         nf_put_varm_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          real                rvals(1))
-      external        nf_put_varm_real
-
-      integer         nf_get_varm_real
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          real                rvals(1))
-      external        nf_get_varm_real
-
-      integer         nf_put_varm_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          doubleprecision     dvals(1))
-      external        nf_put_varm_double
-
-      integer         nf_get_varm_double
-!                         (integer             ncid,
-!                          integer             varid,
-!                          integer             start(1),
-!                          integer             count(1),
-!                          integer             stride(1),
-!                          integer             imap(1),
-!                          doubleprecision     dvals(1))
-      external        nf_get_varm_double
-
-
-!     NetCDF-4.
-!     This is part of netCDF-4. Copyright 2006, UCAR, See COPYRIGHT
-!     file for distribution information.
-
-!     Netcdf version 4 fortran interface.
-
-!     $Id: netcdf4.inc,v 1.28 2010/05/25 13:53:02 ed Exp $
-
-!     New netCDF-4 types.
-      integer nf_ubyte
-      integer nf_ushort
-      integer nf_uint
-      integer nf_int64
-      integer nf_uint64
-      integer nf_string
-      integer nf_vlen
-      integer nf_opaque
-      integer nf_enum
-      integer nf_compound
-
-      parameter (nf_ubyte = 7)
-      parameter (nf_ushort = 8)
-      parameter (nf_uint = 9)
-      parameter (nf_int64 = 10)
-      parameter (nf_uint64 = 11)
-      parameter (nf_string = 12)
-      parameter (nf_vlen = 13)
-      parameter (nf_opaque = 14)
-      parameter (nf_enum = 15)
-      parameter (nf_compound = 16)
-
-!     New netCDF-4 fill values.
-      integer           nf_fill_ubyte
-      integer           nf_fill_ushort
-!      real              nf_fill_uint
-!      real              nf_fill_int64
-!      real              nf_fill_uint64
-      parameter (nf_fill_ubyte = 255)
-      parameter (nf_fill_ushort = 65535)
-
-!     New constants.
-      integer nf_format_netcdf4
-      parameter (nf_format_netcdf4 = 3)
-
-      integer nf_format_netcdf4_classic
-      parameter (nf_format_netcdf4_classic = 4)
-
-      integer nf_netcdf4
-      parameter (nf_netcdf4 = 4096)
-
-      integer nf_classic_model
-      parameter (nf_classic_model = 256)
-
-      integer nf_chunk_seq
-      parameter (nf_chunk_seq = 0)
-      integer nf_chunk_sub
-      parameter (nf_chunk_sub = 1)
-      integer nf_chunk_sizes
-      parameter (nf_chunk_sizes = 2)
-
-      integer nf_endian_native
-      parameter (nf_endian_native = 0)
-      integer nf_endian_little
-      parameter (nf_endian_little = 1)
-      integer nf_endian_big
-      parameter (nf_endian_big = 2)
-
-!     For NF_DEF_VAR_CHUNKING
-      integer nf_chunked
-      parameter (nf_chunked = 0)
-      integer nf_contiguous
-      parameter (nf_contiguous = 1)
-
-!     For NF_DEF_VAR_FLETCHER32
-      integer nf_nochecksum
-      parameter (nf_nochecksum = 0)
-      integer nf_fletcher32
-      parameter (nf_fletcher32 = 1)
-
-!     For NF_DEF_VAR_DEFLATE
-      integer nf_noshuffle
-      parameter (nf_noshuffle = 0)
-      integer nf_shuffle
-      parameter (nf_shuffle = 1)
-
-!     For NF_DEF_VAR_SZIP
-      integer nf_szip_ec_option_mask
-      parameter (nf_szip_ec_option_mask = 4)
-      integer nf_szip_nn_option_mask
-      parameter (nf_szip_nn_option_mask = 32)
-
-!     For parallel I/O.
-      integer nf_mpiio      
-      parameter (nf_mpiio = 8192)
-      integer nf_mpiposix
-      parameter (nf_mpiposix = 16384)
-      integer nf_pnetcdf
-      parameter (nf_pnetcdf = 32768)
-
-!     For NF_VAR_PAR_ACCESS.
-      integer nf_independent
-      parameter (nf_independent = 0)
-      integer nf_collective
-      parameter (nf_collective = 1)
-
-!     New error codes.
-      integer nf_ehdferr        ! Error at HDF5 layer. 
-      parameter (nf_ehdferr = -101)
-      integer nf_ecantread      ! Can't read. 
-      parameter (nf_ecantread = -102)
-      integer nf_ecantwrite     ! Can't write. 
-      parameter (nf_ecantwrite = -103)
-      integer nf_ecantcreate    ! Can't create. 
-      parameter (nf_ecantcreate = -104)
-      integer nf_efilemeta      ! Problem with file metadata. 
-      parameter (nf_efilemeta = -105)
-      integer nf_edimmeta       ! Problem with dimension metadata. 
-      parameter (nf_edimmeta = -106)
-      integer nf_eattmeta       ! Problem with attribute metadata. 
-      parameter (nf_eattmeta = -107)
-      integer nf_evarmeta       ! Problem with variable metadata. 
-      parameter (nf_evarmeta = -108)
-      integer nf_enocompound    ! Not a compound type. 
-      parameter (nf_enocompound = -109)
-      integer nf_eattexists     ! Attribute already exists. 
-      parameter (nf_eattexists = -110)
-      integer nf_enotnc4        ! Attempting netcdf-4 operation on netcdf-3 file.   
-      parameter (nf_enotnc4 = -111)
-      integer nf_estrictnc3     ! Attempting netcdf-4 operation on strict nc3 netcdf-4 file.   
-      parameter (nf_estrictnc3 = -112)
-      integer nf_enotnc3        ! Attempting netcdf-3 operation on netcdf-4 file.   
-      parameter (nf_enotnc3 = -113)
-      integer nf_enopar         ! Parallel operation on file opened for non-parallel access.   
-      parameter (nf_enopar = -114)
-      integer nf_eparinit       ! Error initializing for parallel access.   
-      parameter (nf_eparinit = -115)
-      integer nf_ebadgrpid      ! Bad group ID.   
-      parameter (nf_ebadgrpid = -116)
-      integer nf_ebadtypid      ! Bad type ID.   
-      parameter (nf_ebadtypid = -117)
-      integer nf_etypdefined    ! Type has already been defined and may not be edited. 
-      parameter (nf_etypdefined = -118)
-      integer nf_ebadfield      ! Bad field ID.   
-      parameter (nf_ebadfield = -119)
-      integer nf_ebadclass      ! Bad class.   
-      parameter (nf_ebadclass = -120)
-      integer nf_emaptype       ! Mapped access for atomic types only.   
-      parameter (nf_emaptype = -121)
-      integer nf_elatefill      ! Attempt to define fill value when data already exists. 
-      parameter (nf_elatefill = -122)
-      integer nf_elatedef       ! Attempt to define var properties, like deflate, after enddef. 
-      parameter (nf_elatedef = -123)
-      integer nf_edimscale      ! Probem with HDF5 dimscales. 
-      parameter (nf_edimscale = -124)
-      integer nf_enogrp       ! No group found.
-      parameter (nf_enogrp = -125)
-
-
-!     New functions.
-
-!     Parallel I/O.
-      integer nf_create_par
-      external nf_create_par
-
-      integer nf_open_par
-      external nf_open_par
-
-      integer nf_var_par_access
-      external nf_var_par_access
-
-!     Functions to handle groups.
-      integer nf_inq_ncid
-      external nf_inq_ncid
-
-      integer nf_inq_grps
-      external nf_inq_grps
-
-      integer nf_inq_grpname
-      external nf_inq_grpname
-
-      integer nf_inq_grpname_full
-      external nf_inq_grpname_full
-
-      integer nf_inq_grpname_len
-      external nf_inq_grpname_len
-
-      integer nf_inq_grp_parent
-      external nf_inq_grp_parent
-
-      integer nf_inq_grp_ncid
-      external nf_inq_grp_ncid
-
-      integer nf_inq_grp_full_ncid
-      external nf_inq_grp_full_ncid
-
-      integer nf_inq_varids
-      external nf_inq_varids
-
-      integer nf_inq_dimids
-      external nf_inq_dimids
-
-      integer nf_def_grp
-      external nf_def_grp
-
-!     New rename grp function
-
-      integer nf_rename_grp
-      external nf_rename_grp
-
-!     New options for netCDF variables.
-      integer nf_def_var_deflate
-      external nf_def_var_deflate
-
-      integer nf_inq_var_deflate
-      external nf_inq_var_deflate
-
-      integer nf_def_var_fletcher32
-      external nf_def_var_fletcher32
-
-      integer nf_inq_var_fletcher32
-      external nf_inq_var_fletcher32
-
-      integer nf_def_var_chunking
-      external nf_def_var_chunking
-
-      integer nf_inq_var_chunking
-      external nf_inq_var_chunking
-
-      integer nf_def_var_fill
-      external nf_def_var_fill
-
-      integer nf_inq_var_fill
-      external nf_inq_var_fill
-
-      integer nf_def_var_endian
-      external nf_def_var_endian
-
-      integer nf_inq_var_endian
-      external nf_inq_var_endian
-
-!     User defined types.
-      integer nf_inq_typeids
-      external nf_inq_typeids
-
-      integer nf_inq_typeid
-      external nf_inq_typeid
-
-      integer nf_inq_type
-      external nf_inq_type
-
-      integer nf_inq_user_type
-      external nf_inq_user_type
-
-!     User defined types - compound types.
-      integer nf_def_compound
-      external nf_def_compound
-
-      integer nf_insert_compound
-      external nf_insert_compound
-
-      integer nf_insert_array_compound
-      external nf_insert_array_compound
-
-      integer nf_inq_compound
-      external nf_inq_compound
-
-      integer nf_inq_compound_name
-      external nf_inq_compound_name
-
-      integer nf_inq_compound_size
-      external nf_inq_compound_size
-
-      integer nf_inq_compound_nfields
-      external nf_inq_compound_nfields
-
-      integer nf_inq_compound_field
-      external nf_inq_compound_field
-
-      integer nf_inq_compound_fieldname
-      external nf_inq_compound_fieldname
-
-      integer nf_inq_compound_fieldindex
-      external nf_inq_compound_fieldindex
-
-      integer nf_inq_compound_fieldoffset
-      external nf_inq_compound_fieldoffset
-
-      integer nf_inq_compound_fieldtype
-      external nf_inq_compound_fieldtype
-
-      integer nf_inq_compound_fieldndims
-      external nf_inq_compound_fieldndims
-
-      integer nf_inq_compound_fielddim_sizes
-      external nf_inq_compound_fielddim_sizes
-
-!     User defined types - variable length arrays.
-      integer nf_def_vlen
-      external nf_def_vlen
-
-      integer nf_inq_vlen
-      external nf_inq_vlen
-
-      integer nf_free_vlen
-      external nf_free_vlen
-
-!     User defined types - enums.
-      integer nf_def_enum
-      external nf_def_enum
-
-      integer nf_insert_enum
-      external nf_insert_enum
-
-      integer nf_inq_enum
-      external nf_inq_enum
-
-      integer nf_inq_enum_member
-      external nf_inq_enum_member
-
-      integer nf_inq_enum_ident
-      external nf_inq_enum_ident
-
-!     User defined types - opaque.
-      integer nf_def_opaque
-      external nf_def_opaque
-
-      integer nf_inq_opaque
-      external nf_inq_opaque
-
-!     Write and read attributes of any type, including user defined
-!     types.
-      integer nf_put_att
-      external nf_put_att
-      integer nf_get_att
-      external nf_get_att
-
-!     Write and read variables of any type, including user defined
-!     types.
-      integer nf_put_var
-      external nf_put_var
-      integer nf_put_var1
-      external nf_put_var1
-      integer nf_put_vara
-      external nf_put_vara
-      integer nf_put_vars
-      external nf_put_vars
-      integer nf_get_var
-      external nf_get_var
-      integer nf_get_var1
-      external nf_get_var1
-      integer nf_get_vara
-      external nf_get_vara
-      integer nf_get_vars
-      external nf_get_vars
-
-!     64-bit int functions.
-      integer nf_put_var1_int64
-      external nf_put_var1_int64
-      integer nf_put_vara_int64
-      external nf_put_vara_int64
-      integer nf_put_vars_int64
-      external nf_put_vars_int64
-      integer nf_put_varm_int64
-      external nf_put_varm_int64
-      integer nf_put_var_int64
-      external nf_put_var_int64
-      integer nf_get_var1_int64
-      external nf_get_var1_int64
-      integer nf_get_vara_int64
-      external nf_get_vara_int64
-      integer nf_get_vars_int64
-      external nf_get_vars_int64
-      integer nf_get_varm_int64
-      external nf_get_varm_int64
-      integer nf_get_var_int64
-      external nf_get_var_int64
-
-!     For helping F77 users with VLENs.
-      integer nf_get_vlen_element
-      external nf_get_vlen_element
-      integer nf_put_vlen_element
-      external nf_put_vlen_element
-
-!     For dealing with file level chunk cache.
-      integer nf_set_chunk_cache
-      external nf_set_chunk_cache
-      integer nf_get_chunk_cache
-      external nf_get_chunk_cache
-
-!     For dealing with per variable chunk cache.
-      integer nf_set_var_chunk_cache
-      external nf_set_var_chunk_cache
-      integer nf_get_var_chunk_cache
-      external nf_get_var_chunk_cache
-
-!     NetCDF-2.
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-! begin netcdf 2.4 backward compatibility:
-!
-
-!      
-! functions in the fortran interface
-!
-      integer nccre
-      integer ncopn
-      integer ncddef
-      integer ncdid
-      integer ncvdef
-      integer ncvid
-      integer nctlen
-      integer ncsfil
-
-      external nccre
-      external ncopn
-      external ncddef
-      external ncdid
-      external ncvdef
-      external ncvid
-      external nctlen
-      external ncsfil
-
-
-      integer ncrdwr
-      integer nccreat
-      integer ncexcl
-      integer ncindef
-      integer ncnsync
-      integer nchsync
-      integer ncndirty
-      integer nchdirty
-      integer nclink
-      integer ncnowrit
-      integer ncwrite
-      integer ncclob
-      integer ncnoclob
-      integer ncglobal
-      integer ncfill
-      integer ncnofill
-      integer maxncop
-      integer maxncdim
-      integer maxncatt
-      integer maxncvar
-      integer maxncnam
-      integer maxvdims
-      integer ncnoerr
-      integer ncebadid
-      integer ncenfile
-      integer nceexist
-      integer nceinval
-      integer nceperm
-      integer ncenotin
-      integer nceindef
-      integer ncecoord
-      integer ncemaxds
-      integer ncename
-      integer ncenoatt
-      integer ncemaxat
-      integer ncebadty
-      integer ncebadd
-      integer ncests
-      integer nceunlim
-      integer ncemaxvs
-      integer ncenotvr
-      integer nceglob
-      integer ncenotnc
-      integer ncfoobar
-      integer ncsyserr
-      integer ncfatal
-      integer ncverbos
-      integer ncentool
-
-
-!
-! netcdf data types:
-!
-      integer ncbyte
-      integer ncchar
-      integer ncshort
-      integer nclong
-      integer ncfloat
-      integer ncdouble
-
-      parameter(ncbyte = 1)
-      parameter(ncchar = 2)
-      parameter(ncshort = 3)
-      parameter(nclong = 4)
-      parameter(ncfloat = 5)
-      parameter(ncdouble = 6)
-
-!     
-!     masks for the struct nc flag field; passed in as 'mode' arg to
-!     nccreate and ncopen.
-!     
-
-!     read/write, 0 => readonly 
-      parameter(ncrdwr = 1)
-!     in create phase, cleared by ncendef 
-      parameter(nccreat = 2)
-!     on create destroy existing file 
-      parameter(ncexcl = 4)
-!     in define mode, cleared by ncendef 
-      parameter(ncindef = 8)
-!     synchronise numrecs on change (x'10')
-      parameter(ncnsync = 16)
-!     synchronise whole header on change (x'20')
-      parameter(nchsync = 32)
-!     numrecs has changed (x'40')
-      parameter(ncndirty = 64)  
-!     header info has changed (x'80')
-      parameter(nchdirty = 128)
-!     prefill vars on endef and increase of record, the default behavior
-      parameter(ncfill = 0)
-!     do not fill vars on endef and increase of record (x'100')
-      parameter(ncnofill = 256)
-!     isa link (x'8000')
-      parameter(nclink = 32768)
-
-!     
-!     'mode' arguments for nccreate and ncopen
-!     
-      parameter(ncnowrit = 0)
-      parameter(ncwrite = ncrdwr)
-      parameter(ncclob = nf_clobber)
-      parameter(ncnoclob = nf_noclobber)
-
-!     
-!     'size' argument to ncdimdef for an unlimited dimension
-!     
-      integer ncunlim
-      parameter(ncunlim = 0)
-
-!     
-!     attribute id to put/get a global attribute
-!     
-      parameter(ncglobal  = 0)
-
-!     
-!     advisory maximums:
-!     
-      parameter(maxncop = 64)
-      parameter(maxncdim = 1024)
-      parameter(maxncatt = 8192)
-      parameter(maxncvar = 8192)
-!     not enforced 
-      parameter(maxncnam = 256)
-      parameter(maxvdims = maxncdim)
-
-!     
-!     global netcdf error status variable
-!     initialized in error.c
-!     
-
-!     no error 
-      parameter(ncnoerr = nf_noerr)
-!     not a netcdf id 
-      parameter(ncebadid = nf_ebadid)
-!     too many netcdfs open 
-      parameter(ncenfile = -31)   ! nc_syserr
-!     netcdf file exists && ncnoclob
-      parameter(nceexist = nf_eexist)
-!     invalid argument 
-      parameter(nceinval = nf_einval)
-!     write to read only 
-      parameter(nceperm = nf_eperm)
-!     operation not allowed in data mode 
-      parameter(ncenotin = nf_enotindefine )   
-!     operation not allowed in define mode 
-      parameter(nceindef = nf_eindefine)   
-!     coordinates out of domain 
-      parameter(ncecoord = nf_einvalcoords)
-!     maxncdims exceeded 
-      parameter(ncemaxds = nf_emaxdims)
-!     string match to name in use 
-      parameter(ncename = nf_enameinuse)   
-!     attribute not found 
-      parameter(ncenoatt = nf_enotatt)
-!     maxncattrs exceeded 
-      parameter(ncemaxat = nf_emaxatts)
-!     not a netcdf data type 
-      parameter(ncebadty = nf_ebadtype)
-!     invalid dimension id 
-      parameter(ncebadd = nf_ebaddim)
-!     ncunlimited in the wrong index 
-      parameter(nceunlim = nf_eunlimpos)
-!     maxncvars exceeded 
-      parameter(ncemaxvs = nf_emaxvars)
-!     variable not found 
-      parameter(ncenotvr = nf_enotvar)
-!     action prohibited on ncglobal varid 
-      parameter(nceglob = nf_eglobal)
-!     not a netcdf file 
-      parameter(ncenotnc = nf_enotnc)
-      parameter(ncests = nf_ests)
-      parameter (ncentool = nf_emaxname) 
-      parameter(ncfoobar = 32)
-      parameter(ncsyserr = -31)
-
-!     
-!     global options variable. used to determine behavior of error handler.
-!     initialized in lerror.c
-!     
-      parameter(ncfatal = 1)
-      parameter(ncverbos = 2)
-
-!
-!     default fill values.  these must be the same as in the c interface.
-!
-      integer filbyte
-      integer filchar
-      integer filshort
-      integer fillong
-      real filfloat
-      doubleprecision fildoub
-
-      parameter (filbyte = -127)
-      parameter (filchar = 0)
-      parameter (filshort = -32767)
-      parameter (fillong = -2147483647)
-      parameter (filfloat = 9.9692099683868690e+36)
-      parameter (fildoub = 9.9692099683868690e+36)
+#include <netcdf.inc>
          integer did, leng, ncid, ierr_flg
          parameter(leng=100)
          integer :: i,j, nn
@@ -4789,7 +1607,13 @@ end subroutine HYDRO_ini
         integer, dimension(ix0,jx0),OPTIONAL :: vegtyp0, soltyp0
         integer :: iret, istmp
 
+#ifdef HYDRO_D
+#ifndef NCEP_WCOSS
          write(6,*) RT_DOMAIN(did)%ix,RT_DOMAIN(did)%jx
+#else
+         write(78,*) RT_DOMAIN(did)%ix,RT_DOMAIN(did)%jx
+#endif
+#endif
 
          allocate(soltyp(RT_DOMAIN(did)%ix,RT_DOMAIN(did)%jx) )
 
@@ -4838,15 +1662,22 @@ end subroutine HYDRO_ini
            call hydro_stop("FATAL ERROR: hydrotbl_f is empty. Please input a netcdf file. ")
        endif
 
+#ifdef MPP_LAND
        if(my_id .eq. IO_id) then
+#endif
           ierr_flg = nf_open(trim(nlst_rt(did)%hydrotbl_f), NF_NOWRITE, ncid)
+#ifdef MPP_LAND
        endif
        call mpp_land_bcast_int1(ierr_flg)
+#endif
        if( ierr_flg .ne. 0) then   
           ! input from HYDRO.tbl FILE
 !      input OV_ROUGH from OVROUGH.TBL
+#ifdef MPP_LAND
        if(my_id .eq. IO_id) then
+#endif
 
+#ifndef NCEP_WCOSS
        open(71,file="HYDRO.TBL", form="formatted") 
 !read OV_ROUGH first
           read(71,*) nn
@@ -4861,13 +1692,31 @@ end subroutine HYDRO_ini
              read(71,*) xdum1(i), MAXSMC(i),refsmc(i),wltsmc(i)
           end do 
        close(71)
+#else
+       open(13, form="formatted")
+!read OV_ROUGH first
+          read(13,*) nn
+          read(13,*)    
+          do i = 1, nn
+             read(13,*) RT_DOMAIN(did)%OV_ROUGH(i)
+          end do 
+!read parameter for LKSAT
+          read(13,*) nn
+          read(13,*)    
+          do i = 1, nn
+             read(13,*) xdum1(i), MAXSMC(i),refsmc(i),wltsmc(i)
+          end do 
+       close(13)
+#endif
 
+#ifdef MPP_LAND
        endif
        call mpp_land_bcast_real(leng,RT_DOMAIN(did)%OV_ROUGH)
        call mpp_land_bcast_real(leng,xdum1)
        call mpp_land_bcast_real(leng,MAXSMC)
        call mpp_land_bcast_real(leng,refsmc)
        call mpp_land_bcast_real(leng,wltsmc)
+#endif
 
        rt_domain(did)%lksat = 0.0
        do j = 1, RT_DOMAIN(did)%jx
@@ -4914,14 +1763,29 @@ end module module_HYDRO_drv
 
 ! stop the job due to the fatal error.
       subroutine HYDRO_stop(msg)
+#ifdef MPP_LAND
         use module_mpp_land
+#endif
         character(len=*) :: msg
         integer :: ierr
         ierr = 1
-!#ifdef 1  !! PLEASE NEVER UNCOMMENT THIS IFDEF, it's just one incredibly useful string.
+#ifndef NCEP_WCOSS
+!#ifdef HYDRO_D  !! PLEASE NEVER UNCOMMENT THIS IFDEF, it's just one incredibly useful string.
       write(6,*) "The job is stopped due to the fatal error. ", trim(msg)
       call flush(6)
 !#endif
+#else
+     write(*,*) "FATAL ERROR: ", trim(msg)
+     write(78,*) "FATAL ERROR: ", trim(msg)
+      call flush(78)
+      close(78)
+#endif
+#ifdef MPP_LAND
+#ifndef HYDRO_D
+      print*, "---"
+      print*, "FATAL ERROR! Program stopped. Recompile with environment variable HYDRO_D set to 1 for enhanced debug information."
+      print*, ""
+#endif
 
 !        call mpp_land_sync()
 !        write(my_id+90,*) msg
@@ -4929,6 +1793,9 @@ end module module_HYDRO_drv
 
          call mpp_land_abort()
          call MPI_finalize(ierr)
+#else
+         stop "FATAL ERROR: Program stopped. Recompile with environment variable HYDRO_D set to 1 for enhanced debug information."
+#endif
 
      return
      end  subroutine HYDRO_stop  
@@ -4936,18 +1803,41 @@ end module module_HYDRO_drv
 
 ! stop the job due to the fatal error.
       subroutine HYDRO_finish()
+#ifdef MPP_LAND
         USE module_mpp_land
+#endif
+#ifdef WRF_HYDRO_NUDGING
         use module_stream_nudging,  only: finish_stream_nudging
+#endif
         
         integer :: ierr
 
+#ifdef WRF_HYDRO_NUDGING
         call finish_stream_nudging()
+#endif
+#ifndef NCEP_WCOSS
         print*, "The model finished successfully......."
+#else
+        write(78,*) "The model finished successfully......."
+#endif
+#ifdef MPP_LAND
 !         call mpp_land_abort()
+#ifndef NCEP_WCOSS
          call flush(6)
+#else
+         call flush(78)
+         close(78)
+#endif
          call mpp_land_sync()
          call MPI_finalize(ierr)
          stop
+#else
+
+#ifndef WRF_HYDRO_NUDGING
+         stop  !!JLM want to time at the top NoahMP level.
+#endif
+
+#endif
 
         return
       end  subroutine HYDRO_finish

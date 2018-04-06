@@ -1,16 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
 ! Module for handling National Water Model streamflow, land surface,
 ! gridded routing, lake, and groundwater output.
 
@@ -50,8 +37,10 @@ subroutine output_chrt_NWM(domainId)
    use Module_Date_utilities_rt, only: geth_newdate, geth_idts
    use module_NWM_io_dict
    use netcdf
+#ifdef MPP_LAND
    use module_mpp_land
    use module_mpp_reachls,  only: ReachLS_write_io
+#endif
    implicit none
 
    ! Pass in "did" value from hydro driving program. 
@@ -120,11 +109,23 @@ subroutine output_chrt_NWM(domainId)
    ascFlag = 1
 
    ! Establish macro variables to hlep guide this subroutine. 
+#ifdef WRF_HYDRO_NUDGING
    nudgeFlag = 1
+#else
+   nudgeFlag = 0
+#endif
 
+#ifdef MPP_LAND
    mppFlag = 1
+#else
+   mppFlag = 0
+#endif
 
+#ifdef HYDRO_D
    diagFlag = 1
+#else
+   diagFlag = 0
+#endif
 
    if(nlst_rt(domainId)%CHRTOUT_DOMAIN .eq. 0) then
       ! No output requested here, return to parent calling program/subroutine.
@@ -134,8 +135,10 @@ subroutine output_chrt_NWM(domainId)
    ! If we are running over MPI, determine which processor number we are on.
    ! If not MPI, then default to 0, which is the I/O ID.
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
       call MPI_COMM_RANK( MPI_COMM_WORLD, myId, ierr )
       call nwmCheck(diagFlag,ierr,'ERROR: Unable to determine MPI process ID.')
+#endif
    else
       myId = 0
    endif
@@ -184,7 +187,9 @@ subroutine output_chrt_NWM(domainId)
 
       ! Sync all processes up.
       if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
          call mpp_land_sync()
+#endif
       endif
 
       if(myId .eq. 0) then
@@ -266,7 +271,9 @@ subroutine output_chrt_NWM(domainId)
  
       ! Sync everything up before the next step.
       if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
          call mpp_land_sync()
+#endif
       endif
 
       ! Loop through all the local links on this processor. For lake_type
@@ -285,6 +292,7 @@ subroutine output_chrt_NWM(domainId)
       ! assemble into global arrays previously allocated.
       if(nlst_rt(domainId)%channel_option .ne. 3) then
          ! Reach-based routing collection
+#ifdef MPP_LAND
          call ReachLS_write_io(strFlowLocal,g_qlink(:,1))
          call ReachLS_write_io(RT_DOMAIN(domainId)%QLINK(:,2),g_qlink(:,2))
          call ReachLS_write_io(RT_DOMAIN(domainId)%ORDER,g_order)
@@ -297,8 +305,10 @@ subroutine output_chrt_NWM(domainId)
          call ReachLS_write_io(RT_DOMAIN(domainId)%HLINK,g_hlink)
          ! Optional outputs
          if(nudgeFlag .eq. 1)then
+#ifdef WRF_HYDRO_NUDGING
             fileMeta%outFlag(2) = 1 ! Set output flag to on. 
             call ReachLS_write_io(RT_DOMAIN(domainID)%nudge,g_nudge)
+#endif
          else
             fileMeta%outFlag(2) = 0 ! Set output flag to off.
          endif
@@ -331,6 +341,7 @@ subroutine output_chrt_NWM(domainId)
                call postDiagMsg(diagFlag,'WARNING: Channel-only outputs not available for UDMPT = 0 on reach-based routing.')
             endif
          endif
+#endif
       else
          ! Gridded routing collection
          call write_chanel_real(strFlowLocal,rt_domain(domainId)%map_l2g,gSize,rt_domain(domainId)%nlinks,g_qlink(:,1))
@@ -347,8 +358,10 @@ subroutine output_chrt_NWM(domainId)
             call postDiagMsg(diagFlag,'WARNING: This channelBucket_influx only available for reach-based routing.')
          endif 
          if(nudgeFlag .eq. 1)then
+#ifdef WRF_HYDRO_NUDGING
             fileMeta%outFlag(2) = 1 ! Set output flag to on.
             call write_chanel_real(RT_DOMAIN(domainID)%nudge,rt_domain(domainId)%map_l2g,gSize,rt_domain(domainId)%nlinks,g_nudge)
+#endif
          else
             fileMeta%outFlag(2) = 0 ! Set output flag to off.
          endif
@@ -400,8 +413,10 @@ subroutine output_chrt_NWM(domainId)
       g_velocity = RT_DOMAIN(domainId)%velocity
       ! Optional outputs
       if(nudgeFlag .eq. 1)then
+#ifdef WRF_HYDRO_NUDGING
          fileMeta%outFlag(2) = 1 ! Set output flag to on. 
          g_nudge = RT_DOMAIN(domainID)%nudge
+#endif
       endif
       if(nlst_rt(domainId)%UDMP_OPT .eq. 1) then
          ! Currently, we only allow channel-only outputs to be produced for
@@ -881,7 +896,9 @@ subroutine output_chrt_NWM(domainId)
   
    ! Sync all processes up.
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
       call mpp_land_sync()
+#endif
    endif
 
    ! Deallocate all memory.
@@ -947,7 +964,9 @@ subroutine output_NoahMP_NWM(outDir,iGrid,output_timestep,startdate,date,ixPar,j
    use Module_Date_utilities_rt, only: geth_newdate, geth_idts
    use module_NWM_io_dict
    use netcdf
+#ifdef MPP_LAND
      use module_mpp_land
+#endif
    implicit none
 
    ! Subroutine arguments
@@ -998,20 +1017,32 @@ subroutine output_NoahMP_NWM(outDir,iGrid,output_timestep,startdate,date,ixPar,j
    real*8, allocatable, dimension(:) :: yCoord,xCoord,yCoord2
    real, allocatable, dimension(:,:,:) :: varRealTmp
 
+#ifdef MPP_LAND
    mppFlag = 1
+#else
+   mppFlag = 0
+#endif
 
+#ifdef HYDRO_D
    diagFlag = 1
+#else
+   diagFlag = 0
+#endif
 
    ! Sync up processes. 
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
       call mpp_land_sync()
+#endif
    endif
 
    ! If we are running over MPI, determine which processor number we are on.
    ! If not MPI, then default to 0, which is the I/O ID.
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
       call MPI_COMM_RANK( MPI_COMM_WORLD, myId, ierr )
       call nwmCheck(diagFlag,ierr,'ERROR: Unable to determine MPI process ID.')
+#endif
    else
       myId = 0
    endif
@@ -1114,7 +1145,9 @@ subroutine output_NoahMP_NWM(outDir,iGrid,output_timestep,startdate,date,ixPar,j
 
    ! Sync all processes up.
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
       call mpp_land_sync()
+#endif
    endif
 
    if(varInd .eq. 1) then
@@ -1375,7 +1408,9 @@ subroutine output_NoahMP_NWM(outDir,iGrid,output_timestep,startdate,date,ixPar,j
 
    ! Sync up all processes
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
       call mpp_land_sync()
+#endif
    endif
 
    ! Place data into NetCDF file. This involves a few steps:
@@ -1412,7 +1447,9 @@ subroutine output_NoahMP_NWM(outDir,iGrid,output_timestep,startdate,date,ixPar,j
 
       ! Sync up processes
       if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
          call mpp_land_sync()
+#endif
       endif
 
       varRealTmp = varReal
@@ -1438,18 +1475,24 @@ subroutine output_NoahMP_NWM(outDir,iGrid,output_timestep,startdate,date,ixPar,j
          endif
          ! Sync all processes up.
          if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
             call mpp_land_sync()
+#endif
          endif
          if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
             call write_IO_int(localCompTmp,globalCompTmp)
             call write_IO_real(varRealTmp(:,zTmp,:),globalRealTmp)
+#endif
          else
             globalCompTmp = localCompTmp
             globalRealTmp = varRealTmp(:,zTmp,:)
          endif
          ! Sync all processes up.
          if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
             call mpp_land_sync()
+#endif
          endif
          ! Place output into global array to be written to NetCDF file.
          if(myId .eq. 0) then
@@ -1460,7 +1503,9 @@ subroutine output_NoahMP_NWM(outDir,iGrid,output_timestep,startdate,date,ixPar,j
  
       ! Sync up processes
       if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
          call mpp_land_sync()
+#endif
       endif
 
       ! Write array out to NetCDF file.
@@ -1495,7 +1540,9 @@ subroutine output_NoahMP_NWM(outDir,iGrid,output_timestep,startdate,date,ixPar,j
 
    ! Sync all processes up.
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
       call mpp_land_sync()
+#endif
    endif
 
    if(myId .eq. 0) then
@@ -1531,7 +1578,9 @@ subroutine output_rt_NWM(domainId,iGrid)
    use Module_Date_utilities_rt, only: geth_newdate, geth_idts
    use module_NWM_io_dict
    use netcdf
+#ifdef MPP_LAND
      use module_mpp_land
+#endif
    implicit none
 
    ! subroutine arguments
@@ -1575,15 +1624,25 @@ subroutine output_rt_NWM(domainId,iGrid)
    integer :: numLev ! This will be 4 for soil moisture, and 1 for all other variables.
 
 ! Establish macro variables to hlep guide this subroutine. 
+#ifdef MPP_LAND
    mppFlag = 1
+#else
+   mppFlag = 0
+#endif
 
+#ifdef HYDRO_D
    diagFlag = 1
+#else
+   diagFlag = 0
+#endif
 
    ! If we are running over MPI, determine which processor number we are on.
    ! If not MPI, then default to 0, which is the I/O ID.
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
       call MPI_COMM_RANK( MPI_COMM_WORLD, myId, ierr )
       call nwmCheck(diagFlag,ierr,'ERROR: Unable to determine MPI process ID.')
+#endif
    else
       myId = 0
    endif
@@ -1889,7 +1948,9 @@ subroutine output_rt_NWM(domainId,iGrid)
 
    ! Synce up processes.
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND 
       call mpp_land_sync()
+#endif
    endif
 
    ! Loop through each variable, collect local routing grid variables into a
@@ -1927,7 +1988,9 @@ subroutine output_rt_NWM(domainId,iGrid)
 
             ! Sync up processes
             if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
                call mpp_land_sync()
+#endif
             endif
 
             ! Loop through output array and convert floating point values to
@@ -1976,8 +2039,10 @@ subroutine output_rt_NWM(domainId,iGrid)
             ! Collect local integer arrays into the global integer grid to be
             ! written out. 
             if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
                call write_IO_rt_int(localCompTmp,globalOutComp(:,zTmp,:))
                call write_IO_rt_real(localRealTmp,globalOutReal(:,zTmp,:))
+#endif
             else
                globalOutComp(:,zTmp,:) = localCompTmp
                globalOutReal(:,zTmp,:) = localRealTmp
@@ -1985,7 +2050,9 @@ subroutine output_rt_NWM(domainId,iGrid)
 
             ! Sync up processes
             if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
                call mpp_land_sync()
+#endif
             endif
          end do ! End looping through levels
 
@@ -2046,7 +2113,9 @@ subroutine output_lakes_NWM(domainId,iGrid)
    use Module_Date_utilities_rt, only: geth_newdate, geth_idts
    use module_NWM_io_dict
    use netcdf
+#ifdef MPP_LAND
      use module_mpp_land
+#endif
    implicit none
 
    integer, intent(in) :: domainId
@@ -2102,15 +2171,25 @@ subroutine output_lakes_NWM(domainId,iGrid)
    ascFlag = 1
 
    ! Establish macro variables to hlep guide this subroutine. 
+#ifdef MPP_LAND
    mppFlag = 1
+#else
+   mppFlag = 0
+#endif
 
+#ifdef HYDRO_D
    diagFlag = 1
+#else
+   diagFlag = 0
+#endif
 
    ! If we are running over MPI, determine which processor number we are on.
    ! If not MPI, then default to 0, which is the I/O ID.
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
       call MPI_COMM_RANK( MPI_COMM_WORLD, myId, ierr )
       call nwmCheck(diagFlag,ierr,'ERROR: Unable to determine MPI process ID.')
+#endif
    else
       myId = 0
    endif
@@ -2158,7 +2237,9 @@ subroutine output_lakes_NWM(domainId,iGrid)
 
       ! Sync all processes up.
       if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
          call mpp_land_sync()
+#endif
       endif
 
       allocate(g_lakeLon(gsize))
@@ -2186,16 +2267,20 @@ subroutine output_lakes_NWM(domainId,iGrid)
 
       ! Sync everything up before the next step.
       if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
          call mpp_land_sync()
+#endif
       endif
 
       ! Collect arrays from various processors through MPI, and 
       ! assemble into global arrays previously allocated.
+#ifdef MPP_LAND
       call write_lake_real(g_lakeLat,RT_DOMAIN(domainId)%lake_index,gsize)
       call write_lake_real(g_lakeLon,RT_DOMAIN(domainId)%lake_index,gsize)
       call write_lake_real(g_lakeElev,RT_DOMAIN(domainId)%lake_index,gsize)
       call write_lake_real(g_lakeInflow,RT_DOMAIN(domainId)%lake_index,gsize)
       call write_lake_real(g_lakeOutflow,RT_DOMAIN(domainId)%lake_index,gsize)
+#endif
    else
       gSize = rt_domain(domainId)%NLAKES
       ! No MPI - single processor
@@ -2222,7 +2307,9 @@ subroutine output_lakes_NWM(domainId,iGrid)
 
    ! Sync all processes up.
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
       call mpp_land_sync()
+#endif
    endif 
 
    ! Calculate datetime information.
@@ -2577,7 +2664,9 @@ subroutine output_lakes_NWM(domainId,iGrid)
 
    ! Sync all processes up.
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
       call mpp_land_sync()
+#endif
    endif
 
    ! Deallocate all memory
@@ -2625,8 +2714,10 @@ subroutine output_chrtout_grd_NWM(domainId,iGrid)
    use Module_Date_utilities_rt, only: geth_newdate, geth_idts
    use module_NWM_io_dict
    use netcdf
+#ifdef MPP_LAND
    use module_mpp_land
    use module_mpp_reachls,  only: ReachLS_write_io
+#endif
    implicit none
 
    ! subroutine arguments 
@@ -2673,9 +2764,17 @@ subroutine output_chrtout_grd_NWM(domainId,iGrid)
    real*8, allocatable, dimension(:) :: yCoord,xCoord,yCoord2
 
 ! Establish macro variables to hlep guide this subroutine. 
+#ifdef MPP_LAND
    mppFlag = 1
+#else
+   mppFlag = 0
+#endif
 
+#ifdef HYDRO_D
    diagFlag = 1
+#else
+   diagFlag = 0
+#endif
     
    ! We will print a warning to the user if they request CHRTOUT_GRID under
    ! reach-based routing. Currently, this is not supported as we don't have a
@@ -2691,8 +2790,10 @@ subroutine output_chrtout_grd_NWM(domainId,iGrid)
    ! If we are running over MPI, determine which processor number we are on.
    ! If not MPI, then default to 0, which is the I/O ID.
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
       call MPI_COMM_RANK( MPI_COMM_WORLD, myId, ierr )
       call nwmCheck(diagFlag,ierr,'ERROR: Unable to determine MPI process ID.')
+#endif
    else
       myId = 0
    endif
@@ -3061,7 +3162,9 @@ subroutine output_chrtout_grd_NWM(domainId,iGrid)
 
 ! Synce up processes.
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND 
       call mpp_land_sync()
+#endif
    endif
 
    if(myId .eq. 0) then
@@ -3095,7 +3198,9 @@ subroutine output_lsmOut_NWM(domainId)
    use Module_Date_utilities_rt, only: geth_newdate, geth_idts
    use module_NWM_io_dict
    use netcdf
+#ifdef MPP_LAND
      use module_mpp_land
+#endif
    implicit none
 
    ! Subroutine arguments
@@ -3133,20 +3238,32 @@ subroutine output_lsmOut_NWM(domainId)
    real, allocatable, dimension(:,:) :: localRealTmp, globalOutReal
    !integer, allocatable, dimension(:,:) :: globalCompTmp, localCompTmp
 
+#ifdef MPP_LAND
    mppFlag = 1
+#else
+   mppFlag = 0
+#endif
 
+#ifdef HYDRO_D
    diagFlag = 1
+#else
+   diagFlag = 0
+#endif
 
    ! Sync up processes. 
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
       call mpp_land_sync()
+#endif
    endif
 
    ! If we are running over MPI, determine which processor number we are on.
    ! If not MPI, then default to 0, which is the I/O ID.
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
       call MPI_COMM_RANK( MPI_COMM_WORLD, myId, ierr )
       call nwmCheck(diagFlag,ierr,'ERROR: Unable to determine MPI process ID.')
+#endif
    else
       myId = 0
    endif
@@ -3202,7 +3319,9 @@ subroutine output_lsmOut_NWM(domainId)
 
    ! Sync all processes up.
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
       call mpp_land_sync()
+#endif
    endif
 
    if(myId .eq. 0) then
@@ -3416,7 +3535,9 @@ subroutine output_lsmOut_NWM(domainId)
 
    ! Sync up all processes
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
       call mpp_land_sync()
+#endif
    endif
 
    ! Allocate temporary local memory
@@ -3435,7 +3556,9 @@ subroutine output_lsmOut_NWM(domainId)
 
          ! Sync up processes
          if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
             call mpp_land_sync()
+#endif
          endif
 
          ! Loop through the local array and convert floating point values
@@ -3497,16 +3620,22 @@ subroutine output_lsmOut_NWM(domainId)
          ! Collect local 2D arrays to global 2D array
          ! Sync all processes up.
          if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
             call mpp_land_sync()
+#endif
          endif
          if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
             call write_IO_real(localRealTmp,globalOutReal)
+#endif
          else
             globalOutReal = localRealTmp
          endif
          ! Sync all processes up.
          if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
             call mpp_land_sync()
+#endif
          endif
 
          ! Write array out to NetCDF file
@@ -3550,8 +3679,10 @@ subroutine output_frxstPts(domainId)
    use module_namelist, only: nlst_rt
    use Module_Date_utilities_rt, only: geth_newdate, geth_idts
    use module_NWM_io_dict
+#ifdef MPP_LAND
    use module_mpp_land
    use module_mpp_reachls,  only: ReachLS_write_io
+#endif
 implicit none
 
    ! Pass in "did" value from hydro driving program. 
@@ -3568,9 +3699,17 @@ implicit none
    real, allocatable, dimension(:) :: g_chlatOut, g_chlonOut, g_hlinkOut
    integer, allocatable, dimension(:) :: g_linkid, g_linkidOut
 
+#ifdef MPP_LAND
    mppFlag = 1
+#else
+   mppFlag = 0
+#endif
 
+#ifdef HYDRO_D
    diagFlag = 1
+#else
+   diagFlag = 0
+#endif
 
    if(nlst_rt(domainId)%frxst_pts_out .eq. 0) then
       ! No output requested here, return to parent calling program/subroutine.
@@ -3580,8 +3719,10 @@ implicit none
    ! If we are running over MPI, determine which processor number we are on.
    ! If not MPI, then default to 0, which is the I/O ID.
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
       call MPI_COMM_RANK( MPI_COMM_WORLD, myId, ierr )
       call nwmCheck(diagFlag,ierr,'ERROR: Unable to determine MPI process ID.')
+#endif
    else
       myId = 0
    endif
@@ -3602,7 +3743,9 @@ implicit none
 
       ! Sync all processes up.
       if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
          call mpp_land_sync()
+#endif
       endif
 
       if(myId .eq. 0) then
@@ -3636,7 +3779,9 @@ implicit none
 
       ! Sync everything up before the next step.
       if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
          call mpp_land_sync()
+#endif
       endif
 
       ! Loop through all the local links on this processor. For lake_type
@@ -3809,8 +3954,10 @@ subroutine output_chanObs_NWM(domainId)
    use Module_Date_utilities_rt, only: geth_newdate, geth_idts
    use module_NWM_io_dict
    use netcdf
+#ifdef MPP_LAND
    use module_mpp_land
    use module_mpp_reachls,  only: ReachLS_write_io
+#endif
    implicit none
 
    ! Pass in "did" value from hydro driving program. 
@@ -3862,11 +4009,23 @@ subroutine output_chanObs_NWM(domainId)
    integer, allocatable, dimension(:) :: frxstPtsLocal, g_STRMFRXSTPTSOut
 
    ! Establish macro variables to hlep guide this subroutine. 
+#ifdef WRF_HYDRO_NUDGING
    nudgeFlag = 1
+#else
+   nudgeFlag = 0
+#endif
 
+#ifdef MPP_LAND
    mppFlag = 1
+#else
+   mppFlag = 0
+#endif
 
+#ifdef HYDRO_D
    diagFlag = 1
+#else
+   diagFlag = 0
+#endif
 
    if(nlst_rt(domainId)%CHANOBS_DOMAIN .eq. 0) then
       ! No output requested here, return to parent calling program/subroutine.
@@ -3876,8 +4035,10 @@ subroutine output_chanObs_NWM(domainId)
    ! If we are running over MPI, determine which processor number we are on.
    ! If not MPI, then default to 0, which is the I/O ID.
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
       call MPI_COMM_RANK( MPI_COMM_WORLD, myId, ierr )
       call nwmCheck(diagFlag,ierr,'ERROR: Unable to determine MPI process ID.')
+#endif
    else
       myId = 0
    endif
@@ -3941,7 +4102,9 @@ subroutine output_chanObs_NWM(domainId)
 
       ! Sync all processes up.
       if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
          call mpp_land_sync()
+#endif
       endif
 
       if(myId .eq. 0) then
@@ -3979,7 +4142,9 @@ subroutine output_chanObs_NWM(domainId)
 
       ! Sync everything up before the next step.
       if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
          call mpp_land_sync()
+#endif
       endif
 
       ! Loop through all the local links on this processor. For lake_type
@@ -4473,9 +4638,11 @@ subroutine output_gw_NWM(domainId,iGrid)
    use Module_Date_utilities_rt, only: geth_newdate, geth_idts
    use module_NWM_io_dict
    use netcdf
+#ifdef MPP_LAND
    use MODULE_mpp_GWBUCKET, only: gw_write_io_real, gw_write_io_int
    use module_mpp_land
    use module_mpp_reachls,  only: ReachLS_write_io
+#endif
    implicit none
 
    integer, intent(in) :: domainId
@@ -4517,15 +4684,25 @@ subroutine output_gw_NWM(domainId,iGrid)
                                                      ! have been applied.
 
    ! Establish macro variables to hlep guide this subroutine. 
+#ifdef MPP_LAND
    mppFlag = 1
+#else
+   mppFlag = 0
+#endif
 
+#ifdef HYDRO_D
    diagFlag = 1
+#else
+   diagFlag = 0
+#endif
 
    ! If we are running over MPI, determine which processor number we are on.
    ! If not MPI, then default to 0, which is the I/O ID.
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
       call MPI_COMM_RANK( MPI_COMM_WORLD, myId, ierr )
       call nwmCheck(diagFlag,ierr,'ERROR: Unable to determine MPI process ID.')
+#endif
    else
       myId = 0
    endif
@@ -4573,7 +4750,9 @@ subroutine output_gw_NWM(domainId,iGrid)
    if(mppFlag .eq. 1) then
       ! Sync all processes up.
       if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
          call mpp_land_sync()
+#endif
       endif
 
       if(myId .eq. 0) then
@@ -4626,7 +4805,9 @@ subroutine output_gw_NWM(domainId,iGrid)
 
    ! Sync all processes up.
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
       call mpp_land_sync()
+#endif
    endif 
  
    ! Calculate datetime information.
@@ -4864,7 +5045,9 @@ subroutine output_gw_NWM(domainId,iGrid)
 
    ! Sync all processes up.
    if(mppFlag .eq. 1) then
+#ifdef MPP_LAND
       call mpp_land_sync()
+#endif
    endif
 
    ! Deallocate all memory

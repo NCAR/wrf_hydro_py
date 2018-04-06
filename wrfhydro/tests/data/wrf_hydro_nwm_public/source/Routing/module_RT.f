@@ -1,16 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
 !  Program Name:
 !  Author(s)/Contact(s):
 !  Abstract:
@@ -32,6 +19,7 @@
 !  User controllable options: <if applicable>
 
 MODULE module_Routing
+#ifdef MPP_LAND
    use module_gw_baseflow, only: pix_ct_1
    use module_HYDRO_io, only: mpp_read_routedim, read_routing_seq, mpp_read_chrouting_new, &
                               mpp_read_simp_gw, read_routelink, get_nlinksl
@@ -40,12 +28,21 @@ MODULE module_Routing
                                mpp_land_bcast_int, mpp_land_bcast_int1, &
                                updateLake_seq
    use module_mpp_GWBUCKET, only : collectSizeInd
+#else
+   !yw use module_HYDRO_io, only: read_routedim, read_routing_old, read_chrouting,read_simp_gw
+   use module_HYDRO_io, only: read_routedim, read_routing_seq, read_chrouting1,read_simp_gw, get_nlinksl
+#endif
    use module_HYDRO_io, only: readgw2d, simp_gw_ind,read_GWBUCKPARM, get_gw_strm_msk_lind, readBucket_nhd, read_NSIMLAKES
    use module_HYDRO_utils 
 
    use module_UDMAP, only: LNUMRSL, LUDRSL, UDMP_ini
    IMPLICIT NONE
 
+#ifdef OUTPUT_CHAN_CONN
+#ifdef MPP_LAND
+   include "mpif.h"  !! JLM: thought I could pick this up from module_mpp_land... but seems not
+#endif
+#endif
 
    integer, parameter :: r8 = selected_real_kind(8)
    real*8,  parameter :: zeroDbl=0.0000000000000000000_r8   
@@ -102,7 +99,9 @@ CONTAINS
 
 !DJG Allocate routing and disaggregation arrays
 
+#ifdef HYDRO_D
   write(6,*) "  rt_allocate ***** ixrt,jxrt, nsoil", ixrt,jxrt, nsoil
+#endif
 
   if(nlst_rt(did)%channel_only       .eq. 0 .and. & 
      nlst_rt(did)%channelBucket_only .eq. 0        ) then
@@ -299,10 +298,12 @@ CONTAINS
      allocate( rt_domain(did)%GCH_NETLNK (IXRT,JXRT) )
      rt_domain(did)%GCH_NETLNK = 0.0           
 
+#ifdef MPP_LAND
      allocate( rt_domain(did)%LAKE_INDEX(NLAKES) )
      rt_domain(did)%lake_index = -99
      allocate( rt_domain(did)%nlinks_INDEX(nsizes) )
      allocate( rt_domain(did)%Link_location(ixrt,jxrt) )
+#endif
 
      allocate( rt_domain(did)%CH_LNKRT_SL (IXRT,JXRT) )
      rt_domain(did)%CH_LNKRT_SL = -99         
@@ -324,7 +325,9 @@ CONTAINS
      allocate( rt_domain(did)%ORDER(nsizes) )
      allocate( rt_domain(did)%QLINK(nsizes,2) )
 
+#ifdef WRF_HYDRO_NUDGING
      allocate( rt_domain(did)%nudge(nsizes) )
+#endif
      allocate( rt_domain(did)%MUSK(nsizes) )
      allocate( rt_domain(did)%MUSX(nsizes) )
      allocate( rt_domain(did)%CHANLEN(nsizes) )
@@ -454,7 +457,9 @@ CONTAINS
       rt_domain(did)%QLAKEI = 0.0                     
       rt_domain(did)%QLAKEO = 0.0                     
       rt_domain(did)%QLINK = 0        
+#ifdef WRF_HYDRO_NUDGING
       rt_domain(did)%nudge = 0
+#endif
       rt_domain(did)%HLINK = 0.0        !--used for diffusion only
       rt_domain(did)%MannN = 0.0        
       rt_domain(did)%LINKID = 0.0        
@@ -470,7 +475,9 @@ CONTAINS
   rt_domain(did)%his_out_counts = 0
   rt_domain(did)%rst_counts = 1
 
+#ifdef HYDRO_D
   write(6,*) "***** finish rt_allocate "
+#endif
 
 end subroutine rt_allocate
 
@@ -529,27 +536,44 @@ allocate(CH_NETLNK(ixrt,jxrt))
 allocate(GCH_NETLNK(ixrt,jxrt)) 
 
 if (nlst_rt(did)%CHANRTSWCRT.eq.1 .or. nlst_rt(did)%CHANRTSWCRT .eq. 2) then  !IF/then for channel routing
+#ifdef MPP_LAND
    call MPP_READ_ROUTEDIM(did, rt_domain(did)%g_IXRT,rt_domain(did)%g_JXRT, &
                           GCH_NETLNK, rt_domain(did)%GNLINKS, &
+#else
+   call READ_ROUTEDIM( &
+#endif
               IXRT, JXRT, nlst_rt(did)%route_chan_f, nlst_rt(did)%route_link_f, &
               nlst_rt(did)%route_direction_f, &
               rt_domain(did)%NLINKS, &
               CH_NETLNK, nlst_rt(did)%channel_option, nlst_rt(did)%geo_finegrid_flnm, &
               rt_domain(did)%NLINKSL, nlst_rt(did)%udmp_opt , rt_domain(did)%nlakes)
+#ifndef MPP_LAND
+   call get_NLINKSL(rt_domain(did)%NLINKSL, nlst_rt(did)%channel_option, nlst_rt(did)%route_link_f)
+#endif
 
+#ifdef HYDRO_D
    write(6,*) "before rt_allocate after READ_ROUTEDIM"
+#endif
 
    if(nlst_rt(did)%channel_option .eq. 1 .or. nlst_rt(did)%channel_option .eq. 2) then
 
       rt_domain(did)%GNLINKSL = rt_domain(did)%NLINKSL
 
+#ifdef MPP_LAND        
       call ReachLS_ini(rt_domain(did)%GNLINKSL,rt_domain(did)%nlinksl,   & 
            rt_domain(did)%linklsS, rt_domain(did)%linklsE )
+#else
+      rt_domain(did)%linklsS = 1
+      rt_domain(did)%linklsE = rt_domain(did)%NLINKSL
+#endif
    else
       rt_domain(did)%GNLINKSL = 1
       rt_domain(did)%NLINKSL = 1
    endif
 
+#ifndef MPP_LAND
+   GCH_NETLNK = CH_NETLNK
+#endif
 
 endif
 
@@ -578,8 +602,13 @@ use module_noah_chan_param_init_rt
 use module_namelist, only:  nlst_rt
 use module_RT_data, only: rt_domain
 use module_gw_gw2d_data, only: gw2d
+#ifdef HYDRO_D
 use module_HYDRO_io, only: output_lake_types
+#endif
 
+#ifdef OUTPUT_CHAN_CONN
+use module_nudging_io,        only: output_chan_connectivity
+#endif
 
 implicit none 
 
@@ -598,6 +627,9 @@ integer :: i,j,k, ll, count
      integer, allocatable, dimension(:) :: buf
      real, allocatable, dimension(:) :: tmpRESHT
 
+#ifdef OUTPUT_CHAN_CONN
+real :: connCalcTimeStart, connCalcTimeEnd
+#endif
 !------------------------------------------------------------------------
 !DJG Routing Processing
 !------------------------------------------------------------------------
@@ -613,7 +645,9 @@ if (nlst_rt(did)%SUBRTSWCRT  .eq.1 .or. &
    if(nlst_rt(did)%channel_only       .eq. 0 .and. & 
       nlst_rt(did)%channelBucket_only .eq. 0        ) then
 
+#ifdef HYDRO_D
       print *, "Terrain routing initialization..."
+#endif
 
       call READ_ROUTING_seq  (  &
            rt_domain(did)%IXRT,rt_domain(did)%JXRT,rt_domain(did)%ELRT,rt_domain(did)%CH_NETRT, &
@@ -628,7 +662,11 @@ if (nlst_rt(did)%SUBRTSWCRT  .eq.1 .or. &
 
       if (nlst_rt(did)%CHANRTSWCRT.eq.1 .or. nlst_rt(did)%CHANRTSWCRT .eq. 2) then  !IF/then for channel routing
 
+#ifdef MPP_LAND
          call MPP_READ_CHROUTING_new(    &
+#else
+         call READ_CHROUTING1( &  !! NOT TESTED
+#endif
              rt_domain(did)%IXRT,         rt_domain(did)%JXRT,       &
              rt_domain(did)%ELRT,         rt_domain(did)%CH_NETRT,        &
              rt_domain(did)%CH_LNKRT,     rt_domain(did)%LAKE_MSKRT, & 
@@ -651,11 +689,13 @@ if (nlst_rt(did)%SUBRTSWCRT  .eq.1 .or. &
              rt_domain(did)%latval,       rt_domain(did)%lonval,          &
              rt_domain(did)%STRMFRXSTPTS, nlst_rt(did)%geo_finegrid_flnm, &
              nlst_rt(did)%route_lake_f, rt_domain(did)%LAKEIDM,nlst_rt(did)%UDMP_OPT   & !! no comma
+#ifdef MPP_LAND
              ,rt_domain(did)%g_IXRT,      rt_domain(did)%g_JXRT      &
              ,rt_domain(did)%gnlinks,     rt_domain(did)%GCH_NETLNK  &
              ,rt_domain(did)%map_l2g,     rt_domain(did)%link_location, &
              rt_domain(did)%yw_mpp_nlinks,rt_domain(did)%lake_index, &
              rt_domain(did)%nlinks_index &
+#endif
              )
          
       end if  !! CHANRTSWCRT 1 or 2
@@ -689,10 +729,37 @@ if (nlst_rt(did)%SUBRTSWCRT  .eq.1 .or. &
    end if
 
    !ADCHANGE: Add lake reach output
+#ifdef HYDRO_D
 if(nlst_rt(did)%UDMP_OPT .eq. 1) then
   call output_lake_types( rt_domain(did)%GNLINKSL, rt_domain(did)%LINKID, rt_domain(did)%TYPEL )
 endif
+#endif
 
+#ifdef OUTPUT_CHAN_CONN      
+#ifdef MPP_LAND
+   connCalcTimeEnd = MPI_Wtime()
+#else
+   call cpu_time(connCalcTimeEnd)
+#endif
+   if ((nlst_rt(did)%CHANRTSWCRT .eq. 1) .and. (nlst_rt(did)%channel_option .eq. 3)) then 
+      call output_chan_connectivity(       &
+           rt_domain(did)%CHLAT,     &   !! Channel grid lat
+           rt_domain(did)%CHLON,     &   !! Channel grid lat
+           rt_domain(did)%CHANLEN,   &   !! The distance between channel grid centers in m.
+           rt_domain(did)%FROM_NODE, &   !! Index of a given cell and ...
+           rt_domain(did)%TO_NODE,   &   !!   ... the index which it flows to.
+           rt_domain(did)%CHANXI,    &   !! Index on fine/routing 
+           rt_domain(did)%CHANYJ,    &   !!   grid of grid cells.
+           rt_domain(did)%TYPEL,     &   !! Link type
+           rt_domain(did)%LAKENODE   &   !! Lake indexing
+           )
+   end if
+   
+   !if(my_id .eq. io_id) &
+   print '("Time to calculate channel connectivity= ",f6.3," seconds.")', &
+        connCalcTimeEnd-connCalcTimeStart        
+   call exit(17)  !! bail if you're just calculating output connectivity.
+#endif 
 ! end OUTPUT_CHAN_CONN
 
 
@@ -707,8 +774,10 @@ endif
               rt_domain(did)%jxrt,     rt_domain(did)%CH_NETRT , &
               nlst_rt(did)%OVRTSWCRT,  nlst_rt(did)%SUBRTSWCRT,  &
               rt_domain(did)%dist(:,:,9)                         )
+#ifdef HYDRO_D
          write(6,*) "after UDMP_ini "
          call flush(6)
+#endif
       endif
 
    end if ! end not channel_only
@@ -716,6 +785,7 @@ endif
 
     if ( (nlst_rt(did)%CHANRTSWCRT .eq. 1) .and. &
          (nlst_rt(did)%channel_option .eq. 1 .or. nlst_rt(did)%channel_option .eq. 2) ) then
+#ifdef MPP_LAND
 
       if(nlst_rt(did)%UDMP_OPT .eq. 1) then
            ! NHDPLUS
@@ -748,8 +818,10 @@ endif
                 endif
            end do
    
+#ifdef HYDRO_D
            write(6,*) "LNLINKSL, NLINKS, GNLINKS =",rt_domain(did)%LNLINKSL,rt_domain(did)%NLINKSL,rt_domain(did)%GNLINKSL
            call flush(6)
+#endif
 
            allocate(rt_domain(did)%LLINKID(rt_domain(did)%LNLINKSL))
    
@@ -781,6 +853,18 @@ endif
             call getLocalIndx(rt_domain(did)%gnlinksl,rt_domain(did)%LINKID, rt_domain(did)%LLINKID)
 
            call getToInd(rt_domain(did)%LINKID,rt_domain(did)%to_node,rt_domain(did)%toNodeInd,rt_domain(did)%nToInd,rt_domain(did)%gtoNode)
+#else
+        do k = 1, rt_domain(did)%NLINKSL
+            do j = 1, rt_domain(did)%jxrt
+               do i = 1, rt_domain(did)%ixrt
+                         if(rt_domain(did)%CH_LNKRT(i,j) .eq. rt_domain(did)%LINKID(k) ) then
+                            rt_domain(did)%CH_LNKRT_SL(i,j) = k   !! mapping
+                         endif
+               end do 
+            end do
+        end do
+
+#endif
 
 !!$        ! use gage information in RouteLink like strmfrxstpts
 !!$        rt_domain(did)%STRMFRXSTPTS = -9999  !! existing info useless for link-based routing
@@ -935,13 +1019,21 @@ if(nlst_rt(did)%channel_only       .eq. 0 .and. &
    rt_domain(did)%RETDEPRT = min(rt_domain(did)%RETDEPRT, 1.0)  
  
    ! calculate the slope for boundary        
+#ifdef MPP_LAND
    if(right_id .lt. 0) rt_domain(did)%SOXRT(rt_domain(did)%IXRT,:)= &
         rt_domain(did)%SOXRT(rt_domain(did)%IXRT-1,:)
    if(left_id  .lt. 0) rt_domain(did)%SOXRT(1,:)=rt_domain(did)%SOXRT(2,:)
    if(up_id    .lt. 0) rt_domain(did)%SOYRT(:,rt_domain(did)%JXRT)= &
         rt_domain(did)%SOYRT(:,rt_domain(did)%JXRT-1)
    if(down_id  .lt. 0) rt_domain(did)%SOYRT(:,1)=rt_domain(did)%SOYRT(:,2)
+#else
+   rt_domain(did)%SOXRT(rt_domain(did)%IXRT,:)=rt_domain(did)%SOXRT(rt_domain(did)%IXRT-1,:)
+   rt_domain(did)%SOXRT(1,:)=rt_domain(did)%SOXRT(2,:)
+   rt_domain(did)%SOYRT(:,rt_domain(did)%JXRT)=rt_domain(did)%SOYRT(:,rt_domain(did)%JXRT-1)
+   rt_domain(did)%SOYRT(:,1)=rt_domain(did)%SOYRT(:,2)
+#endif
    
+#ifdef MPP_LAND
    ! communicate the value to 
    call MPP_LAND_COM_REAL(rt_domain(did)%RETDEPRT,rt_domain(did)%IXRT,rt_domain(did)%JXRT,99)
    call MPP_LAND_COM_REAL(rt_domain(did)%SOXRT,rt_domain(did)%IXRT,rt_domain(did)%JXRT,99)
@@ -952,6 +1044,7 @@ if(nlst_rt(did)%channel_only       .eq. 0 .and. &
    do i = 1, 3
       call MPP_LAND_COM_INTEGER(rt_domain(did)%SO8RT_D(:,:,i),rt_domain(did)%IXRT,rt_domain(did)%JXRT,99)
    end do
+#endif
    
 end if ! end of neither channel_only nor channelBucket_only
    
@@ -997,8 +1090,10 @@ if(nlst_rt(did)%UDMP_OPT .eq. 1) then
       !for UDMP=1 so we convert units.
       rt_domain(did)%z_gwsubbas = rt_domain(did)%z_gwsubbas/1000.     
 
+#ifdef HYDRO_D
       write(6,*) "finish readBucket_nhd "
       call flush(6)
+#endif
    endif
 
 else
@@ -1008,8 +1103,14 @@ else
    !----------------------------------------------------------------------
    if (nlst_rt(did)%GWBASESWCRT.ge.1) then
       if (nlst_rt(did)%GWBASESWCRT.eq.1.or.nlst_rt(did)%GWBASESWCRT.eq.2) then
+#ifdef HYDRO_D
          print *, "new Simple GW-Bucket Scheme selected, retrieving files..."
+#endif
+#ifdef MPP_LAND
          call MPP_READ_SIMP_GW(              &
+#else
+         call READ_SIMP_GW(                  &
+#endif
          rt_domain(did)%IX,rt_domain(did)%JX,rt_domain(did)%IXRT,&
          rt_domain(did)%JXRT,rt_domain(did)%GWSUBBASMSK,nlst_rt(did)%gwbasmskfil,&
          rt_domain(did)%gw_strm_msk,rt_domain(did)%numbasns,rt_domain(did)%ch_netrt,nlst_rt(did)%AGGFACTRT)
@@ -1018,9 +1119,13 @@ else
          call SIMP_GW_IND(rt_domain(did)%ix,rt_domain(did)%jx,rt_domain(did)%GWSUBBASMSK,  &
               rt_domain(did)%numbasns,rt_domain(did)%gnumbasns,rt_domain(did)%basnsInd)
          
+#ifdef HYDRO_D            
          write(6,*) "rt_domain(did)%gnumbasns, rt_domain(did)%numbasns, ", rt_domain(did)%gnumbasns , rt_domain(did)%numbasns
 
+#endif
+#ifdef MPP_LAND
          call collectSizeInd(rt_domain(did)%numbasns)
+#endif
 
          call get_gw_strm_msk_lind (rt_domain(did)%IXRT, rt_domain(did)%JXRT, rt_domain(did)%gw_strm_msk,&
               rt_domain(did)%numbasns,rt_domain(did)%basnsInd,rt_domain(did)%gw_strm_msk_lind)
@@ -1037,8 +1142,10 @@ else
          allocate (rt_domain(did)%z_max (rt_domain(did)%numbasns))
          allocate (rt_domain(did)%basns_area (rt_domain(did)%numbasns))
 
+#ifdef HYDRO_D
          write(6,*)  "end Simple GW-Bucket ..."
          print *, "Simple GW-Bucket Scheme selected, retrieving files..."
+#endif
      
 !Temporary hardwire...
          rt_domain(did)%z_gwsubbas = 1.     ! This gets updated with spun-up GW level in GWBUCKPARM.TBL
@@ -1050,10 +1157,28 @@ else
 
 
 !!! Determine number of stream pixels per GW basin for distribution...
+#ifdef MPP_LAND
          call pix_ct_1(rt_domain(did)%gw_strm_msk,rt_domain(did)%ixrt,rt_domain(did)%jxrt,rt_domain(did)%gwbas_pix_ct,rt_domain(did)%numbasns, &
               rt_domain(did)%gnumbasns,rt_domain(did)%basnsInd)
+#else
+         rt_domain(did)%gwbas_pix_ct = 0.
+         !         do k = 1, rt_domain(did)%numbasns
+         !            bas = rt_domain(did)%basnsInd(k)
+         do i=1,rt_domain(did)%ixrt
+            do j=1,rt_domain(did)%jxrt
+               if (rt_domain(did)%gw_strm_msk(i,j).gt.0) then
+                  bas = rt_domain(did)%gw_strm_msk(i,j)
+                  rt_domain(did)%gwbas_pix_ct(bas) = & 
+                       rt_domain(did)%gwbas_pix_ct(bas)  + 1.0
+               endif
+            end do
+         end do
+         !         end do
+#endif
 
+#ifdef HYDRO_D
          print *, "Starting GW basin levels...",rt_domain(did)%z_gwsubbas
+#endif
       
          ! BF gw2d model
       elseif (nlst_rt(did)%GWBASESWCRT.ge.3) then
@@ -1087,20 +1212,30 @@ if (nlst_rt(did)%CHANRTSWCRT.eq.1 .or. nlst_rt(did)%CHANRTSWCRT .eq. 2) then
    !--------------------------------------------------------------------
    
    if (nlst_rt(did)%channel_option .eq. 3) then
+#ifdef MPP_LAND
       call mpp_CHAN_PARM_INIT (BOTWID,HLINK_INIT,CHAN_SS,CHMann)  !Read chan parms from table...
+#else
+      call CHAN_PARM_INIT (BOTWID,HLINK_INIT,CHAN_SS,CHMann)  !Read chan parms from table...
+#endif
    end if
 
    if (nlst_rt(did)%channel_option .ne. 3) then
 
+#ifdef MPP_LAND
         if(my_id .eq. io_id) then
+#endif
            allocate(tmpRESHT(rt_domain(did)%nlakes))
            tmpRESHT = rt_domain(did)%RESHT
+#ifdef MPP_LAND
         endif
+#endif
 
+#ifdef MPP_LAND
         call updateLake_seq(rt_domain(did)%RESHT, rt_domain(did)%NLAKES,tmpRESHT)
         if(my_id .eq. io_id) then 
             if(allocated(tmpRESHT)) deallocate(tmpRESHT)
         endif
+#endif
 
    else       !-- parameterize according to order of diffusion scheme, or if read from hi res file, use its value
                 !--  put condition within the if/then structure, which will assign a value if something is missing in hi res

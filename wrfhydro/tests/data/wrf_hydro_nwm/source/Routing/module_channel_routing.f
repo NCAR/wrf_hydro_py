@@ -1,16 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
 !  Program Name:
 !  Author(s)/Contact(s):
 !  Abstract:
@@ -32,10 +19,12 @@
 !  User controllable options: <if applicable>
 
 MODULE module_channel_routing
+#ifdef MPP_LAND
 use module_mpp_land
 use MODULE_mpp_ReachLS, only : updatelinkv,                   & 
                                ReachLS_write_io, gbcastvalue, &
                                gbcastreal2,      linkls_s
+#endif
 implicit none
 
 contains
@@ -323,7 +312,9 @@ endif
 
 !modifieed by Wei Yu for false geography data
 if(abs(z1-z2) .gt. 1.0E5) then
+#ifdef HYDRO_D
    print*, "WARNING: huge slope rest to 0 for channel grid.", z1,z2
+#endif
    Sf = ((h1-h2))/dx  !-- compute the friction slope
 else
    Sf = ((z1-z2)+(h1-h2))/dx  !-- compute the friction slope
@@ -354,7 +345,9 @@ end function DIFFUSION
 
 subroutine SUBMUSKINGCUNGE(qdc,vel,idx,qup,quc,qdp,ql,dt,So,dx,n,Cs,Bw)
 
+#ifdef HYDRO_D
 use module_RT_data, only: rt_domain  !! JLM: this is only used in a c3 paramter diagnostic print
+#endif
 
         IMPLICIT NONE
 
@@ -589,6 +582,7 @@ use module_RT_data, only: rt_domain  !! JLM: this is only used in a c3 paramter 
          endif
       endif
 
+#ifdef HYDRO_D
       !! Getting information on c3.
       !if(rt_domain(1)%gages(idx + linkls_s(my_id+1) - 1) .ne. rt_domain(1)%gageMiss) then
       !   print*, rt_domain(1)%gages(idx+linkls_s(my_id+1)-1)
@@ -596,6 +590,7 @@ use module_RT_data, only: rt_domain  !! JLM: this is only used in a c3 paramter 
 !        print*, rt_domain(1)%gages(idx)
 !        print*,'JLM submuskcunge idx, C3, C, D:', idx + linkls_s(my_id+1) - 1, C3, dt/(2*Km), X
 !     end if
+#endif
       
 !yw added for test
       if(((C1*qup)+(C2*quc)+(C3*qdp) + C4) .lt. 0.0) then
@@ -647,9 +642,11 @@ END SUBROUTINE SUBMUSKINGCUNGE
        ORIFICEE, ZELEV, CVOL, NLAKES, QLAKEI, QLAKEO, LAKENODE, &
        dist, QINFLOWBASE, CHANXI, CHANYJ, channel_option, RETDEP_CHAN, &
        NLINKSL, LINKID, node_area  &
+#ifdef MPP_LAND 
        , lake_index,link_location,mpp_nlinks,nlinks_index,yw_mpp_nlinks  &
        , LNLINKSL, LLINKID  &
        , gtoNode,toNodeInd,nToNodeInd &
+#endif
        , CH_LNKRT_SL &
        ,gwBaseSwCRT, gwHead, qgw_chanrt, gwChanCondSw, gwChanCondConstIn, &
        gwChanCondConstOut,velocity)
@@ -747,6 +744,7 @@ END SUBROUTINE SUBMUSKINGCUNGE
         real, DIMENSION(IXRT,JXRT)  :: tmp
         real, dimension(nlinks)     :: tmp2
 
+#ifdef MPP_LAND
         integer lake_index(nlakes)
         integer nlinks_index(nlinks)
         integer mpp_nlinks, iyw, yw_mpp_nlinks
@@ -760,6 +758,9 @@ END SUBROUTINE SUBMUSKINGCUNGE
         integer, dimension(:,:) ::  gtoNode
         integer  :: nToNodeInd
         real, dimension(nToNodeInd,2) :: gQLINK
+#else
+        real*8, dimension(NLINKS)                   :: LQLateral !--lateral flow
+#endif
         integer flag
 
         integer :: n, kk2, nt, nsteps  ! tmp 
@@ -785,6 +786,7 @@ END SUBROUTINE SUBMUSKINGCUNGE
 
          nsteps = (DT+0.5)/DTRT_CH
 
+#ifdef MPP_LAND
          LQLateral = 0          !-- initial lateral flow to 0 for this reach
          DO iyw = 1,yw_MPP_NLINKS
          jj = nlinks_index(iyw)
@@ -810,6 +812,26 @@ END SUBROUTINE SUBMUSKINGCUNGE
 !   assign LQLATERAL to QLATERAL
        call updateLinkV(LQLateral, QLateral(1:NLINKSL))
 
+#else
+
+         LQLateral = 0          !-- initial lateral flow to 0 for this reach
+         do jj = 1, NLINKS
+          !--------river grid points, convert depth in mm to rate across reach in m^3/sec
+
+                  if (CH_LNKRT_SL(CHANXI(jj),CHANYJ(jj)) .gt. 0 ) then
+                     k = CH_LNKRT_SL(CHANXI(jj),CHANYJ(jj))
+                     LQLateral(k) = LQLateral(k)+((QSTRMVOLRT(CHANXI(jj),CHANYJ(jj))+QINFLOWBASE(CHANXI(jj),CHANYJ(jj)))/1000 & 
+                            *node_area(jj)/DT)
+                  elseif ( (LAKE_MSKRT(CHANXI(jj),CHANYJ(jj)) .gt. 0)) then !-lake grid
+                      k = LAKE_MSKRT(CHANXI(jj),CHANYJ(jj))
+                      LQLateral(k) = LQLateral(k) +((LAKEINFLORT(CHANXI(jj),CHANYJ(jj))+QINFLOWBASE(CHANXI(jj),CHANYJ(jj)))/1000 &
+                               *node_area(jj)/DT)
+                  endif   
+
+          end do  ! jj
+          QLateral = LQLateral
+
+#endif
 
 !       QLateral = QLateral / nsteps
 
@@ -842,9 +864,11 @@ END SUBROUTINE SUBMUSKINGCUNGE
 !          endif
 !       end do
 
+#ifdef MPP_LAND
        gQLINK = 0
        call gbcastReal2(toNodeInd,nToNodeInd,QLINK(1:NLINKSL,2), NLINKSL, gQLINK(:,2))
        call gbcastReal2(toNodeInd,nToNodeInd,QLINK(1:NLINKSL,1), NLINKSL, gQLINK(:,1))
+#endif
 
       !---------- route other reaches, with upstream inflow
        tmpQlink = 0
@@ -853,6 +877,7 @@ END SUBROUTINE SUBMUSKINGCUNGE
              Quc  = 0
              Qup  = 0
 
+#ifdef MPP_LAND
 !using mapping index
                do n = 1, gtoNODE(k,1)
                   m = gtoNODE(k,n+1)
@@ -868,6 +893,14 @@ END SUBROUTINE SUBMUSKINGCUNGE
 !yw                  endif
                 end do ! do i
 
+#else
+               do m = 1, NLINKSL
+                  if (LINKID(k) .eq. TO_NODE(m)) then
+                    Quc = Quc + QLINK(m,2)  !--accum of upstream inflow of current timestep (2)
+                    Qup = Qup + QLINK(m,1)  !--accum of upstream inflow of previous timestep (1)
+                  endif
+               end do ! do m
+#endif
                    
                 if(TYPEL(k) .eq. 1) then   !--link is a reservoir
 
@@ -905,14 +938,18 @@ END SUBROUTINE SUBMUSKINGCUNGE
 
    end do  ! nsteps
 
+#ifdef HYDRO_D
           print *, "END OF ROUTE TIME...",KRT,DT_STEPS
+#endif
 
 !    END DO !-- krt timestep for muksingumcunge routing
 
    elseif(channel_option .eq. 3) then   !--- route using the diffusion scheme on nodes not links
 
+#ifdef MPP_LAND
          call MPP_CHANNEL_COM_REAL(Link_location,ixrt,jxrt,HLINK,NLINKS,99)
          call MPP_CHANNEL_COM_REAL(Link_location,ixrt,jxrt,CVOL,NLINKS,99)
+#endif
 
          KRT = 0                  !-- initialize the time counter
          minDTCT = 0.01           ! define minimum routing sub-timestep (s), simulation will end with smaller timestep
@@ -944,8 +981,12 @@ END SUBROUTINE SUBMUSKINGCUNGE
 
 !-- vectorize
 !--------------------- 
+#ifdef MPP_LAND
          DO iyw = 1,yw_MPP_NLINKS
          i = nlinks_index(iyw)
+#else
+         DO i = 1,NLINKS
+#endif
           
            if(node_area(i) .eq. 0) then
                write(6,*) "FATAL ERROR: node_area(i) is zero. i=", i
@@ -1010,12 +1051,14 @@ gwOption:   if(gwBaseSwCRT == 3) then
                  QINFLOWBASE(CHANXI(i),CHANYJ(i))) &
                    /DT_STEPS*node_area(i)/1000/DTCT)
 	       if((QLateral(CH_NETLNK(CHANXI(i),CHANYJ(i))).lt.0.) .and. (gwChanCondSw == 0)) then
+#ifdef HYDRO_D
                print*, "i, CHANXI(i),CHANYJ(i) = ", i, CHANXI(i),CHANYJ(i)
                print *, "NEGATIVE Lat inflow...",QLateral(CH_NETLNK(CHANXI(i),CHANYJ(i))), &
                          QSUBRT(CHANXI(i),CHANYJ(i)),QSTRMVOLRT(CHANXI(i),CHANYJ(i)), &
                          QINFLOWBASE(CHANXI(i),CHANYJ(i))
+#endif
                elseif (QLateral(CH_NETLNK(CHANXI(i),CHANYJ(i))) .gt. 1.0) then
-!#ifdef 1
+!#ifdef HYDRO_D
 !               print *, "LatIn(Ql,Qsub,Qstrmvol)..",i,QLateral(CH_NETLNK(CHANXI(i),CHANYJ(i))), &
 !                          QSUBRT(CHANXI(i),CHANYJ(i)),QSTRMVOLRT(CHANXI(i),CHANYJ(i))
 !#endif
@@ -1036,19 +1079,25 @@ gwOption:   if(gwBaseSwCRT == 3) then
         ENDDO
 
 
+#ifdef MPP_LAND
     call MPP_CHANNEL_COM_REAL(Link_location,ixrt,jxrt,QLateral,NLINKS,99)
     if(NLAKES .gt. 0) then
        !yw call MPP_CHANNEL_COM_REAL(LAKE_MSKRT   ,ixrt,jxrt,QLLAKE,NLAKES,99)
        call sum_real8(QLLAKE8,NLAKES)
        QLLAKE = QLLAKE8
     endif
+#endif
 
           !-- compute conveyances, with known depths (just assign to QLINK(,1)
           !--QLINK(,2) will not be used), QLINK is the flow across the node face
           !-- units should be m3/second.. consistent with QL (lateral flow)
 
+#ifdef MPP_LAND
          DO iyw = 1,yw_MPP_NLINKS
          i = nlinks_index(iyw)
+#else
+           DO i = 1,NLINKS
+#endif
            if (TYPEL(i) .eq. 0 .AND. HLINKTMP(FROM_NODE(i)) .gt. RETDEP_CHAN) then 
                if(from_node(i) .ne. to_node(i) .and. (to_node(i) .gt. 0) .and.(from_node(i) .gt. 0) ) &  ! added by Wei Yu
                    QLINK(i,1)=DIFFUSION(i,ZELEV(FROM_NODE(i)),ZELEV(TO_NODE(i)), &
@@ -1059,37 +1108,56 @@ gwOption:   if(gwBaseSwCRT == 3) then
             endif
           ENDDO
 
+#ifdef MPP_LAND
     call MPP_CHANNEL_COM_REAL(Link_location,ixrt,jxrt,QLINK(:,1),NLINKS,99)
+#endif
  
 
           !-- compute total flow across face, into node
+#ifdef MPP_LAND
          DO iyw = 1,yw_mpp_nlinks
          i = nlinks_index(iyw)
+#else
+          DO i = 1,NLINKS                                                 !-- inflow to node across each face
+#endif
            if(TYPEL(i) .eq. 0) then                                       !-- only regular nodes have to attribute
               QSUM8(TO_NODE(i)) = QSUM8(TO_NODE(i)) + QLINK(i,1)
            endif
           END DO
 
+#ifdef MPP_LAND
     call MPP_CHANNEL_COM_REAL8(Link_location,ixrt,jxrt,qsum8,NLINKS,0)
+#endif
     qsum = qsum8
 
 
 
+#ifdef MPP_LAND
          do iyw = 1,yw_mpp_nlinks
          i = nlinks_index(iyw)
+#else
+         do i = 1,NLINKS                                                 !-- outflow from node across each face
+#endif
             QSUM(FROM_NODE(i)) = QSUM(FROM_NODE(i)) - QLINK(i,1)
          end do
+#ifdef MPP_LAND
     call MPP_CHANNEL_COM_REAL(Link_location,ixrt,jxrt,qsum,NLINKS,99)
+#endif
 
 
          flag = 99
 
 
+#ifdef MPP_LAND
          do iyw = 1,yw_MPP_NLINKS
              i = nlinks_index(iyw)
+#else
+         do i = 1, NLINKS                                                !--- compute volume and depth at each node
+#endif
  
            if( TYPEL(i).eq.0 .and. CVOLTMP(i) .ge. 0.001 .and.(CVOLTMP(i)-QSUM(i)*DTCT)/CVOLTMP(i) .le. -0.01 ) then  
             flag = -99
+#ifdef HYDRO_D
             write(6,*) "******* start diag ***************"
             write(6,*) "Unstable at node ",i, "i=",CHANXI(i),"j=",CHANYJ(i)
             write(6,*) "Unstatble at node ",i, "lat=",latval(CHANXI(i),CHANYJ(i)), "lon=",lonval(CHANXI(i),CHANYJ(i))
@@ -1103,13 +1171,16 @@ gwOption:   if(gwBaseSwCRT == 3) then
 !           endif
                write(6,*) "CHANLEN(i), MannN(i), Bw(i), ChSSlp(i) ", CHANLEN(i), MannN(i), Bw(i), ChSSlp(i)
             write(6,*) "*******end of  diag ***************"
+#endif
             
             goto 999  
             endif 
           enddo 
 
 999 continue
+#ifdef MPP_LAND
         call mpp_same_int1(flag)
+#endif
 
 
         if(flag < 0  .and. DTCT >0.1)   then   
@@ -1135,14 +1206,20 @@ gwOption:   if(gwBaseSwCRT == 3) then
 998 continue
 
 
+#ifdef MPP_LAND
         do iyw = 1,yw_MPP_NLINKS
             i = nlinks_index(iyw)
+#else
+        do i = 1, NLINKS                                                !--- compute volume and depth at each node
+#endif
  
            if(TYPEL(i) .eq. 0) then                   !--  regular channel grid point, compute volume
               CVOLTMP(i) = CVOLTMP(i) + (QSUM(i) + QLateral(i) )* DTCT
               if((CVOLTMP(i) .lt. 0) .and. (gwChanCondSw == 0)) then 
+#ifdef HYDRO_D
                 print *, "WARNING! channel volume less than 0:i,CVOL,QSUM,QLat", &
                                i, CVOLTMP(i),QSUM(i),QLateral(i),HLINK(i)
+#endif
                 CVOLTMP(i) =0 
               endif
 
@@ -1162,7 +1239,9 @@ gwOption:   if(gwBaseSwCRT == 3) then
                        CD(i),CHANLEN(i), MannN(i), Bw(i), ChSSlp(i)) ) * DTCT
           elseif (TYPEL(i) .eq. 2) then              !--- into a reservoir, assume critical depth
               if ((QSUM(i)+QLateral(i) .lt. 0) .and. (gwChanCondSw == 0)) then
+#ifdef HYDRO_D
                print *, i, 'CrtDpth Qsum+QLat into lake< 0',QSUM(i), QLateral(i)
+#endif
              else
 !DJG remove to have const. flux b.c....    CD(i) =CRITICALDEPTH(i,abs(QSUM(i)+QLateral(i)), Bw(i), 1./ChSSlp(i))
                CD(i) = HLINKTMP(i)  !This is a temp hardwire for flow depth for the pour point...
@@ -1191,6 +1270,7 @@ gwOption:   if(gwBaseSwCRT == 3) then
 
         END DO  !--- done processing all the links
 
+#ifdef MPP_LAND
     call MPP_CHANNEL_COM_REAL(Link_location,ixrt,jxrt,CVOLTMP,NLINKS,99)
     call MPP_CHANNEL_COM_REAL(Link_location,ixrt,jxrt,CD,NLINKS,99)
     if(NLAKES .gt. 0) then
@@ -1199,20 +1279,26 @@ gwOption:   if(gwBaseSwCRT == 3) then
         QLAKEI = QLAKEI8
     endif
     call MPP_CHANNEL_COM_REAL(Link_location,ixrt,jxrt,HLINKTMP,NLINKS,99)
+#endif 
 !   call check_channel(83,CVOLTMP,1,nlinks)
 !   call check_channel(84,CD,1,nlinks)
 !   call check_channel(85,HLINKTMP,1,nlinks)
 !   call check_lake(86,QLAKEI,lake_index,nlakes)
 
            do i = 1, NLAKES !-- mass balances of lakes
+#ifdef MPP_LAND
             if(lake_index(i) .gt. 0)  then
+#endif
               CALL LEVELPOOL(i,QLAKEIP(i), QLAKEI(i), QLAKEO(i), QLLAKE(i), &
                 DTCT, RESHT(i), HRZAREA(i), WEIRH(i), LAKEMAXH(i), WEIRC(i), &
                 WEIRL(i), ORIFICEE(i), ORIFICEC(i), ORIFICEA(i))
                 QLAKEIP(i) = QLAKEI(i)  !-- store total lake inflow for this timestep
 
+#ifdef MPP_LAND
             endif
+#endif
            enddo
+#ifdef MPP_LAND
     if(NLAKES .gt. 0) then
 !yw       call MPP_CHANNEL_COM_REAL(LAKE_MSKRT,ixrt,jxrt,QLLAKE,NLAKES,99)
 !yw       call MPP_CHANNEL_COM_REAL(LAKE_MSKRT,ixrt,jxrt,RESHT,NLAKES,99)
@@ -1225,10 +1311,15 @@ gwOption:   if(gwBaseSwCRT == 3) then
          call updateLake_grid(QLLAKE, nlakes,lake_index)
          call updateLake_grid(QLAKEIP,nlakes,lake_index)
     endif
+#endif
 
 
+#ifdef MPP_LAND
          do iyw = 1,yw_MPP_NLINKS
             i = nlinks_index(iyw)
+#else
+         do i = 1, NLINKS                                                !--- compute volume and depth at each node
+#endif
             if(TYPEL(i) == 0) then !-- regular channel node, finalize head and flow
                    QLINK(i,1)=DIFFUSION(i,ZELEV(FROM_NODE(i)),ZELEV(TO_NODE(i)), &
                       HLINKTMP(FROM_NODE(i)),HLINKTMP(TO_NODE(i)), &
@@ -1236,7 +1327,9 @@ gwOption:   if(gwBaseSwCRT == 3) then
             endif
          enddo
 
+#ifdef MPP_LAND
           call MPP_CHANNEL_COM_REAL(Link_location,ixrt,jxrt,QLINK(:,1),NLINKS,99)
+#endif
 
            KRT = KRT + 1                     !-- iterate on the timestep
            if(KRT .eq. DT_STEPS) exit crnt   !-- up to the maximum time in interval
@@ -1250,7 +1343,9 @@ gwOption:   if(gwBaseSwCRT == 3) then
          call hydro_stop("In drive_CHANNEL() - no channel option selected") 
         endif
 
+#ifdef HYDRO_D
          write(6,*) "finished call drive_CHANNEL"
+#endif
 
         if (KT .eq. 1) KT = KT + 1
          
@@ -1339,7 +1434,9 @@ end subroutine drive_CHANNEL
      R = ((Bw+z*h1)*h1)/(Bw+2*h1*sqrt(1+z*z)) !-- Hyd Radius
      AREA = (Bw+z*h1)*h1        !-- Flow area
      Kd = (1/n)*(R**(2./3.))*AREA     !-- convenyance
+#ifdef HYDRO_D
      print *,"head, kd",  h1,Kd
+#endif
      MANNING = Kd
      
      END FUNCTION MANNING
@@ -1360,12 +1457,14 @@ end subroutine drive_CHANNEL
 
      if(CDf(Q,BW,hl,z)*CDf(Q,BW,hu,z) .gt. 0) then
       if(Q .gt. 0.001) then
+#ifdef HYDRO_D
         print *, "interval won't work to find CD of lnk ", lnk
         print *, "Q, hl, hu", Q, hl, hu
         print *, "cd lwr, upr", CDf(Q,BW,hl,z), CDf(Q,BW,hu,z)
         ! call hydro_stop("In CRITICALDEPTH()") 
         CRITICALDEPTH = -9999
         return
+#endif
       else
         Q = 0.0
       endif
@@ -1478,7 +1577,9 @@ end subroutine drive_CHANNEL
          implicit none 
          integer :: unit,nlakes,i,lake_index(nlakes)
          real cd(nlakes)
+#ifdef MPP_LAND
          call write_lake_real(cd,lake_index,nlakes)
+#endif
          write(unit,*) cd
           call flush(unit)
          return
@@ -1486,16 +1587,22 @@ end subroutine drive_CHANNEL
 
     subroutine check_channel(unit,cd,did,nlinks)
          use module_RT_data, only: rt_domain
+#ifdef MPP_LAND
   USE module_mpp_land
+#endif
          implicit none 
          integer :: unit,nlinks,i, did
          real cd(nlinks)
+#ifdef MPP_LAND
          real g_cd(rt_domain(did)%gnlinks)
          call write_chanel_real(cd,rt_domain(did)%map_l2g,rt_domain(did)%gnlinks,nlinks,g_cd)
          if(my_id .eq. IO_id) then
             write(unit,*) "rt_domain(did)%gnlinks = ",rt_domain(did)%gnlinks
            write(unit,*) g_cd
          endif
+#else
+           write(unit,*) cd
+#endif
           call flush(unit)
           close(unit)
          return
@@ -1548,11 +1655,15 @@ end subroutine drive_CHANNEL
         QINFLOWBASE, CHANXI, CHANYJ, channel_option,  &
         nlinks,NLINKSL, LINKID, node_area, qout_gwsubbas, &
         LAKEIDA, LAKEIDM, NLAKES, LAKEIDX, &
+#ifdef MPP_LAND 
         nlinks_index,mpp_nlinks,yw_mpp_nlinks, &
         LNLINKSL, &
         gtoNode,toNodeInd,nToNodeInd,   &
+#endif
          CH_LNKRT_SL, landRunOff  & 
+#ifdef WRF_HYDRO_NUDGING
        , nudge &
+#endif
        , accSfcLatRunoff, accBucket                  &
        , qSfcLatRunoff,     qBucket                  &
        , QLateral, velocity &
@@ -1561,11 +1672,13 @@ end subroutine drive_CHANNEL
        use module_UDMAP, only: LNUMRSL, LUDRSL
        use module_namelist, only:  nlst_rt 
 
+#ifdef WRF_HYDRO_NUDGING
        use module_RT_data, only: rt_domain
        use module_stream_nudging,  only: setup_stream_nudging,               & 
                                          nudge_term_all,                     &
                                          nudgeWAdvance,                      &
                                          nudge_apply_upstream_muskingumCunge
+#endif 
 
 
        implicit none
@@ -1593,8 +1706,10 @@ end subroutine drive_CHANNEL
        real, intent(IN), dimension(:)        :: ChSSlp,Bw  !--properties of nodes or links
        real                                      :: Km, X
        real , intent(INOUT), dimension(:,:)  :: QLINK
+#ifdef WRF_HYDRO_NUDGING
        !! inout for applying previous nudge to upstream components of flow at gages
        real, intent(inout),    dimension(:)    :: nudge
+#endif
 
        real, dimension(:), intent(inout)     :: QLateral !--lateral flow
        real, dimension(:), intent(out)       :: velocity
@@ -1651,6 +1766,7 @@ end subroutine drive_CHANNEL
        real, dimension(nlinks)                          :: tmp2
        real, intent(INOUT), dimension(:)           :: CVOL
        
+#ifdef MPP_LAND
        real*8,  dimension(LNLINKSL) :: LQLateral
        real*8,  dimension(LNLINKSL) :: tmpLQLateral
        real,  dimension(NLINKSL)    :: tmpQLateral
@@ -1663,6 +1779,11 @@ end subroutine drive_CHANNEL
        integer, dimension(:,:)       ::  gtoNode
        integer  :: nToNodeInd
        real, dimension(nToNodeInd,2) :: gQLINK
+#else
+       real*8,  dimension(NLINKS) :: tmpLQLateral
+       real,  dimension(NLINKSL) :: tmpQLateral
+       real,  dimension(NLINKSL) :: LQLateral
+#endif
        integer flag
        integer, intent(in) :: channel_only, channelBucket_only
        
@@ -1670,11 +1791,15 @@ end subroutine drive_CHANNEL
        real, intent(in), dimension(:) :: qout_gwsubbas
        real, allocatable,dimension(:) :: tmpQLAKEO, tmpQLAKEI, tmpRESHT
        
+#ifdef MPP_LAND
        if(my_id .eq. io_id) then
+#endif
             allocate(tmpQLAKEO(NLAKES))
             allocate(tmpQLAKEI(NLAKES))
             allocate(tmpRESHT(NLAKES))
+#ifdef MPP_LAND
         endif
+#endif
 
         QLAKEIP = 0
         CD = 0  
@@ -1684,15 +1809,19 @@ end subroutine drive_CHANNEL
         dzGwChanHead = 0.
         nsteps = (DT+0.5)/DTRT_CH
 
+#ifdef WRF_HYDRO_NUDGING
          !! Initialize nudging for the current timestep.
          !! This establishes the data structure used to solve the nudges. 
          call setup_stream_nudging(0)  !! always zero b/c at beginning of hydro timestep
+#endif /* WRF_HYDRO_NUDGING */
 
 
 !---------------------------------------------
 if(channel_only .eq. 1 .or. channelBucket_only .eq. 1) then
+#ifdef HYDRO_D
    write(6,*), "channel_only or channelBucket_only is not zero. Special flux calculations."
    call flush(6)
+#endif /* HYDRO_D */
    
 !   if(nlst_rt(1)%output_channelBucket_influx .eq. 1 .or. &
 !        nlst_rt(1)%output_channelBucket_influx .eq. 2       ) &
@@ -1737,7 +1866,9 @@ else
          end do
       end do
 
+#ifdef MPP_LAND
       call updateLinkV(tmpLQLateral, tmpQLateral)
+#endif
       if(NLINKSL .gt. 0) then
          if (nlst_rt(1)%output_channelBucket_influx .eq. 1 .or. &
              nlst_rt(1)%output_channelBucket_influx .eq. 2      ) &
@@ -1767,7 +1898,9 @@ else
          end do
       end do
 
+#ifdef MPP_LAND
       call updateLinkV(tmpLQLateral, tmpQLateral)
+#endif
 
       !! JLM:: again why output in this conditional ?? why not just output QLateral
       !! after this section ????
@@ -1781,15 +1914,22 @@ else
 
    endif
 
+#ifdef MPP_LAND
    call updateLinkV(LQLateral, QLateral(1:NLINKSL))
+#else
+   call hydro_stop("fatal error: NHDPlus only works for parallel now.")
+   QLateral = LQLateral
+#endif
 endif !! (channel_only .eq. 1 .or. channelBucket_only .eq. 1) then; else; endif
 
 
 !---------------------------------------------
 !! If not running channelOnly, here is where the bucket model is picked up
 if(channel_only .eq. 1) then
+#ifdef HYDRO_D
    write(6,*), "channel_only is not zero. No bucket."
    call flush(6)
+#endif /* HYDRO_D */
 else
    !! REQUIRE BUCKET MODEL ON HERE?
    if(NLINKSL .gt. 0) QLateral(1:NLINKSL) = QLateral(1:NLINKSL) + qout_gwsubbas(1:NLINKSL)
@@ -1807,17 +1947,23 @@ if(nlst_rt(1)%output_channelBucket_influx .eq. 3) &
 !       QLateral = QLateral / nsteps
 do nt = 1, nsteps
    
+#ifdef MPP_LAND
    gQLINK = 0
    call gbcastReal2(toNodeInd,nToNodeInd,QLINK(1:NLINKSL,2), NLINKSL, gQLINK(:,2))
    call gbcastReal2(toNodeInd,nToNodeInd,QLINK(1:NLINKSL,1), NLINKSL, gQLINK(:,1)) 
    !---------- route other reaches, with upstream inflow
+#endif
    
    tmpQlink = 0
+#ifdef MPP_LAND
    if(my_id .eq. io_id) then
+#endif
       tmpQLAKEO = QLAKEO
       tmpQLAKEI = QLAKEI
       tmpRESHT = RESHT
+#ifdef MPP_LAND
    endif
+#endif
    
    
    do k = 1,NLINKSL
@@ -1831,6 +1977,7 @@ do nt = 1, nsteps
       
       if(TYPEL(k) .ne. 2) then ! don't process internal lake links only
          
+#ifdef MPP_LAND
          !using mapping index
          do n = 1, gtoNODE(k,1)
             m = gtoNODE(k,n+1)
@@ -1841,6 +1988,14 @@ do nt = 1, nsteps
             if(gQLINK(m,2) .gt. 0)   Quc = Quc + gQLINK(m,2)  !--accum of upstream inflow of current timestep (2)  
             if(gQLINK(m,1) .gt. 0)   Qup = Qup + gQLINK(m,1)  !--accum of upstream inflow of previous timestep (1)
          end do ! do i
+#else
+         do m = 1, NLINKSL                
+            if (LINKID(k) .eq. TO_NODE(m)) then
+               Quc = Quc + QLINK(m,2)  !--accum of upstream inflow of current timestep (2)
+               Qup = Qup + QLINK(m,1)  !--accum of upstream inflow of previous timestep (1)
+            endif
+         end do ! do m
+#endif
       endif !note that we won't process type 2 links, since they are internal to a lake
       
       
@@ -1871,7 +2026,9 @@ do nt = 1, nsteps
          !                  QLateral(k), DTRT_CH, So(k),  CHANLEN(k), &
          !                  MannN(k), ChSSlp(k), Bw(k) )
          
+#ifdef WRF_HYDRO_NUDGING
          call nudge_apply_upstream_muskingumCunge( Qup,  Quc,  nudge(k),  k )
+#endif
          
          call SUBMUSKINGCUNGE(&
               tmpQLINK(k,2), velocity(k), LINKID(k),     Qup,        Quc, QLINK(k,1), &
@@ -1879,16 +2036,20 @@ do nt = 1, nsteps
               MannN(k),      ChSSlp(k),   Bw(k)                                )
          
       else
+#ifdef HYDRO_D
          print *, " no channel option selected"
+#endif
          call hydro_stop("drive_CHANNEL") 
       endif
       
    end do  !--k links
    
    
+#ifdef MPP_LAND
    call updateLake_seq(QLAKEO,nlakes,tmpQLAKEO)
    call updateLake_seq(QLAKEI,nlakes,tmpQLAKEI)
    call updateLake_seq(RESHT,nlakes,tmpRESHT)
+#endif
    
    do k = 1, NLINKSL !tmpQLINK?
       if(TYPEL(k) .ne. 2) then   !only the internal lake nodes don't have info.. but need to save QLINK of lake out too
@@ -1898,10 +2059,12 @@ do nt = 1, nsteps
    end do
    
    
+#ifdef WRF_HYDRO_NUDGING
    if(.not. nudgeWAdvance) call nudge_term_all(qlink, nudge, int(nt*dtrt_ch))
+#endif /* WRF_HYDRO_NUDGING */
   
    
-!#ifdef 1
+!#ifdef HYDRO_D
 !   print *, "END OF ALL REACHES...",KRT,DT_STEPS
 !#endif
    
@@ -1909,11 +2072,13 @@ end do  ! nsteps
 
 if (KT .eq. 1) KT = KT + 1
 
+#ifdef MPP_LAND
 if(my_id .eq. io_id)      then 
    if(allocated(tmpQLAKEO))  deallocate(tmpQLAKEO)
    if(allocated(tmpQLAKEI))  deallocate(tmpQLAKEI)
    if(allocated(tmpRESHT))  deallocate(tmpRESHT)
 endif
+#endif        
 
 if (KT .eq. 1) KT = KT + 1  ! redundant?
 
@@ -1924,6 +2089,7 @@ end subroutine drive_CHANNEL_RSL
 end module module_channel_routing
 
 !! Is this outside the module scope on purpose?
+#ifdef MPP_LAND
  subroutine checkReach(ii,  inVar)
    use module_mpp_land
    use module_RT_data, only: rt_domain
@@ -1940,3 +2106,4 @@ end module module_channel_routing
       call flush(ii)
    endif
  end subroutine checkReach
+#endif

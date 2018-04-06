@@ -1,16 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
 ! Module for handling all associated scale_factor, add_offset, and
 ! attributes for individual files across various possible 
 ! National Water Model output files. In the future, this will move to a

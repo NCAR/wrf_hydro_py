@@ -1,16 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
 !  Program Name:
 !  Author(s)/Contact(s):
 !  Abstract:
@@ -59,24 +46,32 @@ CONTAINS
 !-----READ IN CHANNEL PROPERTIES FROM CHANPARM.TBL :
     IUNIT = 23
     OPEN(IUNIT, &
+#ifndef NCEP_WCOSS
     FILE='CHANPARM.TBL', &
+#endif
     FORM='FORMATTED',STATUS='OLD')
     READ (IUNIT,*)
     READ (IUNIT,2000,END=2002) DATATYPE
+#ifdef HYDRO_D
     PRINT *, DATATYPE
+#endif
     READ (IUNIT,*)CHANCATS,IINDEX
 2000 FORMAT (A11)
 
 !-----Read in Channel Parameters as functions of stream order...
 
     IF(DATATYPE.EQ.'StreamOrder')THEN
+#ifdef HYDRO_D
        PRINT *, 'CHANNEL DATA SOURCE TYPE = ',DATATYPE,' FOUND',           &
             CHANCATS,' CATEGORIES'
+#endif
        DO ORDER=1,CHANCATS
           READ (IUNIT,*)IINDEX,BOTWID(ORDER),HLINK_INIT(ORDER),CHAN_SS(ORDER),   &
                &     CHMann(ORDER)
+#ifdef HYDRO_D
           PRINT *, IINDEX,BOTWID(ORDER),HLINK_INIT(ORDER),CHAN_SS(ORDER),   &
                &     CHMann(ORDER)
+#endif
        ENDDO
     ENDIF
 
@@ -91,6 +86,7 @@ CONTAINS
 
 
 
+#ifdef MPP_LAND
   SUBROUTINE mpp_CHAN_PARM_INIT (BOTWID,HLINK_INIT,CHAN_SS,CHMann)
     use module_mpp_land, only:  my_id, IO_id,mpp_land_bcast_int1, &
        mpp_land_bcast_real,mpp_land_bcast_int,mpp_land_bcast_real1
@@ -110,6 +106,7 @@ CONTAINS
        call mpp_land_bcast_real(NCHANTYPES,CHMann)
     return 
     END SUBROUTINE mpp_CHAN_PARM_INIT
+#endif
 !-----------------------------------------------------------------
 !-----------------------------------------------------------------
 

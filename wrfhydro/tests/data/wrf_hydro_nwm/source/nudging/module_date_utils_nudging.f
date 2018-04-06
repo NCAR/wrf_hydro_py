@@ -1,16 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
 !  Program Name:
 !  Author(s)/Contact(s):
 !  Abstract:
@@ -262,35 +249,45 @@ opass = .TRUE.
 !  Check that the month of ODATE makes sense.
 
 if ((moold.gt.12).or.(moold.lt.1)) then
+#ifdef HYDRO_D
    write(*,*) 'GETH_NEWDATE:  Month of ODATE = ', moold
+#endif
    opass = .FALSE.
 end if
 
 !  Check that the day of ODATE makes sense.
 
 if ((dyold.gt.mday(moold)).or.(dyold.lt.1)) then
+#ifdef HYDRO_D
    write(*,*) 'GETH_NEWDATE:  Day of ODATE = ', dyold
+#endif
    opass = .FALSE.
 end if
 
 !  Check that the hour of ODATE makes sense.
 
 if ((hrold.gt.23).or.(hrold.lt.0)) then
+#ifdef HYDRO_D
    write(*,*) 'GETH_NEWDATE:  Hour of ODATE = ', hrold
+#endif
    opass = .FALSE.
 end if
 
 !  Check that the minute of ODATE makes sense.
 
 if ((miold.gt.59).or.(miold.lt.0)) then
+#ifdef HYDRO_D
    write(*,*) 'GETH_NEWDATE:  Minute of ODATE = ', miold
+#endif
    opass = .FALSE.
 end if
 
 !  Check that the second of ODATE makes sense.
 
 if ((scold.gt.59).or.(scold.lt.0)) then
+#ifdef HYDRO_D
    write(*,*) 'GETH_NEWDATE:  Second of ODATE = ', scold
+#endif
    opass = .FALSE.
 end if
 
@@ -580,8 +577,10 @@ integer :: units
 oldlen = len(olddate)
 newlen = len(newdate)
 if (newlen.ne.oldlen) then
+#ifdef HYDRO_D
    write(*,'("GETH_IDTS: NEWLEN /= OLDLEN: ", A, 3x, A)') newdate(1:newlen), olddate(1:oldlen)
    call hydro_stop("geth_newdate")
+#endif
 endif
 
 if (olddate.gt.newdate) then
@@ -769,14 +768,18 @@ opass = .true.
 !  Check that the month of NDATE makes sense.
 
 if ((monew.gt.12).or.(monew.lt.1)) then
+#ifdef HYDRO_D
    write(*,*) 'GETH_IDTS:  Month of NDATE = ', monew
+#endif
    npass = .false.
 end if
 
 !  Check that the month of ODATE makes sense.
 
 if ((moold.gt.12).or.(moold.lt.1)) then
+#ifdef HYDRO_D
    print*, 'GETH_IDTS:  Month of ODATE = ', moold
+#endif
    opass = .false.
 end if
 
@@ -785,13 +788,17 @@ end if
 if (monew.ne.2) then
    ! ...... For all months but February
    if ((dynew.gt.mday(monew)).or.(dynew.lt.1)) then
+#ifdef HYDRO_D
       print*, 'GETH_IDTS:  Day of NDATE = ', dynew
+#endif
       npass = .false.
    end if
 else if (monew.eq.2) then
    ! ...... For February
    if ((dynew > nfeb(yrnew)).or.(dynew < 1)) then
+#ifdef HYDRO_D
       print*, 'GETH_IDTS:  Day of NDATE = ', dynew
+#endif
       npass = .false.
    end if
 endif
@@ -801,13 +808,17 @@ endif
 if (moold.ne.2) then
    ! ...... For all months but February
    if ((dyold.gt.mday(moold)).or.(dyold.lt.1)) then
+#ifdef HYDRO_D
       print*, 'GETH_IDTS:  Day of ODATE = ', dyold
+#endif
       opass = .false.
    end if
 else if (moold.eq.2) then
    ! ....... For February
    if ((dyold > nfeb(yrold)).or.(dyold < 1)) then
+#ifdef HYDRO_D
       print*, 'GETH_IDTS:  Day of ODATE = ', dyold
+#endif
       opass = .false.
    end if
 end if
@@ -815,53 +826,69 @@ end if
 !  Check that the hour of NDATE makes sense.
 
 if ((hrnew.gt.23).or.(hrnew.lt.0)) then
+#ifdef HYDRO_D
    print*, 'GETH_IDTS:  Hour of NDATE = ', hrnew
+#endif
    npass = .false.
 end if
 
 !  Check that the hour of ODATE makes sense.
 
 if ((hrold.gt.23).or.(hrold.lt.0)) then
+#ifdef HYDRO_D
    print*, 'GETH_IDTS:  Hour of ODATE = ', hrold
+#endif
    opass = .false.
 end if
 
 !  Check that the minute of NDATE makes sense.
 
 if ((minew.gt.59).or.(minew.lt.0)) then
+#ifdef HYDRO_D
    print*, 'GETH_IDTS:  Minute of NDATE = ', minew
+#endif
    npass = .false.
 end if
 
 !  Check that the minute of ODATE makes sense.
 
 if ((miold.gt.59).or.(miold.lt.0)) then
+#ifdef HYDRO_D
    print*, 'GETH_IDTS:  Minute of ODATE = ', miold
+#endif
    opass = .false.
 end if
 
 !  Check that the second of NDATE makes sense.
 
 if ((scnew.gt.59).or.(scnew.lt.0)) then
+#ifdef HYDRO_D
    print*, 'GETH_IDTS:  SECOND of NDATE = ', scnew
+#endif
    npass = .false.
 end if
 
 !  Check that the second of ODATE makes sense.
 
 if ((scold.gt.59).or.(scold.lt.0)) then
+#ifdef HYDRO_D
    print*, 'GETH_IDTS:  Second of ODATE = ', scold
+#endif
    opass = .false.
 end if
 
 if (.not. npass) then
+#ifdef HYDRO_D
    print*, 'Screwy NDATE: ', ndate(1:newlen)
    call hydro_stop("geth_idts nudging_utils 3")
+#endif
 end if
 
 if (.not. opass) then
+#ifdef HYDRO_D
    print*, 'FATAL ERROR: Screwy ODATE: ', odate(1:oldlen)
    call hydro_stop("geth_idts nudging_utils 4")
+#endif
 end if
 
 !  Date Checks are completed.  Continue.
@@ -1164,8 +1191,10 @@ if (indate(5:5) == "-") then
       outdate = indate(1:4)//indate(6:7)//indate(9:10)//indate(12:13)//indate(15:16)//&
            indate(18:19)//indate(21:inlen)
    case default
+#ifdef HYDRO_D
       write(*,'("Unrecognized length: <", A,">")') indate
       call hydro_stop("swap_date_format")
+#endif
    end select
 else
    select case (inlen)

@@ -3,7 +3,7 @@
 
 # docker create --name croton wrfhydro/domains:croton_NY
 # ## The complement when youre done with it:
-# ## docker rm -v croton_NY
+# ## docker rm -v croton
 
 # docker run -it \
 #     -v /Users/${USER}/Downloads:/Downloads \
@@ -20,8 +20,9 @@
 import os
 wrf_hydro_py_path = '/home/docker/wrf_hydro_py/wrfhydro'
 USER = os.path.expanduser('~/')
-wrf_hydro_py_path = USER + '/WRF_Hydro/wrf_hydro_py/wrfhydro'
-wrf_hydro_py_path = USER + '/WRF_Hydro/wrf_hydro_py/wrfhydro'
+wrf_hydro_py_path = USER + '/WRF_Hydro/wrf_hydro_py/wrfhydro' # osx
+wrf_hydro_py_path = USER + '/wrf_hydro_py/wrfhydro'           # docker
+
 
 import sys
 from pprint import pprint
@@ -38,7 +39,9 @@ from ensemble import *
 #domain_top_path = '/home/docker/domain/croton_NY'
 #source_path = '/home/docker/wrf_hydro_nwm/trunk/NDHMS'
 domain_top_path = USER + '/Downloads/domain/croton_NY'
+domain_top_path = USER + '/domain/croton_NY'
 source_path = USER + '/WRF_Hydro/wrf_hydro_nwm_myFork/trunk/NDHMS'
+source_path = '/wrf_hydro_nwm/trunk/NDHMS/'
 
 theDomain = WrfHydroDomain(domain_top_dir=domain_top_path,
                            model_version='v1.2.1',
@@ -74,8 +77,33 @@ e1.members[1].number=400
 print(e1.members_dict)
 
 
+m1=e1.members[1]
+m2=e1.members[2]
+import pathlib
+
+
+
+
+m1.domain.forcing_dir = \
+    pathlib.PosixPath('/Users/jamesmcc/Downloads/domain/croton_NY/FORCING_FOO')
+m1.model.source_dir = pathlib.PosixPath('foo')
+
+import pathlib
+from deepdiff import DeepDiff
+
+DeepDiff(m1.domain, m2.domain, eq_types={pathlib.PosixPath})
+DeepDiff(m1.model,  m2.model,  eq_types={pathlib.PosixPath})
+
+
+
+# ######################################################
+# ######################################################
+# ######################################################
+
+
 # Can I come up with a good visitor...
 from boltons.iterutils import remap
+
 
 def visit(path, key, value):
 
@@ -93,6 +121,7 @@ def visit(path, key, value):
     return False
 
 r=[]
+m1=e1.members[1]
 n = remap(m1.__dict__, visit=visit)
 
 #e1.members
@@ -110,3 +139,84 @@ n = remap(m1.__dict__, visit=visit)
 
 
 #theRun = theSim.run('/home/docker/testRun1', overwrite=True)
+
+
+
+# ######################################################
+# Install the jmccreight/dev PR.
+import pathlib
+from deepdiff import DeepDiff
+
+# Great... 
+p1='foobar'
+p2='barfoo'
+assert p1 != p2
+assert not p1.__eq__(p2)
+assert bool(DeepDiff(p1, p2)) is True # True == not-empty
+
+# Huh?...
+pp1=pathlib.PosixPath(p1)
+pp2=pathlib.PosixPath(p2)
+assert pp1 != pp2
+assert not pp1.__eq__(pp2)
+
+assert bool(DeepDiff(pp1, pp2)) is True # True == not-empty
+
+assert bool(DeepDiff(pp1, pp2, eq_types={pathlib.PosixPath})) is True # True == not-empty
+DeepDiff(pp1, pp2, eq_types={pathlib.PosixPath})
+
+# ######################################################
+# Subclass instead of PR - dont depend on distribution of deepdiff.
+# Install the upstream/master.
+import pathlib
+from deepdiff import DeepDiff
+
+class DeepDiffEq(DeepDiff):
+    def __init__(self,
+                 t1,
+                 t2,
+                 eq_types,
+                 ignore_order=False,
+                 report_repetition=False,
+                 significant_digits=None,
+                 exclude_paths=set(),
+                 exclude_regex_paths=set(),
+                 exclude_types=set(),
+                 include_string_type_changes=False,
+                 verbose_level=1,
+                 view='text',
+                 **kwargs):
+        self.eq_types = set(eq_types)
+        super().__init__(t1,
+                         t2,
+                         ignore_order=False,
+                         report_repetition=False,
+                         significant_digits=None,
+                         exclude_paths=set(),
+                         exclude_regex_paths=set(),
+                         exclude_types=set(),
+                         include_string_type_changes=False,
+                         verbose_level=1,
+                         view='text',
+                         **kwargs)
+    def _DeepDiff__diff_obj(self, level, parents_ids=frozenset({}),
+                            is_namedtuple=False):
+        """Difference of 2 objects using their __eq__ if requested"""
+        if type(level.t1) in self.eq_types:
+            if level.t1 == level.t2:
+                return
+            else:
+                self._DeepDiff__report_result('values_changed', level)
+                return
+        super(DeepDiffEq, self)._DeepDiff__diff_obj(level, parents_ids=frozenset({}),
+                                                    is_namedtuple=False)
+
+p1='foobar'
+p2='barfoo'
+pp1=pathlib.PosixPath(p1)
+pp2=pathlib.PosixPath(p2)
+DeepDiffEq(pp1, pp2, eq_types={pathlib.PosixPath})
+DeepDiffEq(pp1, pp2, eq_types={DeepDiff})
+
+#######################################################
+

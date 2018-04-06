@@ -1,16 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
 !  Program Name:
 !  Author(s)/Contact(s):
 !  Abstract:
@@ -39,52 +26,23 @@
 module module_gw_gw2d
 
 
+#ifdef MPP_LAND
    use module_mpp_land
+#endif
    use module_gw_gw2d_data, only: gw2d
    use module_rt_data, only: rt_domain
    use module_namelist
    
    implicit none
 
-
- type gw_field
-      integer :: ix, jx
-      integer :: allo_status = -99
-
-      real :: dx, dt
-
-      integer, allocatable, dimension(:,:) ::  ltype     ! land-sfc type
-      real,    allocatable, dimension(:,:) ::  &
-        elev,           &  ! elev/bathymetry of sfc rel to sl (m)
-        bot,            &  ! elev. aquifer bottom rel to sl (m)
-        hycond,         &  ! hydraulic conductivity (m/s per m/m)
-        poros,          &  ! porosity (m3/m3)
-        compres,        &  ! compressibility (1/Pa)
-        ho                 ! head at start of timestep (m)
-
-      real,    allocatable, dimension(:,:) ::  &
-        h,              &  ! head, after ghmcompute (m)
-        convgw,         &  ! convergence due to gw flow (m/s)
-        excess             ! surface exceeding groundwater (mm)
-
-      real,    allocatable, dimension(:,:) ::  &
-	qdarcyRT,       &  ! approximated flux between soil and groundwater for coupled simulations on routing grid
-	qsgwrt,         &  ! flux between soil and groundwater for coupled simulations on routing grid
-	qsgw,           &  ! flux between soil and groundwater for coupled simulations on lsm grid
-	qgw_chanrt         ! flux between groundwater and channel
-
-      real  :: ebot, eocn
-      integer ::istep = 0
-      
-      real :: its, ite, jts, jte
-
-  end type gw_field
+#include "gw_field_include.inc"
 
 
-
+#ifdef MPP_LAND
  integer, private :: ierr
  integer, parameter :: rowshift = 0
  integer, parameter :: colshift = 1
+#endif
 
 
  contains
@@ -117,8 +75,12 @@ module module_gw_gw2d
            where(gw2d(did)%hycond .eq. 100) gw2d(did)%hycond = 5E-4
            
           do iter=1,itermax
+#ifdef HYDRO_D                        
+#ifdef MPP_LAND
           if(my_id .eq. IO_id) &
+#endif
           write(6,*) "       GW Pre-cycle", iter, "of", itermax
+#endif
            call gwstep(gw2d(did)%ix, gw2d(did)%jx, gw2d(did)%dx, &
              gw2d(did)%ltype, gw2d(did)%elev, gw2d(did)%bot, &
              gw2d(did)%hycond, gw2d(did)%poros, gw2d(did)%compres, &
@@ -158,6 +120,7 @@ module module_gw_gw2d
       gw2d(did)%ix = ix
       gw2d(did)%jx = jx
       
+#ifdef MPP_LAND
       if(down_id == -1)  then !  if south border
        gw2d(did)%jts = 1 
       else
@@ -182,6 +145,12 @@ module module_gw_gw2d
         gw2d(did)%ite = ix-1
       endif
 
+#else
+      gw2d(did)%its = 1
+      gw2d(did)%ite = ix
+      gw2d(did)%jts = 1
+      gw2d(did)%jte = jx
+#endif
 
       allocate(gw2d(did)%ltype  (ix,jx))
       allocate(gw2d(did)%elev   (ix,jx))
@@ -264,6 +233,7 @@ module module_gw_gw2d
       real, dimension(ix,jx)   :: sf2    ! storage coefficient (m3 of h2o / bulk m3)
       real, dimension(ix,jx,2) ::   t    ! transmissivity (m2/s)..1 for N-S,..2 for E-W
 
+#ifdef MPP_LAND
       real, dimension(:,:), allocatable :: aa, &         ! tridiagonal matrix lower diagonal
                                            bb, &         ! tridiagonal matrix main diagonal
                                            cc, &         ! tridiagonal matrix upper diagonal
@@ -275,6 +245,13 @@ module module_gw_gw2d
                                            hh           
       real, dimension(:), allocatable ::   xfac, &
                                            zfac
+#else                                         
+      real, dimension(:), allocatable :: aa, &         ! tridiagonal matrix lower diagonal
+                                         bb, &         ! tridiagonal matrix main diagonal
+                                         cc, &         ! tridiagonal matrix upper diagonal
+                                         dd, &         ! right hand side
+                                         hh            ! solution vector
+#endif
       real, parameter    :: botinc = 0.01  ! re-wetting increment to fix h < bot
 !     parameter (botinc = 0.  )  ! re-wetting increment to fix h < bot
                                  ! (m); else no flow into dry cells
@@ -315,12 +292,14 @@ module module_gw_gw2d
         tareal,                 &
         zz
 
+#ifdef MPP_LAND
       real ::        mpiDelcur, &
                      gdtot,     &
                      gdtoa,     &
                      geocn,     &
                      gebot
       integer mpiSize
+#endif
 
 
 
@@ -329,6 +308,7 @@ darea = dx*dy
 
 ! define indexes for parallel execution
 
+#ifdef MPP_LAND
 if(down_id == -1)  then !  if south border
   jts = 1 
 else
@@ -353,6 +333,12 @@ else
   ite = ix-1
 endif
 
+#else
+its = 1
+ite = ix
+jts = 1
+jte = jx
+#endif
 
 ifs = 1
 ife = ix
@@ -379,9 +365,11 @@ fydim = jfe-jfs+1
       iter = iter+1
 
       
+#ifdef MPP_LAND
 
        call MPP_LAND_COM_REAL(h, fxdim, fydim, 99)
 
+#endif
       e    = 0.       ! absolute changes in head (for iteration control)
 !      eocn = 0.       ! accumulated fixes for h = 0 over ocean (diag)
 !      ebot = 0.       ! accumulated fixes for h < bot (diagnostic)
@@ -422,9 +410,11 @@ fydim = jfe-jfs+1
         enddo
       enddo
 
+#ifdef MPP_LAND
        ! communicate storage coefficient
        call MPP_LAND_COM_REAL(sf2, fxdim, fydim, 99)
 
+#endif
 
 !==========================
 !       Column calculations
@@ -462,6 +452,7 @@ fydim = jfe-jfs+1
 
 
 
+#ifdef MPP_LAND
       ! communicate transmissivities in x and y direction
        call MPP_LAND_COM_REAL(t(:,:,1), fxdim, fydim, 99)
        call MPP_LAND_COM_REAL(t(:,:,2), fxdim, fydim, 99)
@@ -477,6 +468,63 @@ fydim = jfe-jfs+1
        allocate(hh(0:ydim+1,0:xdim+1))
        allocate(xfac(1:ydim))
        allocate(zfac(1:ydim))
+#else
+  allocate(aa(jfs:jfe))
+  allocate(bb(jfs:jfe))
+  allocate(cc(jfs:jfe))
+  allocate(dd(jfs:jfe))
+  allocate(hh(jfs:jfe))
+
+!-------------------
+      do i=ifs,ife
+!-------------------
+
+!>>>>>>>>>>>>>>>>>>>>
+        do j=jfs,jfe
+!>>>>>>>>>>>>>>>>>>>>
+#endif
+#ifndef MPP_LAND
+          bb(j) = (sf2(i,j)/dt) * darea
+          dd(j) = ( ho(i,j)*sf2(i,j)/dt ) * darea
+          aa(j) = 0.0
+          cc(j) = 0.0
+
+          if ((j-jfs) /= 0) then 
+           aa(j) = -t(i,j-1,1)
+           bb(j) = bb(j) + t(i,j-1,1)
+	  endif
+
+          if ((j-jfe) /= 0) then
+           cc(j) = -t(i,j,1)
+           bb(j) = bb(j) + t(i,j,1)
+	  endif
+
+          if ((i-ifs) /= 0) then
+           bb(j) = bb(j) + t(i-1,j,2)
+           dd(j) = dd(j) + h(i-1,j)*t(i-1,j,2)
+	  endif
+
+          if ((i-ife) /= 0) then
+           bb(j) = bb(j) + t(i,j,2)
+           dd(j) = dd(j) + h(i+1,j)*t(i,j,2)
+	  endif
+
+!>>>>>>>>>>>>>>>
+	end do
+!>>>>>>>>>>>>>>>
+
+  call trdiagSolve(aa, bb, cc, dd, hh, fydim)
+
+  h(i,:) = hh
+  end do
+  
+deallocate(aa)
+deallocate(bb)
+deallocate(cc)
+deallocate(dd)
+deallocate(hh)
+
+#else
 !-------------------
       do i=its,ite
 !-------------------
@@ -550,10 +598,13 @@ joffs = jts-1
 	 end do
      end do
 	      
+#endif 
 
+#ifdef MPP_LAND
 
        call MPP_LAND_COM_REAL(h, fxdim, fydim, 99)
 
+#endif
 
 
 !=======================
@@ -585,10 +636,63 @@ joffs = jts-1
         enddo
       enddo
 
+#ifdef MPP_LAND
       ! communicate transmissivities in x and y direction
        call MPP_LAND_COM_REAL(t(:,:,1), fxdim, fydim, 99)
        call MPP_LAND_COM_REAL(t(:,:,2), fxdim, fydim, 99)
+#endif
 
+#ifndef MPP_LAND     
+allocate(aa(ifs:ife))
+allocate(bb(ifs:ife))
+allocate(cc(ifs:ife))
+allocate(dd(ifs:ife))
+allocate(hh(ifs:ife))
+
+
+!-------------------
+      do j=jfs,jfe
+!-------------------
+
+
+!>>>>>>>>>>>>>>>>>>>>
+        do i=ifs,ife
+!>>>>>>>>>>>>>>>>>>>>
+          bb(i) = (sf2(i,j)/dt) * darea
+          dd(i) = ( ho(i,j)*sf2(i,j)/dt ) * darea
+          aa(i) = 0.0
+          cc(i) = 0.0
+
+          if ((j-jfs) /= 0) then
+           bb(i) = bb(i) + t(i,j-1,1)
+           dd(i) = dd(i) + h(i,j-1)*t(i,j-1,1)
+	  endif
+ 
+          if ((j-jfe) /= 0) then
+           dd(i) = dd(i) + h(i,j+1)*t(i,j,1)
+           bb(i) = bb(i) + t(i,j,1)
+	  endif
+
+          if ((i-ifs) /= 0) then
+           bb(i) = bb(i) + t(i-1,j,2)
+           aa(i) = -t(i-1,j,2)
+	  endif
+
+          if ((i-ife) /= 0) then
+           bb(i) = bb(i) + t(i,j,2)
+           cc(i) = -t(i,j,2)
+	  endif
+
+!>>>>>>>>>>>>>>>
+	end do
+!>>>>>>>>>>>>>>>
+
+  call trdiagSolve(aa, bb, cc, dd, hh, fxdim)
+
+  h(:,j) = hh
+  end do
+  
+#else
 !-------------------
       do i=its,ite
 !-------------------
@@ -675,6 +779,7 @@ deallocate(c2)
 deallocate(wk)
 deallocate(xfac)
 deallocate(zfac)
+#endif 
 deallocate(aa)
 deallocate(bb)
 deallocate(cc)
@@ -717,6 +822,7 @@ deallocate(hh)
 
 !       print*, 'delcur before mpi:', delcur
 
+#ifdef MPP_LAND
 
 call mpi_reduce(delcur, mpiDelcur, 1, MPI_REAL, MPI_SUM, 0, HYDRO_COMM_WORLD, ierr)
 call MPI_COMM_SIZE( HYDRO_COMM_WORLD, mpiSize, ierr )
@@ -725,21 +831,30 @@ if(my_id .eq. IO_id) delcur = mpiDelcur/mpiSize
 
 call mpi_bcast(delcur, 1, mpi_real, 0, HYDRO_COMM_WORLD, ierr)
 
+#endif
 
 !       if ( (delcur.gt.delskip*dt/86400. .and. iter.lt.itermax)      &
       if ( (delcur.gt.delskip .and. iter.lt.itermax)      &
            .or. iter.lt.itermin ) then
            
+#ifdef HYDRO_D 
 
+#ifdef MPP_LAND
 if(my_id .eq. IO_id)  write(6,*) "Iteration", iter, "of", itermax, "error:", delcur
+#else
+                      write(6,*) "Iteration", iter, "of", itermax, "error:", delcur
+#endif
 
+#endif
 
       goto 80
       endif
       
+#ifdef MPP_LAND
 
        call MPP_LAND_COM_REAL(h, fxdim, fydim, 99)
 
+#endif
 
       
 
@@ -791,6 +906,8 @@ if(my_id .eq. IO_id)  write(6,*) "Iteration", iter, "of", itermax, "error:", del
       ebot = (ebot/tareal)/dt
 
       zz = 1.e3 * 86400.                    ! convert printout to mm/day
+#ifdef HYDRO_D
+#ifdef MPP_LAND
 
       call MPI_REDUCE(dtot,gdtot,1, MPI_REAL, MPI_SUM, IO_id, HYDRO_COMM_WORLD, ierr)
       call MPI_REDUCE(dtoa,gdtoa,1, MPI_REAL, MPI_SUM, IO_id, HYDRO_COMM_WORLD, ierr)
@@ -803,6 +920,13 @@ if(my_id .eq. IO_id)  write(6,*) "Iteration", iter, "of", itermax, "error:", del
           (gdtot-(-geocn+gebot))*zz
        endif
 
+#else
+
+        write (*,900)                         &
+          dtot*zz, dtoa*zz, -eocn*zz, ebot*zz,     &
+          (dtot-(-eocn+ebot))*zz
+#endif
+#endif
   900 format                                       &
         (3x,'    dh/dt       |dh/dt|        ocnflx        botfix',&
             '        ghmerror'  &
@@ -1060,8 +1184,10 @@ subroutine aggregateQsgw(did)
 	    jyyRT = j * nlst_rt(did)%aggfactRT-m
 
            
+#ifdef MPP_LAND
 	    if(left_id.ge.0) ixxRT=ixxRT+1
 	    if(down_id.ge.0) jyyRT=jyyRT+1
+#endif
              agg = agg + gw2d(did)%qdarcyRT(ixxRT, jyyRT)
            end do
          end do
@@ -1083,6 +1209,7 @@ end subroutine aggregateQsgw
 !                      Parallel Computing 23 (1997) 2041-2065
 ! Ported to MPI by Benjamin Fersch, Karlsruhe Institute of Technology (2013)
 
+#ifdef MPP_LAND
       subroutine parysolv1(c,b,r,ct,pid,z_pid, &
 	                    xsps, zsps, xdns, zdns)
 
@@ -1115,6 +1242,9 @@ end subroutine aggregateQsgw
       parameter	(ZN_REC = 46)
 
       integer :: source, dest
+#ifdef TIMING
+      dt = clockdt()
+#endif
 
       cnt = 2*XSPS
  
@@ -1127,6 +1257,9 @@ end subroutine aggregateQsgw
    10   continue
 
         
+#ifdef TIMING
+        ti = click()
+#endif
 
 ! ! Send (ZSPS,j)th equations.
 ! ! Receive (ZSPS+1,j)th equations.
@@ -1137,6 +1270,10 @@ end subroutine aggregateQsgw
  call mpi_wait(sendReq, mpp_status, ierr)
  call mpi_wait(recvReq, mpp_status, ierr)
 
+#ifdef TIMING
+        tf = click()
+        call add_dt(ct,tf,ti,dt)
+#endif
 
         do 20 j = 1, XSPS
 ! Backward elimination in (ZSPS,j)th equations to get
@@ -1154,12 +1291,19 @@ end subroutine aggregateQsgw
 
       else if (z_pid .le. ZDNS/2) then
 
+#ifdef TIMING
+        ti = click()
+#endif
 ! ! Receive (0,j)th equations.
 
  call mpi_cart_shift(cartGridComm, rowshift, -1, source, dest, ierr)
  call MPI_IRECV(   zn, cnt, MPI_REAL, dest, ZN_REC, cartGridComm, recvReq, ierr)
  call mpi_wait(recvReq, mpp_status, ierr)
 
+#ifdef TIMING
+        tf = click()
+        call add_dt(ct,tf,ti,dt)
+#endif
 
 ! Forward elimination in (j,1)th equations.
 	do 40 j = 1, XSPS
@@ -1180,6 +1324,9 @@ end subroutine aggregateQsgw
           zntmp(j,2) = r(ZSPS,j)
    40   continue
 
+#ifdef TIMING
+        ti = click()
+#endif
 ! ! Send (ZSPS,j)th equations.
 ! ! Receive (ZSPS+1,j)th equations.
 
@@ -1188,6 +1335,10 @@ end subroutine aggregateQsgw
  call MPI_IRECV(   zn, cnt, MPI_REAL, dest, ZN_REC, cartGridComm, recvReq, ierr)
  call mpi_wait(sendReq, mpp_status, ierr)
  call mpi_wait(recvReq, mpp_status, ierr)
+#ifdef TIMING
+        tf = click()
+        call add_dt(ct,tf,ti,dt)
+#endif
 
         do 50 j = 1, XSPS
 ! Backward elimination in (ZSPS,j)th equations.
@@ -1203,8 +1354,15 @@ end subroutine aggregateQsgw
           zntmp(j,2) = r(1,j)
    50   continue
 
+#ifdef TIMING
+        ti = click()
+#endif
 ! ! Send (1,j)th equations.
 
+#ifdef TIMING
+        tf = click()
+        call add_dt(ct,tf,ti,dt)
+#endif
 
  call mpi_cart_shift(cartGridComm, rowshift, -1, source, dest, ierr)
  call MPI_ISEND(zntmp, cnt, MPI_REAL, dest, ZN_REC, cartGridComm, sendReq, ierr)
@@ -1224,12 +1382,19 @@ end subroutine aggregateQsgw
  
       else if (z_pid .lt. ZDNS) then
 
+#ifdef TIMING
+        ti = click()
+#endif
 ! ! Receive (ZSPS+1,j)th equations.
 
  call mpi_cart_shift(cartGridComm, rowshift, 1, source, dest, ierr)
  call MPI_IRECV(   zn, cnt, MPI_REAL, dest, ZN_REC, cartGridComm, recvReq, ierr)
  call mpi_wait(recvReq, mpp_status, ierr)
 
+#ifdef TIMING
+        tf = click()
+        call add_dt(ct,tf,ti,dt)
+#endif
 
 	do 80 j = 1, XSPS
 ! Backward elimination in (ZSPS,j)th equations.
@@ -1251,6 +1416,9 @@ end subroutine aggregateQsgw
           zntmp(j,2) = r(1,j)
    80   continue
 
+#ifdef TIMING
+        ti = click()
+#endif
 ! ! Send (1,j)th equations.
 ! ! Receive (0,j)th equations.
 
@@ -1260,6 +1428,10 @@ end subroutine aggregateQsgw
  call mpi_wait(sendReq, mpp_status, ierr)
  call mpi_wait(recvReq, mpp_status, ierr)
  
+#ifdef TIMING
+        tf = click()
+        call add_dt(ct,tf,ti,dt)
+#endif
 
 	do 90 j = 1, XSPS
 ! Forward elimination in (1,j)th equations
@@ -1275,11 +1447,18 @@ end subroutine aggregateQsgw
           zntmp(j,2) = r(ZSPS,j)
    90   continue
 
+#ifdef TIMING
+        ti = click()
+#endif
 ! ! Send (ZSPS,j)th equations.
 
  call mpi_cart_shift(cartGridComm, rowshift, 1, source, dest, ierr)
  call MPI_ISEND(zntmp, cnt, MPI_REAL, dest, ZN_REC, cartGridComm, sendReq, ierr)
 
+#ifdef TIMING
+        tf = click()
+        call add_dt(ct,tf,ti,dt)
+#endif
 
         do 100 j = 1, XSPS
 ! Forward elimination in (ZSPS+1,j)th equations to get
@@ -1301,6 +1480,9 @@ end subroutine aggregateQsgw
           zntmp(j,2) = r(1,j)
   120   continue
 
+#ifdef TIMING
+        ti = click()
+#endif
 ! ! Send (1,j)th equations.
 ! ! Receive (0,j)th equations.
 
@@ -1310,6 +1492,10 @@ end subroutine aggregateQsgw
  call mpi_wait(sendReq, mpp_status, ierr)
  call mpi_wait(recvReq, mpp_status, ierr)
  
+#ifdef TIMING
+        tf = click()
+        call add_dt(ct,tf,ti,dt)
+#endif
 
         do 130 j = 1, XSPS
 ! Forward elimination in (1,j)th equations to get r(1,j).
@@ -1371,6 +1557,9 @@ end subroutine aggregateQsgw
       integer :: source, dest
 
       
+#ifdef TIMING
+      dt = clockdt()
+#endif
 
       if (x_pid .eq. 1) then
 
@@ -1381,6 +1570,9 @@ end subroutine aggregateQsgw
    10   continue
 
         cnt = 2*ZSPS
+#ifdef TIMING
+        ti = click()
+#endif
 ! ! Send (i,XSPS)th equations.
 ! ! Receive (i,(XSPS + 1))th equations.
 
@@ -1390,6 +1582,10 @@ end subroutine aggregateQsgw
  call mpi_wait(sendReq, mpp_status, ierr)
  call mpi_wait(recvReq, mpp_status, ierr)
 
+#ifdef TIMING
+        tf = click()
+        call add_dt(ct,tf,ti,dt)
+#endif
 
         do 20 i = 1, ZSPS
 ! Backward elimination in (i,XSPS)th equations to get
@@ -1410,12 +1606,19 @@ end subroutine aggregateQsgw
       else if (x_pid .le. XDNS/2) then
 
         cnt = 2*ZSPS
+#ifdef TIMING
+        ti = click()
+#endif
 ! ! Receive (i,0)th equations.
 
  call mpi_cart_shift(cartGridComm, colshift, -1, source, dest, ierr)
  call MPI_IRECV(   xn, cnt, MPI_REAL, dest, XN_REC, cartGridComm, recvReq, ierr)
  call mpi_wait(recvReq, mpp_status, ierr)
 
+#ifdef TIMING
+        tf = click()
+        call add_dt(ct,tf,ti,dt)
+#endif
 
 ! Forward elimination in (i,1)th equations of subdomain.
 	do 40 i = 1, ZSPS
@@ -1435,6 +1638,9 @@ end subroutine aggregateQsgw
    40   continue
 
         cnt = 2*ZSPS
+#ifdef TIMING
+        ti = click()
+#endif
 ! ! Send (i,XSPS)th equations.
 ! ! Receive (i,(XSPS + 1))th equations.
 
@@ -1443,6 +1649,10 @@ end subroutine aggregateQsgw
  call MPI_IRECV(   xn, cnt, MPI_REAL, dest, XN_REC, cartGridComm, recvReq, ierr)
  call mpi_wait(sendReq, mpp_status, ierr)
  call mpi_wait(recvReq, mpp_status, ierr)
+#ifdef TIMING
+        tf = click()
+        call add_dt(ct,tf,ti,dt)
+#endif
 
         do 50 i = 1, ZSPS
 ! Backward elimination in (i,XSPS)th equations.
@@ -1458,8 +1668,15 @@ end subroutine aggregateQsgw
    50   continue
 
         cnt = 2*ZSPS
+#ifdef TIMING
+        ti = click()
+#endif
 ! ! Send (i,1)th equations.
 
+#ifdef TIMING
+        tf = click()
+        call add_dt(ct,tf,ti,dt)
+#endif
  call mpi_cart_shift(cartGridComm, colshift, -1, source, dest, ierr)
  call MPI_ISEND(xntmp, cnt, MPI_REAL, dest, XN_REC, cartGridComm, sendReq, ierr)
  
@@ -1480,12 +1697,19 @@ end subroutine aggregateQsgw
       else if (x_pid .lt. XDNS) then 
 
         cnt = 2*ZSPS
+#ifdef TIMING
+        ti = click()
+#endif
 ! ! Receive (i,XSPS+1)th equations.
 
  call mpi_cart_shift(cartGridComm, colshift, 1, source, dest, ierr)
  call MPI_IRECV(   xn, cnt, MPI_REAL, dest, XN_REC, cartGridComm, recvReq, ierr)
  call mpi_wait(recvReq, mpp_status, ierr)
 
+#ifdef TIMING
+        tf = click()
+        call add_dt(ct,tf,ti,dt)
+#endif
 
         do 80 i = 1, ZSPS
 ! Backward elimination in (i,XSPS)th equations.
@@ -1505,6 +1729,9 @@ end subroutine aggregateQsgw
    80   continue
 
         cnt = 2*ZSPS
+#ifdef TIMING
+        ti = click()
+#endif
 ! ! Send (i,1)th equations.
 ! ! Receive (i,0)th equations.
  call mpi_cart_shift(cartGridComm, colshift, -1, source, dest, ierr)
@@ -1513,6 +1740,10 @@ end subroutine aggregateQsgw
  call mpi_wait(sendReq, mpp_status, ierr)
  call mpi_wait(recvReq, mpp_status, ierr)
 
+#ifdef TIMING
+        tf = click()
+        call add_dt(ct,tf,ti,dt)
+#endif
 
         do 90 i = 1, ZSPS
 ! Forward elimination in (i,1)th equations
@@ -1528,10 +1759,17 @@ end subroutine aggregateQsgw
    90   continue
 
         cnt = 2*ZSPS
+#ifdef TIMING
+        ti = click()
+#endif
 ! ! Send (i,XSPS)th equations.
 
  call mpi_cart_shift(cartGridComm, colshift, 1, source, dest, ierr)
  call MPI_ISEND(xntmp, cnt, MPI_REAL, dest, XN_REC, cartGridComm, sendReq, ierr)
+#ifdef TIMING
+        tf = click()
+        call add_dt(ct,tf,ti,dt)
+#endif
 
 ! Forward elimination in (i,XSPS)th equations to get
 ! r(i,XSPS+1).	
@@ -1556,6 +1794,9 @@ end subroutine aggregateQsgw
   120   continue
 
         cnt = 2*ZSPS
+#ifdef TIMING
+        ti = click()
+#endif
 ! ! Send (i,1)th equations.
 ! ! Receive (i,0)th equations.
 
@@ -1565,6 +1806,10 @@ end subroutine aggregateQsgw
  call mpi_wait(sendReq, mpp_status, ierr)
  call mpi_wait(recvReq, mpp_status, ierr)
 
+#ifdef TIMING
+        tf = click()
+        call add_dt(ct,tf,ti,dt)
+#endif
 
 	do 130 i = 1, ZSPS
 ! Forward elimination in (i,1)th equations to get r(i,1).
@@ -1815,6 +2060,7 @@ end subroutine aggregateQsgw
 
       return
       end subroutine
+#endif
 
 ! Tridiagonal solver useful for domain decomposed ADI
 ! Author(s): Mike Lambert

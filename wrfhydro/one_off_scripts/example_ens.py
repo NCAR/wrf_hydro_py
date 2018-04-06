@@ -102,27 +102,48 @@ DeepDiff(m1.model,  m2.model,  eq_types={pathlib.PosixPath})
 
 
 # Can I come up with a good visitor...
+
 from boltons.iterutils import remap
+import collections
 
+def build_mem_refs_dict_list(bad_self):
 
-def visit(path, key, value):
+    def build_component_types(ii):
 
-    print(path, key)
+        def visit(path, key, value):
+            # r and super_path are from the calling scope
+            if isinstance(value, collections.Container) or type(value) in exclude_types:
+                return False
+            if super_path is None:
+                r[path + (key,)] = [ value ]
+            else:
+                r[(super_path,) + path + (key,)] = [ value ]
+            return False
 
-    if (not path):
-        print('not path')
-        if key == 'model':
-            print('key is model')
-            remap(value.__dict__, visit=visit)
+        r={}; super_path = None
+        dum = remap(bad_self.members[ii].__dict__, visit=visit)
+        ref_dict = r
 
-    if key == 'forcing_dir':
-        r.append(value)
+        r={}; super_path = 'model'
+        dum = remap(bad_self.members[ii].model.__dict__, visit=visit)
+        ref_dict = { **ref_dict, **r}
 
-    return False
+        r={}; super_path = 'domain'
+        dum = remap(bad_self.members[ii].domain.__dict__, visit=visit)
+        ref_dict = { **ref_dict, **r}
 
-r=[]
-m1=e1.members[1]
-n = remap(m1.__dict__, visit=visit)
+        return(ref_dict)
+
+    exclude_types = [WrfHydroModel, WrfHydroDomain]
+    mems_refs_dict_list = [ build_component_types(mm) for mm, val in enumerate(bad_self.members) ]
+    return(mems_refs_dict_list)
+
+#e1.members[0].domain.forcing_dir = 'foobar'
+#e1.members[1].domain.forcing_dir = 'barfoo'
+mrdl = build_mem_refs_dict_list(e1)
+
+from deepdiff import DeepDiff
+dd=DeepDiff(mrdl[1], mrdl[2])
 
 #e1.members
 

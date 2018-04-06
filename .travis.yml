@@ -1,37 +1,24 @@
 sudo: required
-language: bash
+language: python
+
+matrix:
+ include:
+  - python: 3.6
+
 services:
   - docker
 
 before_install:
-#  - TRAVIS_HOME_DIR=/home/travis_dir
-#  - sudo mkdir $TRAVIS_HOME_DIR
-#  - sudo chmod -R 777 $TRAVIS_HOME_DIR
   - sudo chmod -R 777 $TRAVIS_BUILD_DIR
-#  - mv -r $TRAVIS_BUILD_DIR $TRAVIS_HOME_DIR/wrf_hydro_py
   - docker pull wrfhydro/dev:conda
-#  - git clone https://github.com/NCAR/wrf_hydro_py.git $TRAVIS_HOME_DIR
 
 script:
-  - docker run -v $TRAVIS_BUILD_DIR:/home/docker/wrf_hydro_py  wrfhydro/dev:conda pytest /home/docker/wrf_hydro_py/wrfhydro/tests
+  - docker run -v $TRAVIS_BUILD_DIR:/home/docker/wrf_hydro_py wrfhydro/dev:conda bash -c "cd /home/docker/wrf_hydro_py/wrfhydropy/tests; pytest -v"
 
-# after_failure:
-#   - echo $TRAVIS_HOME_DIR
-#   - echo $TEST_OUT_DIR_TRAVIS
-#   - mkdir $TRAVIS_HOME_DIR/dockerBuild
-#   - mkdir $TRAVIS_HOME_DIR/dockerBuild/test_out
-#   - cp -r $TEST_OUT_DIR_TRAVIS $TRAVIS_HOME_DIR/dockerBuild/test_out
-#   - cd $TRAVIS_HOME_DIR/dockerBuild
-#   - touch Dockerfile
-#   - echo "FROM alpine" >> Dockerfile
-#   - echo "MAINTAINER jmills@ucar.edu" >> Dockerfile
-#   - echo "RUN mkdir /home/docker" >> Dockerfile
-#   - echo "COPY test_out/ /home/docker/" >> Dockerfile
-#   - echo "RUN chmod -R 777 $TEST_OUT_DIR_DOCKER" >> Dockerfile
-#   - echo "RUN chmod -R 777 /home/docker" >> Dockerfile
-#   - echo "VOLUME /home/docker" >> Dockerfile
-#   - echo "WORKDIR /home/docker"  >> Dockerfile
-#   - docker build -t wrfhydro/travis_builds_private:$TRAVIS_BUILD_NUMBER .
-#   - docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
-#   - docker push wrfhydro/travis_builds_private:$TRAVIS_BUILD_NUMBER
-
+#deploy:
+#  provider: pypi
+#  user: "jmills-ncar"
+#  password:
+#    secure: "ujHwMacR5lrsotqZ8zPznkQQIhd2jPR7iwpUvt53OLYWn5pnHopZiXHB1HqBO7xMEKTgk9DGItT8AJ6PJQpr+6kZ0wJHAzjxtPAxb+/Fi7b7764fmk9+WuxgmsTi2s6c3tdr1dHh9tcdfTVypbTJA7a+MWAirkMSvWp3vuIFJTtjSyAarSMxHKMf1ILytv98ngxGNoWeOMENt6zERWg1loTB7El+d04tFFT0EMz9DRYaKkY1lv69dk+pkDR1KrsDLhmvemhGMkQqBPl3qrLgLi02wkpS4D+ZYuxhr97DbjmxWGJKFlkPQ2L83Yd0dDjaA7syF0vYy1X+OgjsnnmV7yI/Kn0C2KDAWOE0VNtryw9YsO7/KH2BDkPdMNbwj9PBjsE4BIV//EdGd9RRPEeYOWSVeuWBvkyQlPxrV7y7Ln4KCYv7QxXG0pHBedjTjww0JNxACiBIlvVRdc2z0m8LDebgMtdgRQKoRC1qz3mfc//+SMdLdAjk1ssxTJpN7M02K7thTpDczk65By08VzGh0/EsffcaRayk+40rhVvqcPcJjRmuiglgTa1rKA2hWbMKAmu7taj3tvQZGI9Cv2oo55HUlPPQsSXltRYfk0JiBv/ce8Hx4GWggEQ5plYEPg+F+th5dvVqlN+bHoNvmnspdFV7LYz5f+O87ruuirDFnXw="
+#  on:
+#    tags: true

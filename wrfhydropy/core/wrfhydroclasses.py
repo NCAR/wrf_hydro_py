@@ -372,6 +372,27 @@ class WrfHydroSim(object):
                                  mode=mode)
         return run_object
 
+    def schedule_run(self,
+                     simulation_dir: str,
+                     num_cores: int = 2,    ##JLM arsgs or a dict?
+                     mode: str = 'r') -> object:
+        """Scheulde a run of the wrf_hydro simulation
+        Args:
+            simulation_dir: The path to the directory to use for run
+            mode: Write mode, 'w' for overwrite if directory exists, and 'r' for fail if
+            directory exists
+        Returns:
+            String: A job scheduler id
+        TODO:
+            Add option for custom run commands to deal with job schedulers
+        """
+        #Make copy of simulation object to alter and return
+        simulation = copy.deepcopy(self)
+        run_object = WrfHydroRun(wrf_hydro_simulation=simulation,
+                                 simulation_dir=simulation_dir,
+                                 num_cores=num_cores,
+                                 mode=mode)
+        return run_object
 
 class WrfHydroRun(object):
     def __init__(self,

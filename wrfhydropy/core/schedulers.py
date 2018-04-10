@@ -4,6 +4,8 @@
 import re
 import os
 import sys
+import math
+import datetime
 #import io
 
 ### Local ###
@@ -34,6 +36,9 @@ class Job(object):  #pylint: disable=too-many-instance-attributes
     queue       -q             "regular"           "regular"
     walltime    -l walltime=   "12:00"             "10:00:00" or "10:00" (seconds coerced)
 
+    array_size  -J              None               16             integer
+    grab_env    -V              None               True           logical
+
     Sepcify: np + 
     np                                             500             Number of procs
     nodes                                          4               Number of nodes
@@ -42,7 +47,7 @@ class Job(object):  #pylint: disable=too-many-instance-attributes
 
     
 
-    command                                        "echo \"hello\" > test.txt"
+    exe_cmd                                        "echo \"hello\" > test.txt"
 
     sched_name                 "torque"            "slurm"        
     modules
@@ -55,24 +60,40 @@ class Job(object):  #pylint: disable=too-many-instance-attributes
 
 
     def __init__(self,
-                 name=None,
-                 account=None,
-                 email_when="a",
-                 email_who="${USER}@ucar.edu",
-                 queue='regular',
-                 walltime="12:00", 
-                 nodes=None,
-                 ppn=None,
-                 command=None,
-                 sched_name="torque",
-                 pmem=None,
-                 exetime=None):
+                 name: str=None,
+                 account: str=None,
+                 email_when: str="a",
+                 email_who: str="${USER}@ucar.edu",
+                 queue: str='regular',
+                 walltime: str="12:00",
+                 nproc: int=None,
+                 nnodes: int=None,
+                 ppn: int=None,
+                 array_size: int=None,
+                 exe_cmd: str=None,
+                 binary_file: str=None,
+                 run_dir: str=None,
+                 sched_name: str="torque",
+                 modules: str=None,
+                 pmem: str=None,
+                 grab_env: str=False,
+                 exetime: str=None):
 
         # Check for required inputs
         # TODO: Deal with setting ppn from machine_spec_file.
-        # TODO: Set nodes from 
-        req_args = { 'name':name, 'account':account, 'nodes':nodes,
-                     'ppn':ppn, 'command':command }
+        if not nproc  and nnodes and ppn  : nproc  = nnodes * ppn
+        if not nnodes and nproc  and ppn  : nnodes = math.ceil(nproc / ppn)
+        if not ppn    and nnodes and nproc: ppn = math.ceil(nproc / nnodes)
+        # TODO: Set nodes from nproc/n
+        
+        req_args = { 'name':name,
+                     'account':account,
+                     'nproc':nproc,
+                     'nnodes':nnodes,
+                     'ppn':ppn,
+                     'exe_cmd':exe_cmd,
+                     'binary_file':binary_file,
+                     'run_dir': run_dir }
         
         def check_req_args(arg_name, arg):
             if not arg:
@@ -96,35 +117,40 @@ class Job(object):  #pylint: disable=too-many-instance-attributes
         # Required
         self.name       = name
         self.account    = account
-        self.command    = command
+        self.exe_cmd    = exe_cmd
+        self.binary_file= binary_file
 
         # Defaults in arglist
         self.email_when = email_when
         self.queue      = queue
         self.sched_name = sched_name
+        self.array_size = array_size
+        self.grab_env   = grab_env
+        self.modules    = modules
+        self.run_dir    = run_dir
 
         # Extra Coercion 
         self.email_who  = os.path.expandvars(email_who)
         self.walltime   = ':'.join((walltime+':00').split(':')[0:3])
 
         # Construction
-        self.nodes      = int(nodes)
+        self.nproc      = int(nproc)
+        self.nnodes     = int(nnodes)
         self.ppn        = int(ppn)
-        
-        
+
+        self.nproc_last_node = nproc - (nnodes * ppn)
+        if self.nproc_last_node > 0:
+            if nproc_last_node > ppn:
+                raise ValueError('nproc - (nnodes * ppn) = {0} > ppn'.format(nproc_last_node))
+
         # Currently unsupported.
         self.pmem = pmem
         self.exetime = exetime
 
-
-
-        ##################################
-        # Submission status:
-
-        # jobID
+        # jobID, JLM: is this set later?
         self.jobID = None   #pylint: disable=invalid-name
+        self.job_date_id = '{date:%Y-%m-%d-%H-%M-%S-%f}'.format( date=datetime.datetime.now())
 
-    #
 
     def sub_string(self):   #pylint: disable=too-many-branches
         """ Write Job as a string suitable for self.sched_name """
@@ -147,7 +173,7 @@ class Job(object):  #pylint: disable=too-many-instance-attributes
             if self.account is not None:
                 jobstr += "#SBATCH -A {0}\n".format(self.account)
             jobstr += "#SBATCH -t {0}\n".format(self.walltime)
-            jobstr += "#SBATCH -n {0}\n".format(self.nodes*self.ppn)
+            jobstr += "#SBATCH -n {0}\n".format(self.nnodes*self.ppn)
             if self.pmem is not None:
                 jobstr += "#SBATCH --mem-per-cpu={0}\n".format(self.pmem)
             if self.qos is not None:
@@ -164,95 +190,101 @@ class Job(object):  #pylint: disable=too-many-instance-attributes
             # jobstr += "#SBATCH -N {0}\n".format(self.nodes)
             if self.queue is not None:
                 jobstr += "#SBATCH -p {0}\n".format(self.queue)
-            jobstr += "{0}\n".format(self.command)
+            jobstr += "{0}\n".format(self.exe_cmd)
 
             return jobstr
 
         else:
+
             ###Write this Job as a string suitable for torque###
-
-
-            # TODO JLM: What are the required fields for Torque?
-            # account. no default
-
-            # name? default?
-            
-                        
+            jobstr = ""            
             jobstr += "#!/bin/bash\n"
             jobstr += "#PBS -N {0}\n".format(self.name)
             jobstr += "#PBS -A {0}\n".format(self.account)
+            jobstr += "#PBS -q {0}\n".format(self.queue)
+            jobstr += "#PBS -M {0}\n".format(self.email_who)
+            jobstr += "#PBS -m {0}\n".format(self.email_when)
+            jobstr += "\n"
 
-            if self.exetime is not None: jobstr += "#PBS -a {0}\n".format(self.exetime)
             jobstr += "#PBS -l walltime={0}\n".format(self.walltime)
-            jobstr += "#PBS -l nodes={0}:ppn={1}\n".format(self.nodes, self.ppn)
-            if self.pmem is not None: jobstr += "#PBS -l pmem={0}\n".format(self.pmem)
-            if self.qos  is not None: jobstr += "#PBS -l qos={0}\n".format(self.qos)
-            if self.queue is not None: jobstr += "#PBS -q {0}\n".format(self.queue)
-            if self.email != None and self.message != None:
-                jobstr += "#PBS -M {0}\n".format(self.email)
-                jobstr += "#PBS -m {0}\n".format(self.message)
-            jobstr += "#PBS -V\n"
-            jobstr += "#PBS -p {0}\n\n".format(self.priority)
-            jobstr += "#auto={0}\n\n".format(self.auto)
-            jobstr += "echo \"I ran on:\"\n"
-            jobstr += "cat $PBS_NODEFILE\n\n"
-            jobstr += "cd $PBS_O_WORKDIR\n"
-            jobstr += "{0}\n".format(self.command)
+            jobstr += "\n"
 
+            if self.nproc_last_node == 0:
+                prcstr = "nodes={0}:ppn={1}\n".format(self.nnodes, self.ppn)
+            else:
+                prcstr = "select={0}:ncpus={1}:mpiprocs={1}+1:ncpus={2}:mpiprocs={2}\n"
+                prcstr = prcstr.format(self.nnodes-1, self.ppn, self.nproc_last_node)
 
-            #JOBNAME=$PBS_JOBNAME
-            #JOBID="$PBS_JOBID"
-            #ARRAY_INDEX=$PBS_ARRAY_INDEX
-            #NODELIST=`cat "${PBS_NODEFILE}"`
-            #LAUNCHCMD="mpiexec_mpt"
-            
-            # CISL suggests users set TMPDIR when running batch jobs on Cheyenne
-            #export TMPDIR=/glade/scratch/$USER/temp
-            #mkdir -p $TMPDIR
+            jobstr += "#PBS -l " + prcstr
+            jobstr += "\n"
 
+            jobstr += "# Not using PBS standard error and out files to capture model output\n"
+            jobstr += "# but these hidden files might catch output and errors from the scheduler.\n"
+            jobstr += "#PBS -o {0}/.{1}.pbs.stdout\n".format(self.run_dir, self.job_date_id)
+            jobstr += "#PBS -e {0}/.{1}.pbs.stderr\n".format(self.run_dir, self.job_date_id)
+            jobstr += "\n"
+
+            if self.array_size: jobstr += "#PBS -J 1-{0}\n".format(self.array_size)
+            if self.exetime:    jobstr += "#PBS -a {0}\n".format(self.exetime)
+            if self.pmem:       jobstr += "#PBS -l pmem={0}\n".format(self.pmem)
+            if self.grab_env:   jobstr += "#PBS -V\n"
+            if self.array_size or self.exetime or self.pmem or self.grab_env: jobstr += "\n"
+
+            # End PBS Header
+
+            if self.modules:
+                jobstr += 'module purge\n'
+                jobstr += 'module load {0}\n'.format(self.modules)
+                jobstr += "\n"
             
-            jobstr += "#PBS -l walltime=${wallTime}:00\n"
-            jobstr += "#PBS -q $queue\n"
-            jobstr += "#PBS -l select=${nNodesM1}:ncpus=36:mpiprocs=36+1:ncpus=${nCoresLeft}:mpiprocs=${nCoresLeft}\n"
-            jobstr += "## Not using PBS standard error and out files to capture model output\n"
-            jobstr += "## but these hidden files might catch output and errors from the scheduler.\n"
-            jobstr += "#PBS -o ${workingDir}/.${theDate}.pbs.stdout\n"
-            jobstr += "#PBS -e ${workingDir}/.${theDate}.pbs.stderr\n"
-            jobstr += "\n"            
-            jobstr += "numJobId=\`echo \${PBS_JOBID} | cut -d'.' -f1\`\n"
-            jobstr += "echo PBS_JOBID:  \$PBS_JOBID\n"
-            jobstr += "echo numJobId: \$numJobId\n"
+            jobstr += "echo PBS_JOBID: $PBS_JOBID\n"
+            jobstr += "numJobId=`echo ${PBS_JOBID} | cut -d'.' -f1`\n"
+            jobstr += "echo numJobId: $numJobId\n"
+            jobstr += "\n"
+
+            jobstr += "cd {0}\n".format(self.run_dir)
+            jobstr += "echo \"pwd:\" `pwd`\n"
+            jobstr += "\n"
+
+            jobstr += "# DART job variables\n"
+            jobstr += "JOBNAME=$PBS_JOBNAME\n"
+            jobstr += "JOBID=\"$PBS_JOBID\"\n"
+            jobstr += "ARRAY_INDEX=$PBS_ARRAY_INDEX\n"
+            jobstr += "NODELIST=`cat \"${PBS_NODEFILE}\"`\n"
+            jobstr += "LAUNCHCMD=\"mpiexec_mpt\"\n"
             jobstr += "\n"
             
-            jobstr += "## To communicate where the stderr/out and job scripts are and their ID\n"
-            jobstr += "export cleanRunDateId=${theDate}\n"
+            jobstr += "# CISL suggests users set TMPDIR when running batch jobs on Cheyenne.\n"
+            jobstr += "export TMPDIR=/glade/scratch/$USER/temp\n"
+            jobstr += "mkdir -p $TMPDIR\n"
+            jobstr += "\n"          
+            
+            jobstr += "## Communicate where the stderr/out and job scripts are and their ID\n"
+            jobstr += "export cleanRunDateId={0}\n".format(self.job_date_id)
             jobstr += "\n"
             
-            jobstr += "cd $workingDir\n"
-            jobstr += "echo `pwd`\n"
+            exestr  = "{0} ./{1} ".format(self.exe_cmd, self.binary_file)
+            exestr += "2> ${cleanRunDateId}.${numJobId}.stderr "
+            exestr += "1> ${cleanRunDateId}.${numJobId}.stdout\n"
+
+            jobstr += "echo \"" + exestr + "\""
+            jobstr += exestr
             jobstr += "\n"
             
-            jobstr += "numJobId=\$(echo \${PBS_JOBID} | cut -d'.' -f1)\n"
-            jobstr += "echo \"mpiexec_mpt $theBinary 2> \${cleanRunDateId}.\${numJobId}.stderr 1> \${cleanRunDateId}.\${numJobId}.stdout\"\n"
-            
-            jobstr += "mpiexec_mpt $theBinary 2> \${cleanRunDateId}.\${numJobId}.stderr 1> \${cleanRunDateId}.\${numJobId}.stdout\n"
-            jobstr += "\n"
-            
-            jobstr += "mpiexecreturn=\$?\n"
-            jobstr += "echo \"mpiexec_mpt return: \$mpiExecReturn\"\n"
+            jobstr += "mpi_return=$?\n"
+            jobstr += "echo \"mpi_return: $mpi_return\"\n"
             jobstr += "\n"
             
             jobstr += "# Touch these files just to get the cleanRunDateId in their file names.\n"
             jobstr += "# Can identify the files by jobId and replace contents...\n"
-            jobstr += "touch ${workingDir}/\${cleanRunDateId}.\${numJobId}.tracejob\n"
-            jobstr += "touch ${workingDir}/.\${cleanRunDateId}.\${numJobId}.stdout\n"
-            jobstr += "touch ${workingDir}/.\${cleanRunDateId}.\${numJobId}.stderr\n"
+            jobstr += "touch {0}/${{cleanRunDateId}}.${{numJobId}}.tracejob\n".format(self.run_dir)
+            jobstr += "touch {0}/.${{cleanRunDateId}}.${{numJobId}}.stdout\n".format(self.run_dir)
+            jobstr += "touch {0}/.${{cleanRunDateId}}.${{numJobId}}.stderr\n".format(self.run_dir)
             jobstr += "\n"
-            
-            jobstr += "exit \$mpiExecReturn\n"
-            
-            return jobstr
 
+            ## JLM: the tracejob execution gets called by the waiting process.
+            jobstr += "exit $mpi_return\n"
+            return jobstr
 
 
     def script(self, filename="submit.sh"):
@@ -282,20 +314,13 @@ class Job(object):  #pylint: disable=too-many-instance-attributes
 
         if add:
             db = jobdb.JobDB(dbpath=dbpath, configpath=configpath) #pylint: disable=invalid-name
-            status = jobdb.job_status_dict(jobid=self.jobID, jobname=self.name,
-                                           rundir=os.getcwd(), jobstatus="?",
+            status = jobdb.job_status_dict(jobid=self.jobID,
+                                           jobname=self.name,
+                                           rundir=os.getcwd(),
+                                           jobstatus="?",
                                            auto=self.auto, qsubstr=self.sub_string(),
                                            walltime=misc.seconds(self.walltime),
                                            nodes=self.nodes, procs=self.nodes*self.ppn)
             db.add(status)
             db.close()
-
-
-
-def get_sched_args_from_specs(machine_spec_file:   str=None,
-                              user_spec_file:      str=None,
-                              candidate_spec_file: str=None):
-
-    
-
 

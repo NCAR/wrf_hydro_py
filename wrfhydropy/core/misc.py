@@ -49,7 +49,7 @@ def getversion(software=None):
         # call 'qstat' using subprocess
         p = subprocess.Popen(opt, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) #pylint: disable=invalid-name
         stdout, stderr = p.communicate()    #pylint: disable=unused-variable
-        sout = io.StringIO(stdout)
+        sout = io.StringIO(stdout.decode('utf-8'))
 
         # return the version number
         return sout.read().rstrip("\n").lstrip("version: ")
@@ -59,7 +59,7 @@ def getversion(software=None):
         # call 'squeue' using subprocess
         p = subprocess.Popen(opt, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) #pylint: disable=invalid-name
         stdout, stderr = p.communicate()    #pylint: disable=unused-variable
-        sout = io.StringIO(stdout)
+        sout = io.StringIO(stdout.decode('utf-8'))
 
         # return the version number
         return sout.read().rstrip("\n").lstrip("slurm ")

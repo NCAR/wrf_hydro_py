@@ -9,7 +9,10 @@ import time
 import sys
 from misc import getversion, getlogin, seconds, PBSError
 
-def _qstat(jobid=None, username=getlogin(), full=False, version=int(getversion().split(".")[0])):
+def _qstat(jobid=None,
+           username=getlogin(),
+           full=False,
+           version=int(re.split("[\+\ \.]", getversion())[2])):
     """Return the stdout of qstat minus the header lines.
 
        By default, 'username' is set to the current user.

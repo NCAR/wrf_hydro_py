@@ -364,8 +364,6 @@ class WrfHydroSim(object):
             directory exists
         Returns:
             A model run object
-        TODO:
-            Add option for custom run commands to deal with job schedulers
         """
         #Make copy of simulation object to alter and return
         simulation = copy.deepcopy(self)
@@ -394,14 +392,16 @@ class WrfHydroSim(object):
             Add option for custom run commands to deal with job schedulers
         """
 
+        # Note that the scheduler is added to the run object, not the sim object.
+        
         # Write python script WrfHydroSim.schedule_run.py to be executed by the
         # scheduler. Swap the scheduler script executable (exe_cmd), for this
         # python script: call python script in the scheduler job and execute the
         # model from python (as an object method).
 
-        model_exe_cmd = "\"" + scheduler.exe_cmd + "\""
+        model_exe_cmd = scheduler.exe_cmd
         py_script_name = scheduler.run_dir + "/WrfHydroSim.schedule_run.py"
-        py_run_cmd = "\"python " + py_script_name + "\""
+        py_run_cmd = "python " + py_script_name + " --jobID $jobID --job_date_id $job_date_id"
         # Write the script later, have to make the run dir before the script can be written to it.
         
         # This run is intaractive/has no jobID, so it exits after init without run.
@@ -417,9 +417,14 @@ class WrfHydroSim(object):
         jobstr  = "#!/usr/bin/env python\n"
         jobstr += "\n"
         
-        jobstr += "from wrfhydrpy import WrfHydroRun\n"
+        jobstr += "from wrfhydropy import WrfHydroRun\n"
         jobstr += "import pickle\n"
         jobstr += "import argparse\n"
+        jobstr += "import os\n"
+        jobstr += "import sys\n"
+        jobstr += "home = os.path.expanduser(\"~/\")\n"
+        jobstr += "sys.path.insert(0, home + '/WRF_Hydro/wrf_hydro_py/wrfhydropy/core/')\n"
+        jobstr += "from scheduler import Scheduler\n"
         jobstr += "\n"
 
         jobstr += "parser = argparse.ArgumentParser()\n"
@@ -435,14 +440,12 @@ class WrfHydroSim(object):
         jobstr += "\n"
 
         jobstr += "run_object = pickle.load(open('WrfHydroRun.pkl', 'rb'))\n"
-        jobstr += "run_object.exe_cmd = " + py_run_cmd + "\n"
-        jobstr += "run_object.jobID = args.jobID\n"
-        jobstr += "run_object.job_date_id = args.job_date_id\n"
-        jobstr += "run_object.run(simulation_dir=run_object.scheduler.run_dir,\n"
-        jobstr += "               num_cores=run_object.scheduler.nproc,\n"
-        jobstr += "               run_cmd=" + model_exe_cmd + ",\n"
-        jobstr += "               scheduler=scheduler,\n"
-        jobstr += "               mode='w')"
+        jobstr += "run_object.exe_cmd = \"" + py_run_cmd + "\"\n"
+        jobstr += "run_object.scheduler.jobID = args.jobID\n"
+        jobstr += "run_object.scheduler.job_date_id = args.job_date_id\n"
+        jobstr += "run_object.run_cmd = \"" + model_exe_cmd + "\"\n"
+        jobstr += "run_object.run()\n"
+        jobstr += "run_object.collect_run()\n"
         jobstr += "\n"
 
         with open(py_script_name, "w") as myfile:
@@ -450,7 +453,6 @@ class WrfHydroSim(object):
 
         # Now submit the above script to the scheduler.
         scheduler.exe_cmd = py_run_cmd
-        scheduler.script()
         scheduler.submit()
         #optional: monitor the job
         
@@ -488,6 +490,8 @@ class WrfHydroRun(object):
         """int: The number of cores used for the run"""
         self.simulation_dir = pathlib.Path(simulation_dir)
         """pathlib.Path: pathlib.Path to the directory used for the run"""
+        self.scheduler = scheduler
+        #"""Scheduler: optional scheduler object used for the run"""
         self.run_log = None
         """CompletedProcess: The subprocess returned from the run call"""
         self.run_status = None
@@ -587,10 +591,10 @@ class WrfHydroRun(object):
         f90nml.write(self.simulation.namelist_hrldas,
                      self.simulation_dir.joinpath('namelist.hrldas'))
         
-        if scheduler:
-            self.run_cmd = scheduler.exe_cmd
+        if self.scheduler:
+            self.run_cmd = self.scheduler.exe_cmd
             self.pickle()
-            if not scheduler.jobID:
+            if not self.scheduler.jobID:
                 # If the scheuler has not been scheduled, dont run.
                 return(None)
         else:
@@ -602,9 +606,9 @@ class WrfHydroRun(object):
 
     def run(self):
 
-        if scheduler:
-            run_cmd = self.run_cmd + \
-                      " 2> {0} 1> {1}".format(scheduler.stderr_exe, scheduler.stdout_exe)
+        if self.scheduler:
+            run_cmd = self.run_cmd + " 2> {0} 1> {1}"
+            run_cmd = run_cmd.format(self.scheduler.stderr_exe, self.scheduler.stdout_exe)
             run_cmd = shlex_split(run_cmd)
             subprocess.run(run_cmd, cwd=self.simulation_dir)
         else:

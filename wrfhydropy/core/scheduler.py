@@ -136,11 +136,6 @@ class Scheduler(object):  #pylint: disable=too-many-instance-attributes
             if nproc_last_node >= ppn:
                 raise ValueError('nproc - (nnodes * ppn) = {0} >= ppn'.format(nproc_last_node))
 
-        print("nproc: ", self.nproc)
-        print("nnodes: ", self.nnodes)
-        print("ppn: ", self.ppn)
-        print("nproc_last_node: ", self.nproc_last_node)
-
         # Currently unsupported.
         self.pmem = pmem
         self.exetime = exetime
@@ -299,6 +294,9 @@ class Scheduler(object):  #pylint: disable=too-many-instance-attributes
             jobstr += "echo PBS_JOBID: $PBS_JOBID\n"
             jobstr += "jobID=`echo ${PBS_JOBID} | cut -d'.' -f1`\n"
             jobstr += "echo jobID: $jobID\n"
+            jobstr += "job_date_id={0}\n".format(self.job_date_id)
+            jobstr += "echo job_date_id: $job_date_id\n"
+
             jobstr += "\n"
 
             jobstr += "cd {0}\n".format(self.run_dir)

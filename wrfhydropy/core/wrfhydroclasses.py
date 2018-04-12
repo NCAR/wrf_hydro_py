@@ -10,20 +10,21 @@ import uuid
 import pickle
 import warnings
 
-from .utilities import compare_ncfiles
+from .utilities import compare_ncfiles, open_nwmdataset
 
 #########################
 # netcdf file object classes
 
 class WrfHydroTs(list):
-    def open(self):
+    def open(self, chunk_size:int = 10000):
         """Open a WrfHydroTs object
         Args:
             self
+            chunk_size: Integer chunk size for dask arrays
         Returns:
             An xarray mfdataset object concatenated on dimension 'Time'.
         """
-        return(xr.open_mfdataset(self, concat_dim='Time'))
+        return open_nwmdataset(self,chunk_size)
 
 class WrfHydroStatic(pathlib.PosixPath):
     def open(self):
@@ -33,7 +34,7 @@ class WrfHydroStatic(pathlib.PosixPath):
         Returns:
             An xarray dataset object.
         """
-        return (xr.open_dataset(self))
+        return xr.open_dataset(self)
 
 
 #########################

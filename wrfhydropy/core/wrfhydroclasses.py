@@ -9,8 +9,10 @@ import os
 import uuid
 import pickle
 import warnings
+from shlex import split as shlex_split
 
 from .utilities import compare_ncfiles
+#from .scheduler import Scheduler
 
 #########################
 # netcdf file object classes
@@ -352,6 +354,7 @@ class WrfHydroSim(object):
     def run(self,
             simulation_dir: str,
             num_cores: int = 2,
+            run_cmd: str='mpiexec -np {num_cores} ./wrf_hydro.exe',
             mode: str = 'r') -> object:
         """Run the wrf_hydro simulation
         Args:
@@ -369,36 +372,98 @@ class WrfHydroSim(object):
         run_object = WrfHydroRun(wrf_hydro_simulation=simulation,
                                  simulation_dir=simulation_dir,
                                  num_cores=num_cores,
+                                 run_cmd=run_cmd,
                                  mode=mode)
         return run_object
 
     def schedule_run(self,
-                     simulation_dir: str,
-                     num_cores: int = 2,    ##JLM arsgs or a dict?
-                     mode: str = 'r') -> object:
+                     scheduler, #: Scheduler,
+                     wait_for_run: bool=True,
+                     mode: str = 'r',
+                     **kwargs) -> object:
         """Scheulde a run of the wrf_hydro simulation
         Args:
             simulation_dir: The path to the directory to use for run
+            scheduler: A scheduler object
             mode: Write mode, 'w' for overwrite if directory exists, and 'r' for fail if
             directory exists
+            **kwargs: used to update scheduler particulars.
         Returns:
             String: A job scheduler id
         TODO:
             Add option for custom run commands to deal with job schedulers
         """
-        #Make copy of simulation object to alter and return
+
+        # Write python script WrfHydroSim.schedule_run.py to be executed by the
+        # scheduler. Swap the scheduler script executable (exe_cmd), for this
+        # python script: call python script in the scheduler job and execute the
+        # model from python (as an object method).
+
+        model_exe_cmd = "\"" + scheduler.exe_cmd + "\""
+        py_script_name = scheduler.run_dir + "/WrfHydroSim.schedule_run.py"
+        py_run_cmd = "\"python " + py_script_name + "\""
+        # Write the script later, have to make the run dir before the script can be written to it.
+        
+        # This run is intaractive/has no jobID, so it exits after init without run.
         simulation = copy.deepcopy(self)
         run_object = WrfHydroRun(wrf_hydro_simulation=simulation,
-                                 simulation_dir=simulation_dir,
-                                 num_cores=num_cores,
+                                 simulation_dir=scheduler.run_dir,
+                                 num_cores=scheduler.nproc,
+                                 run_cmd=py_run_cmd,
+                                 scheduler=scheduler,
                                  mode=mode)
+
+        # Construct the script.
+        jobstr  = "#!/usr/bin/env python\n"
+        jobstr += "\n"
+        
+        jobstr += "from wrfhydrpy import WrfHydroRun\n"
+        jobstr += "import pickle\n"
+        jobstr += "import argparse\n"
+        jobstr += "\n"
+
+        jobstr += "parser = argparse.ArgumentParser()\n"
+        jobstr += "parser.add_argument('--jobID',\n"
+        jobstr += "                    help='The numeric part of the scheduler job ID.')\n"
+        jobstr += "parser.add_argument('--job_date_id',\n"
+        jobstr += "                    help='The date-time identifier created by Schduler obj.')\n"
+        jobstr += "args = parser.parse_args()\n"
+        jobstr += "\n"
+
+        jobstr += "print('jobID: ', args.jobID)\n"
+        jobstr += "print('job_date_id: ', args.job_date_id)\n"
+        jobstr += "\n"
+
+        jobstr += "run_object = pickle.load(open('WrfHydroRun.pkl', 'rb'))\n"
+        jobstr += "run_object.exe_cmd = " + py_run_cmd + "\n"
+        jobstr += "run_object.jobID = args.jobID\n"
+        jobstr += "run_object.job_date_id = args.job_date_id\n"
+        jobstr += "run_object.run(simulation_dir=run_object.scheduler.run_dir,\n"
+        jobstr += "               num_cores=run_object.scheduler.nproc,\n"
+        jobstr += "               run_cmd=" + model_exe_cmd + ",\n"
+        jobstr += "               scheduler=scheduler,\n"
+        jobstr += "               mode='w')"
+        jobstr += "\n"
+
+        with open(py_script_name, "w") as myfile:
+            myfile.write(jobstr)
+
+        # Now submit the above script to the scheduler.
+        scheduler.exe_cmd = py_run_cmd
+        scheduler.script()
+        scheduler.submit()
+        #optional: monitor the job
+        
         return run_object
 
+    
 class WrfHydroRun(object):
     def __init__(self,
                  wrf_hydro_simulation: WrfHydroSim,
                  simulation_dir: str,
                  num_cores: int = 2,
+                 run_cmd: str='mpiexec -np {num_cores} ./wrf_hydro.exe',
+                 scheduler=None, #Scheduler=None,
                  mode: str = 'r'
                  ):
         """Instantiate a WrfHydroRun object, including running the simulation
@@ -406,6 +471,7 @@ class WrfHydroRun(object):
             wrf_hydro_simulation: A WrfHydroSim object to run
             simulation_dir: The path to the directory to use for run
             num_cores: Optional, the number of cores to using default run_command
+            scheduler: Optional, Scheduler object.
             mode: Write mode, 'w' for overwrite if directory exists, and 'r' for fail if
             directory exists
         Returns:
@@ -415,7 +481,6 @@ class WrfHydroRun(object):
         """
 
         # Initialize all attributes and methods
-
 
         self.simulation = wrf_hydro_simulation
         """WrfHydroSim: The WrfHydroSim object used for the run"""
@@ -521,12 +586,33 @@ class WrfHydroRun(object):
         # write namelist.hrldas
         f90nml.write(self.simulation.namelist_hrldas,
                      self.simulation_dir.joinpath('namelist.hrldas'))
+        
+        if scheduler:
+            self.run_cmd = scheduler.exe_cmd
+            self.pickle()
+            if not scheduler.jobID:
+                # If the scheuler has not been scheduled, dont run.
+                return(None)
+        else:
+            self.pickle()
+            
+        self.run()
+        self.collect_run()
 
-        # Run the model
-        self.run_log = subprocess.run(['mpiexec', '-np', str(num_cores), './wrf_hydro.exe'],
-                                      stdout=subprocess.PIPE,
-                                      stderr=subprocess.PIPE,
-                                      cwd=self.simulation_dir)
+
+    def run(self):
+
+        if scheduler:
+            run_cmd = self.run_cmd + \
+                      " 2> {0} 1> {1}".format(scheduler.stderr_exe, scheduler.stdout_exe)
+            run_cmd = shlex_split(run_cmd)
+            subprocess.run(run_cmd, cwd=self.simulation_dir)
+        else:
+            run_cmd = shlex_split(self.run_cmd.format(**{'num_cores': self.num_cores}))
+            self.run_log = subprocess.run(run_cmd,
+                                          stdout=subprocess.PIPE,
+                                          stderr=subprocess.PIPE,
+                                          cwd=self.simulation_dir)
 
         try:
             self.run_status = 1
@@ -539,82 +625,86 @@ class WrfHydroRun(object):
             warnings.warn('Could not parse diag files')
             print(e)
 
-        if self.run_status == 0:
+    def collect_run(self):
+        if self.run_status != 0:
+            warnings.warn('Model run failed.')
+            return(None)
 
-            #####################
-            # Grab outputs as WrfHydroXX classes of file paths
+        print('Model run succeeded.')
+        #####################
+        # Grab outputs as WrfHydroXX classes of file paths
 
-            ## Get diag files
-            self.diag = list(self.simulation_dir.glob('diag_hydro.*'))
-
-            ## Get channel files
-            if len(list(self.simulation_dir.glob('*CHRTOUT*'))) > 0:
-                self.channel_rt = WrfHydroTs(list(self.simulation_dir.glob('*CHRTOUT*')))
-                # ### Make relative to run dir
-                # for file in self.channel_rt:
-                #     file.relative_to(file.parent)
-
-            if len(list(self.simulation_dir.glob('*CHANOBS*'))) > 0:
-                self.chanobs = WrfHydroTs(list(self.simulation_dir.glob('*CHANOBS*')))
-                # ### Make relative to run dir
-                # for file in self.chanobs:
-                #     file.relative_to(file.parent)
-
-            ## Get restart files and sort by modified time
-            ### Hydro restarts
-            self.restart_hydro = []
-            for file in self.simulation_dir.glob('HYDRO_RST*'):
-                file = WrfHydroStatic(file)
-                self.restart_hydro.append(file)
-
-            if len(self.restart_hydro) > 0:
-                self.restart_hydro = sorted(self.restart_hydro,
-                                            key=lambda file: file.stat().st_mtime_ns)
-
-
-            ### LSM Restarts
-            self.restart_lsm = []
-            for file in self.simulation_dir.glob('RESTART*'):
-                file = WrfHydroStatic(file)
-                self.restart_lsm.append(file)
-
-            if len(self.restart_lsm) > 0:
-                self.restart_lsm = sorted(self.restart_lsm,
-                                          key=lambda file: file.stat().st_mtime_ns)
-            else:
-                self.restart_lsm = None
-
-            ### Nudging restarts
-            self.restart_nudging = []
-            for file in self.simulation_dir.glob('nudgingLastObs*'):
-                file = WrfHydroStatic(file)
-                self.restart_nudging.append(file)
-
-            if len(self.restart_nudging) > 0:
-                self.restart_nudging = sorted(self.restart_nudging,
-                                              key=lambda file: file.stat().st_mtime_ns)
-            else:
-                self.restart_hydro = None
-
-            #####################
-
-            # create a UID for the simulation and save in file
-            self.object_id = str(uuid.uuid4())
-            with open(self.simulation_dir.joinpath('.uid'), 'w') as f:
-                f.write(self.object_id)
-
-            # Save object to simulation directory
-            # Save the object out to the compile directory
-            with open(self.simulation_dir.joinpath('WrfHydroRun.pkl'), 'wb') as f:
-                pickle.dump(self, f, 2)
-
-            print('Model run succeeded')
+        # Get diag files
+        self.diag = list(self.simulation_dir.glob('diag_hydro.*'))
+        
+        # Get channel files
+        if len(list(self.simulation_dir.glob('*CHRTOUT*'))) > 0:
+            self.channel_rt = WrfHydroTs(list(self.simulation_dir.glob('*CHRTOUT*')))
+            # Make relative to run dir
+            # for file in self.channel_rt:
+            #     file.relative_to(file.parent)
+                
+        if len(list(self.simulation_dir.glob('*CHANOBS*'))) > 0:
+            self.chanobs = WrfHydroTs(list(self.simulation_dir.glob('*CHANOBS*')))
+            # Make relative to run dir
+            # for file in self.chanobs:
+            #     file.relative_to(file.parent)
+                    
+        # Get restart files and sort by modified time
+        # Hydro restarts
+        self.restart_hydro = []
+        for file in self.simulation_dir.glob('HYDRO_RST*'):
+            file = WrfHydroStatic(file)
+            self.restart_hydro.append(file)
+                        
+        if len(self.restart_hydro) > 0:
+            self.restart_hydro = sorted(self.restart_hydro,
+                                        key=lambda file: file.stat().st_mtime_ns)
+                            
+                            
+        ### LSM Restarts
+        self.restart_lsm = []
+        for file in self.simulation_dir.glob('RESTART*'):
+            file = WrfHydroStatic(file)
+            self.restart_lsm.append(file)
+                                
+        if len(self.restart_lsm) > 0:
+            self.restart_lsm = sorted(self.restart_lsm,
+                                      key=lambda file: file.stat().st_mtime_ns)
         else:
-            warnings.warn('Model run failed')
+            self.restart_lsm = None
+                                    
+        ### Nudging restarts
+        self.restart_nudging = []
+        for file in self.simulation_dir.glob('nudgingLastObs*'):
+            file = WrfHydroStatic(file)
+            self.restart_nudging.append(file)
+                                        
+        if len(self.restart_nudging) > 0:
+            self.restart_nudging = sorted(self.restart_nudging,
+                                          key=lambda file: file.stat().st_mtime_ns)
+        else:
+            self.restart_hydro = None
+
+        self.pickle()    
+
+
+    def pickle(self):
+                                            
+        # create a UID for the simulation and save in file
+        self.object_id = str(uuid.uuid4())
+        with open(self.simulation_dir.joinpath('.uid'), 'w') as f:
+            f.write(self.object_id)
+
+        # Save object to simulation directory
+        # Save the object out to the compile directory
+        with open(self.simulation_dir.joinpath('WrfHydroRun.pkl'), 'wb') as f:
+            pickle.dump(self, f, 2)
+
 
 class DomainDirectory(object):
     """An object that represents a WRF-Hydro domain directory. Primarily used as a utility class
-    for WrfHydroDomain"""
+       for WrfHydroDomain"""
     def __init__(self,
                  domain_top_dir: str,
                  domain_config: str,

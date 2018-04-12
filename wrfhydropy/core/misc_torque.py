@@ -236,7 +236,12 @@ def submit(substr):
        substr: The submit script string
     """
 
-    m = re.search(r"-N\s+(.*)\s", substr)       #pylint: disable=invalid-name
+    if type(substr) is bytearray:
+        substr_str = substr.decode('utf-8')
+    else:
+        substr_str = substr
+        
+    m = re.search(r"-N\s+(.*)\s", substr_str)       #pylint: disable=invalid-name
     if m:
         jobname = m.group(1)        #pylint: disable=unused-variable
     else:
@@ -247,11 +252,11 @@ def submit(substr):
     p = subprocess.Popen(   #pylint: disable=invalid-name
         "qsub", stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     stdout, stderr = p.communicate(input=substr)       #pylint: disable=unused-variable
-    print(stdout[:-1])
-    if re.search("error", stdout):
+#    print(stdout[:-1])
+    if re.search("error", stdout.decode('utf-8')):
         raise PBSError(0, "PBS Submission error.\n" + stdout + "\n" + stderr)
     else:
-        jobid = stdout.split(".")[0]
+        jobid = stdout.decode('utf-8').split(".")[0]
         return jobid
 
 def delete(jobid):

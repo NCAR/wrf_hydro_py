@@ -1,18 +1,14 @@
-""" Class for individual Job objects """
-### External ###
-# import subprocess
 import re
 import os
 import sys
 import math
 import datetime
-#import io
+import warnings
 
-### Local ###
-#import jobdb
-import misc
+# Local #
+from misc import *
 
-class Job(object):  #pylint: disable=too-many-instance-attributes
+class Scheduler(object):  #pylint: disable=too-many-instance-attributes
     """A qsub Job object.
 
     Initialize either with all the parameters, or with 'qsubstr' a PBS submit script as a string.
@@ -58,21 +54,19 @@ class Job(object):  #pylint: disable=too-many-instance-attributes
     exetime     -a                                "1100"          Not tested
     """
 
-
     def __init__(self,
-                 name: str=None,
-                 account: str=None,
+                 name: str,
+                 account: str,
+                 exe_cmd: str,
+                 run_dir: str,
+                 nproc: int=None,
+                 nnodes: int=None,
+                 ppn: int=None,
                  email_when: str="a",
                  email_who: str="${USER}@ucar.edu",
                  queue: str='regular',
                  walltime: str="12:00",
-                 nproc: int=None,
-                 nnodes: int=None,
-                 ppn: int=None,
                  array_size: int=None,
-                 exe_cmd: str=None,
-                 binary_file: str=None,
-                 run_dir: str=None,
                  sched_name: str="torque",
                  modules: str=None,
                  pmem: str=None,
@@ -92,7 +86,6 @@ class Job(object):  #pylint: disable=too-many-instance-attributes
                      'nnodes':nnodes,
                      'ppn':ppn,
                      'exe_cmd':exe_cmd,
-                     'binary_file':binary_file,
                      'run_dir': run_dir }
         
         def check_req_args(arg_name, arg):
@@ -118,7 +111,6 @@ class Job(object):  #pylint: disable=too-many-instance-attributes
         self.name       = name
         self.account    = account
         self.exe_cmd    = exe_cmd
-        self.binary_file= binary_file
 
         # Defaults in arglist
         self.email_when = email_when
@@ -138,22 +130,88 @@ class Job(object):  #pylint: disable=too-many-instance-attributes
         self.nnodes     = int(nnodes)
         self.ppn        = int(ppn)
 
-        self.nproc_last_node = nproc - (nnodes * ppn)
-        if self.nproc_last_node > 0:
-            if nproc_last_node > ppn:
-                raise ValueError('nproc - (nnodes * ppn) = {0} > ppn'.format(nproc_last_node))
+        nproc_last_node = (nproc - (nnodes * ppn)) % ppn
+        self.nproc_last_node = nproc_last_node
+        if nproc_last_node > 0:
+            if nproc_last_node >= ppn:
+                raise ValueError('nproc - (nnodes * ppn) = {0} >= ppn'.format(nproc_last_node))
+
+        print("nproc: ", self.nproc)
+        print("nnodes: ", self.nnodes)
+        print("ppn: ", self.ppn)
+        print("nproc_last_node: ", self.nproc_last_node)
 
         # Currently unsupported.
         self.pmem = pmem
         self.exetime = exetime
 
-        # jobID, JLM: is this set later?
+        # jobID and job_date_id are set on submission
         self.jobID = None   #pylint: disable=invalid-name
-        self.job_date_id = '{date:%Y-%m-%d-%H-%M-%S-%f}'.format( date=datetime.datetime.now())
+        self.job_date_id = None
+
+        # PBS has a silly stream buffer that 1) has a limit, 2) cant be seen until the job ends.
+        # Separate and standardize the stdout/stderr of the exe_cmd and the scheduler.
+
+        # The path to the model stdout&stderr
+        self._stdout_exe = "{run_dir}/{job_date_id}.{jobID}.stdout"
+        self._stderr_exe = "{run_dir}/{job_date_id}.{jobID}.stderr"
+
+        # Tracejob file which holds performance information
+        self._tracejob_file = "{run_dir}/{job_date_id}.{jobID}.PBS.tracejob"
+
+        # Dot files for the pbs stdout&stderr files, both temp and final.
+        # The initial path to the PBS stdout&stderr, during the job
+        self._stdout_pbs_tmp = "{run_dir}/.{job_date_id}.PBS.stdout"
+        self._stderr_pbs_tmp = "{run_dir}/.{job_date_id}.PBS.stderr"
+        # The eventual path to the PBS stdout&stderr, after the job
+        self._stdout_pbs = "{run_dir}/.{job_date_id}.{jobID}.PBS.stdout"
+        self._stderr_pbs = "{run_dir}/.{job_date_id}.{jobID}.PBS.stderr"
+
+        # A three state variable. If "None" then script() can be called.
+        # bool(None) is False so
+        # None = submitted = True while not_submitted = False
+        self.not_submitted = True
+
+    @property
+    def stdout_exe(self):
+        return(self.eval_std_vars(self._stdout_exe))
+    @property
+    def stderr_exe(self):
+        return(self.eval_std_vars(self._stderr_exe))
+    @property
+    def tracejob_file(self):
+        return(self.eval_std_vars(self._tracejob_file))
+    @property
+    def stdout_pbs(self):
+        return(self.eval_std_vars(self._stdout_pbs))
+    @property
+    def stderr_pbs(self):
+        return(self.eval_std_vars(self._stderr_pbs))
+    @property
+    def stdout_pbs_tmp(self):
+        return(self.eval_std_vars(self._stdout_pbs_tmp))
+    @property
+    def stderr_pbs_tmp(self):
+        return(self.eval_std_vars(self._stderr_pbs_tmp))
+    # TODO JLM: turn the above into pathlib.PosixPath objects.
+
+    def eval_std_vars(self, theStr):
+        if self.not_submitted:
+            return(theStr)
+        dict = {'run_dir': self.run_dir,
+                'job_date_id': self.job_date_id,
+                'jobID': self.jobID}
+        if dict['jobID'] is None: dict['jobID'] = '${jobID}'
+        return(theStr.format(**dict))
 
 
-    def sub_string(self):   #pylint: disable=too-many-branches
+    def string(self):   #pylint: disable=too-many-branches
         """ Write Job as a string suitable for self.sched_name """
+
+        # Warn if any submit-time values are undefined.
+        if self.not_submitted:
+                warnings.warn('Submit-time values are not established, dummy values in {key}.')
+
         if self.sched_name.lower() == "slurm":
             ###Write this Job as a string suitable for slurm
             ### NOT USED:
@@ -198,7 +256,7 @@ class Job(object):  #pylint: disable=too-many-instance-attributes
 
             ###Write this Job as a string suitable for torque###
             jobstr = ""            
-            jobstr += "#!/bin/bash\n"
+            jobstr += "#!/bin/sh\n"
             jobstr += "#PBS -N {0}\n".format(self.name)
             jobstr += "#PBS -A {0}\n".format(self.account)
             jobstr += "#PBS -q {0}\n".format(self.queue)
@@ -210,7 +268,8 @@ class Job(object):  #pylint: disable=too-many-instance-attributes
             jobstr += "\n"
 
             if self.nproc_last_node == 0:
-                prcstr = "nodes={0}:ppn={1}\n".format(self.nnodes, self.ppn)
+                prcstr = "select={0}:ncpus={1}:mpiprocs={1}\n"
+                prcstr = prcstr.format(self.nnodes, self.ppn)
             else:
                 prcstr = "select={0}:ncpus={1}:mpiprocs={1}+1:ncpus={2}:mpiprocs={2}\n"
                 prcstr = prcstr.format(self.nnodes-1, self.ppn, self.nproc_last_node)
@@ -220,8 +279,8 @@ class Job(object):  #pylint: disable=too-many-instance-attributes
 
             jobstr += "# Not using PBS standard error and out files to capture model output\n"
             jobstr += "# but these hidden files might catch output and errors from the scheduler.\n"
-            jobstr += "#PBS -o {0}/.{1}.pbs.stdout\n".format(self.run_dir, self.job_date_id)
-            jobstr += "#PBS -e {0}/.{1}.pbs.stderr\n".format(self.run_dir, self.job_date_id)
+            jobstr += "#PBS -o {0}\n".format(self.stdout_pbs_tmp)
+            jobstr += "#PBS -e {0}\n".format(self.stderr_pbs_tmp)
             jobstr += "\n"
 
             if self.array_size: jobstr += "#PBS -J 1-{0}\n".format(self.array_size)
@@ -238,48 +297,42 @@ class Job(object):  #pylint: disable=too-many-instance-attributes
                 jobstr += "\n"
             
             jobstr += "echo PBS_JOBID: $PBS_JOBID\n"
-            jobstr += "numJobId=`echo ${PBS_JOBID} | cut -d'.' -f1`\n"
-            jobstr += "echo numJobId: $numJobId\n"
+            jobstr += "jobID=`echo ${PBS_JOBID} | cut -d'.' -f1`\n"
+            jobstr += "echo jobID: $jobID\n"
             jobstr += "\n"
 
             jobstr += "cd {0}\n".format(self.run_dir)
             jobstr += "echo \"pwd:\" `pwd`\n"
             jobstr += "\n"
 
-            jobstr += "# DART job variables\n"
-            jobstr += "JOBNAME=$PBS_JOBNAME\n"
-            jobstr += "JOBID=\"$PBS_JOBID\"\n"
-            jobstr += "ARRAY_INDEX=$PBS_ARRAY_INDEX\n"
-            jobstr += "NODELIST=`cat \"${PBS_NODEFILE}\"`\n"
-            jobstr += "LAUNCHCMD=\"mpiexec_mpt\"\n"
-            jobstr += "\n"
-            
+            jobstr += "# DART job variables for future reference\n"
+            jobstr += "# JOBNAME=$PBS_JOBNAME\n"
+            jobstr += "# JOBID=\"$PBS_JOBID\"\n"
+            jobstr += "# ARRAY_INDEX=$PBS_ARRAY_INDEX\n"
+            jobstr += "# NODELIST=`cat \"${PBS_NODEFILE}\"`\n"
+            jobstr += "# LAUNCHCMD=\"mpiexec_mpt\"\n"
+            jobstr += "# \n"
+
             jobstr += "# CISL suggests users set TMPDIR when running batch jobs on Cheyenne.\n"
             jobstr += "export TMPDIR=/glade/scratch/$USER/temp\n"
             jobstr += "mkdir -p $TMPDIR\n"
-            jobstr += "\n"          
-            
-            jobstr += "## Communicate where the stderr/out and job scripts are and their ID\n"
-            jobstr += "export cleanRunDateId={0}\n".format(self.job_date_id)
             jobstr += "\n"
-            
-            exestr  = "{0} ./{1} ".format(self.exe_cmd, self.binary_file)
-            exestr += "2> ${cleanRunDateId}.${numJobId}.stderr "
-            exestr += "1> ${cleanRunDateId}.${numJobId}.stdout\n"
 
-            jobstr += "echo \"" + exestr + "\""
-            jobstr += exestr
+            exestr  = "{0} ".format(self.exe_cmd)
+            exestr += "2> {0} 1> {1}".format(self.stderr_exe, self.stdout_exe)
+            jobstr += "echo \"" + exestr + "\"\n"
+            jobstr += exestr + "\n"
             jobstr += "\n"
             
             jobstr += "mpi_return=$?\n"
             jobstr += "echo \"mpi_return: $mpi_return\"\n"
             jobstr += "\n"
             
-            jobstr += "# Touch these files just to get the cleanRunDateId in their file names.\n"
+            jobstr += "# Touch these files just to get the job_date_id in their file names.\n"
             jobstr += "# Can identify the files by jobId and replace contents...\n"
-            jobstr += "touch {0}/${{cleanRunDateId}}.${{numJobId}}.tracejob\n".format(self.run_dir)
-            jobstr += "touch {0}/.${{cleanRunDateId}}.${{numJobId}}.stdout\n".format(self.run_dir)
-            jobstr += "touch {0}/.${{cleanRunDateId}}.${{numJobId}}.stderr\n".format(self.run_dir)
+            jobstr += "touch {0}\n".format(self.tracejob_file)
+            jobstr += "touch {0}\n".format(self.stdout_pbs)
+            jobstr += "touch {0}\n".format(self.stderr_pbs)
             jobstr += "\n"
 
             ## JLM: the tracejob execution gets called by the waiting process.
@@ -287,17 +340,26 @@ class Job(object):  #pylint: disable=too-many-instance-attributes
             return jobstr
 
 
-    def script(self, filename="submit.sh"):
+    def script(self,
+               filename: str=None):
         """Write this Job as a bash script
 
         Keyword arguments:
         filename -- name of the script (default "submit.sh")
 
         """
+        if self.not_submitted is not None:
+            warnings.warn('script() can only be used when self.not_submitted is None. ' + \
+                          'Use print(self.string()) to preview the job submission.')
+            return
+        
+        if not filename:
+            filename = self.run_dir + "/" + self.job_date_id + '.' + self.sched_name + '.job'
         with open(filename, "w") as myfile:
-            myfile.write(self.sub_string())
+            myfile.write(self.string())
 
-    def submit(self, add=True, dbpath=None, configpath=None):
+
+    def submit(self):
         """Submit this Job using qsub
 
            add: Should this job be added to the JobDB database?
@@ -308,19 +370,11 @@ class Job(object):  #pylint: disable=too-many-instance-attributes
         """
 
         try:
-            self.jobID = misc_pbs.submit(substr=self.sub_string())
-        except misc.PBSError as e:  #pylint: disable=invalid-name
+            self.job_date_id = '{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=datetime.datetime.now())
+            self.not_submitted = None
+            self.script()
+            self.not_submitted = False
+            self.jobID = misc_pbs.submit(substr=bytearray(self.string(), 'utf-8'))
+        except misc.PBSError as e:
             raise e
-
-        if add:
-            db = jobdb.JobDB(dbpath=dbpath, configpath=configpath) #pylint: disable=invalid-name
-            status = jobdb.job_status_dict(jobid=self.jobID,
-                                           jobname=self.name,
-                                           rundir=os.getcwd(),
-                                           jobstatus="?",
-                                           auto=self.auto, qsubstr=self.sub_string(),
-                                           walltime=misc.seconds(self.walltime),
-                                           nodes=self.nodes, procs=self.nodes*self.ppn)
-            db.add(status)
-            db.close()
 

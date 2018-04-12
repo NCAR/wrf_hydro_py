@@ -106,7 +106,5 @@ sched.script()
 print(sched.string())
 
 sched.stdout_exe
-
 sched.submit()
-
 sched.stdout_exe

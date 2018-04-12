@@ -1,13 +1,15 @@
 from wrfhydropy import *
 import os, re
 import sys
+from shutil import rmtree
 from pprint import pprint
 home = os.path.expanduser("~/")
 sys.path.insert(0, home + '/WRF_Hydro/wrf_hydro_tests/toolbox/')
 from establish_specs import establish_spec
 from establish_sched import get_sched_args_from_specs
-sys.path.insert(0, home + '/WRF_Hydro/wrf_hydro_py/wrfhydropy/core/')
-from scheduler import Scheduler
+
+#sys.path.insert(0, home + '/WRF_Hydro/wrf_hydro_py/wrfhydropy/core/')
+#from scheduler import Scheduler
 
 # Establish the scheduler
 machine_spec_file= home +'/WRF_Hydro/wrf_hydro_tests/machine_spec.yaml'
@@ -24,6 +26,8 @@ sched_args = get_sched_args_from_specs(name='test_job',
 pprint(sched_args)
 sched = Scheduler( **sched_args )
 sched.run_dir = '/glade/scratch/jamesmcc/ex_sched_sub/'
+sched.sched_name
+sched.sched_version
 
 # Establish the simulation
 the_model = WrfHydroModel(os.path.expanduser('~/WRF_Hydro/wrf_hydro_nwm_public/trunk/NDHMS'))
@@ -35,4 +39,9 @@ the_domain = WrfHydroDomain(domain_top_dir='/glade/p/work/jamesmcc/DOMAINS/croto
 
 the_sim = WrfHydroSim(the_model, the_domain)
 
-run_object = the_sim.schedule_run( scheduler=sched )
+# Put the scheduler in the run object.
+rmtree(sched.run_dir)
+run_object = the_sim.schedule_run( scheduler=sched,
+                                   wait_for_complete=True,
+                                   monitor_freq_s = 10 )
+

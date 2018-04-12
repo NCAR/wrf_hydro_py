@@ -4,9 +4,7 @@ import sys
 import math
 import datetime
 import warnings
-
-# Local #
-from misc import *
+from .scheduler_tools import touch, submit_scheduler, PBSError, get_sched_name, get_version
 
 class Scheduler(object):  #pylint: disable=too-many-instance-attributes
     """A qsub Job object.
@@ -45,7 +43,6 @@ class Scheduler(object):  #pylint: disable=too-many-instance-attributes
 
     exe_cmd                                        "echo \"hello\" > test.txt"
 
-    sched_name                 "torque"            "slurm"        
     modules
 
     -*-*-*-*-*-*-*-  FOLLOWING NOT TESTED ON CHEYENNE  -*-*-*-*-*-*-*-
@@ -67,7 +64,6 @@ class Scheduler(object):  #pylint: disable=too-many-instance-attributes
                  queue: str='regular',
                  walltime: str="12:00",
                  array_size: int=None,
-                 sched_name: str="torque",
                  modules: str=None,
                  pmem: str=None,
                  grab_env: str=False,
@@ -94,19 +90,6 @@ class Scheduler(object):  #pylint: disable=too-many-instance-attributes
    
         [ check_req_args(n,a) for n, a in req_args.items() ]
 
-        # Determine the software and loads the appropriate package
-        if sched_name is None:
-            sched_name = misc.getsched_name()
-        self.sched_name = sched_name
-
-        global misc_pbs
-
-        if self.sched_name is "slurm":
-            misc_pbs = __import__("misc_slurm", globals(), locals(), [], 0)
-        else:
-            misc_pbs = __import__("misc_torque", globals(), locals(), [], 0)
-
-
         # Required
         self.name       = name
         self.account    = account
@@ -115,12 +98,15 @@ class Scheduler(object):  #pylint: disable=too-many-instance-attributes
         # Defaults in arglist
         self.email_when = email_when
         self.queue      = queue
-        self.sched_name = sched_name
         self.array_size = array_size
         self.grab_env   = grab_env
         self.modules    = modules
         self.run_dir    = run_dir
 
+        # Automagically set from environment
+        self.sched_name = get_sched_name()
+        self.sched_version = int(re.split("[\+\ \.]", get_version())[2])
+        
         # Extra Coercion 
         self.email_who  = os.path.expandvars(email_who)
         self.walltime   = ':'.join((walltime+':00').split(':')[0:3])
@@ -152,20 +138,25 @@ class Scheduler(object):  #pylint: disable=too-many-instance-attributes
         self._stderr_exe = "{run_dir}/{job_date_id}.{jobID}.stderr"
 
         # Tracejob file which holds performance information
-        self._tracejob_file = "{run_dir}/{job_date_id}.{jobID}.PBS.tracejob"
+        self._tracejob_file = "{run_dir}/{job_date_id}.{jobID}." + self.sched_name + ".tracejob"
 
         # Dot files for the pbs stdout&stderr files, both temp and final.
         # The initial path to the PBS stdout&stderr, during the job
-        self._stdout_pbs_tmp = "{run_dir}/.{job_date_id}.PBS.stdout"
-        self._stderr_pbs_tmp = "{run_dir}/.{job_date_id}.PBS.stderr"
-        # The eventual path to the PBS stdout&stderr, after the job
-        self._stdout_pbs = "{run_dir}/.{job_date_id}.{jobID}.PBS.stdout"
-        self._stderr_pbs = "{run_dir}/.{job_date_id}.{jobID}.PBS.stderr"
+        self._stdout_pbs_tmp = "{run_dir}/.{job_date_id}." + self.sched_name + ".stdout"
+        self._stderr_pbs_tmp = "{run_dir}/.{job_date_id}." + self.sched_name + ".stderr"
+        # The eventual path to the " + self.sched_name + " stdout&stderr, after the job
+        self._stdout_pbs = "{run_dir}/.{job_date_id}.{jobID}." + self.sched_name + ".stdout"
+        self._stderr_pbs = "{run_dir}/.{job_date_id}.{jobID}." + self.sched_name + ".stderr"
 
         # A three state variable. If "None" then script() can be called.
         # bool(None) is False so
         # None = submitted = True while not_submitted = False
         self.not_submitted = True
+
+        # A status that depends on job being submitted and the .job_not_complete file
+        # not existing being missing.
+        self._job_complete = False
+
 
     @property
     def stdout_exe(self):
@@ -333,6 +324,11 @@ class Scheduler(object):  #pylint: disable=too-many-instance-attributes
             jobstr += "touch {0}\n".format(self.stderr_pbs)
             jobstr += "\n"
 
+            jobstr += "# Simple, file-based method for checking if the job is done.\n"
+            jobstr += "# qstat is a bad way of doing this, apparently.\n"
+            jobstr += "rm .job_not_complete\n"
+            jobstr += "\n"
+            
             ## JLM: the tracejob execution gets called by the waiting process.
             jobstr += "exit $mpi_return\n"
             return jobstr
@@ -367,12 +363,20 @@ class Scheduler(object):  #pylint: disable=too-many-instance-attributes
 
         """
 
-        try:
-            self.job_date_id = '{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=datetime.datetime.now())
-            self.not_submitted = None
-            self.script()
-            self.not_submitted = False
-            self.jobID = misc_pbs.submit(substr=bytearray(self.string(), 'utf-8'))
-        except misc.PBSError as e:
-            raise e
+        #try:
+        self.job_date_id = '{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=datetime.datetime.now())
+        self.not_submitted = None
+        touch(self.run_dir + '/.job_not_complete')
+        self.script()
+        self.not_submitted = False
+        self.jobID = submit_scheduler(substr=bytearray(self.string(), 'utf-8'),
+                                      sched_name=self.sched_name)
+        #except PBSError as e:
+        #raise e
 
+
+    @property
+    def job_complete(self):
+        if self.not_submitted:
+            return(False)
+        return( not os.path.isfile(self.run_dir + '/.job_not_complete') )

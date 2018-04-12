@@ -9,9 +9,11 @@ import os
 import uuid
 import pickle
 import warnings
+from time import sleep
 from shlex import split as shlex_split
 
 from .utilities import compare_ncfiles
+from .scheduler_tools import seconds
 #from .scheduler import Scheduler
 
 #########################
@@ -376,7 +378,8 @@ class WrfHydroSim(object):
 
     def schedule_run(self,
                      scheduler, #: Scheduler,
-                     wait_for_run: bool=True,
+                     wait_for_complete: bool=True,
+                     monitor_freq_s: int=None,
                      mode: str = 'r',
                      **kwargs) -> object:
         """Scheulde a run of the wrf_hydro simulation
@@ -393,12 +396,15 @@ class WrfHydroSim(object):
         """
 
         # Note that the scheduler is added to the run object, not the sim object.
-        
+
+        if monitor_freq_s is None:
+             monitor_freq_s = max(seconds('00:'+scheduler.walltime)/100,30)
+
         # Write python script WrfHydroSim.schedule_run.py to be executed by the
         # scheduler. Swap the scheduler script executable (exe_cmd), for this
         # python script: call python script in the scheduler job and execute the
         # model from python (as an object method).
-
+        
         model_exe_cmd = scheduler.exe_cmd
         py_script_name = scheduler.run_dir + "/WrfHydroSim.schedule_run.py"
         py_run_cmd = "python " + py_script_name + " --jobID $jobID --job_date_id $job_date_id"
@@ -406,25 +412,23 @@ class WrfHydroSim(object):
         
         # This run is intaractive/has no jobID, so it exits after init without run.
         simulation = copy.deepcopy(self)
+        scheduler_copy = copy.deepcopy(scheduler)
         run_object = WrfHydroRun(wrf_hydro_simulation=simulation,
-                                 simulation_dir=scheduler.run_dir,
-                                 num_cores=scheduler.nproc,
+                                 simulation_dir=scheduler_copy.run_dir,
+                                 num_cores=scheduler_copy.nproc,
                                  run_cmd=py_run_cmd,
-                                 scheduler=scheduler,
+                                 scheduler=scheduler_copy,
                                  mode=mode)
 
         # Construct the script.
         jobstr  = "#!/usr/bin/env python\n"
         jobstr += "\n"
         
-        jobstr += "from wrfhydropy import WrfHydroRun\n"
+        jobstr += "import wrfhydropy\n"
         jobstr += "import pickle\n"
         jobstr += "import argparse\n"
         jobstr += "import os\n"
         jobstr += "import sys\n"
-        jobstr += "home = os.path.expanduser(\"~/\")\n"
-        jobstr += "sys.path.insert(0, home + '/WRF_Hydro/wrf_hydro_py/wrfhydropy/core/')\n"
-        jobstr += "from scheduler import Scheduler\n"
         jobstr += "\n"
 
         jobstr += "parser = argparse.ArgumentParser()\n"
@@ -444,7 +448,9 @@ class WrfHydroSim(object):
         jobstr += "run_object.scheduler.jobID = args.jobID\n"
         jobstr += "run_object.scheduler.job_date_id = args.job_date_id\n"
         jobstr += "run_object.run_cmd = \"" + model_exe_cmd + "\"\n"
+        jobstr += "print(\"Running the model.\")\n"
         jobstr += "run_object.run()\n"
+        jobstr += "print(\"Collecting model output.\")\n"
         jobstr += "run_object.collect_run()\n"
         jobstr += "\n"
 
@@ -452,10 +458,27 @@ class WrfHydroSim(object):
             myfile.write(jobstr)
 
         # Now submit the above script to the scheduler.
-        scheduler.exe_cmd = py_run_cmd
-        scheduler.submit()
-        #optional: monitor the job
-        
+        run_object.scheduler.exe_cmd = py_run_cmd
+        run_object.scheduler.submit()
+        #optional: monitor the job and self.unpickle
+        if wait_for_complete:
+
+            print("Waiting for job (" +
+                  str(run_object.scheduler.jobID) +
+                  ") to complete (q=queued, r=running : 1/" +
+                  str(monitor_freq_s) +"seconds):")
+            
+            while not run_object.scheduler.job_complete:
+                sleep(monitor_freq_s)
+                if not os.path.isfile(run_object.scheduler.run_dir + '/.job_not_complete'):
+                    sym = 'r'
+                else:
+                    sym = 'q'
+                print(sym, end="", flush=True)
+
+            print('')                
+            run_object = run_object.unpickle()
+            
         return run_object
 
     
@@ -704,6 +727,11 @@ class WrfHydroRun(object):
         # Save the object out to the compile directory
         with open(self.simulation_dir.joinpath('WrfHydroRun.pkl'), 'wb') as f:
             pickle.dump(self, f, 2)
+
+    def unpickle(self):
+        # Load run object from simulation directory after a scheduler job
+        with open(self.simulation_dir.joinpath('WrfHydroRun.pkl'), 'rb') as f:
+            return(pickle.load(f))
 
 
 class DomainDirectory(object):

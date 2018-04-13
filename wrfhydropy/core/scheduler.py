@@ -39,8 +39,6 @@ class Scheduler(object):  #pylint: disable=too-many-instance-attributes
     ppn                        Default:            24              Number of procs/node
                                machine_spec_file.cores_per_node
 
-    
-
     exe_cmd                                        "echo \"hello\" > test.txt"
 
     modules
@@ -240,7 +238,7 @@ class Scheduler(object):  #pylint: disable=too-many-instance-attributes
 
         else:
 
-            ###Write this Job as a string suitable for torque###
+            ###Write this Job as a string suitable for PBS###
             jobstr = ""            
             jobstr += "#!/bin/sh\n"
             jobstr += "#PBS -N {0}\n".format(self.name)

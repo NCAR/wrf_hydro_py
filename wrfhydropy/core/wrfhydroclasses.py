@@ -14,7 +14,7 @@ from shlex import split as shlex_split
 
 from .utilities import compare_ncfiles
 from .scheduler_tools import seconds
-#from .scheduler import Scheduler
+from .scheduler import Scheduler
 
 #########################
 # netcdf file object classes
@@ -353,6 +353,42 @@ class WrfHydroSim(object):
                                                          ['namelist_hrldas']
                                                          ['wrf_hydro_offline'])
 
+    # TODO JLM: There has to be a better way to handle this.
+    def dispatch_run(self,
+                     # Either these 
+                     simulation_dir: str=None,
+                     num_cores: int = 2,
+                     run_cmd: str='mpiexec -np {num_cores} ./wrf_hydro.exe',
+                     # or these
+                     scheduler: Scheduler=None,
+                     wait_for_complete: bool=True,  ## TODO JLM: make part of candidate_spec?
+                     monitor_freq_s: int=None,      ## TODO JLM: make part of candidate_spec?
+                     # always this
+                     mode: str = 'r'):
+        """Dispatch a run the wrf_hydro simulation: either run() or schedule_run()
+        If a scheduler is passed, then that run is scheduled. 
+        Args:
+            As for run and schedule_run().
+        Returns:
+            A WrfHydroRun object
+        """
+        if scheduler:
+            
+            run_object = self.schedule_run(scheduler=scheduler,
+                                           wait_for_complete=wait_for_complete,
+                                           monitor_freq_s=monitor_freq_s,
+                                           mode=mode)
+
+        else:
+
+            run_object = self.run(simulation_dir=simulation_dir,
+                                  num_cores=num_cores,
+                                  run_cmd=run_cmd,
+                                  mode=mode)
+
+        return run_object
+
+
     def run(self,
             simulation_dir: str,
             num_cores: int = 2,
@@ -365,7 +401,7 @@ class WrfHydroSim(object):
             mode: Write mode, 'w' for overwrite if directory exists, and 'r' for fail if
             directory exists
         Returns:
-            A model run object
+            A model WrfHydroRun object
         """
         #Make copy of simulation object to alter and return
         simulation = copy.deepcopy(self)
@@ -376,19 +412,19 @@ class WrfHydroSim(object):
                                  mode=mode)
         return run_object
 
+
     def schedule_run(self,
-                     scheduler, #: Scheduler,
-                     wait_for_complete: bool=True,
-                     monitor_freq_s: int=None,
-                     mode: str = 'r',
-                     **kwargs) -> object:
+                     scheduler: Scheduler,
+                     wait_for_complete: bool=True,  ## TODO JLM: make part of candidate_spec?
+                     monitor_freq_s: int=None,      ## TODO JLM: make part of candidate_spec?
+                     mode: str = 'r') -> object:
         """Scheulde a run of the wrf_hydro simulation
         Args:
-            simulation_dir: The path to the directory to use for run
             scheduler: A scheduler object
+            wait_for_complete: bool, Does the calling program wait for the job to complete?
+            monitor_freq_s: int, How often does the waiting program check progress?
             mode: Write mode, 'w' for overwrite if directory exists, and 'r' for fail if
             directory exists
-            **kwargs: used to update scheduler particulars.
         Returns:
             String: A job scheduler id
         TODO:
@@ -398,7 +434,7 @@ class WrfHydroSim(object):
         # Note that the scheduler is added to the run object, not the sim object.
 
         if monitor_freq_s is None:
-             monitor_freq_s = max(seconds('00:'+scheduler.walltime)/100,30)
+            monitor_freq_s = int(max(seconds('00:'+scheduler.walltime)/100,30))
 
         # Write python script WrfHydroSim.schedule_run.py to be executed by the
         # scheduler. Swap the scheduler script executable (exe_cmd), for this
@@ -414,9 +450,6 @@ class WrfHydroSim(object):
         simulation = copy.deepcopy(self)
         scheduler_copy = copy.deepcopy(scheduler)
         run_object = WrfHydroRun(wrf_hydro_simulation=simulation,
-                                 simulation_dir=scheduler_copy.run_dir,
-                                 num_cores=scheduler_copy.nproc,
-                                 run_cmd=py_run_cmd,
                                  scheduler=scheduler_copy,
                                  mode=mode)
 
@@ -460,14 +493,17 @@ class WrfHydroSim(object):
         # Now submit the above script to the scheduler.
         run_object.scheduler.exe_cmd = py_run_cmd
         run_object.scheduler.submit()
+
         #optional: monitor the job and self.unpickle
+        # TODO JLM: seems lke this wait can be abstracted to function. >>>
         if wait_for_complete:
 
-            print("Waiting for job (" +
+            print("Waiting for job " +
                   str(run_object.scheduler.jobID) +
-                  ") to complete (q=queued, r=running : 1/" +
+                  " to complete (q=queued, r=running : 1/" +
                   str(monitor_freq_s) +"seconds):")
-            
+            ## TODO JLM: add "d" to indicate waiting for dependency.
+
             while not run_object.scheduler.job_complete:
                 sleep(monitor_freq_s)
                 if not os.path.isfile(run_object.scheduler.run_dir + '/.job_not_complete'):
@@ -476,7 +512,10 @@ class WrfHydroSim(object):
                     sym = 'q'
                 print(sym, end="", flush=True)
 
-            print('')                
+            print('')
+        # TODO JLM: seems lke this wait can be abstracted to function. <<<
+
+            # Part of the wait_for_complete if statement
             run_object = run_object.unpickle()
             
         return run_object
@@ -485,20 +524,30 @@ class WrfHydroSim(object):
 class WrfHydroRun(object):
     def __init__(self,
                  wrf_hydro_simulation: WrfHydroSim,
-                 simulation_dir: str,
-                 num_cores: int = 2,
-                 run_cmd: str='mpiexec -np {num_cores} ./wrf_hydro.exe',
-                 scheduler=None, #Scheduler=None,
+                 scheduler: Scheduler=None,
+                 simulation_dir: str=None,
+                 num_cores: int=None,
+                 run_cmd: str=None,
                  mode: str = 'r'
                  ):
         """Instantiate a WrfHydroRun object, including running the simulation
         Args:
-            wrf_hydro_simulation: A WrfHydroSim object to run
-            simulation_dir: The path to the directory to use for run
-            num_cores: Optional, the number of cores to using default run_command
-            scheduler: Optional, Scheduler object.
+
+            A scheduler 
+
+                scheduler: Optional, Scheduler object. 
+
+            is mutually exclusive with these variables: 
+
+                wrf_hydro_simulation: Optional, A WrfHydroSim object to run
+                simulation_dir: Optional, The path to the directory to use for run
+                num_cores: Optional, the number of cores to using default run_command
+
+            specifying both with result in an error.
+
             mode: Write mode, 'w' for overwrite if directory exists, and 'r' for fail if
-            directory exists
+                  directory exists
+
         Returns:
             A WrfHydroRun object
         TODO:
@@ -509,12 +558,40 @@ class WrfHydroRun(object):
 
         self.simulation = wrf_hydro_simulation
         """WrfHydroSim: The WrfHydroSim object used for the run"""
-        self.num_cores = num_cores
+
+        self.num_cores = None
         """int: The number of cores used for the run"""
-        self.simulation_dir = pathlib.Path(simulation_dir)
+        self.simulation_dir = None
         """pathlib.Path: pathlib.Path to the directory used for the run"""
+        self.run_cmd = None
+        """str: the command issued, can contain {num_cores} for variables in """
+
         self.scheduler = scheduler
         #"""Scheduler: optional scheduler object used for the run"""
+
+        if self.scheduler:
+
+            if not all([ii is None for ii in [num_cores, simulation_dir, run_cmd] ]):
+                error_msg  = "A scheduler is mutually exclusive with the "
+                error_msg += "num_cores, simulation_dir, and run_cmd args."
+                raise ValueError(error_msg)
+            
+            self.num_cores = scheduler.nproc
+            self.simulation_dir = pathlib.Path(scheduler.run_dir)
+            self.run_cmd = self.scheduler.exe_cmd
+
+        else:
+
+            if None in [num_cores, simulation_dir, run_cmd]:
+                error_msg  = "The args num_cores, simulation_dir, and run_cmd "
+                error_msg += "are all required (when no scheduler given)."
+                raise ValueError(error_msg)
+
+            self.num_cores = num_cores
+            self.simulation_dir = pathlib.Path(simulation_dir)      
+            self.run_cmd = run_cmd
+
+
         self.run_log = None
         """CompletedProcess: The subprocess returned from the run call"""
         self.run_status = None
@@ -615,7 +692,6 @@ class WrfHydroRun(object):
                      self.simulation_dir.joinpath('namelist.hrldas'))
         
         if self.scheduler:
-            self.run_cmd = self.scheduler.exe_cmd
             self.pickle()
             if not self.scheduler.jobID:
                 # If the scheuler has not been scheduled, dont run.

@@ -1,4 +1,4 @@
-""" Tools for interacting between the OS and torque/slurm """
+""" Tools for interacting between the OS and PBS/slurm """
 
 import subprocess
 import os
@@ -9,6 +9,8 @@ import time
 import sys
 import warnings
 from distutils.spawn import find_executable
+
+#dummy_scheduler = {}
 
 class PBSError(Exception):
     """ A custom error class for pbs errors """
@@ -21,11 +23,11 @@ class PBSError(Exception):
         return self.jobid + ": " + self.msg
 
 def get_sched_name():
-    """Tries to find qsub, then sbatch. Returns "torque" if qsub
+    """Tries to find qsub, then sbatch. Returns "PBS" if qsub
     is found, else returns "slurm" if sbatch is found, else returns
     "other" if neither is found. """
     if find_executable("qsub") is not None:
-        return "torque"
+        return "PBS"
     elif find_executable("sbatch") is not None:
         return "slurm"
     else:
@@ -44,7 +46,7 @@ def get_version(software=None):
     """Returns the software version """
     if software is None:
         software = get_sched_name()
-    if software is "torque":
+    if software is "PBS":
         opt = ["qstat", "--version"]
 
         # call 'qstat' using subprocess
@@ -154,7 +156,7 @@ def _qstat(jobid=None,
        Returns the text of qstat, minus the header lines
     """
 
-    # -u and -f contradict in earlier versions of Torque
+    # -u and -f contradict in earlier versions of PBS
     if full and username is not None and (version < 5.0 and jobid is None):
         # First get all jobs by the user
         qopt = ["qselect"]
@@ -249,7 +251,7 @@ def job_rundir(jobid, sched_name):
     """
     rundir = dict()
 
-    if sched_name == 'torque':
+    if sched_name == 'PBS':
 
         if isinstance(jobid, (list)):
             for i in jobid:
@@ -278,11 +280,11 @@ def job_rundir(jobid, sched_name):
     else:
 
         # TODO JLM: harden.
-        warnings.warn("sched_name matches neither 'torque' nor 'slurm': FIX THIS.")
+        warnings.warn("sched_name matches neither 'PBS' nor 'slurm': FIX THIS.")
 
 
         
-def job_status_torque(jobid=None):
+def job_status_PBS(jobid=None):
     """Return job status using qstat
 
       Returns a dict of dict, with jobid as key in outer dict.
@@ -411,7 +413,7 @@ def submit_scheduler(substr, sched_name):
             r"Error in scheduler_misc.submit(). Jobname (\"-N\s+(.*)\s\") not found in submit string.")
 
     
-    if sched_name == 'torque':
+    if sched_name == 'PBS':
 
         p = subprocess.Popen( "qsub", stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -436,7 +438,7 @@ def submit_scheduler(substr, sched_name):
     else:
 
         # TODO JLM: harden.
-        warnings.warn("sched_name matches neither 'torque' nor 'slurm': FIX THIS.")
+        warnings.warn("sched_name matches neither 'PBS' nor 'slurm': FIX THIS.")
 
 
 def generic_popen(cmd_list):
@@ -445,30 +447,30 @@ def generic_popen(cmd_list):
     return p.returncode
     
 def delete(jobid, sched_name):
-    """qdel (torque) or scancel (slurm) a job."""
-    if sched_name == 'torque': cmd = 'qdel'
+    """qdel (PBS) or scancel (slurm) a job."""
+    if sched_name == 'PBS': cmd = 'qdel'
     if sched_name == 'slurm':  cmd = 'scancel'
     return(generic_popen([cmd, jobid]))
 
 def hold(jobid, sched_name):
-    """qhold (torque) or scontrol (slurm) a job."""
-    if sched_name == 'torque': cmd = 'qhold'
+    """qhold (PBS) or scontrol (slurm) a job."""
+    if sched_name == 'PBS': cmd = 'qhold'
     if sched_name == 'slurm':  cmd = 'scontrol'
     return(generic_popen([cmd, jobid]))
 
 def release(jobid):
-    """qrls (torque) or scontrol un-delay (slurm) a job."""
-    if sched_name == 'torque':
+    """qrls (PBS) or scontrol un-delay (slurm) a job."""
+    if sched_name == 'PBS':
         cmd_list = ['qhold', jobid]
     if sched_name == 'slurm':
         cmd_list = ["scontrol", "update", "JobId=", jobid, "StartTime=", "now"]
     return(generic_popen(cmd_list))
 
 def alter(jobid, arg):
-    """qalter (torque) or scontrol update (slurm) a job.
+    """qalter (PBS) or scontrol update (slurm) a job.
          'arg' is a pbs command option string. For instance, "-a 201403152300.19"
     """
-    if sched_name == 'torque':
+    if sched_name == 'PBS':
         cmd_list = ["qalter"] + arg.split() + [jobid]
     if sched_name == 'slurm':
         cmd_list = ["scontrol", "update", "JobId=", jobid] + arg.split()

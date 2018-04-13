@@ -1,4 +1,4 @@
-import wrfhydropy
+from wrfhydropy import Scheduler
 import os, re
 import sys
 from pprint import pprint
@@ -6,8 +6,6 @@ home = os.path.expanduser("~/")
 sys.path.insert(0, home + '/WRF_Hydro/wrf_hydro_tests/toolbox/')
 from establish_specs import establish_spec
 from establish_sched import get_sched_args_from_specs
-sys.path.insert(0, home + '/WRF_Hydro/wrf_hydro_py/wrfhydropy/core/')
-from scheduler import Scheduler
 
 machine_spec_file= home +'/WRF_Hydro/wrf_hydro_tests/machine_spec.yaml'
 candidate_spec_file= home + '/WRF_Hydro/wrf_hydro_tests/template_candidate_spec.yaml'
@@ -56,7 +54,6 @@ assert sched.nproc  == 71
 assert sched.ppn    == 36
 assert sched.nproc_last_node == 35
 assert re.findall('select=1:ncpus=36:mpiprocs=36\+1:ncpus=35:mpiprocs=35',sched.string())
-
 
 # Test: set nnodes evenly distributed ppn < ppn_max
 sched_args['nnodes']=None

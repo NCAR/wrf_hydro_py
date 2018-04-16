@@ -359,7 +359,7 @@ class WrfHydroSim(object):
     # TODO JLM: There has to be a better way to handle this.
     def add_job(
         self,
-        the_job: Job
+        new_job: Job
     ):
         """Dispatch a run the wrf_hydro simulation: either run() or schedule_run()
         If a scheduler is passed, then that run is scheduled. 
@@ -369,13 +369,13 @@ class WrfHydroSim(object):
             A WrfHydroRun object
         """
 
-        if the_job.scheduler:
+        if new_job.scheduler:
 
             # a scheduled job can be appended to the jobs.pending list if
             # 1) there are no active or pending jobs
             # 2) if it is dependent on the last active or pending job.
 
-            run_object = self.schedule_run(the_job)
+            run_object = self.schedule_run(new_job)
 
             # THe job gets moved to jobs.active in the schedule_run?
             # remove the job from the jobs.active list
@@ -384,7 +384,7 @@ class WrfHydroSim(object):
         else:
 
             # an interactive job can be made the active job if there is no current job.
-            run_object = self.run(the_job)
+            run_object = self.run(new_job)
 
             # removethe job from the jobs.active list
             # place the job in the jobs.completed list
@@ -523,7 +523,7 @@ class WrfHydroRun(object):
     def __init__(
         self,
         wrf_hydro_simulation: WrfHydroSim,
-        the_job: Job
+        new_job: Job
     ):
         """Instantiate a WrfHydroRun object, including running the simulation
         Args:
@@ -558,21 +558,17 @@ class WrfHydroRun(object):
         self.simulation = wrf_hydro_simulation
         """WrfHydroSim: The WrfHydroSim object used for the run"""
 
-        self.num_cores = None
-        """int: The number of cores used for the run"""
-        self.simulation_dir = None
-        """pathlib.Path: pathlib.Path to the directory used for the run"""
-        self.run_cmd = None
-        """str: the command issued, can contain {num_cores} for variables in """
-
-
+        self.job = new_job
+        """Job: The Job object used to specify the run."""        
         # TODO JLM: multiple jobs should be allowed. 
         #self.jobs = list()
         #self.jobs_completed = list()
 
+        # TODO(JLM): Check that the sim object is "complete".
+        # TODO(JLM): What constitutes a complete sim object?
+        #            1) compiler specified, 2) domain_config specified.
+        #            3) A compiled model?
         
-        self.scheduler = scheduler
-        #"""Scheduler: optional scheduler object used for the run"""
 
         if self.scheduler:
 

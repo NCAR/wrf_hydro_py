@@ -1,6 +1,61 @@
 from wrf_hydro_model import *
+from deepdiff import DeepDiff
 from boltons.iterutils import remap
 import copy
+
+
+# ########################
+class DeepDiffEq(DeepDiff):
+
+    def __init__(self,
+                 t1,
+                 t2,
+                 eq_types,
+                 ignore_order=False,
+                 report_repetition=False,
+                 significant_digits=None,
+                 exclude_paths=set(),
+                 exclude_regex_paths=set(),
+                 exclude_types=set(),
+                 include_string_type_changes=False,
+                 verbose_level=1,
+                 view='text',
+                 **kwargs):
+
+        # Must set this first for some reason.
+        self.eq_types = set(eq_types)
+        
+        super().__init__(t1,
+                         t2,
+                         ignore_order=False,
+                         report_repetition=False,
+                         significant_digits=None,
+                         exclude_paths=set(),
+                         exclude_regex_paths=set(),
+                         exclude_types=set(),
+                         include_string_type_changes=False,
+                         verbose_level=1,
+                         view='text',
+                         **kwargs)
+
+    # Have to force override __diff_obj.
+    def _DeepDiff__diff_obj(self, level, parents_ids=frozenset({}),
+                            is_namedtuple=False):
+        """Difference of 2 objects using their __eq__ if requested"""
+
+        if type(level.t1) in self.eq_types:
+            if level.t1 == level.t2:
+                return
+            else:
+                self._DeepDiff__report_result('values_changed', level)
+                return
+
+        super(DeepDiffEq, self).__diff_obj(level, parents_ids=frozenset({}),
+                                           is_namedtuple=False)
+
+
+
+
 
 def copy_member(member,
                 do_copy: bool):
@@ -8,8 +63,8 @@ def copy_member(member,
         return(copy.deepcopy(member))
     else:
         return(member)
-
-#########################
+    
+# ########################
 # Classes for constructing and running a wrf_hydro simulation
 class WrfHydroEnsembleSim(object):
     """Class for a WRF-Hydro model, which consitutes the model source code and compiled binary.

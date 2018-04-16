@@ -353,18 +353,14 @@ class WrfHydroSim(object):
                                                          ['namelist_hrldas']
                                                          ['wrf_hydro_offline'])
 
+                
+    # #################################
+        
     # TODO JLM: There has to be a better way to handle this.
-    def dispatch_run(self,
-                     # Either these 
-                     simulation_dir: str=None,
-                     num_cores: int = 2,
-                     run_cmd: str='mpiexec -np {num_cores} ./wrf_hydro.exe',
-                     # or these
-                     scheduler: Scheduler=None,
-                     wait_for_complete: bool=True,  ## TODO JLM: make part of candidate_spec?
-                     monitor_freq_s: int=None,      ## TODO JLM: make part of candidate_spec?
-                     # always this
-                     mode: str = 'r'):
+    def add_job(
+        self,
+        the_job: Job
+    ):
         """Dispatch a run the wrf_hydro simulation: either run() or schedule_run()
         If a scheduler is passed, then that run is scheduled. 
         Args:
@@ -372,28 +368,34 @@ class WrfHydroSim(object):
         Returns:
             A WrfHydroRun object
         """
-        if scheduler:
-            
-            run_object = self.schedule_run(scheduler=scheduler,
-                                           wait_for_complete=wait_for_complete,
-                                           monitor_freq_s=monitor_freq_s,
-                                           mode=mode)
+
+        if the_job.scheduler:
+
+            # a scheduled job can be appended to the jobs.pending list if
+            # 1) there are no active or pending jobs
+            # 2) if it is dependent on the last active or pending job.
+
+            run_object = self.schedule_run(the_job)
+
+            # THe job gets moved to jobs.active in the schedule_run?
+            # remove the job from the jobs.active list
+            # place the job in the jobs.completed list
 
         else:
 
-            run_object = self.run(simulation_dir=simulation_dir,
-                                  num_cores=num_cores,
-                                  run_cmd=run_cmd,
-                                  mode=mode)
+            # an interactive job can be made the active job if there is no current job.
+            run_object = self.run(the_job)
 
+            # removethe job from the jobs.active list
+            # place the job in the jobs.completed list
+            
         return run_object
 
 
-    def run(self,
-            simulation_dir: str,
-            num_cores: int = 2,
-            run_cmd: str='mpiexec -np {num_cores} ./wrf_hydro.exe',
-            mode: str = 'r') -> object:
+    def run(
+        self,
+        the_job: Job,
+    ) -> object:
         """Run the wrf_hydro simulation
         Args:
             simulation_dir: The path to the directory to use for run
@@ -405,19 +407,15 @@ class WrfHydroSim(object):
         """
         #Make copy of simulation object to alter and return
         simulation = copy.deepcopy(self)
-        run_object = WrfHydroRun(wrf_hydro_simulation=simulation,
-                                 simulation_dir=simulation_dir,
-                                 num_cores=num_cores,
-                                 run_cmd=run_cmd,
-                                 mode=mode)
+        run_object = WrfHydroRun(simulation, the_job)
         return run_object
 
 
-    def schedule_run(self,
-                     scheduler: Scheduler,
-                     wait_for_complete: bool=True,  ## TODO JLM: make part of candidate_spec?
-                     monitor_freq_s: int=None,      ## TODO JLM: make part of candidate_spec?
-                     mode: str = 'r') -> object:
+    def schedule_run(
+        self,
+        scheduler: Scheduler,
+        the_job: Job,
+    ) -> object:
         """Scheulde a run of the wrf_hydro simulation
         Args:
             scheduler: A scheduler object
@@ -522,14 +520,11 @@ class WrfHydroSim(object):
 
     
 class WrfHydroRun(object):
-    def __init__(self,
-                 wrf_hydro_simulation: WrfHydroSim,
-                 scheduler: Scheduler=None,
-                 simulation_dir: str=None,
-                 num_cores: int=None,
-                 run_cmd: str=None,
-                 mode: str = 'r'
-                 ):
+    def __init__(
+        self,
+        wrf_hydro_simulation: WrfHydroSim,
+        the_job: Job
+    ):
         """Instantiate a WrfHydroRun object, including running the simulation
         Args:
 
@@ -554,6 +549,10 @@ class WrfHydroRun(object):
             Add option for custom run commands to deal with job schedulers
         """
 
+        # TODO JLM: Here or in run()?, if there is job object, then create a job from the default
+        # A method (used by  django) about specifying the root dir of the project.
+        # https://stackoverflow.com/questions/25389095/python-get-path-of-root-project-structure
+        
         # Initialize all attributes and methods
 
         self.simulation = wrf_hydro_simulation
@@ -566,6 +565,12 @@ class WrfHydroRun(object):
         self.run_cmd = None
         """str: the command issued, can contain {num_cores} for variables in """
 
+
+        # TODO JLM: multiple jobs should be allowed. 
+        #self.jobs = list()
+        #self.jobs_completed = list()
+
+        
         self.scheduler = scheduler
         #"""Scheduler: optional scheduler object used for the run"""
 

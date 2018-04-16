@@ -6,7 +6,33 @@ import datetime
 import warnings
 from .scheduler_tools import touch, submit_scheduler, PBSError, get_sched_name, get_version
 
-class Scheduler(object):  #pylint: disable=too-many-instance-attributes
+class Job(object): 
+    def __init__(
+            self,
+            run_dir: str,
+            exe_cmd: str,
+            nproc: int,
+            mode: str,
+            scheduler: Scheduler = None,
+    ):
+
+        if scheduler:
+            self.scheduler = scheduler
+            self.run_dir = self.scheduler.run_dir
+            self.exe_cmd = self.scheduler.exe_cmd
+            self.nproc = self.scheduler.nproc
+            self.mode = mode
+
+        else :
+            self.run_dir = run_dir
+            self.exe_cmd = exe_cmd
+            self.nproc = nproc
+            self.mode = mode
+            
+            
+
+    
+class Scheduler(object):
     """A qsub Job object.
 
     Initialize either with all the parameters, or with 'qsubstr' a PBS submit script as a string.
@@ -49,23 +75,27 @@ class Scheduler(object):  #pylint: disable=too-many-instance-attributes
     exetime     -a                                "1100"          Not tested
     """
 
-    def __init__(self,
-                 name: str,
-                 account: str,
-                 exe_cmd: str,
-                 run_dir: str,
-                 nproc: int=None,
-                 nnodes: int=None,
-                 ppn: int=None,
-                 email_when: str="a",
-                 email_who: str="${USER}@ucar.edu",
-                 queue: str='regular',
-                 walltime: str="12:00",
-                 array_size: int=None,
-                 modules: str=None,
-                 pmem: str=None,
-                 grab_env: str=False,
-                 exetime: str=None):
+    def __init__(
+        self,
+        job_name: str,
+        account: str,
+        exe_cmd: str,
+        run_dir: str,
+        nproc: int=None,
+        nnodes: int=None,
+        ppn: int=None,
+        email_when: str="a",
+        email_who: str="${USER}@ucar.edu",
+        queue: str='regular',
+        walltime: str="12:00",
+        wait_for_complete= bool=True,
+        monitor_freq_s= int: None,
+        array_size: int=None,
+        modules: str=None,
+        pmem: str=None,
+        grab_env: str=False,
+        exetime: str=None
+    ):
 
         # Check for required inputs
         # TODO: Deal with setting ppn from machine_spec_file.
@@ -74,12 +104,12 @@ class Scheduler(object):  #pylint: disable=too-many-instance-attributes
         if not ppn    and nnodes and nproc: ppn = math.ceil(nproc / nnodes)
         # TODO: Set nodes from nproc/n
         
-        req_args = { 'name':name,
-                     'account':account,
-                     'nproc':nproc,
-                     'nnodes':nnodes,
-                     'ppn':ppn,
-                     'exe_cmd':exe_cmd,
+        req_args = { 'job_name': job_name,
+                     'account': account,
+                     'nproc': nproc,
+                     'nnodes': nnodes,
+                     'ppn': ppn,
+                     'exe_cmd': exe_cmd,
                      'run_dir': run_dir }
         
         def check_req_args(arg_name, arg):
@@ -89,7 +119,7 @@ class Scheduler(object):  #pylint: disable=too-many-instance-attributes
         [ check_req_args(n,a) for n, a in req_args.items() ]
 
         # Required
-        self.name       = name
+        self.job_name   = job_name
         self.account    = account
         self.exe_cmd    = exe_cmd
 
@@ -98,6 +128,9 @@ class Scheduler(object):  #pylint: disable=too-many-instance-attributes
         self.queue      = queue
         self.array_size = array_size
         self.grab_env   = grab_env
+        # TODO JLM: Should probably stash the grabbed argument in this case.
+        # TODO JLM: is there a better variable name than grab_env?
+        
         self.modules    = modules
         self.run_dir    = run_dir
 
@@ -125,7 +158,7 @@ class Scheduler(object):  #pylint: disable=too-many-instance-attributes
         self.exetime = exetime
 
         # jobID and job_date_id are set on submission
-        self.jobID = None   #pylint: disable=invalid-name
+        self.jobID = None
         self.job_date_id = None
 
         # PBS has a silly stream buffer that 1) has a limit, 2) cant be seen until the job ends.
@@ -189,7 +222,7 @@ class Scheduler(object):  #pylint: disable=too-many-instance-attributes
         return(theStr.format(**dict))
 
 
-    def string(self):   #pylint: disable=too-many-branches
+    def string(self):
         """ Write Job as a string suitable for self.sched_name """
 
         # Warn if any submit-time values are undefined.
@@ -211,7 +244,7 @@ class Scheduler(object):  #pylint: disable=too-many-instance-attributes
             #NODELIST=$SLURM_NODELIST
             #LAUNCHCMD="mpirun -np $SLURM_NTASKS -bind-to core"
             
-            jobstr += "#SBATCH -J {0}\n".format(self.name)
+            jobstr += "#SBATCH -J {0}\n".format(self.job_name)
             if self.account is not None:
                 jobstr += "#SBATCH -A {0}\n".format(self.account)
             jobstr += "#SBATCH -t {0}\n".format(self.walltime)
@@ -241,7 +274,7 @@ class Scheduler(object):  #pylint: disable=too-many-instance-attributes
             ###Write this Job as a string suitable for PBS###
             jobstr = ""            
             jobstr += "#!/bin/sh\n"
-            jobstr += "#PBS -N {0}\n".format(self.name)
+            jobstr += "#PBS -N {0}\n".format(self.job_name)
             jobstr += "#PBS -A {0}\n".format(self.account)
             jobstr += "#PBS -q {0}\n".format(self.queue)
             jobstr += "#PBS -M {0}\n".format(self.email_who)
@@ -361,16 +394,16 @@ class Scheduler(object):  #pylint: disable=too-many-instance-attributes
 
         """
 
-        #try:
-        self.job_date_id = '{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=datetime.datetime.now())
-        self.not_submitted = None
-        touch(self.run_dir + '/.job_not_complete')
-        self.script()
-        self.not_submitted = False
-        self.jobID = submit_scheduler(substr=bytearray(self.string(), 'utf-8'),
-                                      sched_name=self.sched_name)
-        #except PBSError as e:
-        #raise e
+        try:
+            self.job_date_id = '{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=datetime.datetime.now())
+            self.not_submitted = None
+            touch(self.run_dir + '/.job_not_complete')
+            self.script()
+            self.not_submitted = False
+            self.jobID = submit_scheduler(substr=bytearray(self.string(), 'utf-8'),
+                                          sched_name=self.sched_name)
+        except PBSError as e:
+            raise e
 
 
     @property

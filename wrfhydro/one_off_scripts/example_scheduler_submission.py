@@ -13,11 +13,11 @@ machine_spec_file= home +'/WRF_Hydro/wrf_hydro_tests/machine_spec.yaml'
 candidate_spec_file= home + '/WRF_Hydro/wrf_hydro_tests/template_candidate_spec.yaml'
 user_spec_file= home + '/WRF_Hydro/wrf_hydro_tests/template_user_spec.yaml'
 
-sched_args = get_sched_args_from_specs(name='test_job',
+sched_args = get_sched_args_from_specs(job_name='test_job',
                                        nnodes=1,
                                        run_dir='/glade/scratch/jamesmcc/ex_sched_sub/',
-                                       machine_spec_file=machine_spec_file,
-                                       user_spec_file=user_spec_file,
+#                                       machine_spec_file=machine_spec_file,
+#                                       user_spec_file=user_spec_file,
                                        candidate_spec_file=candidate_spec_file)
 
 

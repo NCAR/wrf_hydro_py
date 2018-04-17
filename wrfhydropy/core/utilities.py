@@ -135,7 +135,7 @@ def open_nwmdataset(paths: list,
     # Create dictionary of forecasts, i.e. reference times
     ds_dict = dict()
     for a_file in paths:
-        ds = xr.open_dataset(a_file, chunks={'feature_id': chunk_size})
+        ds = xr.open_dataset(a_file)
         ref_time = ds['reference_time'].values[0]
         if ref_time in ds_dict:
             # append the new number to the existing array at this slot
@@ -155,5 +155,8 @@ def open_nwmdataset(paths: list,
     nwm_dataset = xr.concat(forecast_list,
                             dim='reference_time',
                             coords='minimal')
+
+    # Break into chunked dask array
+    nwm_dataset = nwm_dataset.chunk(chunks={'feature_id': chunk_size})
 
     return nwm_dataset

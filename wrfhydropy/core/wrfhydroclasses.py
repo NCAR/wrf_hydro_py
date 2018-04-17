@@ -16,11 +16,11 @@ from .utilities import compare_ncfiles, open_nwmdataset
 # netcdf file object classes
 
 class WrfHydroTs(list):
-    def open(self, chunks={'feature_id': 10000}):
+    def open(self, chunks: dict = None):
         """Open a WrfHydroTs object
         Args:
             self
-            chunk_size: Integer chunk size for dask arrays
+            chunks: chunks argument passed on to xarray.DataFrame.chunk() method
         Returns:
             An xarray mfdataset object concatenated on dimension 'Time'.
         """

@@ -16,7 +16,7 @@ from .utilities import compare_ncfiles, open_nwmdataset
 # netcdf file object classes
 
 class WrfHydroTs(list):
-    def open(self, chunk_size:int = 10000):
+    def open(self, chunks={'feature_id': 10000}):
         """Open a WrfHydroTs object
         Args:
             self
@@ -24,7 +24,7 @@ class WrfHydroTs(list):
         Returns:
             An xarray mfdataset object concatenated on dimension 'Time'.
         """
-        return open_nwmdataset(self,chunk_size)
+        return open_nwmdataset(self,chunks=chunks)
 
 class WrfHydroStatic(pathlib.PosixPath):
     def open(self):

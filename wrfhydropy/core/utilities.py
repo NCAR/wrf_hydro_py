@@ -120,7 +120,7 @@ def diff_namelist(namelist1: str, namelist2: str, **kwargs) -> dict:
 
 
 def open_nwmdataset(paths: list,
-                    chunk_size:int = 10000) -> xr.Dataset:
+                    chunks={'feature_id': 10000}) -> xr.Dataset:
     """Open a multi-file wrf-hydro output dataset
 
     Args:
@@ -157,6 +157,6 @@ def open_nwmdataset(paths: list,
                             coords='minimal')
 
     # Break into chunked dask array
-    nwm_dataset = nwm_dataset.chunk(chunks={'feature_id': chunk_size})
+    nwm_dataset = nwm_dataset.chunk(chunks=chunks)
 
     return nwm_dataset

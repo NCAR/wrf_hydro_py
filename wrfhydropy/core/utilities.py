@@ -4,7 +4,7 @@ import pandas as pd
 import warnings
 import f90nml
 import deepdiff
-
+import xarray as xr
 
 def compare_nc_nccmp(candidate_nc: str,
                      reference_nc: str,
@@ -117,3 +117,47 @@ def diff_namelist(namelist1: str, namelist2: str, **kwargs) -> dict:
     differences = deepdiff.DeepDiff(namelist1, namelist2, ignore_order=True, **kwargs)
     differences_dict = dict(differences)
     return (differences_dict)
+
+
+def open_nwmdataset(paths: list,
+                    chunks: dict=None) -> xr.Dataset:
+    """Open a multi-file wrf-hydro output dataset
+
+    Args:
+        paths: List ,iterable, or generator of file paths to wrf-hydro netcdf output files
+        chunks: chunks argument passed on to xarray DataFrame.chunk() method
+    Returns:
+        An xarray dataset of dask arrays chunked by chunk_size along the feature_id
+        dimension concatenated along the time and
+        reference_time dimensions
+    """
+
+    # Create dictionary of forecasts, i.e. reference times
+    ds_dict = dict()
+    for a_file in paths:
+        ds = xr.open_dataset(a_file)
+        ref_time = ds['reference_time'].values[0]
+        if ref_time in ds_dict:
+            # append the new number to the existing array at this slot
+            ds_dict[ref_time].append(ds)
+        else:
+            # create a new array in this slot
+            ds_dict[ref_time] = [ds]
+
+    # Concatenate along time axis for each forecast
+    forecast_list = list()
+    for key in ds_dict.keys():
+        forecast_list.append(xr.concat(ds_dict[key],
+                                       dim='time',
+                                       coords='minimal'))
+
+    # Concatenate along reference_time axis for all forecasts
+    nwm_dataset = xr.concat(forecast_list,
+                            dim='reference_time',
+                            coords='minimal')
+
+    # Break into chunked dask array
+    if chunks is not None:
+        nwm_dataset = nwm_dataset.chunk(chunks=chunks)
+
+    return nwm_dataset

@@ -412,6 +412,10 @@ class WrfHydroRun(object):
         """WrfHydroTs: Timeseries dataset of CHRTOUT files"""
         self.chanobs = None
         """WrfHydroTs: Timeseries dataset of CHANOBS files"""
+        self.lakeout = None
+        """WrfHydroTs: Timeseries dataset of LAKEOUT files"""
+        self.gwout = None
+        """WrfHydroTs: Timeseries dataset of GWOUT files"""
         self.restart_hydro = None
         """list: List of HYDRO_RST WrfHydroStatic objects"""
         self.restart_lsm = None
@@ -531,15 +535,17 @@ class WrfHydroRun(object):
             ## Get channel files
             if len(list(self.simulation_dir.glob('*CHRTOUT*'))) > 0:
                 self.channel_rt = WrfHydroTs(list(self.simulation_dir.glob('*CHRTOUT*')))
-                # ### Make relative to run dir
-                # for file in self.channel_rt:
-                #     file.relative_to(file.parent)
 
             if len(list(self.simulation_dir.glob('*CHANOBS*'))) > 0:
                 self.chanobs = WrfHydroTs(list(self.simulation_dir.glob('*CHANOBS*')))
-                # ### Make relative to run dir
-                # for file in self.chanobs:
-                #     file.relative_to(file.parent)
+
+            #Get Lakeout files
+            if len(list(self.simulation_dir.glob('*LAKEOUT*'))) > 0:
+                self.lakeout = WrfHydroTs(list(self.simulation_dir.glob('*LAKEOUT*')))
+
+            #Get gwout files
+            if len(list(self.simulation_dir.glob('*GWOUT*'))) > 0:
+                self.gwout = WrfHydroTs(list(self.simulation_dir.glob('*GWOUT*')))
 
             ## Get restart files and sort by modified time
             ### Hydro restarts

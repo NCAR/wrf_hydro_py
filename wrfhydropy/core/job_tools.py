@@ -31,7 +31,8 @@ def get_sched_name():
     elif find_executable("sbatch") is not None:
         return "slurm"
     else:
-        return "other"
+        # TODO(JLM): CHANGE THIS BACK TO None, PBS is JUST FOR TESTING
+        return "PBS"
 
 def getlogin():
     """Returns os.getlogin(), else os.environ["LOGNAME"], else "?" """

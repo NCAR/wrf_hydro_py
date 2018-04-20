@@ -1,43 +1,15 @@
-import re
-import os
-import sys
-import math
 import datetime
+import math
+import os
+import socket
 import warnings
-from .scheduler_tools import touch, submit_scheduler, PBSError, get_sched_name, get_version
+from .job_tools import touch, submit_scheduler, PBSError, get_sched_name, get_version
 
-class Job(object): 
-    def __init__(
-            self,
-            run_dir: str,
-            exe_cmd: str,
-            nproc: int,
-            mode: str,
-            scheduler: Scheduler = None,
-    ):
-
-        if scheduler:
-            self.scheduler = scheduler
-            self.run_dir = self.scheduler.run_dir
-            self.exe_cmd = self.scheduler.exe_cmd
-            self.nproc = self.scheduler.nproc
-            self.mode = mode
-
-        else :
-            self.run_dir = run_dir
-            self.exe_cmd = exe_cmd
-            self.nproc = nproc
-            self.mode = mode
-            
-            
-
-    
 class Scheduler(object):
-    """A qsub Job object.
+    """A PBS/torque or slurm scheduler Job object.
 
     Initialize either with all the parameters, or with 'qsubstr' a PBS submit script as a string.
     If 'qsubstr' is given, all other arguments are ignored and set using Job.read().
-
 
     Variables 
         On cheyenne, PBS attributes are described in `man qsub` and `man pbs_resources`.
@@ -45,27 +17,32 @@ class Scheduler(object):
         A dictionary can be constructed in advance from specification files by the function
         get_sched_args_from_specs().
 
-    Var Name    Cheyenne       default            example         Notes
+    Var Name    default            example         Notes
+      PBS usage on Chyenne
     -------------------------------------------------------------------------------------------
-    name        -N                                "my_job"            
-    account     -A                                "NRAL0017"
-    
-    email_when  -m             "a"                 "abe"
-    email_who   -M             "${USER}@ucar.edu"  "johndoe@ucar.edu"
-
-    queue       -q             "regular"           "regular"
-    walltime    -l walltime=   "12:00"             "10:00:00" or "10:00" (seconds coerced)
+    name                           "my_job"            
+      -N
+    account                        "NRAL0017"
+      -A
+    email_when                     "a","abe"       "a"bort, "b"efore, "e"nd
+      -m
+    email_who   "${USER}@ucar.edu" "johndoe@ucar.edu"
+      -M
+    queue       "regular"           "regular"
+      -q
+    walltime    "12:00"             "10:00:00"      Seconds coerced. Appropriate run times are best.
+      -l walltime=
+    afterok                         "12345:6789"   Begin after successful completion of job1:job2:etc.
+      -W depends=afterok:
 
     array_size  -J              None               16             integer
     grab_env    -V              None               True           logical
 
-    Sepcify: np + 
-    np                                             500             Number of procs
+    Sepcify: nproc, nnodes, nproc + nnodes, nproc + ppn,  nnodes + ppn
+    nproc                                          500             Number of procs
     nodes                                          4               Number of nodes
     ppn                        Default:            24              Number of procs/node
                                machine_spec_file.cores_per_node
-
-    exe_cmd                                        "echo \"hello\" > test.txt"
 
     modules
 
@@ -79,8 +56,6 @@ class Scheduler(object):
         self,
         job_name: str,
         account: str,
-        exe_cmd: str,
-        run_dir: str,
         nproc: int=None,
         nnodes: int=None,
         ppn: int=None,
@@ -88,70 +63,59 @@ class Scheduler(object):
         email_who: str="${USER}@ucar.edu",
         queue: str='regular',
         walltime: str="12:00",
-        wait_for_complete= bool=True,
-        monitor_freq_s= int: None,
+        wait_for_complete: bool=True,
+        monitor_freq_s: int=None,
+        afterok: str=None,
         array_size: int=None,
-        modules: str=None,
         pmem: str=None,
         grab_env: str=False,
         exetime: str=None
     ):
 
-        # Check for required inputs
-        # TODO: Deal with setting ppn from machine_spec_file.
-        if not nproc  and nnodes and ppn  : nproc  = nnodes * ppn
-        if not nnodes and nproc  and ppn  : nnodes = math.ceil(nproc / ppn)
-        if not ppn    and nnodes and nproc: ppn = math.ceil(nproc / nnodes)
-        # TODO: Set nodes from nproc/n
-        
-        req_args = { 'job_name': job_name,
-                     'account': account,
-                     'nproc': nproc,
-                     'nnodes': nnodes,
-                     'ppn': ppn,
-                     'exe_cmd': exe_cmd,
-                     'run_dir': run_dir }
-        
-        def check_req_args(arg_name, arg):
-            if not arg:
-                raise ValueError(arg_name + " is a required argument.")
-   
-        [ check_req_args(n,a) for n, a in req_args.items() ]
-
+        # Declare attributes.
         # Required
         self.job_name   = job_name
         self.account    = account
-        self.exe_cmd    = exe_cmd
 
         # Defaults in arglist
         self.email_when = email_when
         self.queue      = queue
+        self.afterok = afterok
         self.array_size = array_size
         self.grab_env   = grab_env
         # TODO JLM: Should probably stash the grabbed argument in this case.
         # TODO JLM: is there a better variable name than grab_env?
-        
-        self.modules    = modules
-        self.run_dir    = run_dir
 
         # Automagically set from environment
         self.sched_name = get_sched_name()
-        self.sched_version = int(re.split("[\+\ \.]", get_version())[2])
-        
+        # TODO(JLM): remove this testing comment/hack below when not testing it.
+        #self.sched_version = int(re.split("[\+\ \.]", get_version())[2])
+
         # Extra Coercion 
         self.email_who  = os.path.expandvars(email_who)
         self.walltime   = ':'.join((walltime+':00').split(':')[0:3])
 
         # Construction
-        self.nproc      = int(nproc)
-        self.nnodes     = int(nnodes)
-        self.ppn        = int(ppn)
+        self._nproc      = nproc
+        self._nnodes     = nnodes
+        self._ppn        = ppn
 
-        nproc_last_node = (nproc - (nnodes * ppn)) % ppn
-        self.nproc_last_node = nproc_last_node
-        if nproc_last_node > 0:
-            if nproc_last_node >= ppn:
-                raise ValueError('nproc - (nnodes * ppn) = {0} >= ppn'.format(nproc_last_node))
+        # Set attributes.
+
+        # Try to get a default scheduler?
+        
+        # Check for required inputs
+        # TODO(JLM): Deal with setting ppn from machine_spec_file.
+        self.solve_nodes_cores()
+
+        # Extra Coercion 
+        self.email_who  = os.path.expandvars(email_who)
+        self.walltime   = ':'.join((walltime+':00').split(':')[0:3])
+
+        self.nproc_last_node = (self.nproc - (self.nnodes * self.ppn)) % self.ppn
+        if self.nproc_last_node > 0:
+            if self.nproc_last_node >= self.ppn:
+                raise ValueError('nproc - (nnodes * ppn) = {0} >= ppn'.format(self.nproc_last_node))
 
         # Currently unsupported.
         self.pmem = pmem
@@ -161,6 +125,8 @@ class Scheduler(object):
         self.jobID = None
         self.job_date_id = None
 
+        self.job_script = None
+        
         # PBS has a silly stream buffer that 1) has a limit, 2) cant be seen until the job ends.
         # Separate and standardize the stdout/stderr of the exe_cmd and the scheduler.
 
@@ -189,29 +155,58 @@ class Scheduler(object):
         self._job_complete = False
 
 
+    def solve_nodes_cores(self):
+        if None not in [self._nproc, self._nnodes, self._ppn]:
+            warnings.warn("Not currently checking consistency of nproc, nnodes, ppn.")
+            return
+
+        if not self._nproc  and self._nnodes and self._ppn:
+            self._nproc  = self._nnodes * self._ppn
+        if not self._nnodes and self._nproc and self._ppn:
+            self._nnodes = math.ceil(self._nproc / self._ppn)
+        if not self._ppn and self._nnodes and self._nproc:
+            self._ppn = math.ceil(self._nproc / self._nnodes)
+
+        if None in [self._nproc, self._nnodes, self._ppn]:
+            raise ValueError("Not enough information to solve all of nproc, nnodes, ppn.")
+
+    @property
+    def nproc(self):
+        self.solve_nodes_cores()
+        return self._nproc
+    @property
+    def nnodes(self):
+        self.solve_nodes_cores()
+        return self._nnodes
+    @property
+    def ppn(self):
+        self.solve_nodes_cores()
+        return self._ppn
+    
     @property
     def stdout_exe(self):
-        return(self.eval_std_vars(self._stdout_exe))
+        return self.eval_std_vars(self._stdout_exe)
     @property
     def stderr_exe(self):
-        return(self.eval_std_vars(self._stderr_exe))
+        return self.eval_std_vars(self._stderr_exe)
     @property
     def tracejob_file(self):
-        return(self.eval_std_vars(self._tracejob_file))
+        return self.eval_std_vars(self._tracejob_file)
     @property
     def stdout_pbs(self):
-        return(self.eval_std_vars(self._stdout_pbs))
+        return self.eval_std_vars(self._stdout_pbs)
     @property
     def stderr_pbs(self):
-        return(self.eval_std_vars(self._stderr_pbs))
+        return self.eval_std_vars(self._stderr_pbs)
     @property
     def stdout_pbs_tmp(self):
-        return(self.eval_std_vars(self._stdout_pbs_tmp))
+        return self.eval_std_vars(self._stdout_pbs_tmp)
     @property
     def stderr_pbs_tmp(self):
-        return(self.eval_std_vars(self._stderr_pbs_tmp))
+        return self.eval_std_vars(self._stderr_pbs_tmp)
     # TODO JLM: turn the above into pathlib.PosixPath objects.
 
+    
     def eval_std_vars(self, theStr):
         if self.not_submitted:
             return(theStr)
@@ -300,6 +295,7 @@ class Scheduler(object):
             jobstr += "#PBS -e {0}\n".format(self.stderr_pbs_tmp)
             jobstr += "\n"
 
+            if self.afterok:    jobstr += "#PBS -W depend=afterok:{0}\n".format(self.afterok)
             if self.array_size: jobstr += "#PBS -J 1-{0}\n".format(self.array_size)
             if self.exetime:    jobstr += "#PBS -a {0}\n".format(self.exetime)
             if self.pmem:       jobstr += "#PBS -l pmem={0}\n".format(self.pmem)
@@ -393,7 +389,6 @@ class Scheduler(object):
            Raises PBSError if error submitting the job.
 
         """
-
         try:
             self.job_date_id = '{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=datetime.datetime.now())
             self.not_submitted = None
@@ -405,9 +400,133 @@ class Scheduler(object):
         except PBSError as e:
             raise e
 
-
+        
     @property
     def job_complete(self):
         if self.not_submitted:
             return(False)
         return( not os.path.isfile(self.run_dir + '/.job_not_complete') )
+
+
+class Job(object): 
+    def __init__(
+            self,
+            exe_cmd: str=None,
+            nproc: int=None,
+            machine: str=socket.gethostname(),
+            modules: str=None,
+            scheduler: Scheduler = None,
+    ):
+
+        self._exe_cmd = exe_cmd
+        """str: The command to be executed. Python {}.format() evaluation available but
+        limited. Taken from the machine_spec.yaml file if not specified."""
+        self._nproc = nproc
+        """int: Optional, the number of processors to use. If also supplied in the scheduler
+        then there will be ab error."""
+        self.machine = machine
+        """str: The name of the machine being used (from socket.gethostname())."""
+        self.modules = modules
+        """str: The modules to be loaded prior to execution. Taken from machine_spec.yaml 
+        if not present."""
+        self.scheduler = scheduler
+        """Scheduler: Optional, scheduler object for the job."""
+        
+        # TODO(JLM): Are these both optional inputs and outputs?
+        self.model_start_time = None
+        """str?: The model time at the start of the execution."""
+        self.model_end_time = None
+        """str?: The model time at the end of the execution."""
+        self.model_restart = None
+        """bool: Look for restart files at modelstart_time?"""
+
+        # These are only outputs/atts of the object.
+        self.namelist_hrldas = None
+        """dict: the HRLDAS namelist used for this job."""
+        self.hydro_namelist = None
+        """dict: the hydro namelist used for this job."""
+
+        self.job_status = "created"
+        """str: The status of the job object: created/submitted/running/complete."""
+
+        # Attributes solved from the environment at job time (not now).
+        self.user = None
+        """str: $USER."""
+        # TODO(JLM): this is admittedly a bit dodgy because sensitive info
+        # might be in the environment (github authtoken?)
+        # Are there parts of the env we must have?
+        self.environment = None
+
+        # Attributes solved later (not now).
+        """str: All the environment variables at execution time."""
+        self.job_start_time = None
+        """str?: The time at the start of the execution."""
+        self.job_end_time = None
+        """str?: The time at the end of the execution."""
+        self.job_submission_time = None
+        """str?: The time the job object was created."""
+
+        # TODO(JLM): Do i want to just capture the file names or also the contents?
+        self.stdout_file = None
+        """pathlib.PosixPath: The standard out file."""
+        self.stderr_file = None
+        """pathlib.PosixPath: The standard error file."""
+        self.exit_status = None
+        """int: The exit value of the model execution."""
+        # TODO(JLM): Is the above actually useful?
+        self.tracejob_file = None
+
+        # TODO(JLM): The diag files will get clobbered. Scrape to a dot directory
+        # after successful or unsuccessful completion? The files can also be large... 
+        self.diag_files = None
+        """pathlib.PosixPath: The diag files for the job."""
+
+        # Setting better defaults.
+
+        # If there is no scheduler on the machine. Do not allow a scheduler object.
+        if get_sched_name() is None:
+            self.scheduler = None
+        else:
+            # Allow some coercion. 
+            if type(self.scheduler) is dict:
+                self.scheduler = Scheduler(**self.scheduler)
+            
+        # ###################################
+        # Deal with the potential conflict between the job ncores and the scheduler ncores.
+        if self._nproc and self.scheduler:
+            if self.scheduler.nproc:
+                if self.scheduler.nproc != nproc:
+                    error_msg  = "The number of cores passed to the job does not match the "
+                    error_msg += "number of cores specified in the job's scheduler."
+                    raise ValueError(error_msg)
+            else:
+                self.scheduler.nproc = self.nproc
+
+        # TODO(JLM): Maybe this should be done first and overwritten?
+        # TODO(JLM): For missing job/scheduler properties, attempt to get defaults.
+        # These are in a file in the package dir. Where?
+        # A method (used by  django) about specifying the root dir of the project.
+        # https://stackoverflow.com/questions/25389095/python-get-path-of-root-project-structure
+        #self.build_default_job(self)
+
+        
+
+    @property
+    def run_dir(self):
+        if self.scheduler:
+            return self.scheduler._run_dir
+        return self._run_dir
+
+    @property
+    def exe_cmd(self):
+        if self.scheduler:
+            return self.scheduler._exe_cmd
+        return self._exe_cmd
+
+    @property
+    def nproc(self):
+        if self.scheduler:
+            return self.scheduler.nproc
+        return self._nproc
+
+#    def build_default_job():

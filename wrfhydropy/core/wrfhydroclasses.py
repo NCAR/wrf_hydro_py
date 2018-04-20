@@ -1,23 +1,24 @@
-import subprocess
-import pathlib
-import shutil
-import xarray as xr
+import copy
 import f90nml
 import json
-import copy
 import os
-import uuid
+import pathlib
 import pickle
-import warnings
-from time import sleep
 from shlex import split as shlex_split
+import shutil
+import subprocess
+from time import sleep
+import uuid
+import warnings
+import xarray as xr
 
 from .utilities import compare_ncfiles
-from .scheduler_tools import seconds
-from .scheduler import Scheduler
+from .job_tools import seconds
+from .job import Job, Scheduler
 
 #########################
 # netcdf file object classes
+
 
 class WrfHydroTs(list):
     def open(self):
@@ -28,6 +29,7 @@ class WrfHydroTs(list):
             An xarray mfdataset object concatenated on dimension 'Time'.
         """
         return(xr.open_mfdataset(self, concat_dim='Time'))
+
 
 class WrfHydroStatic(pathlib.PosixPath):
     def open(self):
@@ -63,7 +65,7 @@ class WrfHydroModel(object):
         self.hrldas_namelists = None
         """dict: Master dictionary of all namelist.hrldas stored with the source code."""
         self.compile_options = None
-        """dict: Compile-time options. Defaults are loaded from json file stored with source 
+        """dict: Compile-time options. Defaults are loaded from json file stored with source
         code."""
         self.version = None
         """str: Source code version from .version file stored with the source code."""
@@ -302,7 +304,8 @@ class WrfHydroDomain(object):
 class WrfHydroSim(object):
     """Class for a WRF-Hydro simulation, which is comprised of a WrfHydroModel and a WrfHydroDomain.
     """
-    def __init__(self, wrf_hydro_model: object,
+    def __init__(self,
+                 wrf_hydro_model: object,
                  wrf_hydro_domain: object):
         """Instantiates a WrfHydroSim object
         Args:
@@ -356,42 +359,16 @@ class WrfHydroSim(object):
                 
     # #################################
         
-    # TODO JLM: There has to be a better way to handle this.
-    def add_job(
-        self,
-        new_job: Job
-    ):
-        """Dispatch a run the wrf_hydro simulation: either run() or schedule_run()
-        If a scheduler is passed, then that run is scheduled. 
-        Args:
-            As for run and schedule_run().
-        Returns:
-            A WrfHydroRun object
-        """
 
-        if new_job.scheduler:
-
-            # a scheduled job can be appended to the jobs.pending list if
-            # 1) there are no active or pending jobs
-            # 2) if it is dependent on the last active or pending job.
-
-            run_object = self.schedule_run(new_job)
-
-            # THe job gets moved to jobs.active in the schedule_run?
-            # remove the job from the jobs.active list
-            # place the job in the jobs.completed list
-
-        else:
-
-            # an interactive job can be made the active job if there is no current job.
-            run_object = self.run(new_job)
-
-            # removethe job from the jobs.active list
-            # place the job in the jobs.completed list
-            
-        return run_object
-
-
+    # TODO(JLM): This is a nice feature but it might be a better design decision
+    #            to remove this method. It may create confusion about what is being
+    #            run. Calling this twice would create two separate runs, not two
+    #            jobs of the same run.
+    #            I also dont really like that methods (init=run) are being invoked
+    #            but a different object. This is particularly exaggerated by the
+    #            scheduler. It would be seamless, but you then have Sim.run()
+    #            waiting around for a job to complete, it's multiple functions waiting
+    #            not the core one.
     def run(
         self,
         the_job: Job,
@@ -411,194 +388,41 @@ class WrfHydroSim(object):
         return run_object
 
 
-    def schedule_run(
-        self,
-        scheduler: Scheduler,
-        the_job: Job,
-    ) -> object:
-        """Scheulde a run of the wrf_hydro simulation
-        Args:
-            scheduler: A scheduler object
-            wait_for_complete: bool, Does the calling program wait for the job to complete?
-            monitor_freq_s: int, How often does the waiting program check progress?
-            mode: Write mode, 'w' for overwrite if directory exists, and 'r' for fail if
-            directory exists
-        Returns:
-            String: A job scheduler id
-        TODO:
-            Add option for custom run commands to deal with job schedulers
-        """
-
-        # Note that the scheduler is added to the run object, not the sim object.
-
-        if monitor_freq_s is None:
-            monitor_freq_s = int(max(seconds('00:'+scheduler.walltime)/100,30))
-
-        # Write python script WrfHydroSim.schedule_run.py to be executed by the
-        # scheduler. Swap the scheduler script executable (exe_cmd), for this
-        # python script: call python script in the scheduler job and execute the
-        # model from python (as an object method).
-        
-        model_exe_cmd = scheduler.exe_cmd
-        py_script_name = scheduler.run_dir + "/WrfHydroSim.schedule_run.py"
-        py_run_cmd = "python " + py_script_name + " --jobID $jobID --job_date_id $job_date_id"
-        # Write the script later, have to make the run dir before the script can be written to it.
-        
-        # This run is intaractive/has no jobID, so it exits after init without run.
-        simulation = copy.deepcopy(self)
-        scheduler_copy = copy.deepcopy(scheduler)
-        run_object = WrfHydroRun(wrf_hydro_simulation=simulation,
-                                 scheduler=scheduler_copy,
-                                 mode=mode)
-
-        # Construct the script.
-        jobstr  = "#!/usr/bin/env python\n"
-        jobstr += "\n"
-        
-        jobstr += "import wrfhydropy\n"
-        jobstr += "import pickle\n"
-        jobstr += "import argparse\n"
-        jobstr += "import os\n"
-        jobstr += "import sys\n"
-        jobstr += "\n"
-
-        jobstr += "parser = argparse.ArgumentParser()\n"
-        jobstr += "parser.add_argument('--jobID',\n"
-        jobstr += "                    help='The numeric part of the scheduler job ID.')\n"
-        jobstr += "parser.add_argument('--job_date_id',\n"
-        jobstr += "                    help='The date-time identifier created by Schduler obj.')\n"
-        jobstr += "args = parser.parse_args()\n"
-        jobstr += "\n"
-
-        jobstr += "print('jobID: ', args.jobID)\n"
-        jobstr += "print('job_date_id: ', args.job_date_id)\n"
-        jobstr += "\n"
-
-        jobstr += "run_object = pickle.load(open('WrfHydroRun.pkl', 'rb'))\n"
-        jobstr += "run_object.exe_cmd = \"" + py_run_cmd + "\"\n"
-        jobstr += "run_object.scheduler.jobID = args.jobID\n"
-        jobstr += "run_object.scheduler.job_date_id = args.job_date_id\n"
-        jobstr += "run_object.run_cmd = \"" + model_exe_cmd + "\"\n"
-        jobstr += "print(\"Running the model.\")\n"
-        jobstr += "run_object.run()\n"
-        jobstr += "print(\"Collecting model output.\")\n"
-        jobstr += "run_object.collect_run()\n"
-        jobstr += "\n"
-
-        with open(py_script_name, "w") as myfile:
-            myfile.write(jobstr)
-
-        # Now submit the above script to the scheduler.
-        run_object.scheduler.exe_cmd = py_run_cmd
-        run_object.scheduler.submit()
-
-        #optional: monitor the job and self.unpickle
-        # TODO JLM: seems lke this wait can be abstracted to function. >>>
-        if wait_for_complete:
-
-            print("Waiting for job " +
-                  str(run_object.scheduler.jobID) +
-                  " to complete (q=queued, r=running : 1/" +
-                  str(monitor_freq_s) +"seconds):")
-            ## TODO JLM: add "d" to indicate waiting for dependency.
-
-            while not run_object.scheduler.job_complete:
-                sleep(monitor_freq_s)
-                if not os.path.isfile(run_object.scheduler.run_dir + '/.job_not_complete'):
-                    sym = 'r'
-                else:
-                    sym = 'q'
-                print(sym, end="", flush=True)
-
-            print('')
-        # TODO JLM: seems lke this wait can be abstracted to function. <<<
-
-            # Part of the wait_for_complete if statement
-            run_object = run_object.unpickle()
-            
-        return run_object
 
     
 class WrfHydroRun(object):
     def __init__(
         self,
         wrf_hydro_simulation: WrfHydroSim,
-        new_job: Job
+        job: Job,
+        run_dir: str
     ):
         """Instantiate a WrfHydroRun object, including running the simulation
         Args:
-
-            A scheduler 
-
-                scheduler: Optional, Scheduler object. 
-
-            is mutually exclusive with these variables: 
-
-                wrf_hydro_simulation: Optional, A WrfHydroSim object to run
-                simulation_dir: Optional, The path to the directory to use for run
-                num_cores: Optional, the number of cores to using default run_command
-
-            specifying both with result in an error.
-
-            mode: Write mode, 'w' for overwrite if directory exists, and 'r' for fail if
-                  directory exists
-
+            wrf_hydro_simulation: A simulation object. 
+            job: a Job object. 
+            run_dir: str, where to execute the job. This is an attribute of the Run object.
         Returns:
-            A WrfHydroRun object
-        TODO:
-            Add option for custom run commands to deal with job schedulers
+            A WrfHydroRun object.
         """
 
-        # TODO JLM: Here or in run()?, if there is job object, then create a job from the default
-        # A method (used by  django) about specifying the root dir of the project.
-        # https://stackoverflow.com/questions/25389095/python-get-path-of-root-project-structure
-        
         # Initialize all attributes and methods
 
         self.simulation = wrf_hydro_simulation
         """WrfHydroSim: The WrfHydroSim object used for the run"""
 
-        self.job = new_job
-        """Job: The Job object used to specify the run."""        
-        # TODO JLM: multiple jobs should be allowed. 
-        #self.jobs = list()
-        #self.jobs_completed = list()
-
-        # TODO(JLM): Check that the sim object is "complete".
-        # TODO(JLM): What constitutes a complete sim object?
-        #            1) compiler specified, 2) domain_config specified.
-        #            3) A compiled model?
+        self.run_dir = pathlib.PosxixPath(run_dir)
+        """pathlib.PosixPath: The location of where the jobs will be executed."""
         
+        self.jobs_completed = []
+        """Job: A list of previously executed jobs for this run."""
+        self.jobs_pending = {}
+        """Job: A list of jobs *scheduled* to be executed for this run 
+        with prior job dependence."""
+        self.job_active = None
+        """Job: The job currently executing."""        
 
-        if self.scheduler:
-
-            if not all([ii is None for ii in [num_cores, simulation_dir, run_cmd] ]):
-                error_msg  = "A scheduler is mutually exclusive with the "
-                error_msg += "num_cores, simulation_dir, and run_cmd args."
-                raise ValueError(error_msg)
-            
-            self.num_cores = scheduler.nproc
-            self.simulation_dir = pathlib.Path(scheduler.run_dir)
-            self.run_cmd = self.scheduler.exe_cmd
-
-        else:
-
-            if None in [num_cores, simulation_dir, run_cmd]:
-                error_msg  = "The args num_cores, simulation_dir, and run_cmd "
-                error_msg += "are all required (when no scheduler given)."
-                raise ValueError(error_msg)
-
-            self.num_cores = num_cores
-            self.simulation_dir = pathlib.Path(simulation_dir)      
-            self.run_cmd = run_cmd
-
-
-        self.run_log = None
-        """CompletedProcess: The subprocess returned from the run call"""
-        self.run_status = None
-        """int: exit status of the run"""
-        self.diag = None
-        """list: pathlib.Paths to diag files generated at run time"""
+        # TODO(JLM): these are properties of the run.
         self.channel_rt = None
         """WrfHydroTs: Timeseries dataset of CHRTOUT files"""
         self.chanobs = None
@@ -609,23 +433,37 @@ class WrfHydroRun(object):
         """list: List of RESTART WrfHydroStatic objects"""
         self.restart_nudging = None
         """list: List of nudgingLastObs WrfHydroStatic objects"""
+
         self.object_id = None
         """str: A unique id to join object to run directory."""
 
-        # Make directory if it does not exists
+        # Establish the values. 
+        
+        # TODO(JLM): Check that the sim object is "complete".
+        # TODO(JLM): What constitutes a complete sim object?
+        #            1) compiler specified, 2) domain_config specified.
+        #            3) A compiled model?
+
+        # TODO(JLM): If adding a job to an existing run, enforce that only
+        #            start times and khour/kday and associated restart file
+        #            times are different? Anything else that's flexible across
+        #            jobs of a single run?
+
+        
+        # Make run_dir directory if it does not exist.
         if self.simulation_dir.is_dir() is False:
             self.simulation_dir.mkdir(parents=True)
         else:
-            if self.simulation_dir.is_dir() is True and mode == 'w':
+            if self.simulation_dir.is_dir() is True and job['mode'] == 'w':
                 shutil.rmtree(str(self.simulation_dir))
                 self.simulation_dir.mkdir(parents=True)
-            elif self.simulation_dir.is_dir() is True and mode == 'r':
-                raise PermissionError('Run directory already exists and mode = r')
+            elif self.simulation_dir.is_dir() is True and job['mode'] == 'r':
+                raise PermissionError("Run directory already exists and job['mode'] = 'r'")
             else:
                 warnings.warn('Existing run directory will be used for simulation')
 
-        ### Check that compile object uid matches compile directory uid
-        ### This is to ensure that a new model has not been compiled into that directory unknowingly
+        # Check that compile object uid matches compile directory uid
+        # This is to ensure that a new model has not been compiled into that directory unknowingly
         with open(self.simulation.model.compile_dir.joinpath('.uid')) as f:
             compile_uid = f.read()
 
@@ -633,11 +471,13 @@ class WrfHydroRun(object):
             raise PermissionError('object id mismatch between WrfHydroModel object and'
                                   'WrfHydroModel.compile_dir directory. Directory may have been'
                                   'used for another compile')
-        ###########################################################################
-        # MAKE RUN DIRECTORIES
-        # Construct all file/dir paths
-        # Convert strings to pathlib.Path objects
 
+        # Build the inputs into the run_dir.
+        # Construct all file/dir paths.
+        # Convert strings to pathlib.Path objects.
+
+        # TODO(JLM): Make symlinks the default option? Also allow copying?
+        
         # Loop to make symlinks for each TBL file
         for from_file in self.simulation.model.table_files:
             # Create file paths to symlink
@@ -691,33 +531,185 @@ class WrfHydroRun(object):
         # write namelist.hrldas
         f90nml.write(self.simulation.namelist_hrldas,
                      self.simulation_dir.joinpath('namelist.hrldas'))
-        
-        if self.scheduler:
+
+
+        self.add_job(job)
+
+
+    def add_job(
+        self,
+        job: Job
+    ):
+        """Dispatch a run the wrf_hydro simulation: either run() or schedule_run()
+        If a scheduler is passed, then that run is scheduled. 
+        Args:
+            As for run and schedule_run().
+        Returns:
+            A WrfHydroRun object
+        """
+
+        if job.scheduler:
+
+            # A scheduled job can be appended to the jobs.pending list if
+            # 1) there are no active or pending jobs
+            # 2) if it is (made) dependent on the last active or pending job.
+
+            # Get the job id of the last active+pending job.
+            last_job_id = None
+            if len(self.job_active):
+                last_job_id = self.job_active.jobID
+            if len(self.jobs_pending):
+                last_job_id = self.jobs_pending[-1].jobID
+
+            if last_job_id is not None:
+                if job.scheduler.afterok is not None and job.scheduler.afterok != last_job_id:
+                    raise ValueError("The job's specified dependency/afterok conflicts with reality.")
+                job.scheduler.afterok = last_job_id
+            else: 
+                if job.scheduler.afterok is not None:
+                    raise ValueError("The job's specified dependency/afterok conflicts with reality.")
+
+            # Add the job
+            self.jobs_pending.append(copy.deepcopy(job))
+
+            # Write the state to disk.
             self.pickle()
-            if not self.scheduler.jobID:
-                # If the scheuler has not been scheduled, dont run.
-                return(None)
+
+            self.schedule_job(self.jobs_pending[-1])
+
         else:
-            self.pickle()
-            
-        self.run()
+
+            # an interactive job can be made the active job if there is no current job.
+            if not len(self.job_active):
+                self.pickle()
+                self.run()
+            # removethe job from the jobs.active list
+            # place the job in the jobs.completed list
+
         self.collect_run()
+
+    def schedule_job(
+        self,
+        job: Job,
+    ) -> object:
+        """Scheulde a run of the wrf_hydro simulation
+        Args:
+            job: A Job object
+        """
+
+        # TODO(JLM): to be moved to scheduler construction.
+        if monitor_freq_s is None:
+            monitor_freq_s = int(max(seconds('00:' + job.scheduler.walltime)/100,30))
+
+        # Write python script WrfHydroSim.schedule_run.py to be executed by the
+        # scheduler. Swap the scheduler script executable (exe_cmd), for this
+        # python script: call python script in the scheduler job and execute the
+        # model from python (as an object method).
+        
+        model_exe_cmd = job.exe_cmd
+        # TODO(JLM): embed the 
+        py_script_name = job.run_dir + "/WrfHydroSim.schedule_run.py"
+        py_run_cmd = "python " + py_script_name + " --jobID $jobID --job_date_id $job_date_id"
+        # Write the script later, have to make the run dir before the script can be written to it.
+
+        # TODO(JLM): abstract this to a utility function with
+        #            args: py_run_cmd, model_exe_cmd
+        # Construct the script.
+        jobstr  = "#!/usr/bin/env python\n"
+        jobstr += "\n"
+        
+        jobstr += "import wrfhydropy\n"
+        jobstr += "import pickle\n"
+        jobstr += "import argparse\n"
+        jobstr += "import os\n"
+        jobstr += "import sys\n"
+        jobstr += "\n"
+
+        jobstr += "parser = argparse.ArgumentParser()\n"
+        jobstr += "parser.add_argument('--jobID',\n"
+        jobstr += "                    help='The numeric part of the scheduler job ID.')\n"
+        jobstr += "parser.add_argument('--job_date_id',\n"
+        jobstr += "                    help='The date-time identifier created by Schduler obj.')\n"
+        jobstr += "args = parser.parse_args()\n"
+        jobstr += "\n"
+
+        jobstr += "print('jobID: ', args.jobID)\n"
+        jobstr += "print('job_date_id: ', args.job_date_id)\n"
+        jobstr += "\n"
+
+        jobstr += "run_object = pickle.load(open('WrfHydroRun.pkl', 'rb'))\n"
+        jobstr += "run_object.exe_cmd = \"" + py_run_cmd + "\"\n"
+        jobstr += "run_object.scheduler.jobID = args.jobID\n"
+        jobstr += "run_object.scheduler.job_date_id = args.job_date_id\n"
+        jobstr += "run_object.run_cmd = \"" + model_exe_cmd + "\"\n"
+        jobstr += "print(\"Running the model.\")\n"
+        jobstr += "run_object.run()\n"
+        # TODO JLM: move this job into run_object.job_completed.append()
+        jobstr += "print(\"Collecting model output.\")\n"
+        # The following is HIGHLY desirable. I guess this could be got around by
+        # making the output files @properties. 
+        jobstr += "run_object.collect_run()\n"
+        jobstr += "\n"
+
+        with open(py_script_name, "w") as myfile:
+            myfile.write(jobstr)
+
+        # Now submit the above script to the scheduler.
+        # TODO(JLM): 1) move this job to self.job_active? 2) pickle self ?
+        run_object.scheduler.exe_cmd = py_run_cmd
+        run_object.scheduler.submit()
+
+        #optional: monitor the job and self.unpickle
+        # TODO JLM: seems lke this wait can be abstracted to function. >>>
+        if wait_for_complete:
+
+            #print( the scheduler name?
+            print("Waiting for scheduled job " +
+                  str(run_object.scheduler.jobID) +
+                  " to complete. /n" +
+                  "(d=dependent, q=queued, r=running : 1/" +
+                  str(monitor_freq_s) +"seconds):", end = "", flush=True)
+
+            while not run_object.scheduler.job_complete:
+                sleep(monitor_freq_s)
+                if not os.path.isfile(run_object.scheduler.run_dir + '/.job_not_complete'):
+                    sym = 'r'
+                else:
+                    sym = 'q'
+                ## TODO JLM: add "d" to indicate waiting for dependency.
+                print(sym, end="", flush=True)
+
+            print('')
+        # TODO JLM: seems like this wait can be abstracted to function. <<<
+
+            # Part of the wait_for_complete if statement, this updates the
+            # TODO(JLM): I DONT THINK THIS WORKS. IS THIS A CASE FOR SELF.__DICT__.UPDATE()?
+            self = run_object.unpickle()
 
 
     def run(self):
 
+        # TODO JLM: does the job['mode'] need checked at this point?
+        
         if self.scheduler:
             run_cmd = self.run_cmd + " 2> {0} 1> {1}"
             run_cmd = run_cmd.format(self.scheduler.stderr_exe, self.scheduler.stdout_exe)
             run_cmd = shlex_split(run_cmd)
+            # Note that this run_cmd is a python script which executes and optionally
+            # waits for the model (it's NOT direct execution of the model.
             subprocess.run(run_cmd, cwd=self.simulation_dir)
         else:
-            run_cmd = shlex_split(self.run_cmd.format(**{'num_cores': self.num_cores}))
+            run_cmd = self.run_cmd.format(**{'num_cores': self.num_cores})
+            run_cmd = shlex_split(run_cmd)
+            # TODO (JLM): Get the stdout and stderr to files and to screen?
             self.run_log = subprocess.run(run_cmd,
                                           stdout=subprocess.PIPE,
                                           stderr=subprocess.PIPE,
                                           cwd=self.simulation_dir)
 
+        # TODO(JLM): The following be made a method which checks the run.
+        #            The following should not be run if the scheduler is not waiting.
+        #            Put this in collect_run?
         try:
             self.run_status = 1
             # String match diag files for successfull run

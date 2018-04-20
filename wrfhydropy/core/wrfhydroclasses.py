@@ -10,7 +10,7 @@ import uuid
 import pickle
 import warnings
 
-from .utilities import compare_ncfiles, open_nwmdataset
+from .utilities import compare_ncfiles, open_nwmdataset, __make_relative__
 
 #########################
 # netcdf file object classes
@@ -396,7 +396,6 @@ class WrfHydroRun(object):
 
         # Initialize all attributes and methods
 
-
         self.simulation = wrf_hydro_simulation
         """WrfHydroSim: The WrfHydroSim object used for the run"""
         self.num_cores = num_cores
@@ -421,6 +420,8 @@ class WrfHydroRun(object):
         """list: List of nudgingLastObs WrfHydroStatic objects"""
         self.object_id = None
         """str: A unique id to join object to run directory."""
+
+
 
         # Make directory if it does not exists
         if self.simulation_dir.is_dir() is False:
@@ -591,6 +592,18 @@ class WrfHydroRun(object):
             print('Model run succeeded')
         else:
             warnings.warn('Model run failed')
+
+    def make_relative(self,basepath = None):
+        """Make all file paths relative to a given directory, useful for opening file
+        attributes in a run object after it has been moved or copied to a new directory or
+        system.
+        Args:
+            basepath: The base path to use for relative paths. Defaults to run directory.
+            This rarely needs to be defined.
+        Returns:
+            self with relative files paths for file-like attributes
+        """
+        __make_relative__(run_object=self,basepath=basepath)
 
 class DomainDirectory(object):
     """An object that represents a WRF-Hydro domain directory. Primarily used as a utility class

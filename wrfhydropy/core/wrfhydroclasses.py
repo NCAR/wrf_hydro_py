@@ -561,13 +561,9 @@ class WrfHydroRun(object):
             # place the job in the jobs.completed list
 
         self.collect_job()
-        
-
 
 
     def collect_job(self):
-
-        
 
         if self.job_active.exit_status != 0:
             warnings.warn('Model run failed.')

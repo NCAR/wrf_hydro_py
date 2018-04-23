@@ -389,7 +389,6 @@ class WrfHydroSim(object):
 
 
 
-    
 class WrfHydroRun(object):
     def __init__(
         self,
@@ -582,7 +581,7 @@ class WrfHydroRun(object):
             # an interactive job can be made the active job if there is no current job.
             if not len(self.job_active):
                 self.pickle()
-                self.run()
+                self.run() ## self.job.run(self.run_dir)
             # removethe job from the jobs.active list
             # place the job in the jobs.completed list
 
@@ -656,8 +655,8 @@ class WrfHydroRun(object):
 
         # Now submit the above script to the scheduler.
         # TODO(JLM): 1) move this job to self.job_active? 2) pickle self ?
-        run_object.scheduler.exe_cmd = py_run_cmd
-        run_object.scheduler.submit()
+        self.job.exe_cmd = py_run_cmd
+        self.job.schedule(self.run_dir)
 
         #optional: monitor the job and self.unpickle
         # TODO JLM: seems lke this wait can be abstracted to function. >>>
@@ -687,7 +686,7 @@ class WrfHydroRun(object):
             self = run_object.unpickle()
 
 
-    def run(self):
+    def run_job(self):
 
         # TODO JLM: does the job['mode'] need checked at this point?
         

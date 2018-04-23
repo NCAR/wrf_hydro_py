@@ -43,7 +43,7 @@ class WrfHydroStatic(pathlib.PosixPath):
 
 
 #########################
-# Classes for constructing and running a wrf_hydro simulation
+# Classes for constructing and running a wrf_hydro setup 
 class WrfHydroModel(object):
     """Class for a WRF-Hydro model, which consitutes the model source code and compiled binary.
     """
@@ -210,7 +210,7 @@ class WrfHydroModel(object):
 # WRF-Hydro Domain object
 class WrfHydroDomain(object):
     """Class for a WRF-Hydro domain, which consitutes all domain-specific files needed for a
-    simulation.
+    setup.
     """
     def __init__(self,
                  domain_top_dir: str,
@@ -301,25 +301,25 @@ class WrfHydroDomain(object):
         self.forcing_data = WrfHydroTs(self.forcing_dir.glob('*'))
 
 
-class WrfHydroSim(object):
-    """Class for a WRF-Hydro simulation, which is comprised of a WrfHydroModel and a WrfHydroDomain.
+class WrfHydroSetup(object):
+    """Class for a WRF-Hydro setup object, which is comprised of a WrfHydroModel and a WrfHydroDomain.
     """
     def __init__(self,
                  wrf_hydro_model: object,
                  wrf_hydro_domain: object):
-        """Instantiates a WrfHydroSim object
+        """Instantiates a WrfHydroSetup object
         Args:
             wrf_hydro_model: A WrfHydroModel object
             wrf_hydro_domain: A WrfHydroDomain object
         Returns:
-            A WrfHydroSim object
+            A WrfHydroSetup object
         """
         # assign objects to self
         self.model = copy.deepcopy(wrf_hydro_model)
-        """WrfHydroModel: A copy of the WrfHydroModel object used for the simulation"""
+        """WrfHydroModel: A copy of the WrfHydroModel object used for the setup"""
 
         self.domain = copy.deepcopy(wrf_hydro_domain)
-        """WrfHydroDomain: A copy of the WrfHydroDomain object used for the simulation"""
+        """WrfHydroDomain: A copy of the WrfHydroDomain object used for the setup"""
 
         # Create namelists
         self.hydro_namelist = \
@@ -356,67 +356,38 @@ class WrfHydroSim(object):
                                                          ['namelist_hrldas']
                                                          ['wrf_hydro_offline'])
 
-                
-    # #################################
-        
-
-    # TODO(JLM): This is a nice feature but it might be a better design decision
-    #            to remove this method. It may create confusion about what is being
-    #            run. Calling this twice would create two separate runs, not two
-    #            jobs of the same run.
-    #            I also dont really like that methods (init=run) are being invoked
-    #            but a different object. This is particularly exaggerated by the
-    #            scheduler. It would be seamless, but you then have Sim.run()
-    #            waiting around for a job to complete, it's multiple functions waiting
-    #            not the core one.
-    def run(
-        self,
-        the_job: Job,
-    ) -> object:
-        """Run the wrf_hydro simulation
-        Args:
-            simulation_dir: The path to the directory to use for run
-            num_cores: Optional, the number of cores to using default run_command
-            mode: Write mode, 'w' for overwrite if directory exists, and 'r' for fail if
-            directory exists
-        Returns:
-            A model WrfHydroRun object
-        """
-        #Make copy of simulation object to alter and return
-        simulation = copy.deepcopy(self)
-        run_object = WrfHydroRun(simulation, the_job)
-        return run_object
 
 
 
-    
 class WrfHydroRun(object):
     def __init__(
         self,
-        wrf_hydro_simulation: WrfHydroSim,
-        job: Job,
-        run_dir: str
+        wrf_hydro_setup: WrfHydroSetup,
+        run_dir: str,
+        rm_existing_run_dir = False,
+        job: Job=None
     ):
-        """Instantiate a WrfHydroRun object, including running the simulation
+        """Instantiate a WrfHydroRun object. A run is a WrfHydroSetup with multiple jobs.
         Args:
-            wrf_hydro_simulation: A simulation object. 
-            job: a Job object. 
+            wrf_hydro_setup: A setup object. 
             run_dir: str, where to execute the job. This is an attribute of the Run object.
+            job: Optional, Job object 
         Returns:
             A WrfHydroRun object.
         """
+        # TODO(JLM): Accept a list of Jobs in the job argument?
 
         # Initialize all attributes and methods
 
-        self.simulation = wrf_hydro_simulation
-        """WrfHydroSim: The WrfHydroSim object used for the run"""
+        self.setup = wrf_hydro_setup
+        """WrfHydroSetup: The WrfHydroSetup object used for the run"""
 
-        self.run_dir = pathlib.PosxixPath(run_dir)
+        self.run_dir = pathlib.PosixPath(run_dir)
         """pathlib.PosixPath: The location of where the jobs will be executed."""
         
         self.jobs_completed = []
         """Job: A list of previously executed jobs for this run."""
-        self.jobs_pending = {}
+        self.jobs_pending = []
         """Job: A list of jobs *scheduled* to be executed for this run 
         with prior job dependence."""
         self.job_active = None
@@ -439,7 +410,7 @@ class WrfHydroRun(object):
 
         # Establish the values. 
         
-        # TODO(JLM): Check that the sim object is "complete".
+        # TODO(JLM): Check that the setup object is "complete".
         # TODO(JLM): What constitutes a complete sim object?
         #            1) compiler specified, 2) domain_config specified.
         #            3) A compiled model?
@@ -451,23 +422,18 @@ class WrfHydroRun(object):
 
         
         # Make run_dir directory if it does not exist.
-        if self.simulation_dir.is_dir() is False:
-            self.simulation_dir.mkdir(parents=True)
-        else:
-            if self.simulation_dir.is_dir() is True and job['mode'] == 'w':
-                shutil.rmtree(str(self.simulation_dir))
-                self.simulation_dir.mkdir(parents=True)
-            elif self.simulation_dir.is_dir() is True and job['mode'] == 'r':
-                raise PermissionError("Run directory already exists and job['mode'] = 'r'")
-            else:
-                warnings.warn('Existing run directory will be used for simulation')
+        if self.run_dir.is_dir() and not rm_existing_run_dir:
+            raise ValueError("Run directory already exists and rm_existing_run_dir is False.")
+
+        shutil.rmtree(str(self.run_dir))
+        self.run_dir.mkdir(parents=True)
 
         # Check that compile object uid matches compile directory uid
         # This is to ensure that a new model has not been compiled into that directory unknowingly
-        with open(self.simulation.model.compile_dir.joinpath('.uid')) as f:
+        with open(self.setup.model.compile_dir.joinpath('.uid')) as f:
             compile_uid = f.read()
 
-        if self.simulation.model.object_id != compile_uid:
+        if self.setup.model.object_id != compile_uid:
             raise PermissionError('object id mismatch between WrfHydroModel object and'
                                   'WrfHydroModel.compile_dir directory. Directory may have been'
                                   'used for another compile')
@@ -479,68 +445,68 @@ class WrfHydroRun(object):
         # TODO(JLM): Make symlinks the default option? Also allow copying?
         
         # Loop to make symlinks for each TBL file
-        for from_file in self.simulation.model.table_files:
+        for from_file in self.setup.model.table_files:
             # Create file paths to symlink
-            to_file = self.simulation_dir.joinpath(from_file.name)
+            to_file = self.run_dir.joinpath(from_file.name)
             # Create symlinks
             to_file.symlink_to(from_file)
 
         # Symlink in exe
-        wrf_hydro_exe = self.simulation.model.wrf_hydro_exe
-        self.simulation_dir.joinpath(wrf_hydro_exe.name).symlink_to(wrf_hydro_exe)
+        wrf_hydro_exe = self.setup.model.wrf_hydro_exe
+        self.run_dir.joinpath(wrf_hydro_exe.name).symlink_to(wrf_hydro_exe)
 
         # Symlink in forcing
-        forcing_dir = self.simulation.domain.forcing_dir
-        self.simulation_dir.joinpath(forcing_dir.name). \
+        forcing_dir = self.setup.domain.forcing_dir
+        self.run_dir.joinpath(forcing_dir.name). \
             symlink_to(forcing_dir, target_is_directory=True)
 
         # create DOMAIN directory and symlink in files
         # Symlink in hydro_files
-        for file_path in self.simulation.domain.hydro_files:
+        for file_path in self.setup.domain.hydro_files:
             # Get new file path for run directory, relative to the top-level domain directory
             # This is needed to ensure the path matches the domain namelist
-            relative_path = file_path.relative_to(self.simulation.domain.domain_top_dir)
-            symlink_path = self.simulation_dir.joinpath(relative_path)
+            relative_path = file_path.relative_to(self.setup.domain.domain_top_dir)
+            symlink_path = self.run_dir.joinpath(relative_path)
             if symlink_path.parent.is_dir() is False:
                 symlink_path.parent.mkdir(parents=True)
             symlink_path.symlink_to(file_path)
 
         # Symlink in nudging files
-        for file_path in self.simulation.domain.nudging_files:
+        for file_path in self.setup.domain.nudging_files:
             # Get new file path for run directory, relative to the top-level domain directory
             # This is needed to ensure the path matches the domain namelist
-            relative_path = file_path.relative_to(self.simulation.domain.domain_top_dir)
-            symlink_path = self.simulation_dir.joinpath(relative_path)
+            relative_path = file_path.relative_to(self.setup.domain.domain_top_dir)
+            symlink_path = self.run_dir.joinpath(relative_path)
             if symlink_path.parent.is_dir() is False:
                 symlink_path.parent.mkdir(parents=True)
             symlink_path.symlink_to(file_path)
 
         # Symlink in lsm files
-        for file_path in self.simulation.domain.lsm_files:
+        for file_path in self.setup.domain.lsm_files:
             # Get new file path for run directory, relative to the top-level domain directory
             # This is needed to ensure the path matches the domain namelist
-            relative_path = file_path.relative_to(self.simulation.domain.domain_top_dir)
-            symlink_path = self.simulation_dir.joinpath(relative_path)
+            relative_path = file_path.relative_to(self.setup.domain.domain_top_dir)
+            symlink_path = self.run_dir.joinpath(relative_path)
             if symlink_path.parent.is_dir() is False:
                 symlink_path.parent.mkdir(parents=True)
             symlink_path.symlink_to(file_path)
 
         # write hydro.namelist
-        f90nml.write(self.simulation.hydro_namelist,
-                     self.simulation_dir.joinpath('hydro.namelist'))
+        f90nml.write(self.setup.hydro_namelist,
+                     self.run_dir.joinpath('hydro.namelist'))
         # write namelist.hrldas
-        f90nml.write(self.simulation.namelist_hrldas,
-                     self.simulation_dir.joinpath('namelist.hrldas'))
+        f90nml.write(self.setup.namelist_hrldas,
+                     self.run_dir.joinpath('namelist.hrldas'))
 
-
-        self.add_job(job)
+        if job: 
+            self.add_job(job)
 
 
     def add_job(
         self,
         job: Job
     ):
-        """Dispatch a run the wrf_hydro simulation: either run() or schedule_run()
+        """Dispatch a run the wrf_hydro setup: either run() or schedule_run()
         If a scheduler is passed, then that run is scheduled. 
         Args:
             As for run and schedule_run().
@@ -556,7 +522,7 @@ class WrfHydroRun(object):
 
             # Get the job id of the last active+pending job.
             last_job_id = None
-            if len(self.job_active):
+            if self.job_active:
                 last_job_id = self.job_active.jobID
             if len(self.jobs_pending):
                 last_job_id = self.jobs_pending[-1].jobID
@@ -573,156 +539,37 @@ class WrfHydroRun(object):
             self.jobs_pending.append(copy.deepcopy(job))
 
             # Write the state to disk.
-            self.pickle()
+            #self.pickle() -- # TODO(JLM):????? What happens to the state of the files??
+            #can this pickle just update the jobs?
+            #can jobs be added to runs with active jobs?
+            #maybe all jobs have to be established first?
+            #how to avoid clashes accessing the object between the run and any
+            #modifications of the run?
 
-            self.schedule_job(self.jobs_pending[-1])
-
+            # The self argument is the run object, the job object already has itself.
+            self.jobs_pending[-1].schedule(self)
+            # When will this job be moved to the active list and the completed list?
+            
         else:
 
-            # an interactive job can be made the active job if there is no current job.
-            if not len(self.job_active):
+            # an interactive job can be made the active job if there is no current or pending job.
+            if not self.job_active and not len(self.jobs_pending):
+                self.job_active = copy.deepcopy(job)
                 self.pickle()
-                self.run()
+                self.job_active.run(self.run_dir)
             # removethe job from the jobs.active list
             # place the job in the jobs.completed list
 
-        self.collect_run()
-
-    def schedule_job(
-        self,
-        job: Job,
-    ) -> object:
-        """Scheulde a run of the wrf_hydro simulation
-        Args:
-            job: A Job object
-        """
-
-        # TODO(JLM): to be moved to scheduler construction.
-        if monitor_freq_s is None:
-            monitor_freq_s = int(max(seconds('00:' + job.scheduler.walltime)/100,30))
-
-        # Write python script WrfHydroSim.schedule_run.py to be executed by the
-        # scheduler. Swap the scheduler script executable (exe_cmd), for this
-        # python script: call python script in the scheduler job and execute the
-        # model from python (as an object method).
+        self.collect_job()
         
-        model_exe_cmd = job.exe_cmd
-        # TODO(JLM): embed the 
-        py_script_name = job.run_dir + "/WrfHydroSim.schedule_run.py"
-        py_run_cmd = "python " + py_script_name + " --jobID $jobID --job_date_id $job_date_id"
-        # Write the script later, have to make the run dir before the script can be written to it.
 
-        # TODO(JLM): abstract this to a utility function with
-        #            args: py_run_cmd, model_exe_cmd
-        # Construct the script.
-        jobstr  = "#!/usr/bin/env python\n"
-        jobstr += "\n"
+
+
+    def collect_job(self):
+
         
-        jobstr += "import wrfhydropy\n"
-        jobstr += "import pickle\n"
-        jobstr += "import argparse\n"
-        jobstr += "import os\n"
-        jobstr += "import sys\n"
-        jobstr += "\n"
 
-        jobstr += "parser = argparse.ArgumentParser()\n"
-        jobstr += "parser.add_argument('--jobID',\n"
-        jobstr += "                    help='The numeric part of the scheduler job ID.')\n"
-        jobstr += "parser.add_argument('--job_date_id',\n"
-        jobstr += "                    help='The date-time identifier created by Schduler obj.')\n"
-        jobstr += "args = parser.parse_args()\n"
-        jobstr += "\n"
-
-        jobstr += "print('jobID: ', args.jobID)\n"
-        jobstr += "print('job_date_id: ', args.job_date_id)\n"
-        jobstr += "\n"
-
-        jobstr += "run_object = pickle.load(open('WrfHydroRun.pkl', 'rb'))\n"
-        jobstr += "run_object.exe_cmd = \"" + py_run_cmd + "\"\n"
-        jobstr += "run_object.scheduler.jobID = args.jobID\n"
-        jobstr += "run_object.scheduler.job_date_id = args.job_date_id\n"
-        jobstr += "run_object.run_cmd = \"" + model_exe_cmd + "\"\n"
-        jobstr += "print(\"Running the model.\")\n"
-        jobstr += "run_object.run()\n"
-        # TODO JLM: move this job into run_object.job_completed.append()
-        jobstr += "print(\"Collecting model output.\")\n"
-        # The following is HIGHLY desirable. I guess this could be got around by
-        # making the output files @properties. 
-        jobstr += "run_object.collect_run()\n"
-        jobstr += "\n"
-
-        with open(py_script_name, "w") as myfile:
-            myfile.write(jobstr)
-
-        # Now submit the above script to the scheduler.
-        # TODO(JLM): 1) move this job to self.job_active? 2) pickle self ?
-        run_object.scheduler.exe_cmd = py_run_cmd
-        run_object.scheduler.submit()
-
-        #optional: monitor the job and self.unpickle
-        # TODO JLM: seems lke this wait can be abstracted to function. >>>
-        if wait_for_complete:
-
-            #print( the scheduler name?
-            print("Waiting for scheduled job " +
-                  str(run_object.scheduler.jobID) +
-                  " to complete. /n" +
-                  "(d=dependent, q=queued, r=running : 1/" +
-                  str(monitor_freq_s) +"seconds):", end = "", flush=True)
-
-            while not run_object.scheduler.job_complete:
-                sleep(monitor_freq_s)
-                if not os.path.isfile(run_object.scheduler.run_dir + '/.job_not_complete'):
-                    sym = 'r'
-                else:
-                    sym = 'q'
-                ## TODO JLM: add "d" to indicate waiting for dependency.
-                print(sym, end="", flush=True)
-
-            print('')
-        # TODO JLM: seems like this wait can be abstracted to function. <<<
-
-            # Part of the wait_for_complete if statement, this updates the
-            # TODO(JLM): I DONT THINK THIS WORKS. IS THIS A CASE FOR SELF.__DICT__.UPDATE()?
-            self = run_object.unpickle()
-
-
-    def run(self):
-
-        # TODO JLM: does the job['mode'] need checked at this point?
-        
-        if self.scheduler:
-            run_cmd = self.run_cmd + " 2> {0} 1> {1}"
-            run_cmd = run_cmd.format(self.scheduler.stderr_exe, self.scheduler.stdout_exe)
-            run_cmd = shlex_split(run_cmd)
-            # Note that this run_cmd is a python script which executes and optionally
-            # waits for the model (it's NOT direct execution of the model.
-            subprocess.run(run_cmd, cwd=self.simulation_dir)
-        else:
-            run_cmd = self.run_cmd.format(**{'num_cores': self.num_cores})
-            run_cmd = shlex_split(run_cmd)
-            # TODO (JLM): Get the stdout and stderr to files and to screen?
-            self.run_log = subprocess.run(run_cmd,
-                                          stdout=subprocess.PIPE,
-                                          stderr=subprocess.PIPE,
-                                          cwd=self.simulation_dir)
-
-        # TODO(JLM): The following be made a method which checks the run.
-        #            The following should not be run if the scheduler is not waiting.
-        #            Put this in collect_run?
-        try:
-            self.run_status = 1
-            # String match diag files for successfull run
-            with open(self.simulation_dir.joinpath('diag_hydro.00000')) as f:
-                diag_file = f.read()
-                if 'The model finished successfully.......' in diag_file:
-                    self.run_status = 0
-        except Exception as e:
-            warnings.warn('Could not parse diag files')
-            print(e)
-
-    def collect_run(self):
-        if self.run_status != 0:
+        if self.job_active.exit_status != 0:
             warnings.warn('Model run failed.')
             return(None)
 
@@ -731,17 +578,17 @@ class WrfHydroRun(object):
         # Grab outputs as WrfHydroXX classes of file paths
 
         # Get diag files
-        self.diag = list(self.simulation_dir.glob('diag_hydro.*'))
+        self.diag = list(self.run_dir.glob('diag_hydro.*'))
         
         # Get channel files
-        if len(list(self.simulation_dir.glob('*CHRTOUT*'))) > 0:
-            self.channel_rt = WrfHydroTs(list(self.simulation_dir.glob('*CHRTOUT*')))
+        if len(list(self.run_dir.glob('*CHRTOUT*'))) > 0:
+            self.channel_rt = WrfHydroTs(list(self.run_dir.glob('*CHRTOUT*')))
             # Make relative to run dir
             # for file in self.channel_rt:
             #     file.relative_to(file.parent)
                 
-        if len(list(self.simulation_dir.glob('*CHANOBS*'))) > 0:
-            self.chanobs = WrfHydroTs(list(self.simulation_dir.glob('*CHANOBS*')))
+        if len(list(self.run_dir.glob('*CHANOBS*'))) > 0:
+            self.chanobs = WrfHydroTs(list(self.run_dir.glob('*CHANOBS*')))
             # Make relative to run dir
             # for file in self.chanobs:
             #     file.relative_to(file.parent)
@@ -749,18 +596,17 @@ class WrfHydroRun(object):
         # Get restart files and sort by modified time
         # Hydro restarts
         self.restart_hydro = []
-        for file in self.simulation_dir.glob('HYDRO_RST*'):
+        for file in self.run_dir.glob('HYDRO_RST*'):
             file = WrfHydroStatic(file)
             self.restart_hydro.append(file)
                         
         if len(self.restart_hydro) > 0:
             self.restart_hydro = sorted(self.restart_hydro,
                                         key=lambda file: file.stat().st_mtime_ns)
-                            
-                            
+
         ### LSM Restarts
         self.restart_lsm = []
-        for file in self.simulation_dir.glob('RESTART*'):
+        for file in self.run_dir.glob('RESTART*'):
             file = WrfHydroStatic(file)
             self.restart_lsm.append(file)
                                 
@@ -772,7 +618,7 @@ class WrfHydroRun(object):
                                     
         ### Nudging restarts
         self.restart_nudging = []
-        for file in self.simulation_dir.glob('nudgingLastObs*'):
+        for file in self.run_dir.glob('nudgingLastObs*'):
             file = WrfHydroStatic(file)
             self.restart_nudging.append(file)
                                         
@@ -787,19 +633,19 @@ class WrfHydroRun(object):
 
     def pickle(self):
                                             
-        # create a UID for the simulation and save in file
+        # create a UID for the run and save in file
         self.object_id = str(uuid.uuid4())
-        with open(self.simulation_dir.joinpath('.uid'), 'w') as f:
+        with open(self.run_dir.joinpath('.uid'), 'w') as f:
             f.write(self.object_id)
 
-        # Save object to simulation directory
+        # Save object to run directory
         # Save the object out to the compile directory
-        with open(self.simulation_dir.joinpath('WrfHydroRun.pkl'), 'wb') as f:
+        with open(self.run_dir.joinpath('WrfHydroRun.pkl'), 'wb') as f:
             pickle.dump(self, f, 2)
 
     def unpickle(self):
-        # Load run object from simulation directory after a scheduler job
-        with open(self.simulation_dir.joinpath('WrfHydroRun.pkl'), 'rb') as f:
+        # Load run object from run directory after a scheduler job
+        with open(self.run_dir.joinpath('WrfHydroRun.pkl'), 'rb') as f:
             return(pickle.load(f))
 
 

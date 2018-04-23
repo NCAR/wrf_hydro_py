@@ -33,21 +33,19 @@ job_args['scheduler']['ppn']=36
 #sched = Scheduler( **job_args['scheduler'] )
 job = Job( **job_args )
 
-pprint(job)
-print('-------------------------------------------------------')
-pprint(job.__dict__)
-print('-------------------------------------------------------')
-pprint(job.scheduler.__dict__)
-sys.exit()
+#pprint(job)
+#print('-------------------------------------------------------')
+#pprint(job.__dict__)
+#print('-------------------------------------------------------')
+#pprint(job.scheduler.__dict__)
 
 print(job.nproc)
 
-
 assert job.scheduler.nnodes == 2
-assert job.nproc  == 2*36
-assert job.ppn    == 36
-assert job.nproc_last_node == 0
-assert re.findall('select=2:ncpus=36:mpiprocs=36', job.string())
+assert job.scheduler.nproc  == 2*36
+assert job.scheduler.ppn    == 36
+assert job.scheduler.nproc_last_node == 0
+assert re.findall('select=2:ncpus=36:mpiprocs=36', job.scheduler.string())
 
 
 sys.exit()

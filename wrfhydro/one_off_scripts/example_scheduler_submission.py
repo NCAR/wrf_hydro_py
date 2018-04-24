@@ -27,7 +27,6 @@ the_setup = WrfHydroSetup(
     the_domain
 )
 
-
 # #######################################################
 # Use these to build Jobs
 machine_spec_file = home +'/WRF_Hydro/wrf_hydro_tests/machine_spec.yaml'
@@ -35,8 +34,49 @@ candidate_spec_file = home + '/WRF_Hydro/wrf_hydro_tests/template_candidate_spec
 user_spec_file = home + '/WRF_Hydro/wrf_hydro_tests/template_user_spec.yaml'
 
 
+# ######################################################
+# ######################################################
+# ######################################################
+
+
 # #######################################################
 # Check setting of job.nproc vs that of job.scheduler.nproc
+
+
+
+# #######################################################
+# Add two scheduled runs on cheyenne
+job_args = get_job_args_from_specs(
+    job_name='test_job',
+    nnodes=1,
+    nproc=2,
+    mode='w',
+    machine_spec_file=machine_spec_file,
+    user_spec_file=user_spec_file,
+    candidate_spec_file=candidate_spec_file
+)
+
+job_sched = Job( **job_args )
+job_sched.scheduler.walltime = '00:01:00'
+
+run_sched_dir = "/glade/scratch/jamesmcc/test_sched"
+run_sched = WrfHydroRun(
+    the_setup,
+    run_sched_dir,
+    rm_existing_run_dir=True
+)
+
+run_sched.add_job(job_sched)
+
+run_sched = None
+import pickle
+with open(run_sched_dir + '/WrfHydroRun.pkl', 'rb') as f:
+    r = pickle.load(f)
+
+
+sys.exit()
+
+
 
 
 # #######################################################
@@ -62,35 +102,9 @@ run_interactive = WrfHydroRun(
 run_interactive.add_job(job_interactive)
 
 ## Verify that the run occurred.
-len(run_object.chanobs)
+assert len(run_interactive.chanobs) == 168
 
 
-# #######################################################
-# Add two scheduled runs on cheyenne
-job_args = get_job_args_from_specs(
-    job_name='test_job',
-    nnodes=1,
-    nproc=72,
-    mode='w',
-    machine_spec_file=machine_spec_file,
-    user_spec_file=user_spec_file,
-    candidate_spec_file=candidate_spec_file
-)
-
-#pprint(job_args)
-job_sched_ch = Job( **job_args )
-#pprint(the_job.__dict__)
-#pprint(the_job.scheduler.__dict__)
-the_job.scheduler.nproc = 2
-the_job.scheduler.wait_for_complete=True
-the_job.scheduler.monitor_freq_s = 10
-#pprint(the_job.scheduler.__dict__)
-run_sched = WrfHydroRun(
-    the_setup,
-    "/glade/scratch/jamesmcc/test_sched",
-    rm_existing_run_dir = True
-)
-run_sched.add_job(job_sched_ch)
 
 
 # ######################################################

@@ -1,11 +1,12 @@
 import datetime
 import math
 import os
+import pathlib
 import shlex
 import socket
 import subprocess
 import warnings
-from .job_tools import touch, submit_scheduler, PBSError, get_sched_name, get_version
+from .job_tools import touch, submit_scheduler, PBSError, get_sched_name, get_version, seconds
 #from .wrfhydroclasses import WrfHydroRun
 
 class Scheduler(object):
@@ -72,7 +73,8 @@ class Scheduler(object):
         array_size: int=None,
         pmem: str=None,
         grab_env: str=False,
-        exetime: str=None
+        exetime: str=None,
+        job_date_id: str=None
     ):
 
         # Declare attributes.
@@ -103,6 +105,8 @@ class Scheduler(object):
         self._nnodes     = nnodes
         self._ppn        = ppn
 
+        self._job_date_id = job_date_id
+        
         self.wait_for_complete = wait_for_complete
         self.monitor_freq_s = monitor_freq_s
         
@@ -201,41 +205,33 @@ class Scheduler(object):
     def ppn(self, value):
         self._ppn = value
 
-    @property
-    def stdout_exe(self):
-        return self.eval_std_vars(self._stdout_exe)
-    @property
-    def stderr_exe(self):
-        return self.eval_std_vars(self._stderr_exe)
-    @property
-    def tracejob_file(self):
-        return self.eval_std_vars(self._tracejob_file)
-    @property
-    def stdout_pbs(self):
-        return self.eval_std_vars(self._stdout_pbs)
-    @property
-    def stderr_pbs(self):
-        return self.eval_std_vars(self._stderr_pbs)
-    @property
-    def stdout_pbs_tmp(self):
-        return self.eval_std_vars(self._stdout_pbs_tmp)
-    @property
-    def stderr_pbs_tmp(self):
-        return self.eval_std_vars(self._stderr_pbs_tmp)
-    # TODO JLM: turn the above into pathlib.PosixPath objects.
+    # Getting a really bad code smell right here... 
+    def stdout_exe(self, *args):
+        return self.eval_std_file_vars(self._stdout_exe, *args)
+    def stderr_exe(self, *args):
+        return self.eval_std_file_vars(self._stderr_exe, *args)
+    def tracejob_file(self, *args):
+        return self.eval_std_file_vars(self._tracejob_file, *args)
+    def stdout_pbs(self, *args):
+        return self.eval_std_file_vars(self._stdout_pbs, *args)
+    def stderr_pbs(self, *args):
+        return self.eval_std_file_vars(self._stderr_pbs, *args)
+    def stdout_pbs_tmp(self, *args):
+        return self.eval_std_file_vars(self._stdout_pbs_tmp, *args)
+    def stderr_pbs_tmp(self, *args):
+        return self.eval_std_file_vars(self._stderr_pbs_tmp, *args)
 
-    
-    def eval_std_vars(self, the_str, job_date_id):
+    def eval_std_file_vars(self, the_str, run_dir, job_date_id):
         if self.not_submitted:
             return(the_str)
-        dict = {'run_dir': self.run_dir,
+        dict = {'run_dir': run_dir,
                 'job_date_id': job_date_id,
                 'sched_job_id': self.sched_job_id}
         if dict['sched_job_id'] is None: dict['sched_job_id'] = '${sched_job_id}'
         return(the_str.format(**dict))
 
 
-    def string(self, job_date_id):
+    def string(self, run_dir, job_date_id, modules, exe_cmd):
         """ Write Job as a string suitable for self.sched_name """
 
         # Warn if any submit-time values are undefined.
@@ -278,7 +274,7 @@ class Scheduler(object):
             # jobstr += "#SBATCH -N {0}\n".format(self.nodes)
             if self.queue is not None:
                 jobstr += "#SBATCH -p {0}\n".format(self.queue)
-            jobstr += "{0}\n".format(self.exe_cmd)
+            jobstr += "{0}\n".format(exe_cmd)
 
             return jobstr
 
@@ -309,8 +305,8 @@ class Scheduler(object):
 
             jobstr += "# Not using PBS standard error and out files to capture model output\n"
             jobstr += "# but these hidden files might catch output and errors from the scheduler.\n"
-            jobstr += "#PBS -o {0}\n".format(self.stdout_pbs_tmp)
-            jobstr += "#PBS -e {0}\n".format(self.stderr_pbs_tmp)
+            jobstr += "#PBS -o {0}\n".format(self.stdout_pbs_tmp(run_dir, job_date_id))
+            jobstr += "#PBS -e {0}\n".format(self.stderr_pbs_tmp(run_dir, job_date_id))
             jobstr += "\n"
 
             if self.afterok:    jobstr += "#PBS -W depend=afterok:{0}\n".format(self.afterok)
@@ -322,9 +318,9 @@ class Scheduler(object):
 
             # End PBS Header
 
-            if self.modules:
+            if modules:
                 jobstr += 'module purge\n'
-                jobstr += 'module load {0}\n'.format(self.modules)
+                jobstr += 'module load {0}\n'.format(modules)
                 jobstr += "\n"
             
             jobstr += "echo PBS_JOBID: $PBS_JOBID\n"
@@ -335,7 +331,7 @@ class Scheduler(object):
 
             jobstr += "\n"
 
-            jobstr += "cd {0}\n".format(self.run_dir)
+            jobstr += "cd {0}\n".format(run_dir)
             jobstr += "echo \"pwd:\" `pwd`\n"
             jobstr += "\n"
 
@@ -352,8 +348,9 @@ class Scheduler(object):
             jobstr += "mkdir -p $TMPDIR\n"
             jobstr += "\n"
 
-            exestr  = "{0} ".format(self.exe_cmd)
-            exestr += "2> {0} 1> {1}".format(self.stderr_exe, self.stdout_exe)
+            exestr  = "{0} ".format(exe_cmd)
+            exestr += "2> {0} 1> {1}".format(self.stderr_exe(run_dir, job_date_id),
+                                             self.stdout_exe(run_dir, job_date_id))
             jobstr += "echo \"" + exestr + "\"\n"
             jobstr += exestr + "\n"
             jobstr += "\n"
@@ -364,9 +361,9 @@ class Scheduler(object):
             
             jobstr += "# Touch these files just to get the job_date_id in their file names.\n"
             jobstr += "# Can identify the files by sched_job_id and replace contents...\n"
-            jobstr += "touch {0}\n".format(self.tracejob_file)
-            jobstr += "touch {0}\n".format(self.stdout_pbs)
-            jobstr += "touch {0}\n".format(self.stderr_pbs)
+            jobstr += "touch {0}\n".format(self.tracejob_file(run_dir, job_date_id))
+            jobstr += "touch {0}\n".format(self.stdout_pbs(run_dir, job_date_id))
+            jobstr += "touch {0}\n".format(self.stderr_pbs(run_dir, job_date_id))
             jobstr += "\n"
 
             jobstr += "# Simple, file-based method for checking if the job is done.\n"
@@ -380,9 +377,12 @@ class Scheduler(object):
 
 
     def script(
-            self,
-            job_date_id,
-            filename: str=None
+        self,
+        run_dir,
+        job_date_id,
+        modules,
+        exe_cmd,
+        filename: str=None
     ):
         """Write this Job as a bash script
 
@@ -394,14 +394,20 @@ class Scheduler(object):
             warnings.warn('script() can only be used when self.not_submitted is None. ' + \
                           'Use print(self.string()) to preview the job submission.')
             return
-        
+
         if not filename:
-            filename = self.run_dir + "/" + job_date_id + '.' + self.sched_name + '.job'
+            filename = run_dir / (job_date_id + '.' + self.sched_name + '.job')
         with open(filename, "w") as myfile:
-            myfile.write(self.string())
+            myfile.write(self.string(run_dir, job_date_id, modules, exe_cmd))
 
 
-    def submit(self):
+    def submit(
+        self,
+        run_dir,
+        job_date_id,
+        modules,
+        exe_cmd
+    ):
         """Submit this Job using qsub
 
            add: Should this job be added to the JobDB database?
@@ -412,11 +418,11 @@ class Scheduler(object):
         """
         try:
             self.not_submitted = None
-            touch(self.run_dir + '/.job_not_complete')
-            self.script()
-            self.not_submitted = False
-            self.sched_job_id = submit_scheduler(substr=bytearray(self.string(), 'utf-8'),
-                                          sched_name=self.sched_name)
+            touch(str(run_dir) + '/.job_not_complete')
+            self.script(run_dir, job_date_id, modules, exe_cmd)
+            the_string = self.string(run_dir, job_date_id, modules, exe_cmd)
+            self.sched_job_id = submit_scheduler(substr=bytearray(the_string, 'utf-8'),
+                                                 sched_name=self.sched_name)
         except PBSError as e:
             raise e
 
@@ -425,7 +431,7 @@ class Scheduler(object):
     def job_complete(self):
         if self.not_submitted:
             return(False)
-        return( not os.path.isfile(self.run_dir + '/.job_not_complete') )
+        return( not os.path.isfile(run_dir + '/.job_not_complete') )
 
 
 class Job(object): 
@@ -534,12 +540,9 @@ class Job(object):
 
     @property
     def exe_cmd(self):
-        if self.scheduler:
-            return self.scheduler._exe_cmd
         return self._exe_cmd
     @exe_cmd.setter
     def exe_cmd(self, value):
-        if not self.scheduler:
             self._exe_cmd = value
     
     @property
@@ -559,7 +562,7 @@ class Job(object):
     
     def schedule(
         self,
-        run_obj #:WrfHydroRun,
+        run_dir,
     ) -> object:
         """Scheulde a run of the wrf_hydro simulation
         Args:
@@ -567,19 +570,18 @@ class Job(object):
         """
 
         # TODO(JLM): to be moved to scheduler construction.
-        if job.scheduler.monitor_freq_s is None:
-            job.scheduler.monitor_freq_s = int(max(seconds('00:' + job.scheduler.walltime)/100,30))
+        if self.scheduler.monitor_freq_s is None:
+            self.scheduler.monitor_freq_s = int(max(seconds('00:' + self.scheduler.walltime)/100,30))
 
         # Write python script WrfHydroSim.schedule_run.py to be executed by the
         # scheduler. Swap the scheduler script executable (exe_cmd), for this
         # python script: call python script in the scheduler job and execute the
         # model from python (as an object method).
-        
-        model_exe_cmd = job.exe_cmd
-        # TODO(JLM): embed the 
-        py_script_name = self.run_dir + "/WrfHydroSim.schedule_run.py"
-        py_run_cmd = "python " + py_script_name + " --sched_job_id $sched_job_id --job_date_id $job_date_id"
-        # Write the script later, have to make the run dir before the script can be written to it.
+
+        model_exe_cmd = self.exe_cmd
+        py_script_name = str(run_dir / (self.job_date_id + ".wrfhydropy.py"))
+        py_run_cmd = "python " + py_script_name + \
+                     " --sched_job_id $sched_job_id --job_date_id $job_date_id"
 
         # TODO(JLM): abstract this to a utility function with
         #            args: py_run_cmd, model_exe_cmd
@@ -587,11 +589,12 @@ class Job(object):
         jobstr  = "#!/usr/bin/env python\n"
         jobstr += "\n"
         
-        jobstr += "import wrfhydropy\n"
-        jobstr += "import pickle\n"
         jobstr += "import argparse\n"
+        jobstr += "import datetime\n"
         jobstr += "import os\n"
+        jobstr += "import pickle\n"
         jobstr += "import sys\n"
+        jobstr += "import wrfhydropy\n"
         jobstr += "\n"
 
         jobstr += "parser = argparse.ArgumentParser()\n"
@@ -607,17 +610,44 @@ class Job(object):
         jobstr += "\n"
 
         jobstr += "run_object = pickle.load(open('WrfHydroRun.pkl', 'rb'))\n"
-        jobstr += "run_object.exe_cmd = \"" + py_run_cmd + "\"\n"
-        jobstr += "run_object.scheduler.sched_job_id = args.sched_job_id\n"
-        jobstr += "run_object.scheduler.job_date_id = args.job_date_id\n"
-        jobstr += "run_object.exe_cmd = \"" + model_exe_cmd + "\"\n"
+        jobstr += "\n"
+        
+        jobstr += "# The lowest index jobs_pending should be the job to run. Verify that it \n"
+        jobstr += "# has the same job_date_id as passed first, then set job to active.\n"
+        jobstr += "if run_object.job_active:\n"
+        jobstr += "    msg = 'There is an active job conflicting with this scheduled job.'\n"
+        jobstr += "    raise ValueError(msg)\n"
+        jobstr += "if not run_object.jobs_pending[0].job_date_id == args.job_date_id:\n"
+        jobstr += "    msg = 'The first pending job does not match the passed job_date_id.'\n"
+        jobstr += "    raise ValueError(msg)\n"
+        jobstr += "\n"
+
+        jobstr += "# Promote the job to active.\n"
+        jobstr += "run_object.job_active = run_object.jobs_pending.pop(0)\n"
+
+        jobstr += "# Set some run-time attributes of the job.\n"
+        jobstr += "run_object.job_active.py_exe_cmd = \"" + py_run_cmd + "\"\n"
+        jobstr += "run_object.job_active.scheduler.sched_job_id = args.sched_job_id\n"
+        jobstr += "run_object.job_active.exe_cmd = \"" + model_exe_cmd + "\"\n"
+        jobstr += "# Pickle before running the job.\n"
+        jobstr += "run_object.pickle()\n"
+        jobstr += "\n"
+
         jobstr += "print(\"Running the model.\")\n"
-        jobstr += "run_object.run()\n"
-        # TODO JLM: move this job into run_object.job_completed.append()
+        jobstr += "run_object.job_active.job_start_time = str(datetime.datetime.now())\n"
+        jobstr += "run_object.job_active.run(run_object.run_dir)\n"
+        jobstr += "run_object.job_active.job_start_time = str(datetime.datetime.now())\n"
+        jobstr += "\n"
+
         jobstr += "print(\"Collecting model output.\")\n"
-        # The following is HIGHLY desirable. I guess this could be got around by
-        # making the output files @properties. 
-        jobstr += "run_object.collect_run()\n"
+        jobstr += "run_object.collect_output()\n"
+        jobstr += "print(\"Job completed.\")\n"
+        jobstr += "\n"
+
+        jobstr += "run_object.job_active._sched_job_complete = True\n"
+        jobstr += "run_object.jobs_completed.append(run_object.job_active)\n"
+        jobstr += "run_object.job_active = None\n"
+        jobstr += "run_object.pickle()\n"
         jobstr += "\n"
 
         with open(py_script_name, "w") as myfile:
@@ -625,63 +655,39 @@ class Job(object):
 
         # Now submit the above script to the scheduler.
         # TODO(JLM): 1) move this job to self.job_active? 2) pickle self ?
-        job.exe_cmd = py_run_cmd
-        job.scheduler.submit()
-
-        #optional: monitor the job and self.unpickle
-        # TODO JLM: seems lke this wait can be abstracted to function. >>>
-        if wait_for_complete:
-
-            #print( the scheduler name?
-            print("Waiting for scheduled job " +
-                  str(run_object.scheduler.sched_job_id) +
-                  " to complete. /n" +
-                  "(d=dependent, q=queued, r=running : 1/" +
-                  str(monitor_freq_s) +"seconds):", end = "", flush=True)
-
-            while not run_object.scheduler.job_complete:
-                sleep(monitor_freq_s)
-                if not os.path.isfile(run_object.scheduler.run_dir + '/.job_not_complete'):
-                    sym = 'r'
-                else:
-                    sym = 'q'
-                ## TODO JLM: add "d" to indicate waiting for dependency.
-                print(sym, end="", flush=True)
-
-            print('')
-        # TODO JLM: seems like this wait can be abstracted to function. <<<
-
-            # Part of the wait_for_complete if statement, this updates the
-            # TODO(JLM): I DONT THINK THIS WORKS. IS THIS A CASE FOR SELF.__DICT__.UPDATE()?
-            self = run_object.unpickle()
+        self.exe_cmd = py_run_cmd
+        # TODO(JLM):
+        self.scheduler.not_submitted = False
+        self.scheduler.submit(run_dir, self.job_date_id, self.modules, self.exe_cmd)
+        # Waiting (if any) should happen at the calling level
 
 
     def run(self, run_dir):
 
         # TODO(JLM): does the job['mode'] need checked at this point?
 
-        self.job_submission_time = datetime.datetime.now()
-        self.job_date_id = '{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=job_submission_time)
-        
         if self.scheduler:
-            
+
+            # This is for when the submitted script calls the run method.
+            # Note that this exe_cmd is for a python script which executes and optionally
+            # waits for the model (it's NOT direct execution of the model).
             exe_cmd = self.exe_cmd + " 2> {0} 1> {1}"
-            exe_cmd = exe_cmd.format(self.scheduler.stderr_exe, self.scheduler.stdout_exe)
+            exe_cmd = exe_cmd.format(self.scheduler.stderr_exe(run_dir, self.job_date_id),
+                                     self.scheduler.stdout_exe(run_dir, self.job_date_id))
             exe_cmd = shlex.split(exe_cmd)
-            # Note that this exe_cmd is a python script which executes and optionally
-            # waits for the model (it's NOT direct execution of the model.
-            subprocess.run(exe_cmd, cwd=self.run_dir)
+            subprocess.run(exe_cmd, cwd=run_dir)
 
         else:
 
             # These dont have the sched_job_id that the scheduled job output files have.
-            self.stderr_file = run_dir + "{0}.stderr".format(self.job_date_id)
-            self.stdout_file = run_dir + "{0}.stdout".format(self.job_date_id)
+            self.stderr_file = run_dir / ("{0}.stderr".format(self.job_date_id))
+            self.stdout_file = run_dir / ("{0}.stdout".format(self.job_date_id))
 
             # source the modules before execution.
             exe_cmd = '/bin/bash -c "module purge && module load ' + self.modules + " && "
             exe_cmd += self.exe_cmd.format(**{'nproc': self.nproc})
-            exe_cmd += " 2> {0} 1> {1}".format(self.stderr_file, self.stdout_file) + '"'
+            exe_cmd += " 2> {0} 1> {1}".format(self.stderr_file, self.stdout_file)
+            exe_cmd += '"'
             self.exe_cmd = exe_cmd
             # Only subprocess cares about this split.
             exe_cmd = shlex.split(exe_cmd)
@@ -689,28 +695,40 @@ class Job(object):
             # TODO(JLM): Stash the namelist files in the job at this point? No,
             # that should happen when the dates of the job(s) are established.
             
-            self.status='running'
+            self.job_status='running'
             self.job_start_time = str(datetime.datetime.now())
             self.run_log = subprocess.run(exe_cmd,
                                           stdout=subprocess.PIPE,
                                           stderr=subprocess.PIPE,
                                           cwd=run_dir)
             self.job_end_time = str(datetime.datetime.now())
-            self.status='completed
-'
-            
+            self.job_status='completed'
+
         # TODO(JLM): The following be made a method which checks the run.
         #            The following should not be run if the scheduler is not waiting.
         #            Put this in collect_run?
         try:
+            
+            # Get diag files
+            # TODO(JLM): diag_files should be scrapped orrenamed to no conflict between jobs.
+            run_dir_posix = pathlib.PosixPath(run_dir)
+            self.diag_files = list(run_dir_posix.glob('diag_hydro.*'))
+            self.stdout_file = list(run_dir_posix.glob(self.job_date_id+'.*stdout'))[0]
+            self.stderr_file = list(run_dir_posix.glob(self.job_date_id+'.*stderr'))[0]
+            self.tracejob_file = list(run_dir_posix.glob(self.job_date_id+'.*tracejob'))
+            if len(self.tracejob_file):
+                self.tracejob_file = self.tracejob_file[0]
+            else:
+                self.tracejob_file = None
+
             self.exit_status = 1
-            self.status='completed failure'
+            self.job_status='completed failure'
             # String match diag files for successfull run
             with open(run_dir.joinpath('diag_hydro.00000')) as f:
                 diag_file = f.read()
                 if 'The model finished successfully.......' in diag_file:
                     self.exit_status = 0
-                    self.status='completed success'
+                    self.job_status='completed success'
         except Exception as e:
             warnings.warn('Could not parse diag files')
             print(e)    

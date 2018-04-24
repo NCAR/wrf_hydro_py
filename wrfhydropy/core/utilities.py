@@ -200,5 +200,5 @@ def __make_relative__(run_object, basepath=None):
                 setattr(run_object, attr, attr_object.relative_to(basepath))
 
         if attr == 'simulation':
-            make_relative(run_object.simulation.domain,
+            __make_relative__(run_object.simulation.domain,
                           basepath=run_object.simulation.domain.domain_top_dir)

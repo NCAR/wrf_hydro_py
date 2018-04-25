@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='wrfhydropy',
-    version='0.0.2dev0',
+    version='0.0.2dev1',
     packages=find_packages(),
     url='https://github.com/NCAR/wrf_hydro_py',
     license='MIT',

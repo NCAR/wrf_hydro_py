@@ -420,21 +420,21 @@ class WrfHydroRun(object):
         """CompletedProcess: The subprocess returned from the run call"""
         self.run_status = None
         """int: exit status of the run"""
-        self.diag = None
+        self.diag = list()
         """list: pathlib.Paths to diag files generated at run time"""
-        self.channel_rt = None
+        self.channel_rt = list()
         """WrfHydroTs: Timeseries dataset of CHRTOUT files"""
-        self.chanobs = None
+        self.chanobs = list()
         """WrfHydroTs: Timeseries dataset of CHANOBS files"""
-        self.lakeout = None
+        self.lakeout = list()
         """WrfHydroTs: Timeseries dataset of LAKEOUT files"""
-        self.gwout = None
+        self.gwout = list()
         """WrfHydroTs: Timeseries dataset of GWOUT files"""
-        self.restart_hydro = None
+        self.restart_hydro = list()
         """list: List of HYDRO_RST WrfHydroStatic objects"""
-        self.restart_lsm = None
+        self.restart_lsm = list()
         """list: List of RESTART WrfHydroStatic objects"""
-        self.restart_nudging = None
+        self.restart_nudging = list()
         """list: List of nudgingLastObs WrfHydroStatic objects"""
         self.object_id = None
         """str: A unique id to join object to run directory."""
@@ -563,7 +563,6 @@ class WrfHydroRun(object):
 
             ## Get restart files and sort by modified time
             ### Hydro restarts
-            self.restart_hydro = []
             for file in self.simulation_dir.glob('HYDRO_RST*'):
                 file = WrfHydroStatic(file)
                 self.restart_hydro.append(file)
@@ -571,11 +570,8 @@ class WrfHydroRun(object):
             if len(self.restart_hydro) > 0:
                 self.restart_hydro = sorted(self.restart_hydro,
                                             key=lambda file: file.stat().st_mtime_ns)
-            else:
-                self.restart_hydro = None
 
             ### LSM Restarts
-            self.restart_lsm = []
             for file in self.simulation_dir.glob('RESTART*'):
                 file = WrfHydroStatic(file)
                 self.restart_lsm.append(file)
@@ -583,11 +579,9 @@ class WrfHydroRun(object):
             if len(self.restart_lsm) > 0:
                 self.restart_lsm = sorted(self.restart_lsm,
                                           key=lambda file: file.stat().st_mtime_ns)
-            else:
-                self.restart_lsm = None
+
 
             ### Nudging restarts
-            self.restart_nudging = []
             for file in self.simulation_dir.glob('nudgingLastObs*'):
                 file = WrfHydroStatic(file)
                 self.restart_nudging.append(file)
@@ -595,8 +589,7 @@ class WrfHydroRun(object):
             if len(self.restart_nudging) > 0:
                 self.restart_nudging = sorted(self.restart_nudging,
                                               key=lambda file: file.stat().st_mtime_ns)
-            else:
-                self.restart_nudging = None
+
 
             #####################
 

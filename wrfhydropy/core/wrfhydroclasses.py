@@ -42,7 +42,7 @@ class WrfHydroStatic(pathlib.PosixPath):
 class WrfHydroModel(object):
     """Class for a WRF-Hydro model, which consitutes the model source code and compiled binary.
     """
-    def __init__(self, source_dir: str):
+    def __init__(self, source_dir: str,model_config: str):
         """Instantiate a WrfHydroModel object.
         Args:
             source_dir: Directory containing the source code, e.g.
@@ -55,6 +55,9 @@ class WrfHydroModel(object):
         # Instantiate all attributes and methods
         self.source_dir = None
         """pathlib.Path: pathlib.Path object for source code directory."""
+        self.model_config = None
+        """str: String indicating model configuration for compile options, must be one of 'NWM', 
+        'Gridded', or 'Reach'."""
         self.hydro_namelists = None
         """dict: Master dictionary of all hydro.namelists stored with the source code."""
         self.hrldas_namelists = None
@@ -92,13 +95,14 @@ class WrfHydroModel(object):
         self.hrldas_namelists = \
             json.load(open(self.source_dir.joinpath('hrldas_namelists.json')))
 
-        ## Load compile options
-        self.compile_options = json.load(open(self.source_dir.joinpath('compile_options.json')))
-
         ## Get code version
         with open(self.source_dir.joinpath('.version')) as f:
             self.version = f.read()
 
+        ## Load compile options
+        self.model_config = model_config
+        compile_options = json.load(open(self.source_dir.joinpath('compile_options.json')))
+        self.compile_options = compile_options[self.version][self.model_config]
 
     def compile(self, compiler: str,
                 compile_dir: str = None,
@@ -110,10 +114,7 @@ class WrfHydroModel(object):
                 'ifort', or 'luna'.
             compile_dir: A non-existant directory to use for compilation.
             overwrite: Overwrite compile directory if exists.
-            compile_options: Changes to default compile-time options. Defaults
-                are {'WRF_HYDRO':1, 'HYDRO_D':1, 'SPATIAL_SOIL':1,
-                     'WRF_HYDRO_RAPID':0, 'WRFIO_NCD_LARGE_FILE_SUPPORT':1,
-                     'NCEP_WCOSS':1, 'WRF_HYDRO_NUDGING':0 }
+            compile_options: Changes to default compile-time options.
         Returns:
             Success of compilation and compile directory used. Sets additional
             attributes to WrfHydroModel
@@ -308,6 +309,19 @@ class WrfHydroSim(object):
         Returns:
             A WrfHydroSim object
         """
+
+        # Validate that hte domain and model are compatible
+        if wrf_hydro_model.model_config != wrf_hydro_domain.domain_config:
+            raise TypeError('Model configuration '+
+                            wrf_hydro_model.model_config+
+                            ' not compatible with domain configuration '+
+                            wrf_hydro_domain.domain_config)
+        if wrf_hydro_model.version not in list(wrf_hydro_domain.namelist_patches.keys()):
+            raise TypeError('Model version '+
+                            wrf_hydro_model.versions+
+                            ' not compatible with domain versions '+
+                            str(list(wrf_hydro_domain.namelist_patches.keys())))
+
         # assign objects to self
         self.model = copy.deepcopy(wrf_hydro_model)
         """WrfHydroModel: A copy of the WrfHydroModel object used for the simulation"""
@@ -557,7 +571,8 @@ class WrfHydroRun(object):
             if len(self.restart_hydro) > 0:
                 self.restart_hydro = sorted(self.restart_hydro,
                                             key=lambda file: file.stat().st_mtime_ns)
-
+            else:
+                self.restart_hydro = None
 
             ### LSM Restarts
             self.restart_lsm = []
@@ -581,7 +596,7 @@ class WrfHydroRun(object):
                 self.restart_nudging = sorted(self.restart_nudging,
                                               key=lambda file: file.stat().st_mtime_ns)
             else:
-                self.restart_hydro = None
+                self.restart_nudging = None
 
             #####################
 

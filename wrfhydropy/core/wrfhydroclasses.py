@@ -14,7 +14,7 @@ import warnings
 import xarray as xr
 
 from .utilities import compare_ncfiles
-from .job_tools import seconds
+from .job_tools import seconds, get_user
 from .job import Job, Scheduler
 
 #########################
@@ -557,7 +557,7 @@ class WrfHydroRun(object):
         # If a job is successfully added you make it here... 
 
         # Set submission-time job variables here.
-        job.user = os.getlogin()
+        job.user = get_user()
         job_submission_time = datetime.datetime.now()
         job.job_submission_time = str(job_submission_time)
         job.job_date_id = '{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=job_submission_time)

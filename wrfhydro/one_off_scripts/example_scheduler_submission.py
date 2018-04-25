@@ -1,3 +1,24 @@
+# docker pull wrfhydro/domains:croton_NY
+# docker pull wrfhydro/dev
+
+# docker create --name croton wrfhydro/domains:croton_NY
+# # When done with the container: docker rm -v croton
+
+# docker run -it \
+#     -e WRF_HYDRO_TESTS_USER_SPEC='/home/docker/WRF_Hydro/wrf_hydro_tests/template_user_spec.yaml' \
+#     -v /Users/jamesmcc/WRF_Hydro:/home/docker/WRF_Hydro \
+#     -v /Volumes/d1/chimayoSpace/git_repos/wrf_hydro_nwm_public:/home/docker/wrf_hydro_nwm_public \
+#     --volumes-from croton \
+#     wrfhydro/dev:conda
+
+# Inside docker
+cd ~/WRF_Hydro/wrf_hydro_py/
+pip uninstall -y wrfhydropy
+python setup.py develop
+pip install boltons termcolor
+python
+
+
 import copy
 import os
 from pprint import pprint
@@ -11,13 +32,16 @@ from establish_job import get_job_args_from_specs
 
 
 # Establish the setup
+model_path = '/home/docker'
 the_model = WrfHydroModel(
-    os.path.expanduser('~/WRF_Hydro/wrf_hydro_nwm_public/trunk/NDHMS')
+    os.path.expanduser(model_path + '/wrf_hydro_nwm_public/trunk/NDHMS')
 )
 the_model.compile("gfort")
 
+domain_path = '/home/docker/domain/croton_lite'
+#domain_path = '/glade/p/work/jamesmcc/DOMAINS/croton_NY'
 the_domain = WrfHydroDomain(
-    domain_top_dir='/glade/p/work/jamesmcc/DOMAINS/croton_NY',
+    domain_top_dir=domain_path,
     model_version='v1.2.1',
     domain_config='NWM'
 )
@@ -43,7 +67,36 @@ user_spec_file = home + '/WRF_Hydro/wrf_hydro_tests/template_user_spec.yaml'
 # Check setting of job.nproc vs that of job.scheduler.nproc
 
 
+# ######################################################
+# A default docker Job
 
+#job_default = build_default_job()
+
+job_args = get_job_args_from_specs(
+    job_name='test_job',
+    nproc=2,
+    mode='w',
+    machine_spec_file=machine_spec_file,
+    user_spec_file=user_spec_file,
+    candidate_spec_file=candidate_spec_file
+)
+job_interactive = Job( **job_args )
+
+run_dir = "/home/docker/test_dir"
+#run_dir = "/glade/scratch/jamesmcc/test_dir",
+run_interactive = WrfHydroRun(
+    the_setup,
+    run_dir,
+    rm_existing_run_dir = True
+)
+
+run_interactive.add_job(job_interactive)
+
+## Verify that the run occurred.
+len(run_interactive.chanobs) #== 168
+
+
+sys.exit()
 # #######################################################
 # Add two scheduled runs on cheyenne
 job_args = get_job_args_from_specs(
@@ -105,10 +158,5 @@ run_interactive.add_job(job_interactive)
 assert len(run_interactive.chanobs) == 168
 
 
-
-
-# ######################################################
-# A default docker Job
-job_default = build_default_job()
 
 

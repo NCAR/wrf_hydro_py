@@ -33,12 +33,16 @@ def get_sched_name():
     else:
         return None
 
-def getlogin():
-    """Returns os.getlogin(), else os.environ["LOGNAME"], else "?" """
+def get_user():
+    """Returns the user name/handle."""
     try:
         return os.getlogin()
     except OSError:
-        return os.environ["LOGNAME"]
+        if 'USER' in os.environ.keys():
+            return os.environ['USER']
+        else:
+            sp = subprocess.run(['whoami'], stdout=subprocess.PIPE)
+            return sp.stdout.decode('utf-8').split('\n')[0]
     else:
         return "?"
 
@@ -144,7 +148,7 @@ def touch(filename, mode=0o666, dir_fd=None, **kwargs):
 
 
 def _qstat(jobid=None,
-           username=getlogin(),
+           username=get_user(),
            full=False,
            version=int(14)): #re.split("[\+\ \.]", get_version())[2])):
     """Return the stdout of qstat minus the header lines.
@@ -481,7 +485,7 @@ def alter(jobid, arg):
 # SLURM-only section follows 
 
 def _squeue(jobid=None,
-            username=getlogin(),
+            username=get_user(),
             full=False,
             version=int(14),
             sformat=None):

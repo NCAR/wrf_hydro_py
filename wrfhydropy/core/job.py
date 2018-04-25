@@ -493,18 +493,15 @@ class Job(object):
         self.job_submission_time = None
         """str?: The time the job object was created."""
 
-        # TODO(JLM): Do i want to just capture the file names or also the contents?
         self.stdout_file = None
         """pathlib.PosixPath: The standard out file."""
         self.stderr_file = None
         """pathlib.PosixPath: The standard error file."""
         self.exit_status = None
         """int: The exit value of the model execution."""
-        # TODO(JLM): Is the above actually useful?
         self.tracejob_file = None
+        """pathlib.PosixPath: The tracejob/performance/profiling file."""
 
-        # TODO(JLM): The diag files will get clobbered. Scrape to a dot directory
-        # after successful or unsuccessful completion? The files can also be large... 
         self.diag_files = None
         """pathlib.PosixPath: The diag files for the job."""
 
@@ -684,23 +681,25 @@ class Job(object):
             self.stdout_file = run_dir / ("{0}.stdout".format(self.job_date_id))
 
             # source the modules before execution.
-            exe_cmd = '/bin/bash -c "module purge && module load ' + self.modules + " && "
+            exe_cmd = '/bin/bash -c "'
+            if self.modules:
+                exe_cmd += "module purge && module load " + self.modules + " && "
             exe_cmd += self.exe_cmd.format(**{'nproc': self.nproc})
             exe_cmd += " 2> {0} 1> {1}".format(self.stderr_file, self.stdout_file)
             exe_cmd += '"'
             self.exe_cmd = exe_cmd
-            # Only subprocess cares about this split.
-            exe_cmd = shlex.split(exe_cmd)
 
             # TODO(JLM): Stash the namelist files in the job at this point? No,
             # that should happen when the dates of the job(s) are established.
-            
+
             self.job_status='running'
             self.job_start_time = str(datetime.datetime.now())
-            self.run_log = subprocess.run(exe_cmd,
-                                          stdout=subprocess.PIPE,
-                                          stderr=subprocess.PIPE,
-                                          cwd=run_dir)
+            self.run_log = subprocess.run(
+                shlex.split(exe_cmd),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=run_dir
+            )
             self.job_end_time = str(datetime.datetime.now())
             self.job_status='completed'
 

@@ -712,20 +712,18 @@ class RestartDiffs(object):
             A DomainDirectory directory object
         """
         # Instantiate all attributes
-        self.diff_counts = None
+        self.diff_counts = dict()
         """dict: Counts of diffs by restart type"""
-        self.hydro = None
+        self.hydro = list()
         """list: List of pandas dataframes if possible or subprocess objects containing hydro 
         restart file diffs"""
-        self.lsm = None
+        self.lsm = list()
         """list: List of pandas dataframes if possible or subprocess objects containing lsm restart 
         file diffs"""
-        self.nudging = None
+        self.nudging = list()
         """list: List of pandas dataframes if possible or subprocess objects containing nudging 
         restart file diffs"""
 
-        #Add a dictionary with counts of diffs
-        self.diff_counts = {}
 
         if len(candidate_run.restart_hydro) != 0 and len(reference_run.restart_hydro) != 0:
             self.hydro = compare_ncfiles(candidate_files=candidate_run.restart_hydro,

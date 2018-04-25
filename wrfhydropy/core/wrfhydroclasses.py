@@ -571,7 +571,8 @@ class WrfHydroRun(object):
             if len(self.restart_hydro) > 0:
                 self.restart_hydro = sorted(self.restart_hydro,
                                             key=lambda file: file.stat().st_mtime_ns)
-
+            else:
+                self.restart_hydro = None
 
             ### LSM Restarts
             self.restart_lsm = []

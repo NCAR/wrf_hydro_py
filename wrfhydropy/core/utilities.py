@@ -5,6 +5,7 @@ import warnings
 import f90nml
 import deepdiff
 import xarray as xr
+import pathlib
 
 def compare_nc_nccmp(candidate_nc: str,
                      reference_nc: str,
@@ -158,6 +159,46 @@ def open_nwmdataset(paths: list,
 
     # Break into chunked dask array
     if chunks is not None:
-        nwm_dataset = nwm_dataset.chunk(chunks=chunks)
+       nwm_dataset = nwm_dataset.chunk(chunks=chunks)
 
     return nwm_dataset
+
+
+def __make_relative__(run_object, basepath=None):
+    """Make all file paths relative to a given directory, useful for opening file
+    attributes in a run object after it has been moved or copied to a new directory or
+    system.
+    Args:
+        basepath: The base path to use for relative paths. Defaults to run directory.
+        This rarely needs to be defined.
+    Returns:
+        self with relative files paths for file-like attributes
+    """
+    import wrfhydropy
+    if basepath is None:
+        basepath = run_object.simulation_dir
+    for attr in dir(run_object):
+        if attr.startswith('__') is False:
+            attr_object = getattr(run_object, attr)
+            if type(attr_object) == list:
+                relative_list = list()
+                for item in attr_object:
+                    if type(item) is pathlib.PosixPath or type(
+                            item) is wrfhydropy.WrfHydroStatic:
+                        relative_list.append(item.relative_to(basepath))
+                        setattr(run_object, attr, relative_list)
+            if type(attr_object) is wrfhydropy.WrfHydroTs:
+                relative_list = list()
+                for item in attr_object:
+                    if type(item) is pathlib.PosixPath or type(
+                            item) is wrfhydropy.WrfHydroStatic:
+                        relative_list.append(item.relative_to(basepath))
+                        relative_list = wrfhydropy.WrfHydroTs(relative_list)
+                        setattr(run_object, attr, relative_list)
+
+            elif type(attr_object) is pathlib.PosixPath:
+                setattr(run_object, attr, attr_object.relative_to(basepath))
+
+        if attr == 'simulation':
+            __make_relative__(run_object.simulation.domain,
+                          basepath=run_object.simulation.domain.domain_top_dir)

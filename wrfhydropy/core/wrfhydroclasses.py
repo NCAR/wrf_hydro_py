@@ -10,7 +10,7 @@ import uuid
 import pickle
 import warnings
 
-from .utilities import compare_ncfiles, open_nwmdataset
+from .utilities import compare_ncfiles, open_nwmdataset, __make_relative__
 
 #########################
 # netcdf file object classes
@@ -396,7 +396,6 @@ class WrfHydroRun(object):
 
         # Initialize all attributes and methods
 
-
         self.simulation = wrf_hydro_simulation
         """WrfHydroSim: The WrfHydroSim object used for the run"""
         self.num_cores = num_cores
@@ -413,6 +412,10 @@ class WrfHydroRun(object):
         """WrfHydroTs: Timeseries dataset of CHRTOUT files"""
         self.chanobs = None
         """WrfHydroTs: Timeseries dataset of CHANOBS files"""
+        self.lakeout = None
+        """WrfHydroTs: Timeseries dataset of LAKEOUT files"""
+        self.gwout = None
+        """WrfHydroTs: Timeseries dataset of GWOUT files"""
         self.restart_hydro = None
         """list: List of HYDRO_RST WrfHydroStatic objects"""
         self.restart_lsm = None
@@ -421,6 +424,8 @@ class WrfHydroRun(object):
         """list: List of nudgingLastObs WrfHydroStatic objects"""
         self.object_id = None
         """str: A unique id to join object to run directory."""
+
+
 
         # Make directory if it does not exists
         if self.simulation_dir.is_dir() is False:
@@ -530,15 +535,17 @@ class WrfHydroRun(object):
             ## Get channel files
             if len(list(self.simulation_dir.glob('*CHRTOUT*'))) > 0:
                 self.channel_rt = WrfHydroTs(list(self.simulation_dir.glob('*CHRTOUT*')))
-                # ### Make relative to run dir
-                # for file in self.channel_rt:
-                #     file.relative_to(file.parent)
 
             if len(list(self.simulation_dir.glob('*CHANOBS*'))) > 0:
                 self.chanobs = WrfHydroTs(list(self.simulation_dir.glob('*CHANOBS*')))
-                # ### Make relative to run dir
-                # for file in self.chanobs:
-                #     file.relative_to(file.parent)
+
+            #Get Lakeout files
+            if len(list(self.simulation_dir.glob('*LAKEOUT*'))) > 0:
+                self.lakeout = WrfHydroTs(list(self.simulation_dir.glob('*LAKEOUT*')))
+
+            #Get gwout files
+            if len(list(self.simulation_dir.glob('*GWOUT*'))) > 0:
+                self.gwout = WrfHydroTs(list(self.simulation_dir.glob('*GWOUT*')))
 
             ## Get restart files and sort by modified time
             ### Hydro restarts
@@ -591,6 +598,18 @@ class WrfHydroRun(object):
             print('Model run succeeded')
         else:
             warnings.warn('Model run failed')
+
+    def make_relative(self,basepath = None):
+        """Make all file paths relative to a given directory, useful for opening file
+        attributes in a run object after it has been moved or copied to a new directory or
+        system.
+        Args:
+            basepath: The base path to use for relative paths. Defaults to run directory.
+            This rarely needs to be defined.
+        Returns:
+            self with relative files paths for file-like attributes
+        """
+        __make_relative__(run_object=self,basepath=basepath)
 
 class DomainDirectory(object):
     """An object that represents a WRF-Hydro domain directory. Primarily used as a utility class

@@ -58,11 +58,11 @@ class WrfHydroModel(object):
         self.model_config = None
         """str: String indicating model configuration for compile options, must be one of 'NWM', 
         'Gridded', or 'Reach'."""
-        self.hydro_namelists = None
+        self.hydro_namelists = dict()
         """dict: Master dictionary of all hydro.namelists stored with the source code."""
-        self.hrldas_namelists = None
+        self.hrldas_namelists = dict()
         """dict: Master dictionary of all namelist.hrldas stored with the source code."""
-        self.compile_options = None
+        self.compile_options = dict()
         """dict: Compile-time options. Defaults are loaded from json file stored with source 
         code."""
         self.version = None
@@ -79,7 +79,7 @@ class WrfHydroModel(object):
         """CompletedProcess: The subprocess object generated at compile."""
         self.object_id = None
         """str: A unique id to join object to compile directory."""
-        self.table_files = None
+        self.table_files = list()
         """list: pathlib.Paths to *.TBL files generated at compile-time."""
         self.wrf_hydro_exe = None
         """pathlib.Path: pathlib.Path to wrf_hydro.exe file generated at compile-time."""
@@ -241,11 +241,11 @@ class WrfHydroDomain(object):
 
         self.domain_config = domain_config
         """str: Specified configuration for which the domain is to be used, e.g. 'NWM'"""
-        self.hydro_files = None
+        self.hydro_files = list()
         """list: Files specified in hydro_nlist section of the domain namelist patches"""
-        self.nudging_files = None
+        self.nudging_files = list()
         """list: Files specified in nudging_nlist section of the domain namelist patches"""
-        self.lsm_files = None
+        self.lsm_files = list()
         """list: Files specified in noahlsm_offline section of the domain namelist patches"""
         ###
 
@@ -253,7 +253,6 @@ class WrfHydroDomain(object):
         domain_hydro_nlist = self.namelist_patches[self.model_version][self.domain_config][
             'hydro_namelist']['hydro_nlist']
 
-        self.hydro_files = []
         for key, value in domain_hydro_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
             if file_path.is_file() is True:
@@ -265,8 +264,6 @@ class WrfHydroDomain(object):
         # Create file paths from nudging namelist
         domain_nudging_nlist = self.namelist_patches[self.model_version][self.domain_config
         ]['hydro_namelist']['nudging_nlist']
-
-        self.nudging_files = []
 
         for key, value in domain_nudging_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
@@ -281,7 +278,6 @@ class WrfHydroDomain(object):
             self.namelist_patches[self.model_version][self.domain_config]['namelist_hrldas'
             ]["noahlsm_offline"]
 
-        self.lsm_files = []
         for key, value in domain_lsm_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
 

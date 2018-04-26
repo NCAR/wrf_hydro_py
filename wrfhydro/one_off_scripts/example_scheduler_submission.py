@@ -32,16 +32,15 @@ sys.path.insert(0, home + '/WRF_Hydro/wrf_hydro_tests/toolbox/')
 from establish_specs import establish_spec
 from establish_job import get_job_args_from_specs
 
-host = gethostname()
-
-if re.match('cheyenne', host):
+machine = job_tools.get_machine()
+if machine == 'cheyenne':
     model_path = '/glade/u/home/jamesmcc/WRF_Hydro/'
     domain_path = '/glade/p/work/jamesmcc/DOMAINS/croton_NY'
-    run_dir = "/home/docker/test_dir"
+    run_dir = "/glade/scratch/jamesmcc/test_dir"
 else:
     model_path = '/home/docker'
     domain_path = '/home/docker/domain/croton_lite'
-    run_dir = "/glade/scratch/jamesmcc/test_dir"
+    run_dir = "/home/docker/test_dir"
 
 
 # Establish the setup
@@ -81,8 +80,26 @@ user_spec_file = home + '/WRF_Hydro/wrf_hydro_tests/template_user_spec.yaml'
 
 # ######################################################
 # A default docker Job
+# Try a default job
 
-#job_default = build_default_job()
+run_interactive_2 = WrfHydroRun(
+    the_setup,
+    run_dir,
+    rm_existing_run_dir = True,
+    job=Job(nproc=2)
+)
+
+run_interactive_2.add_job(Job(nproc=2))
+
+assert len(run_interactive_2.chanobs) == 24  # croton_lite
+
+# #################################
+# A bit less defaultish
+run_interactive = WrfHydroRun(
+    the_setup,
+    run_dir,
+    rm_existing_run_dir = True
+)
 
 job_args = get_job_args_from_specs(
     job_name='test_job',
@@ -93,16 +110,8 @@ job_args = get_job_args_from_specs(
     candidate_spec_file=candidate_spec_file
 )
 job_interactive = Job( **job_args )
-
-run_interactive = WrfHydroRun(
-    the_setup,
-    run_dir,
-    rm_existing_run_dir = True
-)
-
 run_interactive.add_job(job_interactive)
 
-## Verify that the run occurred.
 assert len(run_interactive.chanobs) == 24  # croton_lite
 
 sys.exit()

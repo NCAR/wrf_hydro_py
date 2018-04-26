@@ -1,16 +1,21 @@
-""" Tools for interacting between the OS and PBS/slurm """
-
-import subprocess
-import os
-import io
-import re
 import datetime
-import time
-import sys
-import warnings
 from distutils.spawn import find_executable
+import io
+import os
+import pathlib
+import re
+import socket
+import subprocess
+import sys
+import time
+import warnings
+import yaml
 
-#dummy_scheduler = {}
+# Where is wrfhydropy/core dir in the filesystem?
+# A method (used by  django) about specifying the root dir of the project.
+# https://stackoverflow.com/questions/25389095/python-get-path-of-root-project-structure
+core_dir = pathlib.PosixPath(os.path.dirname(os.path.abspath(__file__)))
+
 
 class PBSError(Exception):
     """ A custom error class for pbs errors """
@@ -22,6 +27,7 @@ class PBSError(Exception):
     def __str__(self):
         return self.jobid + ": " + self.msg
 
+
 def get_sched_name():
     """Tries to find qsub, then sbatch. Returns "PBS" if qsub
     is found, else returns "slurm" if sbatch is found, else returns
@@ -32,6 +38,28 @@ def get_sched_name():
         return "slurm"
     else:
         return None
+
+
+def in_docker():
+    path = "/proc/" + str(os.getpid()) + "/cgroup"
+    if not os.path.isfile(path): return False
+    with open(path) as f:
+        for line in f:
+            if re.match("\d+:[\w=]+:/docker(-[ce]e)?/\w+", line):
+                return True
+        return False
+
+
+def get_machine():
+    hostname = socket.gethostname()
+    if re.match('cheyenne', hostname):
+        machine='cheyenne'
+    else:
+        machine='docker'
+        if not in_docker():
+            warnings.warn('This machine is not recognized, using docker defaults.')
+    return machine
+
 
 def get_user():
     """Returns the user name/handle."""
@@ -45,6 +73,7 @@ def get_user():
             return sp.stdout.decode('utf-8').split('\n')[0]
     else:
         return "?"
+
 
 def get_version(software=None):
     """Returns the software version """
@@ -74,6 +103,7 @@ def get_version(software=None):
     else:
         return "0"
 
+
 def seconds(walltime):
     """Convert [[[DD:]HH:]MM:]SS to hours"""
     wtime = walltime.split(":")
@@ -91,6 +121,7 @@ def seconds(walltime):
     else:
         print("Error in walltime format:", walltime)
         sys.exit()
+
 
 def hours(walltime):
     """Convert [[[DD:]HH:]MM:]SS to hours"""
@@ -213,6 +244,7 @@ def _qstat(jobid=None,
     # return the remaining text
     return sout.read()
 
+
 def job_id(all=False, name=None):       #pylint: disable=redefined-builtin
     """If 'name' given, returns a list of all jobs with a particular name using qstat.
        Else, if all=True, returns a list of all job ids by current user.
@@ -287,7 +319,6 @@ def job_rundir(jobid, sched_name):
         warnings.warn("sched_name matches neither 'PBS' nor 'slurm': FIX THIS.")
 
 
-        
 def job_status_PBS(jobid=None):
     """Return job status using qstat
 
@@ -449,18 +480,21 @@ def generic_popen(cmd_list):
     p = subprocess.Popen(cmd_list, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     stdout, stderr = p.communicate()
     return p.returncode
-    
+
+
 def delete(jobid, sched_name):
     """qdel (PBS) or scancel (slurm) a job."""
     if sched_name == 'PBS': cmd = 'qdel'
     if sched_name == 'slurm':  cmd = 'scancel'
     return(generic_popen([cmd, jobid]))
 
+
 def hold(jobid, sched_name):
     """qhold (PBS) or scontrol (slurm) a job."""
     if sched_name == 'PBS': cmd = 'qhold'
     if sched_name == 'slurm':  cmd = 'scontrol'
     return(generic_popen([cmd, jobid]))
+
 
 def release(jobid):
     """qrls (PBS) or scontrol un-delay (slurm) a job."""
@@ -469,6 +503,7 @@ def release(jobid):
     if sched_name == 'slurm':
         cmd_list = ["scontrol", "update", "JobId=", jobid, "StartTime=", "now"]
     return(generic_popen(cmd_list))
+
 
 def alter(jobid, arg):
     """qalter (PBS) or scontrol update (slurm) a job.
@@ -575,7 +610,7 @@ def _squeue(jobid=None,
         # return the remaining text
         return sout.read()
 
-        
+
 def job_status_slurm(jobid=None):
     """Return job status using squeue
 
@@ -690,3 +725,12 @@ def job_status_slurm(jobid=None):
     return status
 
 
+def default_job_spec(machine='docker'):
+    if machine != 'docker':
+        warnings.warn("Default job sepcs do not really make sense except for docker.")
+    default_job_specs_file = core_dir / 'default_job_specs.yaml'
+    with open(default_job_specs_file) as ff:
+        default_job_specs = yaml.safe_load(ff)
+    default_job_spec = default_job_specs[machine]
+    default_job_spec['exe_cmd'] = default_job_spec['exe_cmd']['default']
+    return default_job_spec

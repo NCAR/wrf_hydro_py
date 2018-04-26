@@ -1,11 +1,11 @@
-import subprocess
+import deepdiff
+import f90nml
 import io
 import pandas as pd
-import warnings
-import f90nml
-import deepdiff
-import xarray as xr
 import pathlib
+import subprocess
+import warnings
+import xarray as xr
 
 def compare_nc_nccmp(candidate_nc: str,
                      reference_nc: str,
@@ -202,3 +202,5 @@ def __make_relative__(run_object, basepath=None):
         if attr == 'simulation':
             __make_relative__(run_object.simulation.domain,
                           basepath=run_object.simulation.domain.domain_top_dir)
+
+            

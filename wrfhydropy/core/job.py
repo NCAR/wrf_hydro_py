@@ -3,10 +3,10 @@ import math
 import os
 import pathlib
 import shlex
-import socket
 import subprocess
 import warnings
-from .job_tools import touch, submit_scheduler, PBSError, get_sched_name, get_version, seconds
+from .job_tools import touch, submit_scheduler, PBSError, \
+    get_sched_name, get_machine, get_user, seconds, core_dir, default_job_spec
 #from .wrfhydroclasses import WrfHydroRun
 
 class Scheduler(object):
@@ -437,28 +437,28 @@ class Scheduler(object):
 class Job(object): 
     def __init__(
             self,
-            exe_cmd: str=None,
             nproc: int=None,
-            machine: str=socket.gethostname(),
+            exe_cmd: str=None,
             modules: str=None,
             scheduler: Scheduler = None,
     ):
 
-        self._exe_cmd = exe_cmd
+        self.exe_cmd = exe_cmd
         """str: The command to be executed. Python {}.format() evaluation available but
         limited. Taken from the machine_spec.yaml file if not specified."""
         self._nproc = nproc
         """int: Optional, the number of processors to use. If also supplied in the scheduler
         then there will be ab error."""
-        self.machine = machine
-        """str: The name of the machine being used (from socket.gethostname())."""
+        self.machine = get_machine()
+        """str: The name of the machine being used."""
         self.modules = modules
         """str: The modules to be loaded prior to execution. Taken from machine_spec.yaml 
         if not present."""
         self.scheduler = scheduler
         """Scheduler: Optional, scheduler object for the job."""
-        
-        # TODO(JLM): Are these both optional inputs and outputs?
+
+        # TODO(JLM): These are optional inputs and outputs: if missing try
+        # to use existing namelists.
         self.model_start_time = None
         """str?: The model time at the start of the execution."""
         self.model_end_time = None
@@ -475,15 +475,16 @@ class Job(object):
         self.job_status = "created"
         """str: The status of the job object: created/submitted/running/complete."""
 
-        # Attributes solved from the environment at job time (not now).
+        # #################################
+        # Attributes solved from the environment at run time or later (not now).
         self.user = None
-        """str: $USER."""
+        """str: Determine who the user is."""
+
         # TODO(JLM): this is admittedly a bit dodgy because sensitive info
         # might be in the environment (github authtoken?)
         # Are there parts of the env we must have?
-        self.environment = None
-
-        # Attributes solved later (not now).
+        # self.environment = None
+        
         self.job_date_id = None
         """str: The job date identifier at 'submission' time."""
         self.job_start_time = None
@@ -501,17 +502,17 @@ class Job(object):
         """int: The exit value of the model execution."""
         self.tracejob_file = None
         """pathlib.PosixPath: The tracejob/performance/profiling file."""
-
         self.diag_files = None
         """pathlib.PosixPath: The diag files for the job."""
 
+        # #################################
         # Setting better defaults.
 
         # If there is no scheduler on the machine. Do not allow a scheduler object.
         if get_sched_name() is None:
             self.scheduler = None
         else:
-            # Allow some coercion. 
+            # Allow coercion from a dict to a scheduler object.
             if type(self.scheduler) is dict:
                 self.scheduler = Scheduler(**self.scheduler)
             
@@ -532,16 +533,13 @@ class Job(object):
         # A method (used by  django) about specifying the root dir of the project.
         # https://stackoverflow.com/questions/25389095/python-get-path-of-root-project-structure
         #self.build_default_job(self)
+        default_job = default_job_spec()
+        for ii in default_job.keys():
+            if ii in self.__dict__.keys():
+                if self.__dict__[ii] is None and default_job[ii] is not None:
+                    warnings.warn('Using docker default for missing Job argument ' + ii)
+                    self.__dict__[ii] = default_job[ii]
 
-        
-
-    @property
-    def exe_cmd(self):
-        return self._exe_cmd
-    @exe_cmd.setter
-    def exe_cmd(self, value):
-            self._exe_cmd = value
-    
     @property
     def nproc(self):
         if self.scheduler:
@@ -555,8 +553,8 @@ class Job(object):
             self.scheduler.nproc = value
             return self.scheduler.nproc
         return self._nproc
-    
-    
+
+
     def schedule(
         self,
         run_dir,
@@ -585,7 +583,7 @@ class Job(object):
         # Construct the script.
         jobstr  = "#!/usr/bin/env python\n"
         jobstr += "\n"
-        
+
         jobstr += "import argparse\n"
         jobstr += "import datetime\n"
         jobstr += "import os\n"
@@ -731,5 +729,3 @@ class Job(object):
         except Exception as e:
             warnings.warn('Could not parse diag files')
             print(e)    
-
-#    def build_default_job():

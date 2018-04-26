@@ -58,11 +58,11 @@ class WrfHydroModel(object):
         self.model_config = None
         """str: String indicating model configuration for compile options, must be one of 'NWM', 
         'Gridded', or 'Reach'."""
-        self.hydro_namelists = None
+        self.hydro_namelists = dict()
         """dict: Master dictionary of all hydro.namelists stored with the source code."""
-        self.hrldas_namelists = None
+        self.hrldas_namelists = dict()
         """dict: Master dictionary of all namelist.hrldas stored with the source code."""
-        self.compile_options = None
+        self.compile_options = dict()
         """dict: Compile-time options. Defaults are loaded from json file stored with source 
         code."""
         self.version = None
@@ -79,7 +79,7 @@ class WrfHydroModel(object):
         """CompletedProcess: The subprocess object generated at compile."""
         self.object_id = None
         """str: A unique id to join object to compile directory."""
-        self.table_files = None
+        self.table_files = list()
         """list: pathlib.Paths to *.TBL files generated at compile-time."""
         self.wrf_hydro_exe = None
         """pathlib.Path: pathlib.Path to wrf_hydro.exe file generated at compile-time."""
@@ -241,11 +241,11 @@ class WrfHydroDomain(object):
 
         self.domain_config = domain_config
         """str: Specified configuration for which the domain is to be used, e.g. 'NWM'"""
-        self.hydro_files = None
+        self.hydro_files = list()
         """list: Files specified in hydro_nlist section of the domain namelist patches"""
-        self.nudging_files = None
+        self.nudging_files = list()
         """list: Files specified in nudging_nlist section of the domain namelist patches"""
-        self.lsm_files = None
+        self.lsm_files = list()
         """list: Files specified in noahlsm_offline section of the domain namelist patches"""
         ###
 
@@ -253,7 +253,6 @@ class WrfHydroDomain(object):
         domain_hydro_nlist = self.namelist_patches[self.model_version][self.domain_config][
             'hydro_namelist']['hydro_nlist']
 
-        self.hydro_files = []
         for key, value in domain_hydro_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
             if file_path.is_file() is True:
@@ -265,8 +264,6 @@ class WrfHydroDomain(object):
         # Create file paths from nudging namelist
         domain_nudging_nlist = self.namelist_patches[self.model_version][self.domain_config
         ]['hydro_namelist']['nudging_nlist']
-
-        self.nudging_files = []
 
         for key, value in domain_nudging_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
@@ -281,7 +278,6 @@ class WrfHydroDomain(object):
             self.namelist_patches[self.model_version][self.domain_config]['namelist_hrldas'
             ]["noahlsm_offline"]
 
-        self.lsm_files = []
         for key, value in domain_lsm_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
 
@@ -420,21 +416,21 @@ class WrfHydroRun(object):
         """CompletedProcess: The subprocess returned from the run call"""
         self.run_status = None
         """int: exit status of the run"""
-        self.diag = None
+        self.diag = list()
         """list: pathlib.Paths to diag files generated at run time"""
-        self.channel_rt = None
+        self.channel_rt = list()
         """WrfHydroTs: Timeseries dataset of CHRTOUT files"""
-        self.chanobs = None
+        self.chanobs = list()
         """WrfHydroTs: Timeseries dataset of CHANOBS files"""
-        self.lakeout = None
+        self.lakeout = list()
         """WrfHydroTs: Timeseries dataset of LAKEOUT files"""
-        self.gwout = None
+        self.gwout = list()
         """WrfHydroTs: Timeseries dataset of GWOUT files"""
-        self.restart_hydro = None
+        self.restart_hydro = list()
         """list: List of HYDRO_RST WrfHydroStatic objects"""
-        self.restart_lsm = None
+        self.restart_lsm = list()
         """list: List of RESTART WrfHydroStatic objects"""
-        self.restart_nudging = None
+        self.restart_nudging = list()
         """list: List of nudgingLastObs WrfHydroStatic objects"""
         self.object_id = None
         """str: A unique id to join object to run directory."""
@@ -563,7 +559,6 @@ class WrfHydroRun(object):
 
             ## Get restart files and sort by modified time
             ### Hydro restarts
-            self.restart_hydro = []
             for file in self.simulation_dir.glob('HYDRO_RST*'):
                 file = WrfHydroStatic(file)
                 self.restart_hydro.append(file)
@@ -571,11 +566,8 @@ class WrfHydroRun(object):
             if len(self.restart_hydro) > 0:
                 self.restart_hydro = sorted(self.restart_hydro,
                                             key=lambda file: file.stat().st_mtime_ns)
-            else:
-                self.restart_hydro = None
 
             ### LSM Restarts
-            self.restart_lsm = []
             for file in self.simulation_dir.glob('RESTART*'):
                 file = WrfHydroStatic(file)
                 self.restart_lsm.append(file)
@@ -583,11 +575,9 @@ class WrfHydroRun(object):
             if len(self.restart_lsm) > 0:
                 self.restart_lsm = sorted(self.restart_lsm,
                                           key=lambda file: file.stat().st_mtime_ns)
-            else:
-                self.restart_lsm = None
+
 
             ### Nudging restarts
-            self.restart_nudging = []
             for file in self.simulation_dir.glob('nudgingLastObs*'):
                 file = WrfHydroStatic(file)
                 self.restart_nudging.append(file)
@@ -595,8 +585,7 @@ class WrfHydroRun(object):
             if len(self.restart_nudging) > 0:
                 self.restart_nudging = sorted(self.restart_nudging,
                                               key=lambda file: file.stat().st_mtime_ns)
-            else:
-                self.restart_nudging = None
+
 
             #####################
 
@@ -719,20 +708,18 @@ class RestartDiffs(object):
             A DomainDirectory directory object
         """
         # Instantiate all attributes
-        self.diff_counts = None
+        self.diff_counts = dict()
         """dict: Counts of diffs by restart type"""
-        self.hydro = None
+        self.hydro = list()
         """list: List of pandas dataframes if possible or subprocess objects containing hydro 
         restart file diffs"""
-        self.lsm = None
+        self.lsm = list()
         """list: List of pandas dataframes if possible or subprocess objects containing lsm restart 
         file diffs"""
-        self.nudging = None
+        self.nudging = list()
         """list: List of pandas dataframes if possible or subprocess objects containing nudging 
         restart file diffs"""
 
-        #Add a dictionary with counts of diffs
-        self.diff_counts = {}
 
         if len(candidate_run.restart_hydro) != 0 and len(reference_run.restart_hydro) != 0:
             self.hydro = compare_ncfiles(candidate_files=candidate_run.restart_hydro,

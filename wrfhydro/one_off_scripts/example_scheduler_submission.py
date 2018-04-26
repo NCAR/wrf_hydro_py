@@ -42,7 +42,6 @@ else:
     model_path = '/home/docker'
     domain_path = '/home/docker/domain/croton_lite'
     run_dir = "/glade/scratch/jamesmcc/test_dir"
-    
 
 
 # Establish the setup
@@ -50,6 +49,7 @@ the_model = WrfHydroModel(
     os.path.expanduser(model_path + '/wrf_hydro_nwm_public/trunk/NDHMS'),
     'NWM'
 )
+# modules are an attribute of the model?!?!
 the_model.compile("gfort")
 
 the_domain = WrfHydroDomain(
@@ -106,6 +106,7 @@ run_interactive.add_job(job_interactive)
 assert len(run_interactive.chanobs) == 24  # croton_lite
 
 sys.exit()
+
 # #######################################################
 # Add two scheduled runs on cheyenne
 job_args = get_job_args_from_specs(
@@ -134,12 +135,9 @@ run_sched = None
 import pickle
 with open(run_sched_dir + '/WrfHydroRun.pkl', 'rb') as f:
     r = pickle.load(f)
-
+assert len(r.chanobs) == 168
 
 sys.exit()
-
-
-
 
 # #######################################################
 # An interactive run on cheyenne

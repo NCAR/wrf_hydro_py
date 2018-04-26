@@ -34,7 +34,8 @@ from establish_job import get_job_args_from_specs
 # Establish the setup
 model_path = '/home/docker'
 the_model = WrfHydroModel(
-    os.path.expanduser(model_path + '/wrf_hydro_nwm_public/trunk/NDHMS')
+    os.path.expanduser(model_path + '/wrf_hydro_nwm_public/trunk/NDHMS'),
+    'NWM'
 )
 the_model.compile("gfort")
 

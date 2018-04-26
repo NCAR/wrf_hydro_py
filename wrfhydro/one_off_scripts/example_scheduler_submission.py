@@ -22,6 +22,8 @@ python
 import copy
 import os
 from pprint import pprint
+import re
+from socket import gethostname
 import sys
 from wrfhydropy import *
 
@@ -30,16 +32,25 @@ sys.path.insert(0, home + '/WRF_Hydro/wrf_hydro_tests/toolbox/')
 from establish_specs import establish_spec
 from establish_job import get_job_args_from_specs
 
+host = gethostname()
+
+if re.match('cheyenne', host):
+    model_path = '/glade/u/home/jamesmcc/WRF_Hydro/'
+    domain_path = '/glade/p/work/jamesmcc/DOMAINS/croton_NY'
+    run_dir = "/home/docker/test_dir"
+else:
+    model_path = '/home/docker'
+    domain_path = '/home/docker/domain/croton_lite'
+    run_dir = "/glade/scratch/jamesmcc/test_dir"
+    
+
 
 # Establish the setup
-model_path = '/home/docker'
 the_model = WrfHydroModel(
     os.path.expanduser(model_path + '/wrf_hydro_nwm_public/trunk/NDHMS')
 )
 the_model.compile("gfort")
 
-domain_path = '/home/docker/domain/croton_lite'
-#domain_path = '/glade/p/work/jamesmcc/DOMAINS/croton_NY'
 the_domain = WrfHydroDomain(
     domain_top_dir=domain_path,
     model_version='v1.2.1',
@@ -82,8 +93,6 @@ job_args = get_job_args_from_specs(
 )
 job_interactive = Job( **job_args )
 
-run_dir = "/home/docker/test_dir"
-#run_dir = "/glade/scratch/jamesmcc/test_dir",
 run_interactive = WrfHydroRun(
     the_setup,
     run_dir,

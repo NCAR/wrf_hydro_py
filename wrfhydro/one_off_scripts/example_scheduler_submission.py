@@ -47,7 +47,8 @@ else:
 
 # Establish the setup
 the_model = WrfHydroModel(
-    os.path.expanduser(model_path + '/wrf_hydro_nwm_public/trunk/NDHMS')
+    os.path.expanduser(model_path + '/wrf_hydro_nwm_public/trunk/NDHMS'),
+    'NWM'
 )
 the_model.compile("gfort")
 
@@ -102,8 +103,7 @@ run_interactive = WrfHydroRun(
 run_interactive.add_job(job_interactive)
 
 ## Verify that the run occurred.
-len(run_interactive.chanobs) #== 168
-
+assert len(run_interactive.chanobs) == 24  # croton_lite
 
 sys.exit()
 # #######################################################

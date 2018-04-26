@@ -4,7 +4,8 @@ import pandas as pd
 import warnings
 import f90nml
 import deepdiff
-
+import xarray as xr
+import pathlib
 
 def compare_nc_nccmp(candidate_nc: str,
                      reference_nc: str,
@@ -117,3 +118,87 @@ def diff_namelist(namelist1: str, namelist2: str, **kwargs) -> dict:
     differences = deepdiff.DeepDiff(namelist1, namelist2, ignore_order=True, **kwargs)
     differences_dict = dict(differences)
     return (differences_dict)
+
+
+def open_nwmdataset(paths: list,
+                    chunks: dict=None) -> xr.Dataset:
+    """Open a multi-file wrf-hydro output dataset
+
+    Args:
+        paths: List ,iterable, or generator of file paths to wrf-hydro netcdf output files
+        chunks: chunks argument passed on to xarray DataFrame.chunk() method
+    Returns:
+        An xarray dataset of dask arrays chunked by chunk_size along the feature_id
+        dimension concatenated along the time and
+        reference_time dimensions
+    """
+
+    # Create dictionary of forecasts, i.e. reference times
+    ds_dict = dict()
+    for a_file in paths:
+        ds = xr.open_dataset(a_file)
+        ref_time = ds['reference_time'].values[0]
+        if ref_time in ds_dict:
+            # append the new number to the existing array at this slot
+            ds_dict[ref_time].append(ds)
+        else:
+            # create a new array in this slot
+            ds_dict[ref_time] = [ds]
+
+    # Concatenate along time axis for each forecast
+    forecast_list = list()
+    for key in ds_dict.keys():
+        forecast_list.append(xr.concat(ds_dict[key],
+                                       dim='time',
+                                       coords='minimal'))
+
+    # Concatenate along reference_time axis for all forecasts
+    nwm_dataset = xr.concat(forecast_list,
+                            dim='reference_time',
+                            coords='minimal')
+
+    # Break into chunked dask array
+    if chunks is not None:
+       nwm_dataset = nwm_dataset.chunk(chunks=chunks)
+
+    return nwm_dataset
+
+
+def __make_relative__(run_object, basepath=None):
+    """Make all file paths relative to a given directory, useful for opening file
+    attributes in a run object after it has been moved or copied to a new directory or
+    system.
+    Args:
+        basepath: The base path to use for relative paths. Defaults to run directory.
+        This rarely needs to be defined.
+    Returns:
+        self with relative files paths for file-like attributes
+    """
+    import wrfhydropy
+    if basepath is None:
+        basepath = run_object.simulation_dir
+    for attr in dir(run_object):
+        if attr.startswith('__') is False:
+            attr_object = getattr(run_object, attr)
+            if type(attr_object) == list:
+                relative_list = list()
+                for item in attr_object:
+                    if type(item) is pathlib.PosixPath or type(
+                            item) is wrfhydropy.WrfHydroStatic:
+                        relative_list.append(item.relative_to(basepath))
+                        setattr(run_object, attr, relative_list)
+            if type(attr_object) is wrfhydropy.WrfHydroTs:
+                relative_list = list()
+                for item in attr_object:
+                    if type(item) is pathlib.PosixPath or type(
+                            item) is wrfhydropy.WrfHydroStatic:
+                        relative_list.append(item.relative_to(basepath))
+                        relative_list = wrfhydropy.WrfHydroTs(relative_list)
+                        setattr(run_object, attr, relative_list)
+
+            elif type(attr_object) is pathlib.PosixPath:
+                setattr(run_object, attr, attr_object.relative_to(basepath))
+
+        if attr == 'simulation':
+            __make_relative__(run_object.simulation.domain,
+                          basepath=run_object.simulation.domain.domain_top_dir)

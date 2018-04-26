@@ -13,6 +13,7 @@ import uuid
 import warnings
 import xarray as xr
 
+from .utilities import compare_ncfiles, open_nwmdataset, __make_relative__
 from .utilities import compare_ncfiles
 from .job_tools import seconds, get_user
 from .job import Job, Scheduler
@@ -22,14 +23,15 @@ from .job import Job, Scheduler
 
 
 class WrfHydroTs(list):
-    def open(self):
+    def open(self, chunks: dict = None):
         """Open a WrfHydroTs object
         Args:
             self
+            chunks: chunks argument passed on to xarray.DataFrame.chunk() method
         Returns:
             An xarray mfdataset object concatenated on dimension 'Time'.
         """
-        return(xr.open_mfdataset(self, concat_dim='Time'))
+        return open_nwmdataset(self,chunks=chunks)
 
 
 class WrfHydroStatic(pathlib.PosixPath):
@@ -40,7 +42,7 @@ class WrfHydroStatic(pathlib.PosixPath):
         Returns:
             An xarray dataset object.
         """
-        return (xr.open_dataset(self))
+        return xr.open_dataset(self)
 
 
 #########################
@@ -48,7 +50,7 @@ class WrfHydroStatic(pathlib.PosixPath):
 class WrfHydroModel(object):
     """Class for a WRF-Hydro model, which consitutes the model source code and compiled binary.
     """
-    def __init__(self, source_dir: str):
+    def __init__(self, source_dir: str,model_config: str):
         """Instantiate a WrfHydroModel object.
         Args:
             source_dir: Directory containing the source code, e.g.
@@ -61,6 +63,9 @@ class WrfHydroModel(object):
         # Instantiate all attributes and methods
         self.source_dir = None
         """pathlib.Path: pathlib.Path object for source code directory."""
+        self.model_config = None
+        """str: String indicating model configuration for compile options, must be one of 'NWM', 
+        'Gridded', or 'Reach'."""
         self.hydro_namelists = None
         """dict: Master dictionary of all hydro.namelists stored with the source code."""
         self.hrldas_namelists = None
@@ -98,13 +103,14 @@ class WrfHydroModel(object):
         self.hrldas_namelists = \
             json.load(open(self.source_dir.joinpath('hrldas_namelists.json')))
 
-        ## Load compile options
-        self.compile_options = json.load(open(self.source_dir.joinpath('compile_options.json')))
-
         ## Get code version
         with open(self.source_dir.joinpath('.version')) as f:
             self.version = f.read()
 
+        ## Load compile options
+        self.model_config = model_config
+        compile_options = json.load(open(self.source_dir.joinpath('compile_options.json')))
+        self.compile_options = compile_options[self.version][self.model_config]
 
     def compile(self, compiler: str,
                 compile_dir: str = None,
@@ -116,10 +122,7 @@ class WrfHydroModel(object):
                 'ifort', or 'luna'.
             compile_dir: A non-existant directory to use for compilation.
             overwrite: Overwrite compile directory if exists.
-            compile_options: Changes to default compile-time options. Defaults
-                are {'WRF_HYDRO':1, 'HYDRO_D':1, 'SPATIAL_SOIL':1,
-                     'WRF_HYDRO_RAPID':0, 'WRFIO_NCD_LARGE_FILE_SUPPORT':1,
-                     'NCEP_WCOSS':1, 'WRF_HYDRO_NUDGING':0 }
+            compile_options: Changes to default compile-time options.
         Returns:
             Success of compilation and compile directory used. Sets additional
             attributes to WrfHydroModel
@@ -315,6 +318,19 @@ class WrfHydroSetup(object):
         Returns:
             A WrfHydroSetup object
         """
+
+        # Validate that hte domain and model are compatible
+        if wrf_hydro_model.model_config != wrf_hydro_domain.domain_config:
+            raise TypeError('Model configuration '+
+                            wrf_hydro_model.model_config+
+                            ' not compatible with domain configuration '+
+                            wrf_hydro_domain.domain_config)
+        if wrf_hydro_model.version not in list(wrf_hydro_domain.namelist_patches.keys()):
+            raise TypeError('Model version '+
+                            wrf_hydro_model.versions+
+                            ' not compatible with domain versions '+
+                            str(list(wrf_hydro_domain.namelist_patches.keys())))
+
         # assign objects to self
         self.model = copy.deepcopy(wrf_hydro_model)
         """WrfHydroModel: A copy of the WrfHydroModel object used for the setup"""
@@ -399,6 +415,10 @@ class WrfHydroRun(object):
         """WrfHydroTs: Timeseries dataset of CHRTOUT files"""
         self.chanobs = None
         """WrfHydroTs: Timeseries dataset of CHANOBS files"""
+        self.lakeout = None
+        """WrfHydroTs: Timeseries dataset of LAKEOUT files"""
+        self.gwout = None
+        """WrfHydroTs: Timeseries dataset of GWOUT files"""
         self.restart_hydro = None
         """list: List of HYDRO_RST WrfHydroStatic objects"""
         self.restart_lsm = None
@@ -553,7 +573,6 @@ class WrfHydroRun(object):
 
             # Add the job later
 
-
         # If a job is successfully added you make it here... 
 
         # Set submission-time job variables here.
@@ -652,6 +671,14 @@ class WrfHydroRun(object):
             # for file in self.chanobs:
             #     file.relative_to(file.parent)
 
+        #Get Lakeout files
+        if len(list(self.run_dir.glob('*LAKEOUT*'))) > 0:
+            self.lakeout = WrfHydroTs(list(self.run_dir.glob('*LAKEOUT*')))
+
+        #Get gwout files
+        if len(list(self.run_dir.glob('*GWOUT*'))) > 0:
+            self.gwout = WrfHydroTs(list(self.run_dir.glob('*GWOUT*')))
+
         # Get restart files and sort by modified time
         # Hydro restarts
         self.restart_hydro = []
@@ -662,6 +689,8 @@ class WrfHydroRun(object):
         if len(self.restart_hydro) > 0:
             self.restart_hydro = sorted(self.restart_hydro,
                                         key=lambda file: file.stat().st_mtime_ns)
+        else:
+            self.restart_hydro = None
 
         ### LSM Restarts
         self.restart_lsm = []
@@ -685,7 +714,7 @@ class WrfHydroRun(object):
             self.restart_nudging = sorted(self.restart_nudging,
                                           key=lambda file: file.stat().st_mtime_ns)
         else:
-            self.restart_hydro = None
+            self.restart_nudging = None
 
         self.pickle()    
 
@@ -707,6 +736,18 @@ class WrfHydroRun(object):
         with open(self.run_dir.joinpath('WrfHydroRun.pkl'), 'rb') as f:
             return(pickle.load(f))
 
+
+    def make_relative(self,basepath = None):
+        """Make all file paths relative to a given directory, useful for opening file
+        attributes in a run object after it has been moved or copied to a new directory or
+        system.
+        Args:
+            basepath: The base path to use for relative paths. Defaults to run directory.
+            This rarely needs to be defined.
+        Returns:
+            self with relative files paths for file-like attributes
+        """
+        __make_relative__(run_object=self,basepath=basepath)
 
 class DomainDirectory(object):
     """An object that represents a WRF-Hydro domain directory. Primarily used as a utility class

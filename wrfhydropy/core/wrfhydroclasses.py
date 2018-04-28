@@ -598,15 +598,19 @@ class WrfHydroRun(object):
         # Run/submit the jobs_pending.
         lock_pickle(self)
         job_afterok = None
-
+        hold = True
+        
         for jj in self.jobs_pending:
 
             if jj.scheduler:
 
                 jj.scheduler.afterok = job_afterok
-                jj.schedule(self.run_dir)
+                jj.schedule(self.run_dir, hold=hold)
                 job_afterok = jj.scheduler.sched_job_id
-
+                if hold:
+                    jj.release()
+                    hold = False
+                
             else:
 
                 self.job_active.run(self.run_dir)

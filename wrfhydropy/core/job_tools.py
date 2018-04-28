@@ -4,6 +4,7 @@ import io
 import os
 import pathlib
 import re
+import shlex
 import socket
 import subprocess
 import sys
@@ -428,7 +429,7 @@ def job_status_PBS(jobid=None):
     return status
 
 
-def submit_scheduler(substr, sched_name):
+def submit_scheduler(substr, sched_name, hold=False):
     """Submit a PBS job using qsub.
 
        substr: The submit script string
@@ -450,8 +451,15 @@ def submit_scheduler(substr, sched_name):
     
     if sched_name == 'PBS':
 
-        p = subprocess.Popen( "qsub", stdin=subprocess.PIPE,
-                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        qsub_cmd = "qsub"
+        if hold:
+            qsub_cmd += " -h"
+
+        p = subprocess.Popen( shlex.split(qsub_cmd),
+                              stdin=subprocess.PIPE,
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT)
+        
         stdout, stderr = p.communicate(input=substr)
         if re.search("error", stdout.decode('utf-8')):
             raise PBSError(0, "PBS Submission error.\n" + stdout + "\n" + stderr)
@@ -496,12 +504,13 @@ def hold(jobid, sched_name):
     return(generic_popen([cmd, jobid]))
 
 
-def release(jobid):
+def release(sched):
     """qrls (PBS) or scontrol un-delay (slurm) a job."""
-    if sched_name == 'PBS':
-        cmd_list = ['qhold', jobid]
-    if sched_name == 'slurm':
-        cmd_list = ["scontrol", "update", "JobId=", jobid, "StartTime=", "now"]
+    
+    if sched.sched_name == 'PBS':
+        cmd_list = ['qrls', sched.sched_job_id]
+    if sched.sched_name == 'slurm':
+        cmd_list = ["scontrol", "update", "JobId=", sched.sched_job_id, "StartTime=", "now"]
     return(generic_popen(cmd_list))
 
 

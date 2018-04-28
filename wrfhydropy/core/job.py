@@ -13,7 +13,9 @@ from .job_tools import \
     core_dir, default_job_spec, \
     compose_scheduled_python_script, \
     compose_scheduled_bash_script
+from .job_tools import release as jt_release
 
+    
 class Scheduler(object):
     """A PBS/torque or slurm scheduler Job object.
 
@@ -338,6 +340,7 @@ class Job(object):
     def schedule(
         self,
         run_dir,
+        hold: bool=False
     ) -> object:
         """Scheulde a run of the wrf_hydro simulation
         Args:
@@ -345,9 +348,11 @@ class Job(object):
         """
 
         # Deal with the shared queue here, since it affects both scripts.
-        if get_machine() == 'cheyenne' and self.scheduler.nnodes-1 == 0:
+        if get_machine() == 'cheyenne' and \
+           self.scheduler.nnodes-1 == 0 and \
+           self.scheduler.nproc_last_node <= 18:
             self.scheduler.queue = 'share'
-            warnings.warn("Less than a node requested, using the 'share' queue.")
+            warnings.warn("Less than 18 procesors requested, using the 'share' queue.")
             find='mpiexec_mpt'
             repl='mpirun {hostname} -np ' + str(self.nproc)
             self.exe_cmd = self.exe_cmd.replace(find, repl)
@@ -361,8 +366,6 @@ class Job(object):
         py_run_cmd = "python " + py_script_name + \
                      " --sched_job_id $sched_job_id --job_date_id $job_date_id"
 
-        print('model_exe_cmd: ', model_exe_cmd)
-        
         # This needs to happen before composing the scripts.
         self.scheduler.not_submitted = False
 
@@ -381,7 +384,8 @@ class Job(object):
         try:
 
             self.scheduler.sched_job_id = submit_scheduler(substr=bytearray(jobstr, 'utf-8'),
-                                                           sched_name=self.scheduler.sched_name)
+                                                           sched_name=self.scheduler.sched_name,
+                                                           hold=hold)
 
         except PBSError as e:
             self.scheduler.not_submitted = True
@@ -389,6 +393,10 @@ class Job(object):
 
         # TODO(JLM): should make this a helper method
         touch(str(run_dir) + '/.job_not_complete')
+
+
+    def release(self):
+        return(jt_release(self.scheduler))
 
 
     def run(self, run_dir):

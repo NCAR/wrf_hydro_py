@@ -99,7 +99,7 @@ run_sched.add_job(job_sched)
 run_sched.run_jobs()
 
 
-run_sched = None
+del run_sched
 import pickle
 with open(run_sched_dir + '/WrfHydroRun.pkl', 'rb') as f:
     r = pickle.load(f)

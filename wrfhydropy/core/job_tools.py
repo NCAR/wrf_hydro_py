@@ -727,10 +727,242 @@ def job_status_slurm(jobid=None):
 
 def default_job_spec(machine='docker'):
     if machine != 'docker':
-        warnings.warn("Default job sepcs do not really make sense except for docker.")
+        warnings.warn("Default job sepcs do not currently make sense except for docker.")
     default_job_specs_file = core_dir / 'default_job_specs.yaml'
     with open(default_job_specs_file) as ff:
         default_job_specs = yaml.safe_load(ff)
     default_job_spec = default_job_specs[machine]
     default_job_spec['exe_cmd'] = default_job_spec['exe_cmd']['default']
     return default_job_spec
+
+
+def compose_scheduled_python_script(
+    py_run_cmd: str,
+    model_exe_cmd: str
+):
+    jobstr  = "#!/usr/bin/env python\n"
+    jobstr += "\n"
+
+    jobstr += "import argparse\n"
+    jobstr += "import datetime\n"
+    jobstr += "import os\n"
+    jobstr += "import pickle\n"
+    jobstr += "import sys\n"
+    jobstr += "import wrfhydropy\n"
+    jobstr += "\n"
+
+    jobstr += "parser = argparse.ArgumentParser()\n"
+    jobstr += "parser.add_argument('--sched_job_id',\n"
+    jobstr += "                    help='The numeric part of the scheduler job ID.')\n"
+    jobstr += "parser.add_argument('--job_date_id',\n"
+    jobstr += "                    help='The date-time identifier created by Schduler obj.')\n"
+    jobstr += "args = parser.parse_args()\n"
+    jobstr += "\n"
+
+    jobstr += "print('sched_job_id: ', args.sched_job_id)\n"
+    jobstr += "print('job_date_id: ', args.job_date_id)\n"
+    jobstr += "\n"
+
+    jobstr += "run_object = pickle.load(open('WrfHydroRun.pkl', 'rb'))\n"
+    jobstr += "\n"
+
+    jobstr += "# The lowest index jobs_pending should be the job to run. Verify that it \n"
+    jobstr += "# has the same job_date_id as passed first, then set job to active.\n"
+    jobstr += "if run_object.job_active:\n"
+    jobstr += "    msg = 'There is an active job conflicting with this scheduled job.'\n"
+    jobstr += "    raise ValueError(msg)\n"
+    jobstr += "if not run_object.jobs_pending[0].job_date_id == args.job_date_id:\n"
+    jobstr += "    msg = 'The first pending job does not match the passed job_date_id.'\n"
+    jobstr += "    raise ValueError(msg)\n"
+    jobstr += "\n"
+
+    jobstr += "# Promote the job to active.\n"
+    jobstr += "run_object.job_active = run_object.jobs_pending.pop(0)\n"
+
+    jobstr += "# Set some run-time attributes of the job.\n"
+    jobstr += "run_object.job_active.py_exe_cmd = \"" + py_run_cmd + "\"\n"
+    jobstr += "run_object.job_active.scheduler.sched_job_id = args.sched_job_id\n"
+    jobstr += "run_object.job_active.exe_cmd = \"" + model_exe_cmd + "\"\n"
+    jobstr += "# Pickle before running the job.\n"
+    jobstr += "run_object.pickle()\n"
+    jobstr += "\n"
+
+    jobstr += "print(\"Running the model.\")\n"
+    jobstr += "run_object.job_active.job_start_time = str(datetime.datetime.now())\n"
+    jobstr += "run_object.job_active.run(run_object.run_dir)\n"
+    jobstr += "run_object.job_active.job_start_time = str(datetime.datetime.now())\n"
+    jobstr += "\n"
+
+    jobstr += "print(\"Collecting model output.\")\n"
+    jobstr += "run_object.collect_output()\n"
+    jobstr += "print(\"Job completed.\")\n"
+    jobstr += "\n"
+
+    jobstr += "run_object.job_active._sched_job_complete = True\n"
+    jobstr += "run_object.jobs_completed.append(run_object.job_active)\n"
+    jobstr += "run_object.job_active = None\n"
+    jobstr += "run_object.pickle()\n"
+    jobstr += "\n"
+
+    return jobstr
+
+
+def compose_scheduled_bash_script(
+        run_dir: str,
+        job: object
+):
+    """ Write Job as a string suitable for job.scheduler.sched_name """
+
+    if job.scheduler.sched_name.lower() == "slurm":
+        ###Write this Job as a string suitable for slurm
+        ### NOT USED:
+        ###    exetime
+        ###    priority
+        ###    auto
+        jobstr = "#!/bin/bash\n"
+
+        ## FROM DART for job arrays.
+        #JOBNAME=$SLURM_JOB_NAME
+        #JOBID=$SLURM_JOBID
+        #ARRAY_INDEX=$SLURM_ARRAY_TASK_ID
+        #NODELIST=$SLURM_NODELIST
+        #LAUNCHCMD="mpirun -np $SLURM_NTASKS -bind-to core"
+
+        jobstr += "#SBATCH -J {0}\n".format(job.scheduler.job_name)
+        if job.scheduler.account is not None:
+            jobstr += "#SBATCH -A {0}\n".format(job.scheduler.account)
+        jobstr += "#SBATCH -t {0}\n".format(job.scheduler.walltime)
+        jobstr += "#SBATCH -n {0}\n".format(job.scheduler.nnodes*job.scheduler.ppn)
+        if job.scheduler.pmem is not None:
+            jobstr += "#SBATCH --mem-per-cpu={0}\n".format(job.scheduler.pmem)
+        if job.scheduler.qos is not None:
+            jobstr += "#SBATCH --qos={0}\n".format(job.scheduler.qos)
+        if job.scheduler.email != None and job.scheduler.message != None:
+            jobstr += "#SBATCH --mail-user={0}\n".format(job.scheduler.email)
+            if 'b' in job.scheduler.message:
+                jobstr += "#SBATCH --mail-type=BEGIN\n"
+            if 'e' in job.scheduler.message:
+                jobstr += "#SBATCH --mail-type=END\n"
+            if 'a' in job.scheduler.message:
+                jobstr += "#SBATCH --mail-type=FAIL\n"
+        # SLURM does assignment to no. of nodes automatically
+        # jobstr += "#SBATCH -N {0}\n".format(job.scheduler.nodes)
+        if job.scheduler.queue is not None:
+            jobstr += "#SBATCH -p {0}\n".format(job.scheduler.queue)
+        jobstr += "{0}\n".format(job.exe_cmd)
+
+        return jobstr
+
+    else:
+
+        # Write this Job as a string suitable for PBS #
+
+        jobstr = ""            
+        jobstr += "#!/bin/sh\n"
+        jobstr += "#PBS -N {0}\n".format(job.scheduler.job_name)
+        jobstr += "#PBS -A {0}\n".format(job.scheduler.account)
+        jobstr += "#PBS -q {0}\n".format(job.scheduler.queue)
+        jobstr += "#PBS -M {0}\n".format(job.scheduler.email_who)
+        jobstr += "#PBS -m {0}\n".format(job.scheduler.email_when)
+        jobstr += "\n"
+
+        jobstr += "#PBS -l walltime={0}\n".format(job.scheduler.walltime)
+        jobstr += "\n"
+
+        if job.scheduler.nproc_last_node == 0:
+            prcstr = "select={0}:ncpus={1}:mpiprocs={1}\n"
+            prcstr = prcstr.format(job.scheduler.nnodes, job.scheduler.ppn)
+        else:
+            prcstr = "select={0}:ncpus={1}:mpiprocs={1}+1:ncpus={2}:mpiprocs={2}\n"
+            prcstr = prcstr.format(job.scheduler.nnodes-1,
+                                   job.scheduler.ppn,
+                                   job.scheduler.nproc_last_node)
+
+        jobstr += "#PBS -l " + prcstr
+        jobstr += "\n"
+
+        jobstr += "# Not using PBS standard error and out files to capture model output\n"
+        jobstr += "# but these hidden files might catch output and errors from the scheduler.\n"
+        jobstr += "#PBS -o {0}\n".format(job.stdout_pbs_tmp(run_dir))
+        jobstr += "#PBS -e {0}\n".format(job.stderr_pbs_tmp(run_dir))
+        jobstr += "\n"
+
+        if job.scheduler.afterok:
+            jobstr += "#PBS -W depend=afterok:{0}\n".format(job.scheduler.afterok)
+        if job.scheduler.array_size:
+            jobstr += "#PBS -J 1-{0}\n".format(job.scheduler.array_size)
+        if job.scheduler.exetime:
+            jobstr += "#PBS -a {0}\n".format(job.scheduler.exetime)
+        if job.scheduler.pmem:
+            jobstr += "#PBS -l pmem={0}\n".format(job.scheduler.pmem)
+        if job.scheduler.grab_env:
+            jobstr += "#PBS -V\n"
+        if job.scheduler.array_size or \
+           job.scheduler.exetime or \
+           job.scheduler.pmem or \
+           job.scheduler.grab_env:
+            jobstr += "\n"
+
+        # End PBS Header
+
+        if job.modules:
+            jobstr += 'module purge\n'
+            jobstr += 'module load {0}\n'.format(job.modules)
+            jobstr += "\n"
+
+        jobstr += "echo PBS_JOBID: $PBS_JOBID\n"
+        jobstr += "sched_job_id=`echo ${PBS_JOBID} | cut -d'.' -f1`\n"
+        jobstr += "echo sched_job_id: $sched_job_id\n"
+        jobstr += "job_date_id={0}\n".format(job.job_date_id)
+        jobstr += "echo job_date_id: $job_date_id\n"
+        jobstr += "\n"
+
+        jobstr += "export TMPDIR=/glade/scratch/$USER/temp\n"
+        jobstr += "mkdir -p $TMPDIR\n"
+
+        if job.scheduler.queue == 'share':
+            jobstr += "export MPI_USE_ARRAY=false\n"
+
+        jobstr += "cd {0}\n".format(run_dir)
+        jobstr += "echo \"pwd:\" `pwd`\n"
+        jobstr += "\n"
+
+        jobstr += "# DART job variables for future reference\n"
+        jobstr += "# JOBNAME=$PBS_JOBNAME\n"
+        jobstr += "# JOBID=\"$PBS_JOBID\"\n"
+        jobstr += "# ARRAY_INDEX=$PBS_ARRAY_INDEX\n"
+        jobstr += "# NODELIST=`cat \"${PBS_NODEFILE}\"`\n"
+        jobstr += "# LAUNCHCMD=\"mpiexec_mpt\"\n"
+        jobstr += "# \n"
+
+        jobstr += "# CISL suggests users set TMPDIR when running batch jobs on Cheyenne.\n"
+        jobstr += "export TMPDIR=/glade/scratch/$USER/temp\n"
+        jobstr += "mkdir -p $TMPDIR\n"
+        jobstr += "\n"
+
+        exestr  = "{0} ".format(job.exe_cmd)
+        exestr += "2> {0} 1> {1}".format(job.stderr_exe(run_dir), job.stdout_exe(run_dir))
+        jobstr += "echo \"" + exestr + "\"\n"
+        jobstr += exestr + "\n"
+        jobstr += "\n"
+
+        jobstr += "mpi_return=$?\n"
+        jobstr += "echo \"mpi_return: $mpi_return\"\n"
+        jobstr += "\n"
+
+        jobstr += "# Touch these files just to get the job_date_id in their file names.\n"
+        jobstr += "# Can identify the files by sched_job_id and replace contents...\n"
+        jobstr += "touch {0}\n".format(job.tracejob_file(run_dir))
+        jobstr += "touch {0}\n".format(job.stdout_pbs(run_dir))
+        jobstr += "touch {0}\n".format(job.stderr_pbs(run_dir))
+        jobstr += "\n"
+
+        jobstr += "# Simple, file-based method for checking if the job is done.\n"
+        jobstr += "# qstat is a bad way of doing this, apparently.\n"
+        jobstr += "rm .job_not_complete\n"
+        jobstr += "\n"
+
+        ## TODO(JLM): the tracejob execution gets called by the waiting process.
+        jobstr += "exit $mpi_return\n"
+        
+        return jobstr

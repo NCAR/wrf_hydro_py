@@ -2,21 +2,20 @@ import copy
 import datetime
 import f90nml
 import json
-import os
 import pathlib
 import pickle
-from shlex import split as shlex_split
 import shutil
 import subprocess
-from time import sleep
 import uuid
 import warnings
 import xarray as xr
 
-from .utilities import compare_ncfiles, open_nwmdataset, __make_relative__
-from .utilities import compare_ncfiles
-from .job_tools import seconds, get_user
-from .job import Job, Scheduler
+from .utilities import \
+    compare_ncfiles, open_nwmdataset, \
+    __make_relative__ , lock_pickle, \
+    unlock_pickle, is_pickle_locked
+from .job_tools import get_user
+from .job import Job
 
 #########################
 # netcdf file object classes
@@ -374,8 +373,6 @@ class WrfHydroSetup(object):
                                                          ['wrf_hydro_offline'])
 
 
-
-
 class WrfHydroRun(object):
     def __init__(
         self,
@@ -429,6 +426,9 @@ class WrfHydroRun(object):
         self.object_id = None
         """str: A unique id to join object to run directory."""
 
+        self._pickle_lock_file = None
+        """pathlib.PosixPath: The pickle lock file path."""
+        
         # Establish the values. 
         
         # TODO(JLM): Check that the setup object is "complete".
@@ -526,10 +526,7 @@ class WrfHydroRun(object):
 
     def add_job(
         self,
-        job: Job,
-        model_start_time: str=None,
-        model_end_time: str=None,
-        model_restart: bool=True
+        jobs
     ):
         """Dispatch a run the wrf_hydro setup: either run() or schedule_run()
         If a scheduler is passed, then that run is scheduled. 
@@ -539,113 +536,87 @@ class WrfHydroRun(object):
             A WrfHydroRun object
         """
 
-        # Attempt to add the job
-        if job.scheduler:
+        # Dont tamper with the passed object, let it remain a template in the calling level.
+        jobs = copy.deepcopy(jobs)
 
-            # A scheduled job can be appended to the jobs.pending list if
-            # 1) there are no active or pending jobs
-            # 2) if it is (made) dependent on the last active or pending job.
+        if type(jobs) is not list:
+            jobs = [jobs]
 
-            # Get the job id of the last active or pending job.
-            last_job_id = None
-            if self.job_active:
-                last_job_id = self.job_active.jobID
-            if len(self.jobs_pending):
-                last_job_id = self.jobs_pending[-1].jobID
+        for jj in jobs:
+            # Attempt to add the job
+            if jj.scheduler:
 
-            # Check the dependency on a previous job
-            if last_job_id is not None:
-                if job.scheduler.afterok is not None and job.scheduler.afterok != last_job_id:
-                    raise ValueError("The job's specified dependency/afterok conflicts with reality.")
-                job.scheduler.afterok = last_job_id
-            else: 
-                if job.scheduler.afterok is not None:
-                    raise ValueError("The job's specified dependency/afterok conflicts with reality.")
+                # A scheduled job can be appended to the jobs.pending list if
+                # 1) there are no active or pending jobs
+                # 2) if it is (made) dependent on the last active or pending job.
 
-            # Add the job later
+                # Get the job id of the last active or pending job.
+                last_job_id = None
+                if self.job_active:
+                    last_job_id = self.job_active.sched_job_id
+                if len(self.jobs_pending):
+                    last_job_id = self.jobs_pending[-1].sched_job_id
+
+                # Check the dependency on a previous job
+                if last_job_id is not None:
+                    if jj.scheduler.afterok is not None and jj.scheduler.afterok != last_job_id:
+                        raise ValueError("The job's dependency/afterok conflicts with reality.")
+                    jj.scheduler.afterok = last_job_id
+                else: 
+                    if jj.scheduler.afterok is not None:
+                        raise ValueError("The job's dependency/afterok conflicts with reality.")
+
+            else:
+
+                # an interactive job can be made the active job if there is no current or pending job.
+                if self.job_active or len(self.jobs_pending):
+                    raise ValueError("Interactive jobs cannot be added when other jobs are" +
+                                     " active or pending.")
+
+            # Set submission-time job variables here.
+            jj.user = get_user()
+            job_submission_time = datetime.datetime.now()
+            jj.job_submission_time = str(job_submission_time)
+            jj.job_date_id = '{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=job_submission_time)
             
-        else:
+            # Add a namelist to each job satisfying the model start/end times and restart options
+            # in the job object?
+            # Determine a different job_name?
+            # Tag the namelists with the job name?
 
-            # an interactive job can be made the active job if there is no current or pending job.
-            if self.job_active or len(self.jobs_pending):
-                raise ValueError("Interactive jobs cannot be added when other jobs are" +
-                                 " active or pending.")
+            # TODO(JLM): 
+            # Edit the namelists with model start/end times and if restarting.
+            # Stash the namelists in the job.
+            # This begs for consistency check across jobs: start previous job = end current job
 
-            # Add the job later
+            self.jobs_pending.append(jj)
 
-        # If a job is successfully added you make it here... 
 
-        # Set submission-time job variables here.
-        job.user = get_user()
-        job_submission_time = datetime.datetime.now()
-        job.job_submission_time = str(job_submission_time)
-        job.job_date_id = '{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=job_submission_time)
+    def run_jobs(self):
+        # Make sure there are no active jobs?
+        
+        # Run/submit the jobs_pending.
+        lock_pickle(self)
+        job_afterok = None
 
-        # TODO(JLM): 
-        # Edit the namelists with model start/end times and if restarting.
-        # Stash the namelists in the job.
-        # This begs for consistency check across jobs: start previous job = end current job
+        for jj in self.jobs_pending:
 
-        # Add a deepcopy of the job to the run object.
-        if job.scheduler:
-            self.jobs_pending.append(copy.deepcopy(job))
-        else:
-            self.job_active = copy.deepcopy(job)
+            if jj.scheduler:
 
-        # Archive the run object with the added job to disk/pickle.
+                jj.scheduler.afterok = job_afterok
+                jj.schedule(self.run_dir)
+                job_afterok = jj.scheduler.sched_job_id
+
+            else:
+
+                self.job_active.run(self.run_dir)
+                self.collect_output()
+                self.jobs_completed.append(self.job_active)
+                self.job_active = None
+
         self.pickle()
-
-        # TODO(JLM): 
-        # self.pickle() -- # TODO(JLM):????? What happens to the state of the files??
-        # can this pickle just update the jobs?
-        # can jobs be added to runs with active jobs?
-        # maybe all jobs have to be established first?
-        # how to avoid clashes accessing the object between the run and any
-        # modifications of the run? have a picke lock file?
-
-        # Run/submit the job.
-        if job.scheduler:
-
-            # The self argument is the run object, the job object already has itself.
-            self.jobs_pending[-1].schedule(self.run_dir)
-
-            # Taking this out for complexity sakes... but leaving code here until
-            # we make a firm decision about pursuing it.
-            # #optional: monitor the job and self.unpickle
-            # # TODO JLM: seems lke this wait can be abstracted to function. >>>
-            # if wait_for_complete:
-
-            #     #print( the scheduler name?
-            #     print("Waiting for scheduled job " +
-            #           str(run_object.scheduler.sched_job_id) +
-            #           " to complete. /n" +
-            #           "(d=dependent, q=queued, r=running : 1/" +
-            #           str(monitor_freq_s) +"seconds):", end = "", flush=True)
-
-            #     while not run_object.scheduler.job_complete:
-            #         sleep(monitor_freq_s)
-            #         if not os.path.isfile(run_dir + '/.job_not_complete'):
-            #             sym = 'r'
-            #         else:
-            #             sym = 'q'
-            #             ## TODO JLM: add "d" to indicate waiting for dependency.
-            #             print(sym, end="", flush=True)
-                        
-            #         print('')
-            #         # TODO JLM: seems like this wait can be abstracted to function. <<<
-
-            #     # Part of the wait_for_complete if statement, this updates the
-            #     # TODO(JLM): I DONT THINK THIS WORKS. IS THIS A CASE FOR SELF.__DICT__.UPDATE()?
-            #     self = run_object.unpickle()
-
-            # TODO(JLM): When will this job be moved to the active list and the completed list?
-
-        else:
-
-            self.job_active.run(self.run_dir)
-            self.collect_output()
-            self.jobs_completed.append(self.job_active)
-            self.job_active = None
+        unlock_pickle(self)
+        self.destruct()
 
 
     def collect_output(self):
@@ -737,6 +708,11 @@ class WrfHydroRun(object):
             return(pickle.load(f))
 
 
+    def destruct(self):
+        # This gets rid of everything but the methods.
+        self.__dict__ = {}
+
+
     def make_relative(self,basepath = None):
         """Make all file paths relative to a given directory, useful for opening file
         attributes in a run object after it has been moved or copied to a new directory or
@@ -748,6 +724,7 @@ class WrfHydroRun(object):
             self with relative files paths for file-like attributes
         """
         __make_relative__(run_object=self,basepath=basepath)
+
 
 class DomainDirectory(object):
     """An object that represents a WRF-Hydro domain directory. Primarily used as a utility class

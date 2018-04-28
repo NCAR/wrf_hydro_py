@@ -11,13 +11,14 @@
 #     --volumes-from croton \
 #     wrfhydro/dev:conda
 
-# Inside docker
-cd ~/WRF_Hydro/wrf_hydro_py/
-pip uninstall -y wrfhydropy
-python setup.py develop
-pip install boltons termcolor
-python
+# # Inside docker
+# cd ~/WRF_Hydro/wrf_hydro_py/
+# pip uninstall -y wrfhydropy
+# python setup.py develop
+# pip install boltons termcolor
+# python
 
+from wrfhydropy import *
 
 import copy
 import os
@@ -25,7 +26,6 @@ from pprint import pprint
 import re
 from socket import gethostname
 import sys
-from wrfhydropy import *
 
 home = os.path.expanduser("~/")
 sys.path.insert(0, home + '/WRF_Hydro/wrf_hydro_tests/toolbox/')
@@ -73,6 +73,47 @@ user_spec_file = home + '/WRF_Hydro/wrf_hydro_tests/template_user_spec.yaml'
 # ######################################################
 # ######################################################
 
+# #######################################################
+# Add two scheduled runs on cheyenne
+job_args = get_job_args_from_specs(
+    job_name='test_job',
+    nnodes=1,
+    nproc=2,
+    mode='w',
+    machine_spec_file=machine_spec_file,
+    user_spec_file=user_spec_file,
+    candidate_spec_file=candidate_spec_file
+)
+
+job_sched = Job( **job_args )
+job_sched.scheduler.walltime = '00:01:00'
+
+run_sched_dir = "/glade/scratch/jamesmcc/test_sched"
+run_sched = WrfHydroRun(
+    the_setup,
+    run_sched_dir,
+    rm_existing_run_dir=True
+)
+
+run_sched.add_job(job_sched)
+run_sched.run_jobs()
+
+
+run_sched = None
+import pickle
+with open(run_sched_dir + '/WrfHydroRun.pkl', 'rb') as f:
+    r = pickle.load(f)
+assert len(r.chanobs) == 168
+
+sys.exit()
+
+
+
+
+
+
+
+
 
 # #######################################################
 # Check setting of job.nproc vs that of job.scheduler.nproc
@@ -116,37 +157,6 @@ assert len(run_interactive.chanobs) == 24  # croton_lite
 
 sys.exit()
 
-# #######################################################
-# Add two scheduled runs on cheyenne
-job_args = get_job_args_from_specs(
-    job_name='test_job',
-    nnodes=1,
-    nproc=2,
-    mode='w',
-    machine_spec_file=machine_spec_file,
-    user_spec_file=user_spec_file,
-    candidate_spec_file=candidate_spec_file
-)
-
-job_sched = Job( **job_args )
-job_sched.scheduler.walltime = '00:01:00'
-
-run_sched_dir = "/glade/scratch/jamesmcc/test_sched"
-run_sched = WrfHydroRun(
-    the_setup,
-    run_sched_dir,
-    rm_existing_run_dir=True
-)
-
-run_sched.add_job(job_sched)
-
-run_sched = None
-import pickle
-with open(run_sched_dir + '/WrfHydroRun.pkl', 'rb') as f:
-    r = pickle.load(f)
-assert len(r.chanobs) == 168
-
-sys.exit()
 
 # #######################################################
 # An interactive run on cheyenne

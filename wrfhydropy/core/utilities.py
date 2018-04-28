@@ -1,11 +1,14 @@
 import deepdiff
 import f90nml
 import io
+import os
 import pandas as pd
 import pathlib
 import subprocess
 import warnings
 import xarray as xr
+
+from .job_tools import touch
 
 def compare_nc_nccmp(candidate_nc: str,
                      reference_nc: str,
@@ -203,4 +206,32 @@ def __make_relative__(run_object, basepath=None):
             __make_relative__(run_object.simulation.domain,
                           basepath=run_object.simulation.domain.domain_top_dir)
 
-            
+
+def get_pickle_lock_file(run_obj):
+    return run_obj.run_dir / 'pickle_locked'
+
+
+def lock_pickle(run_obj):
+    if is_pickle_locked(run_obj):
+        raise ValueError('The pickle file, ' + run_obj.run_dir + ', is already locked')
+    pickle_lock_file = get_pickle_lock_file(run_obj)
+    touch(pickle_lock_file)
+    run_obj._pickle_lock_file = pickle_lock_file
+
+
+def unlock_pickle(run_obj):
+    if not is_pickle_locked(run_obj):
+        raise ValueError('The pickle file, ' + run_obj.run_dir + ', is already unlocked')
+    pickle_lock_file = get_pickle_lock_file(run_obj)
+    os.remove(pickle_lock_file)
+    run_obj._pickle_lock_file = None
+
+
+def is_pickle_locked(run_obj):
+    internal_lock = run_obj._pickle_lock_file is not None
+    pickle_lock_file = get_pickle_lock_file(run_obj)
+    external_lock = pickle_lock_file.exists()
+    total_lock = internal_lock + external_lock
+    if total_lock == 1:
+        raise ValueError('The internal_lock must match external_lock.')
+    return bool(total_lock)

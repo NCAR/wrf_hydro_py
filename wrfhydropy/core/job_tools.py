@@ -973,5 +973,67 @@ def compose_scheduled_bash_script(
 
         ## TODO(JLM): the tracejob execution gets called by the waiting process.
         jobstr += "exit $mpi_return\n"
-        
+
         return jobstr
+
+def solve_model_start_end_times(model_start_time, model_end_time, setup_obj):
+
+    # model_start_time
+    if model_start_time is None:
+
+        # Get the namelist from the sim_object
+        nlst_noah =setup_obj.namelist_hrldas['noahlsm_offline']
+        start_noah_keys = {'year':'start_year', 'month':'start_month',
+                      'day':'start_day', 'hour':'start_hour', 'minute':'start_min'}
+        start_noah_times = { kk:nlst_noah[vv] for (kk, vv) in start_noah_keys.items() } 
+        model_start_time = datetime.datetime(**start_noah_times)
+
+    elif type(model_start_time) is str:
+
+        # Allow minutes to be optional
+        if not bool(re.match('.*:.*', model_start_time)):
+            model_start_time += ':00'
+        model_start_time = datetime.datetime.strptime(model_start_time, '%Y-%m-%d %H:%M')
+
+    elif type(model_start_time) is not datetime.datetime:
+
+        raise TypeError('model_start_time is NOT one of type: None, str, or datetime.datetime')
+
+    # model_end_time
+    if type(model_end_time) is datetime.datetime:
+
+        pass
+    
+    elif model_end_time is None:
+
+        # get one of kday or khour, convert it to timedelta
+        nlst_noah = setup_obj.namelist_hrldas['noahlsm_offline']
+        if 'khour' in nlst_noah.keys():
+            duration = {'hours': nlst_noah['khour']}
+        elif 'kday' in nlst_noah.keys():
+            duration = {'days': nlst_noah['kday']}
+        else:
+            raise ValueError("Neither KDAY nor KHOUR in the setup's namelist.hrldas.")
+        model_end_time = model_start_time + datetime.timedelta(**duration)
+
+    elif type(model_end_time) is str:
+        
+        # Allow minutes to be optional
+        if not bool(re.match('.*:.*', model_end_time)):
+            model_end_time += ':00'
+        model_end_time = datetime.datetime.strptime(model_end_time, '%Y-%m-%d %H:%M')
+
+    elif type(model_end_time) is datetime.timedelta:
+
+        model_end_time = model_start_time + model_end_time
+
+    elif type(model_end_time) is dict:
+        
+        model_end_time = model_start_time + datetime.timedelta(**model_end_time)
+
+    else:
+
+        raise TypeError('model_end_time is NOT one of type: datetime.datetime, ' + 
+                        'None, str, datetime.timedelta, dict.')
+
+    return model_start_time, model_end_time

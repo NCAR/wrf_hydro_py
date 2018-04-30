@@ -1,17 +1,28 @@
 # docker pull wrfhydro/domains:croton_NY
-# docker pull wrfhydro/dev
+# docker pull wrfhydro/dev:conda
 
 # docker create --name croton wrfhydro/domains:croton_NY
 # # When done with the container: docker rm -v croton
 
+# export WRF_HYDRO_DIR=~/WRF_Hydro
+# if [ $HOSTNAME == *"chimayo"* ]; then
+#   export PUBLIC_DIR=/Volumes/d1/chimayoSpace/git_repos/wrf_hydro_nwm_public:/home/docker/wrf_hydro_nwm_public
+# else
+#   export PUBLIC_DIR=${WRF_HYDRO_DIR}/wrf_hydro_nwm_public:/wrf_hydro_nwm_public
+# fi
+
 # docker run -it \
 #     -e WRF_HYDRO_TESTS_USER_SPEC='/home/docker/WRF_Hydro/wrf_hydro_tests/template_user_spec.yaml' \
-#     -v /Users/jamesmcc/WRF_Hydro:/home/docker/WRF_Hydro \
-#     -v /Volumes/d1/chimayoSpace/git_repos/wrf_hydro_nwm_public:/home/docker/wrf_hydro_nwm_public \
+#     -v ${WRF_HYDRO_DIR}:/home/docker/WRF_Hydro \
+#     -v ${PUBLIC_DIR} \
 #     --volumes-from croton \
 #     wrfhydro/dev:conda
 
 # # Inside docker
+# if [ ! -e /home/docker/wrf_hydro_nwm_public ]; then
+#   cp -r /wrf_hydro_nwm_public /home/docker/wrf_hydro_nwm_public
+# fi
+  
 # cd ~/WRF_Hydro/wrf_hydro_py/
 # pip uninstall -y wrfhydropy
 # python setup.py develop
@@ -21,16 +32,17 @@
 from wrfhydropy import *
 
 import copy
+import datetime
 import os
 from pprint import pprint
 import re
 from socket import gethostname
 import sys
 
-home = os.path.expanduser("~/")
-sys.path.insert(0, home + '/WRF_Hydro/wrf_hydro_tests/toolbox/')
-from establish_specs import establish_spec
-from establish_job import get_job_args_from_specs
+#home = os.path.expanduser("~/")
+#sys.path.insert(0, home + '/WRF_Hydro/wrf_hydro_tests/toolbox/')
+#from establish_specs import establish_spec
+#from establish_job import get_job_args_from_specs
 
 machine = job_tools.get_machine()
 if machine == 'cheyenne':
@@ -39,7 +51,7 @@ if machine == 'cheyenne':
     run_dir = "/glade/scratch/jamesmcc/test_dir"
 else:
     model_path = '/home/docker'
-    domain_path = '/home/docker/domain/croton_lite'
+    domain_path = '/home/docker/domain/croton_NY'
     run_dir = "/home/docker/test_dir"
 
 
@@ -64,14 +76,63 @@ the_setup = WrfHydroSetup(
 
 # #######################################################
 # Use these to build Jobs
-machine_spec_file = home +'/WRF_Hydro/wrf_hydro_tests/machine_spec.yaml'
-candidate_spec_file = home + '/WRF_Hydro/wrf_hydro_tests/template_candidate_spec.yaml'
-user_spec_file = home + '/WRF_Hydro/wrf_hydro_tests/template_user_spec.yaml'
+#machine_spec_file = home +'/WRF_Hydro/wrf_hydro_tests/machine_spec.yaml'
+#candidate_spec_file = home + '/WRF_Hydro/wrf_hydro_tests/template_candidate_spec.yaml'
+#user_spec_file = home + '/WRF_Hydro/wrf_hydro_tests/template_user_spec.yaml'
 
 
 # ######################################################
 # ######################################################
 # ######################################################
+
+# ######################################################
+# a default docker Job
+# Try a default job
+
+# run_interactive_2 = WrfHydroRun(
+#     the_setup,
+#     run_dir,
+#     rm_existing_run_dir = True,
+#     job=Job(nproc=2)
+# )
+
+
+# run_interactive_2.run_jobs()
+
+# assert len(run_interactive_2.chanobs) == 168  
+
+# ######
+
+run_interactive_3 = WrfHydroRun(
+    the_setup,
+    run_dir,
+    rm_existing_run_dir = True,
+)
+
+
+time_0 = datetime.datetime(2011, 8, 26, 0, 0)
+time_1 = time_0 + datetime.timedelta(days=2)
+time_2 = time_1 + datetime.timedelta(days=5)
+
+j0 = Job(
+    nproc=2,
+    model_start_time=time_0,
+    model_end_time=time_1
+)
+
+j1 = Job(
+    nproc=2,
+    model_start_time=time_1,
+    model_end_time=time_2
+)
+
+run_interactive_3.add_job([j0,j1])
+run_interactive_3.run_jobs()
+
+assert len(run_interactive_3.chanobs) == 7*24
+
+sys.exit()
+
 
 # #######################################################
 # Add two scheduled runs on cheyenne
@@ -108,31 +169,10 @@ assert len(r.chanobs) == 168
 sys.exit()
 
 
-
-
-
-
-
-
-
 # #######################################################
 # Check setting of job.nproc vs that of job.scheduler.nproc
 
 
-# ######################################################
-# A default docker Job
-# Try a default job
-
-run_interactive_2 = WrfHydroRun(
-    the_setup,
-    run_dir,
-    rm_existing_run_dir = True,
-    job=Job(nproc=2)
-)
-
-run_interactive_2.add_job(Job(nproc=2))
-
-assert len(run_interactive_2.chanobs) == 24  # croton_lite
 
 # #################################
 # A bit less defaultish

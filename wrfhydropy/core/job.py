@@ -1,4 +1,5 @@
 import datetime
+import f90nml
 import math
 import os
 import pathlib
@@ -253,6 +254,12 @@ class Job(object):
         self.hydro_namelist = None
         """dict: the hydro namelist used for this job."""
 
+        self.namelist_hrldas_file = None
+        """dict: the file containing the HRLDAS namelist used for this job."""
+        self.hydro_namelist_file = None
+        """dict: the file containing the hydro namelist used for this job."""
+
+        
         self.job_status = "created"
         """str: The status of the job object: created/submitted/running/complete."""
 
@@ -403,6 +410,40 @@ class Job(object):
 
         # TODO(JLM): does the job['mode'] need checked at this point?
 
+        # Create the namelists for the job and link to the generic namelists names.
+        print('\nRunning job ' + self.job_date_id + ': ')
+        print('    Wall start time: ' + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        print('    Model start time: ' + self.model_start_time.strftime('%Y-%m-%d %H:%M'))
+        print('    Model end time: ' + self.model_end_time.strftime('%Y-%m-%d %H:%M'))
+
+        # Check for restart files both as specified and in the run dir..
+        restart_list = [self.namelist_hrldas['noahlsm_offline'],
+                        self.hydro_namelist['hydro_nlist']]
+
+        print(self.namelist_hrldas)
+        for rr in restart_list:
+
+            if 'restart_filename_requested' in rr.keys():
+                rst_file = rr['restart_filename_requested']
+            else:
+                rst_file = rr['restart_file'] 
+
+            rst_file = run_dir / pathlib.PosixPath(rst_file)
+            if not rst_file.exists():
+                run_dir_restart_file = run_dir / os.path.basename(rst_file)
+                if not run_dir_restart_file.exists():
+                    raise ValueError('Restart file not present where requested\n' +
+                                      str(rst_file) + '\n' +
+                                     'nor in the run directory:' +
+                                     str(run_dir_restart_file))
+                else:
+                    if 'restart_filename_requested' in rr.keys():
+                        rr['restart_filename_requested'] = run_dir_restart_file
+                    else :
+                        rr['restart_file'] = run_dir_restart_file
+
+        self.write_namelists(run_dir)
+
         if self.scheduler:
 
             # This is for when the submitted script calls the run method.
@@ -428,9 +469,6 @@ class Job(object):
             exe_cmd += '"'
             self.exe_cmd = exe_cmd
 
-            # TODO(JLM): Stash the namelist files in the job at this point? No,
-            # that should happen when the dates of the job(s) are established.
-
             self.job_status='running'
             self.job_start_time = str(datetime.datetime.now())
             self.run_log = subprocess.run(
@@ -446,7 +484,7 @@ class Job(object):
         #            The following should not be run if the scheduler is not waiting.
         #            Put this in collect_run?
         try:
-            
+
             # Get diag files
             # TODO(JLM): diag_files should be scrapped orrenamed to no conflict between jobs.
             run_dir_posix = pathlib.PosixPath(run_dir)
@@ -470,6 +508,26 @@ class Job(object):
         except Exception as e:
             warnings.warn('Could not parse diag files') 
             print(e)    
+
+
+    def write_namelists(self, run_dir):
+
+        # TODO(JLM): make the setup namelists @properties without setter (protect them)
+        # write hydro.namelist for the job
+        self.hydro_namelist_file =  run_dir.joinpath(self.job_date_id + '.hydro.namelist')
+        f90nml.write(self.hydro_namelist, self.hydro_namelist_file)
+        nlst_file = run_dir.joinpath('hydro.namelist')
+        if nlst_file.exists():
+            nlst_file.unlink()
+        nlst_file.symlink_to(self.hydro_namelist_file)
+
+        # write namelist.hrldas
+        self.namelist_hrldas_file = run_dir.joinpath(self.job_date_id + '.namelist.hrldas')
+        f90nml.write(self.namelist_hrldas, self.namelist_hrldas_file)
+        nlst_file = run_dir.joinpath('namelist.hrldas')
+        if nlst_file.exists():
+            nlst_file.unlink()
+        nlst_file.symlink_to(self.namelist_hrldas_file)
 
 
     #######################################################
@@ -520,9 +578,59 @@ class Job(object):
         return(the_str.format(**dict))
 
 
+    def apply_model_start_end_job_namelists(
+        self
+    ):
+
+        # Refs
+        noah_nlst = self.namelist_hrldas['noahlsm_offline']
+        hydro_nlst = self.hydro_namelist['hydro_nlist']
+
+        # Duration
+        noah_nlst['kday'] = None
+        noah_nlst['khour'] = None
+        duration = self.model_end_time - self.model_start_time
+        if duration.seconds == 0:
+            noah_nlst['kday'] = int(duration.days)
+        else:
+            noah_nlst['khour'] = int(duration.days*60 + duration.seconds/3600)
+
+        # Start
+        noah_nlst['start_year'] = int(self.model_start_time.year)
+        noah_nlst['start_month'] = int(self.model_start_time.month)
+        noah_nlst['start_day'] = int(self.model_start_time.day)
+        noah_nlst['start_hour'] = int(self.model_start_time.hour)
+        noah_nlst['start_min'] = int(self.model_start_time.minute)
+
+        # Restart
+        if self.model_restart:
+            restart_time = self.model_start_time
+        else:
+            # Though it will be commented, make it obvious.
+            restart_time = datetime.datetime(9999, 9, 9, 9, 9)
+
+        lsm_restart_dirname = os.path.dirname(noah_nlst['restart_filename_requested'])
+        hydro_restart_dirname = os.path.dirname(hydro_nlst['restart_file'])
+
+        #2011082600 - no minutes
+        lsm_restart_basename = 'RESTART.' + \
+                               self.model_start_time.strftime('%Y%m%d%H') + '_DOMAIN1'
+        #2011-08-26_00_00 - minutes
+        hydro_restart_basename = 'HYDRO_RST.' + \
+                                 self.model_start_time.strftime('%Y-%m-%d_%H:%M') + '_DOMAIN1'
+
+        lsm_restart_file = lsm_restart_dirname + '/' + lsm_restart_basename
+        hydro_restart_file = hydro_restart_dirname + '/' + hydro_restart_basename
+
+        if not self.model_restart:
+            lsm_restart_file = '!!! ' + lsm_restart_file
+            hydro_restart_file = '!!! ' + hydro_restart_file
+
+        noah_nlst['restart_filename_requested'] = lsm_restart_file
+        hydro_nlst['restart_file'] = hydro_restart_file
+
     # @property
     # def job_complete(self):
     #     if self.scheduler.not_submitted:
     #         return(False)
     #     return( not os.path.isfile(run_dir + '/.job_not_complete') )
-            

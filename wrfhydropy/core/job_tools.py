@@ -1044,12 +1044,12 @@ def check_file_exist_colon(run_dir, file_str):
     """Takes a file WITH A COLON (not without)."""
     if type(file_str) is not str:
         file_str = str(file_str)
-    file_colon = run_dir / pathlib.PosixPath(file_str.replace(':','_'))
-    file_no_colon = run_dir / pathlib.PosixPath(file_str.replace(':','_'))
-    if file_colon.exists():
-        return str(file_colon)
-    if file_no_colon.exists():
-        return str(file_no_colon)
+    file_colon = pathlib.PosixPath(file_str)
+    file_no_colon = pathlib.PosixPath(file_str.replace(':','_'))
+    if (run_dir / file_colon).exists():
+        return './' + str(file_colon)
+    if (run_dir / file_no_colon).exists():
+        return './' + str(file_no_colon)
     return None
 
 
@@ -1093,7 +1093,7 @@ def check_job_input_files(job_obj, run_dir):
                                     job_obj.hydro_namelist['nudging_nlist']['nudginglastobsfile']))
 
     hrldas_exempt_list = []
-    hydro_exempt_list = ['nudginglastobsfile']
+    hydro_exempt_list = ['nudginglastobsfile', 'timeslicepath']
 
     def check_nlst(nlst, file_dict):
 
@@ -1102,9 +1102,12 @@ def check_job_input_files(job_obj, run_dir):
             if type(value) is dict:
                 return True
             if not value:
+                message = 'The namelist file ' + key + ' = ' + \
+                          str(get_path(nlst, (path))[key]) + ' does not exist'
                 if key not in [*hrldas_exempt_list, *hydro_exempt_list]:
-                    print('The namelist file "' + key + '"="' +
-                          str(get_path(nlst, (path))[key]) + '" does not exist')
+                    raise ValueError(message)
+                else:
+                    warnings.warn(message)
             return False
 
         remap(file_dict, visit=visit_missing_file)

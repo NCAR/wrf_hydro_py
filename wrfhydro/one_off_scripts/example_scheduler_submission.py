@@ -134,7 +134,6 @@ assert len(r.chanobs) == 168
 sys.exit()
 
 
-
 # #######################################################
 # CHEYENNE: interactive run
 run_interactive_dir = "/glade/scratch/jamesmcc/test_dir"
@@ -169,10 +168,7 @@ job_interactive_template.model_end_time = time_2
 job_1 = copy.deepcopy(job_interactive_template)
 
 run_interactive.add_jobs([job_0, job_1])
-
 run_interactive.run_jobs()
-
-run_interactive.add_job(job_interactive)
 
 ## Verify that the run occurred.
 assert len(run_interactive.chanobs) == 168

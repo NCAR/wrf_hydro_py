@@ -13,7 +13,10 @@ from .job_tools import \
     get_sched_name, get_machine, get_user, seconds, \
     core_dir, default_job_spec, \
     compose_scheduled_python_script, \
-    compose_scheduled_bash_script
+    compose_scheduled_bash_script,\
+    check_file_exist_colon, \
+    check_job_input_files
+
 from .job_tools import release as jt_release
 
     
@@ -417,31 +420,15 @@ class Job(object):
         print('    Model end time: ' + self.model_end_time.strftime('%Y-%m-%d %H:%M'))
 
         # Check for restart files both as specified and in the run dir..
-        restart_list = [self.namelist_hrldas['noahlsm_offline'],
-                        self.hydro_namelist['hydro_nlist']]
+        # Alias for some brevity
+        lsm_nlst = self.namelist_hrldas['noahlsm_offline']
+        hydro_nlst = self.hydro_namelist['hydro_nlist']
+        lsm_nlst['restart_filename_requested'] = \
+             check_file_exist_colon(run_dir, lsm_nlst['restart_filename_requested'])
+        hydro_nlst['restart_file'] = check_file_exist_colon(run_dir, hydro_nlst['restart_file'])
 
-        print(self.namelist_hrldas)
-        for rr in restart_list:
-
-            if 'restart_filename_requested' in rr.keys():
-                rst_file = rr['restart_filename_requested']
-            else:
-                rst_file = rr['restart_file'] 
-
-            rst_file = run_dir / pathlib.PosixPath(rst_file)
-            if not rst_file.exists():
-                run_dir_restart_file = run_dir / os.path.basename(rst_file)
-                if not run_dir_restart_file.exists():
-                    raise ValueError('Restart file not present where requested\n' +
-                                      str(rst_file) + '\n' +
-                                     'nor in the run directory:' +
-                                     str(run_dir_restart_file))
-                else:
-                    if 'restart_filename_requested' in rr.keys():
-                        rr['restart_filename_requested'] = run_dir_restart_file
-                    else :
-                        rr['restart_file'] = run_dir_restart_file
-
+        check_job_input_files(self, run_dir)
+        
         self.write_namelists(run_dir)
 
         if self.scheduler:

@@ -1,8 +1,10 @@
 import copy
 import datetime
 import json
+import os
 import pathlib
 import pickle
+import re
 import shutil
 import subprocess
 import sys
@@ -515,14 +517,23 @@ class WrfHydroRun(object):
                 symlink_path.parent.mkdir(parents=True)
             symlink_path.symlink_to(file_path)
 
+        # Restart files are symlinked in to the run dir at run init.
+        model_files = [*self.setup.domain.hydro_files,
+                       *self.setup.domain.nudging_files,
+                       *self.setup.domain.lsm_files]
+        for ff in model_files:
+                if re.match('.*/RESTART/.*',str(ff)):
+                    symlink_path = self.run_dir.joinpath(os.path.basename(ff))
+                    symlink_path.symlink_to(ff)
+
         # The jobs now add the namelists at run time.
         if job: 
-            self.add_job(job)
+            self.add_jobs(job)
 
 
-    def add_job(
+    def add_jobs(
         self,
-        jobs
+        jobs: list
     ):
         """Dispatch a run the wrf_hydro setup: either run() or schedule_run()
         If a scheduler is passed, then that run is scheduled. 
@@ -552,7 +563,7 @@ class WrfHydroRun(object):
                 if self.job_active:
                     last_job_id = self.job_active.sched_job_id
                 if len(self.jobs_pending):
-                    last_job_id = self.jobs_pending[-1].sched_job_id
+                    last_job_id = self.jobs_pending[-1].scheduler.sched_job_id
 
                 # Check the dependency on a previous job
                 if last_job_id is not None:
@@ -618,7 +629,7 @@ class WrfHydroRun(object):
 
             self.pickle()
             unlock_pickle(self)
-            jobs_pending[0].release()
+            self.jobs_pending[0].release()
             self.destruct()
 
         else:
@@ -724,6 +735,7 @@ class WrfHydroRun(object):
 
     def destruct(self):
         # This gets rid of everything but the methods.
+        print("Jobs have been submitted to  the scheduler. This object will self destruct.")
         self.__dict__ = {}
 
 

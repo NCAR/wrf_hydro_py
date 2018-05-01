@@ -2,7 +2,7 @@
 # docker pull wrfhydro/dev:conda
 
 # docker create --name croton wrfhydro/domains:croton_NY
-# # When done with the container: docker rm -v croton
+# # When done with the container: docker rm -v croton 
 
 # export WRF_HYDRO_DIR=~/WRF_Hydro
 # if [ $HOSTNAME == *"chimayo"* ]; then
@@ -39,10 +39,10 @@ import re
 from socket import gethostname
 import sys
 
-#home = os.path.expanduser("~/")
-#sys.path.insert(0, home + '/WRF_Hydro/wrf_hydro_tests/toolbox/')
-#from establish_specs import establish_spec
-#from establish_job import get_job_args_from_specs
+home = os.path.expanduser("~/")
+sys.path.insert(0, home + '/WRF_Hydro/wrf_hydro_tests/toolbox/')
+from establish_specs import establish_spec
+from establish_job import get_job_args_from_specs
 
 machine = job_tools.get_machine()
 if machine == 'cheyenne':
@@ -76,16 +76,67 @@ the_setup = WrfHydroSetup(
 
 # #######################################################
 # Use these to build Jobs
-#machine_spec_file = home +'/WRF_Hydro/wrf_hydro_tests/machine_spec.yaml'
-#candidate_spec_file = home + '/WRF_Hydro/wrf_hydro_tests/template_candidate_spec.yaml'
-#user_spec_file = home + '/WRF_Hydro/wrf_hydro_tests/template_user_spec.yaml'
+machine_spec_file = home +'/WRF_Hydro/wrf_hydro_tests/machine_spec.yaml'
+candidate_spec_file = home + '/WRF_Hydro/wrf_hydro_tests/template_candidate_spec.yaml'
+user_spec_file = home + '/WRF_Hydro/wrf_hydro_tests/template_user_spec.yaml'
 
 
 # ######################################################
 # ######################################################
 # ######################################################
 
+
+# #######################################################
+# CHEYENNE
+# Add two scheduled jobs on cheyenne
+
+run_sched_dir = "/glade/scratch/jamesmcc/test_sched"
+run_sched = WrfHydroRun(
+    the_setup,
+    run_sched_dir,
+    rm_existing_run_dir=True
+)
+
+job_args = get_job_args_from_specs(
+    job_name='test_job',
+    nnodes=1,
+    nproc=2,
+    mode='w',
+    machine_spec_file=machine_spec_file,
+    user_spec_file=user_spec_file,
+    candidate_spec_file=candidate_spec_file
+)
+job_template = Job( **job_args )
+job_template.scheduler.walltime = '00:02:00'
+
+time_0 = datetime.datetime(2011, 8, 26, 0, 0)
+time_1 = time_0 + datetime.timedelta(days=2)
+time_2 = time_1 + datetime.timedelta(days=5)
+
+job_template.model_start_time = time_0
+job_template.model_end_time = time_1
+job_0 = copy.deepcopy(job_template)
+
+job_template.model_start_time = time_1
+job_template.model_end_time = time_2
+job_1 = copy.deepcopy(job_template)
+
+run_sched.add_jobs([job_0, job_1])
+
+run_sched.run_jobs()
+
+
+del run_sched
+import pickle
+with open(run_sched_dir + '/WrfHydroRun.pkl', 'rb') as f:
+    r = pickle.load(f)
+assert len(r.chanobs) == 168
+
+sys.exit()
+
+
 # ######################################################
+# DOCKER
 # a default docker Job
 # Try a default job
 
@@ -134,39 +185,6 @@ assert len(run_interactive_3.chanobs) == 7*24
 sys.exit()
 
 
-# #######################################################
-# Add two scheduled runs on cheyenne
-job_args = get_job_args_from_specs(
-    job_name='test_job',
-    nnodes=1,
-    nproc=2,
-    mode='w',
-    machine_spec_file=machine_spec_file,
-    user_spec_file=user_spec_file,
-    candidate_spec_file=candidate_spec_file
-)
-
-job_sched = Job( **job_args )
-job_sched.scheduler.walltime = '00:01:00'
-
-run_sched_dir = "/glade/scratch/jamesmcc/test_sched"
-run_sched = WrfHydroRun(
-    the_setup,
-    run_sched_dir,
-    rm_existing_run_dir=True
-)
-
-run_sched.add_job(job_sched)
-run_sched.run_jobs()
-
-
-del run_sched
-import pickle
-with open(run_sched_dir + '/WrfHydroRun.pkl', 'rb') as f:
-    r = pickle.load(f)
-assert len(r.chanobs) == 168
-
-sys.exit()
 
 
 # #######################################################

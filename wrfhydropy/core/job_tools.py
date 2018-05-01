@@ -1,3 +1,4 @@
+from boltons.iterutils import remap, get_path
 import datetime
 from distutils.spawn import find_executable
 import io
@@ -1037,3 +1038,82 @@ def solve_model_start_end_times(model_start_time, model_end_time, setup_obj):
                         'None, str, datetime.timedelta, dict.')
 
     return model_start_time, model_end_time
+
+
+def check_file_exist_colon(run_dir, file_str):
+    """Takes a file WITH A COLON (not without)."""
+    if type(file_str) is not str:
+        file_str = str(file_str)
+    file_colon = run_dir / pathlib.PosixPath(file_str.replace(':','_'))
+    file_no_colon = run_dir / pathlib.PosixPath(file_str.replace(':','_'))
+    if file_colon.exists():
+        return str(file_colon)
+    if file_no_colon.exists():
+        return str(file_no_colon)
+    return None
+
+
+def check_job_input_files(job_obj, run_dir):
+
+    # A run object, check it's next (first pending) job for all the dependencies.
+    # This is after this jobs namelists are established.
+    # Properties of the setup_obj identify some of the required input files.
+
+    def visit_is_file(path, key, value):
+        if value is None:
+            return False
+        return type(value) is str or type(value) is dict
+
+    def visit_not_none(path, key, value):
+        return bool(value)
+
+    def visit_str_posix_exists(path, key, value):
+        if type(value) is dict:
+            return True
+        return key, (run_dir / pathlib.PosixPath(value)).exists()
+
+    def remap_nlst(nlst):
+        # The outer remap removes empty dicts
+        files = remap(nlst,  visit=visit_is_file)
+        files = remap(files, visit=visit_not_none)
+        exists = remap(files, visit=visit_str_posix_exists)
+        return exists
+
+    hrldas_file_dict = remap_nlst(job_obj.namelist_hrldas)
+    hydro_file_dict = remap_nlst(job_obj.hydro_namelist)
+
+    # INDIR is a special case: do some regex magic and counting.
+
+    # What are the colon cases? Hydro/nudging restart files
+    hydro_file_dict['hydro_nlist']['restart_file'] = \
+        bool(check_file_exist_colon(run_dir,
+                                    job_obj.hydro_namelist['hydro_nlist']['restart_file']))
+    hydro_file_dict['nudging_nlist']['nudginglastobsfile'] = \
+        bool(check_file_exist_colon(run_dir,
+                                    job_obj.hydro_namelist['nudging_nlist']['nudginglastobsfile']))
+
+    hrldas_exempt_list = []
+    hydro_exempt_list = ['nudginglastobsfile']
+
+    def check_nlst(nlst, file_dict):
+
+        # Scan the dicts for FALSE exempting certain ones for certain configs.
+        def visit_missing_file(path, key, value):
+            if type(value) is dict:
+                return True
+            if not value:
+                if key not in [*hrldas_exempt_list, *hydro_exempt_list]:
+                    print('The namelist file "' + key + '"="' +
+                          str(get_path(nlst, (path))[key]) + '" does not exist')
+            return False
+
+        remap(file_dict, visit=visit_missing_file)
+        return None
+
+    check_nlst(job_obj.namelist_hrldas, hrldas_file_dict)
+    check_nlst(job_obj.hydro_namelist, hydro_file_dict)
+
+    # Check the parameter table files: do the ones in the model match the ones in the rundir?
+    # Will this be by construction?
+
+    return None

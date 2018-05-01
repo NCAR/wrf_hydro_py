@@ -6,6 +6,7 @@ import f90nml
 import json
 import copy
 import os
+import re
 import uuid
 import pickle
 import warnings

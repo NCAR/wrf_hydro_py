@@ -6,6 +6,7 @@ import f90nml
 import json
 import copy
 import os
+import re
 import uuid
 import pickle
 import warnings
@@ -509,6 +510,15 @@ class WrfHydroRun(object):
             if symlink_path.parent.is_dir() is False:
                 symlink_path.parent.mkdir(parents=True)
             symlink_path.symlink_to(file_path)
+
+        # Restart files are symlinked in to the run dir at run init.
+        model_files = [*self.setup.domain.hydro_files,
+                       *self.setup.domain.nudging_files,
+                       *self.setup.domain.lsm_files]
+        for ff in model_files:
+                if re.match('.*/RESTART/.*',str(ff)):
+                    symlink_path = self.run_dir.joinpath(os.path.basename(ff))
+                    symlink_path.symlink_to(ff)
 
         # write hydro.namelist
         f90nml.write(self.simulation.hydro_namelist,

@@ -421,14 +421,15 @@ class Job(object):
 
         # Check for restart files both as specified and in the run dir..
         # Alias for some brevity
-        lsm_nlst = self.namelist_hrldas['noahlsm_offline']
+        ## TODO(JLM) : nudging namelist
+        #lsm_nlst = self.namelist_hrldas['noahlsm_offline']
         hydro_nlst = self.hydro_namelist['hydro_nlist']
-        lsm_nlst['restart_filename_requested'] = \
-             check_file_exist_colon(run_dir, lsm_nlst['restart_filename_requested'])
+        #lsm_nlst['restart_filename_requested'] = \
+        #     check_file_exist_colon(run_dir, lsm_nlst['restart_filename_requested'])
         hydro_nlst['restart_file'] = check_file_exist_colon(run_dir, hydro_nlst['restart_file'])
 
         check_job_input_files(self, run_dir)
-        
+
         self.write_namelists(run_dir)
 
         if self.scheduler:
@@ -596,8 +597,8 @@ class Job(object):
             # Though it will be commented, make it obvious.
             restart_time = datetime.datetime(9999, 9, 9, 9, 9)
 
-        lsm_restart_dirname = os.path.dirname(noah_nlst['restart_filename_requested'])
-        hydro_restart_dirname = os.path.dirname(hydro_nlst['restart_file'])
+        lsm_restart_dirname = './' #os.path.dirname(noah_nlst['restart_filename_requested'])
+        hydro_restart_dirname = './' #os.path.dirname(hydro_nlst['restart_file'])
 
         #2011082600 - no minutes
         lsm_restart_basename = 'RESTART.' + \

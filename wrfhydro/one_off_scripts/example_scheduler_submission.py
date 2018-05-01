@@ -125,7 +125,6 @@ run_sched.add_jobs([job_0, job_1])
 
 run_sched.run_jobs()
 
-
 del run_sched
 import pickle
 with open(run_sched_dir + '/WrfHydroRun.pkl', 'rb') as f:
@@ -133,6 +132,50 @@ with open(run_sched_dir + '/WrfHydroRun.pkl', 'rb') as f:
 assert len(r.chanobs) == 168
 
 sys.exit()
+
+
+
+# #######################################################
+# CHEYENNE: interactive run
+run_interactive_dir = "/glade/scratch/jamesmcc/test_dir"
+run_interactive = WrfHydroRun(
+    the_setup,
+    run_interactive_dir,
+    rm_existing_run_dir = True
+)
+
+job_args = get_job_args_from_specs(
+    job_name='test_job',
+    nnodes=1,
+    nproc=2,
+    mode='w',
+    scheduler_name = None, # Choice disables PBS
+    machine_spec_file=machine_spec_file,
+    user_spec_file=user_spec_file,
+    candidate_spec_file=candidate_spec_file
+)
+job_interactive_template = Job( **job_args )
+
+time_0 = datetime.datetime(2011, 8, 26, 0, 0)
+time_1 = time_0 + datetime.timedelta(days=2)
+time_2 = time_1 + datetime.timedelta(days=5)
+
+job_interactive_template.model_start_time = time_0
+job_interactive_template.model_end_time = time_1
+job_0 = copy.deepcopy(job_interactive_template)
+
+job_interactive_template.model_start_time = time_1
+job_interactive_template.model_end_time = time_2
+job_1 = copy.deepcopy(job_interactive_template)
+
+run_interactive.add_jobs([job_0, job_1])
+
+run_interactive.run_jobs()
+
+run_interactive.add_job(job_interactive)
+
+## Verify that the run occurred.
+assert len(run_interactive.chanobs) == 168
 
 
 # ######################################################
@@ -216,30 +259,6 @@ assert len(run_interactive.chanobs) == 24  # croton_lite
 sys.exit()
 
 
-# #######################################################
-# An interactive run on cheyenne
-job_args = get_job_args_from_specs(
-    job_name='test_job',
-    nnodes=1,
-    nproc=2,
-    mode='w',
-    scheduler_name = None, # Choice disables PBS
-    machine_spec_file=machine_spec_file,
-    user_spec_file=user_spec_file,
-    candidate_spec_file=candidate_spec_file
-)
-job_interactive = Job( **job_args )
-
-run_interactive = WrfHydroRun(
-    the_setup,
-    "/glade/scratch/jamesmcc/test_dir",
-    rm_existing_run_dir = True
-)
-
-run_interactive.add_job(job_interactive)
-
-## Verify that the run occurred.
-assert len(run_interactive.chanobs) == 168
 
 
 

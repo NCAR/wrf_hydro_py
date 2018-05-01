@@ -731,7 +731,7 @@ class WrfHydroRun(object):
 
     def destruct(self):
         # This gets rid of everything but the methods.
-        print("Jobs have been submitted to  the scheduler. This object will self destruct.")
+        print("Jobs have been submitted to  the scheduler: This run object will now self destruct.")
         self.__dict__ = {}
 
 

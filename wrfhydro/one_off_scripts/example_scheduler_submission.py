@@ -107,7 +107,8 @@ job_args = get_job_args_from_specs(
     candidate_spec_file=candidate_spec_file
 )
 job_template = Job( **job_args )
-job_template.scheduler.walltime = '00:02:00'
+job_template.scheduler.walltime = '00:04:00'
+job_template.scheduler.ppn = 1
 
 time_0 = datetime.datetime(2011, 8, 26, 0, 0)
 time_1 = time_0 + datetime.timedelta(days=2)

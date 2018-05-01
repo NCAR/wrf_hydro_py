@@ -813,6 +813,7 @@ def compose_scheduled_python_script(
     jobstr += "run_object.job_active = None\n"
     jobstr += "run_object.pickle()\n"
     jobstr += "\n"
+    jobstr += "sys.exit(0)\n"
 
     return jobstr
 
@@ -956,8 +957,8 @@ def compose_scheduled_bash_script(
         jobstr += exestr + "\n"
         jobstr += "\n"
 
-        jobstr += "mpi_return=$?\n"
-        jobstr += "echo \"mpi_return: $mpi_return\"\n"
+        jobstr += "cmd_status=$?\n"
+        jobstr += "echo \"cmd_status: $cmd_status\"\n"
         jobstr += "\n"
 
         jobstr += "# Touch these files just to get the job_date_id in their file names.\n"
@@ -973,7 +974,7 @@ def compose_scheduled_bash_script(
         jobstr += "\n"
 
         ## TODO(JLM): the tracejob execution gets called by the waiting process.
-        jobstr += "exit $mpi_return\n"
+        jobstr += "exit $cmd_status\n"
 
         return jobstr
 

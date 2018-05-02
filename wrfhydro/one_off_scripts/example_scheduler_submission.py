@@ -22,11 +22,10 @@
 # if [ ! -e /home/docker/wrf_hydro_nwm_public ]; then
 #   cp -r /wrf_hydro_nwm_public /home/docker/wrf_hydro_nwm_public
 # fi
-  
-# cd ~/WRF_Hydro/wrf_hydro_py/
+
+# cd ~/wrf_hydro_py/
 # pip uninstall -y wrfhydropy
 # python setup.py develop
-# pip install boltons termcolor
 # python
 
 from wrfhydropy import *

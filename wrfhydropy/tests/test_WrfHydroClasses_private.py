@@ -1,20 +1,24 @@
 import pathlib
 import pickle
+import datetime
 import deepdiff
 import copy
 import wrfhydropy
 import shutil
 import pytest
-##################################
-# Directories for import and for test data, used for making expected datasets
+
+
+# # Make expected data
+# # The reference/expected data for the tests is written by commented sections in this
+# # code that begin with "# Make expected data"
+# # Directories for import and for test data, used for making expected datasets.
 # testDataDir = pathlib.Path('/home/docker/wrf_hydro_py/wrfhydropy/tests/data/private')
-##################################
 
 #Make a temporary directory
 @pytest.fixture(scope='session')
 def tmp_data_dir(tmpdir_factory):
     tmp_data_dir = tmpdir_factory.mktemp('tmp_data_private')
-    shutil.copytree('data/private',tmp_data_dir / 'data',symlinks=True)
+    shutil.copytree('data/private', tmp_data_dir / 'data', symlinks=True)
     return tmp_data_dir
 
 ##################################
@@ -24,7 +28,8 @@ def tmp_data_dir(tmpdir_factory):
 # PRIVATE
 #####
 
-## Make expected data
+
+# # Make expected data
 
 # domain_top_dir= testDataDir / 'domain'
 # domain_object = wrfhydropy.WrfHydroDomain(domain_top_dir=domain_top_dir,
@@ -33,8 +38,9 @@ def tmp_data_dir(tmpdir_factory):
 # with open(testDataDir / 'expected/test_domain_nwm.pkl', 'wb') as f:
 #     pickle.dump(domain_object, f, 2)
 
+
 # Define test
-def test_domain_nwm(tmp_data_dir,capsys):
+def test_domain_nwm(tmp_data_dir, capsys):
     with capsys.disabled():
         print("Question: The WrfHydroDomain class is constructed properly for NWM private?")
 
@@ -54,32 +60,34 @@ def test_domain_nwm(tmp_data_dir,capsys):
     diffs = deepdiff.DeepDiff(domain_object_expected,domain_object)
     assert diffs == {}
 
+
 ##################################
 # Model object tests
 
-## Make expected data object
+
+# # Make expected data objects: pre and post compile objects will be tested.
 
 # wrf_hydro_nwm_dir = testDataDir / 'wrf_hydro_nwm'
 # source_dir = wrf_hydro_nwm_dir / 'source'
 # compile_dir = wrf_hydro_nwm_dir / 'compiled'
-#
-# ### Make precompile object
-# model_object_precompile = wrfhydropy.WrfHydroModel(source_dir=source_dir)
-#
-# ### Make post compile object
+
+# model_object_precompile = wrfhydropy.WrfHydroModel(
+#     source_dir=source_dir,
+#     model_config='NWM'
+# )
+
 # model_object_postcompile = copy.deepcopy(model_object_precompile)
 # model_object_postcompile.compile('gfort',compile_dir = compile_dir,overwrite=True)
-#
-# ### Combine into one test object
+
 # model_test_objects = {'model_object_precompile':model_object_precompile,
 #                       'model_object_postcompile':model_object_postcompile}
-#
-# ### Pickle
+
 # with open(testDataDir / 'expected/test_model_nwm.pkl', 'wb') as f:
 #     pickle.dump(model_test_objects, f, 2)
 
-## Define test
-def test_model_nwm(tmp_data_dir,capsys):
+
+# Define test
+def test_model_nwm(tmp_data_dir, capsys):
     with capsys.disabled():
         print("Question: WrfHydroModel object is able to compile NWM private?")
 
@@ -114,24 +122,28 @@ def test_model_nwm(tmp_data_dir,capsys):
     assert model_object_postcompile.compile_log.returncode == 0
     assert model_object_postcompile.wrf_hydro_exe.name == 'wrf_hydro.exe'
 
+    
 ##################################
-# Simuilation object tests
+# Setup object tests
 
-## Make expected data
 
-# ### Make prerun simulation object
+# # Make expected data
+
 # domain_object_expected = pickle.load(open(testDataDir / 'expected/test_domain_nwm.pkl', "rb"))
 # model_objects_expected = pickle.load(open(testDataDir / 'expected/test_model_nwm.pkl', "rb"))
 # model_object_postcompile_expected=model_objects_expected['model_object_postcompile']
-#
-# simulation_object = wrfhydropy.WrfHydroSim(model_object_postcompile_expected,domain_object_expected)
-#
-# ### Pickle
-# with open(testDataDir / 'expected/test_simulation_nwm.pkl', 'wb') as f:
-#     pickle.dump(simulation_object, f, 2)
+
+# setup_object = wrfhydropy.WrfHydroSetup(model_object_postcompile_expected,domain_object_expected)
+# # Changing the restart freq is needed for the multi job run
+# setup_object.namelist_hrldas['noahlsm_offline']['restart_frequency_hours'] = 6
+# setup_object.hydro_namelist['hydro_nlist']['rst_dt'] = 360
+
+# with open(testDataDir / 'expected/test_setup_nwm.pkl', 'wb') as f:
+#     pickle.dump(setup_object, f, 2)
+
 
 # Define test
-def test_simulation_nwm(tmp_data_dir,capsys):
+def test_setup_nwm(tmp_data_dir, capsys):
     with capsys.disabled():
         print("Question: WrfHydroSim object is constructed properly for NWM private?")
 
@@ -163,27 +175,61 @@ def test_simulation_nwm(tmp_data_dir,capsys):
                               simulation_object.namelist_hrldas)
     assert hrldas_diffs == {}
 
+
+##################################
+# Job Object tests
+# Note that on docker scheduler object tests are not really currently possible.
+
+
+# # Make expected data
+# # Create two job list to pass to run for a two-job run.
+# time_0 = datetime.datetime(2011, 8, 26, 0, 0)
+# time_1 = time_0 + datetime.timedelta(hours=6)
+# time_2 = time_1 + datetime.timedelta(hours=18)
+
+# job_object_1 = wrfhydropy.Job(
+#     nproc=2,
+#     model_start_time=time_0,
+#     model_end_time=time_1
+# )
+
+# job_object_2 = wrfhydropy.Job(
+#     nproc=2,
+#     model_start_time=time_1,
+#     model_end_time=time_2
+# )
+
+# job_list = [job_object_1, job_object_2]
+
+# with open(testDataDir / 'expected/test_job_list_nwm.pkl', 'wb') as f:
+#      pickle.dump(job_list, f, 2)
+
+#def test_job_list_nwm(tmp_data_dir, capsys):
+
+
 ##################################
 # Run object tests
 
-## Make expected data
 
-# ### Get directories
+# # Make expected data
+
 # wrf_hydro_nwm_dir = testDataDir / 'wrf_hydro_nwm'
 # run_dir = wrf_hydro_nwm_dir / 'run'
-#
-# ### Load the simulation object
-# simulation_object = pickle.load(open(testDataDir / 'expected/test_simulation_nwm.pkl', "rb"))
-#
-# ### Run the model
-# run_object = simulation_object.run(run_dir,mode='w')
-#
-# ### Pickle
+
+# setup_object = pickle.load(open(testDataDir / 'expected/test_setup_nwm.pkl', "rb"))
+# job_list = pickle.load(open(testDataDir / 'expected/test_job_list_nwm.pkl', "rb"))
+
+# run_object = wrfhydropy.WrfHydroRun(setup_object, run_dir=run_dir, jobs=job_list)
+# run_object_prerun = copy.deepcopy(run_object)
+# run_object.run_jobs()
+# run_object_postrun = run_object
+
 # with open(testDataDir / 'expected/test_run_nwm.pkl', 'wb') as f:
-#     pickle.dump(run_object, f, 2)
+#     pickle.dump([run_object_prerun, run_object_postrun], f, 2)
+
 
 # Define test
-def test_run_nwm(tmp_data_dir,capsys):
+def test_run_nwm(tmp_data_dir, capsys):
     with capsys.disabled():
         print("Question: WrfHydroSim object is able to run NWM private?")
 

@@ -378,7 +378,7 @@ class WrfHydroRun(object):
         wrf_hydro_setup: WrfHydroSetup,
         run_dir: str,
         rm_existing_run_dir = False,
-        job: Job=None
+        jobs: list=None
     ):
         """Instantiate a WrfHydroRun object. A run is a WrfHydroSetup with multiple jobs.
         Args:
@@ -388,8 +388,6 @@ class WrfHydroRun(object):
         Returns:
             A WrfHydroRun object.
         """
-        # TODO(JLM): Accept a list of Jobs in the job argument?
-
         # Initialize all attributes and methods
 
         self.setup = wrf_hydro_setup
@@ -521,9 +519,8 @@ class WrfHydroRun(object):
                     symlink_path = self.run_dir.joinpath(os.path.basename(ff))
                     symlink_path.symlink_to(ff)
 
-        # The jobs now add the namelists at run time.
-        if job: 
-            self.add_jobs(job)
+        if jobs:
+            self.add_jobs(jobs)
 
 
     def add_jobs(

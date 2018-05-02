@@ -7,8 +7,9 @@ import pathlib
 import subprocess
 import warnings
 import xarray as xr
-
 from .job_tools import touch
+import pathlib
+import numpy as np
 
 def compare_nc_nccmp(candidate_nc: str,
                      reference_nc: str,
@@ -124,12 +125,16 @@ def diff_namelist(namelist1: str, namelist2: str, **kwargs) -> dict:
 
 
 def open_nwmdataset(paths: list,
-                    chunks: dict=None) -> xr.Dataset:
+                    chunks: dict=None,
+                    forecast: bool = True) -> xr.Dataset:
     """Open a multi-file wrf-hydro output dataset
 
     Args:
         paths: List ,iterable, or generator of file paths to wrf-hydro netcdf output files
         chunks: chunks argument passed on to xarray DataFrame.chunk() method
+        forecast: If forecast the nreference time dimensions is retained, if not then
+        reference_time dimension is set to a dummy value (1970-01-01) to ease concatenation
+        and analysis
     Returns:
         An xarray dataset of dask arrays chunked by chunk_size along the feature_id
         dimension concatenated along the time and
@@ -139,7 +144,12 @@ def open_nwmdataset(paths: list,
     # Create dictionary of forecasts, i.e. reference times
     ds_dict = dict()
     for a_file in paths:
-        ds = xr.open_dataset(a_file)
+        ds = xr.open_dataset(a_file,chunks=chunks)
+        # Check if forecast and set reference_time to zero if not
+        if not forecast:
+            ds.coords['reference_time'].values = np.array(
+                [np.datetime64('1970-01-01T00:00:00', 'ns')])
+
         ref_time = ds['reference_time'].values[0]
         if ref_time in ds_dict:
             # append the new number to the existing array at this slot

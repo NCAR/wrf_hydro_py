@@ -7,7 +7,6 @@ import pickle
 import re
 import shutil
 import subprocess
-import sys
 import uuid
 import warnings
 import xarray as xr

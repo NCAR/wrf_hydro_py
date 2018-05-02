@@ -899,7 +899,12 @@ def compose_scheduled_bash_script(
         jobstr += "\n"
 
         if job.scheduler.afterok:
-            jobstr += "#PBS -W depend=afterok:{0}\n".format(job.scheduler.afterok)
+            if job.machine == 'cheyenne':
+                cheyenne_afterok = get_cheyenne_job_dependency_id(job.scheduler.afterok)
+                jobstr += "#PBS -W depend=afterok:{0}\n".format(cheyenne_afterok)
+            else: 
+                jobstr += "#PBS -W depend=afterok:{0}\n".format(job.scheduler.afterok)
+                
         if job.scheduler.array_size:
             jobstr += "#PBS -J 1-{0}\n".format(job.scheduler.array_size)
         if job.scheduler.exetime:
@@ -977,6 +982,17 @@ def compose_scheduled_bash_script(
         jobstr += "exit $cmd_status\n"
 
         return jobstr
+
+def get_cheyenne_job_dependency_id(numeric_job_id):
+    """Lovely bug in cheyenne's PBS that requires the full name on the job id."""
+    cmd = 'qstat -w ' + str(numeric_job_id) + '| grep ' + str(numeric_job_id) + ' | cut -d" " -f1'
+    cmd = "/bin/bash -c '" + cmd + "'" 
+    cmd_run = subprocess.run(
+        shlex.split(cmd),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
+    return cmd_run.stdout.decode("utf-8").rstrip()
 
 def solve_model_start_end_times(model_start_time, model_end_time, setup_obj):
 

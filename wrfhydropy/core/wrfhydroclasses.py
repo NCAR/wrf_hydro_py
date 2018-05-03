@@ -12,13 +12,15 @@ import warnings
 import xarray as xr
 
 from .utilities import \
-    compare_ncfiles, open_nwmdataset, \
-    __make_relative__ , lock_pickle, \
-    unlock_pickle, is_pickle_locked
+    compare_ncfiles, \
+    open_nwmdataset, \
+    __make_relative__, \
+    lock_pickle, \
+    unlock_pickle
+
 from .job_tools import \
     get_user, \
     solve_model_start_end_times
-from .job import Job
 
 #########################
 # netcdf file object classes

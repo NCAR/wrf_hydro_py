@@ -54,7 +54,11 @@ class WrfHydroStatic(pathlib.PosixPath):
 class WrfHydroModel(object):
     """Class for a WRF-Hydro model, which consitutes the model source code and compiled binary.
     """
-    def __init__(self, source_dir: str,model_config: str):
+    def __init__(
+        self,
+        source_dir: str,
+        model_config: str
+    ):
         """Instantiate a WrfHydroModel object.
         Args:
             source_dir: Directory containing the source code, e.g.
@@ -116,10 +120,12 @@ class WrfHydroModel(object):
         compile_options = json.load(open(self.source_dir.joinpath('compile_options.json')))
         self.compile_options = compile_options[self.version][self.model_config]
 
-    def compile(self, compiler: str,
-                compile_dir: str = None,
-                overwrite: bool = False,
-                compile_options: dict = None) -> str:
+    def compile(
+        self, compiler: str,
+        compile_dir: str = None,
+        overwrite: bool = False,
+        compile_options: dict = None
+    ) -> str:
         """Compiles WRF-Hydro using specified compiler and compile options.
         Args:
             compiler: The compiler to use, must be one of 'pgi','gfort',
@@ -221,10 +227,11 @@ class WrfHydroDomain(object):
     setup.
     """
     def __init__(self,
-                 domain_top_dir: str,
-                 domain_config: str,
-                 model_version: str,
-                 namelist_patch_file: str = 'namelist_patches.json'):
+        domain_top_dir: str,
+        domain_config: str,
+        model_version: str,
+        namelist_patch_file: str = 'namelist_patches.json'
+    ):
         """Instantiate a WrfHydroDomain object
         Args:
             domain_top_dir: Parent directory containing all domain directories and files.

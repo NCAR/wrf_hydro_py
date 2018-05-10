@@ -189,7 +189,7 @@ class WrfHydroModel(object):
 
         if self.compile_log.returncode == 0:
             # Open permissions on compiled files
-            subprocess.run(['chmod','-R','777',str(self.source_dir.joinpath('Run'))])
+            subprocess.run(['chmod','-R','755',str(self.source_dir.joinpath('Run'))])
 
             # Wrf hydro always puts files in source directory under a new directory called 'Run'
             # Copy files to new directory if its not the same as the source code directory
@@ -204,7 +204,7 @@ class WrfHydroModel(object):
                 shutil.rmtree(self.source_dir.joinpath('Run'))
 
             # Open permissions on copied compiled files
-            subprocess.run(['chmod', '-R', '777', str(self.compile_dir)])
+            subprocess.run(['chmod', '-R', '755', str(self.compile_dir)])
 
             #Get file lists as attributes
             # Get list of table file paths
@@ -315,9 +315,11 @@ class WrfHydroDomain(object):
 class WrfHydroSetup(object):
     """Class for a WRF-Hydro setup object, which is comprised of a WrfHydroModel and a WrfHydroDomain.
     """
-    def __init__(self,
-                 wrf_hydro_model: object,
-                 wrf_hydro_domain: object):
+    def __init__(
+        self,
+        wrf_hydro_model: object,
+        wrf_hydro_domain: object
+    ):
         """Instantiates a WrfHydroSetup object
         Args:
             wrf_hydro_model: A WrfHydroModel object
@@ -379,6 +381,21 @@ class WrfHydroSetup(object):
                                                          [self.domain.domain_config]
                                                          ['namelist_hrldas']
                                                          ['wrf_hydro_offline'])
+
+    # Dont self pickle, there's no natural location.    
+    def pickle(
+        self,
+        dir
+    ):
+        # create a UID for the run and save in file
+        self.object_id = str(uuid.uuid4())
+        with open(dir.joinpath('.uid'), 'w') as f:
+            f.write(self.object_id)
+
+        # Save object to run directory
+        # Save the object out to the compile directory
+        with open(dir.joinpath('WrfHydroSetup.pkl'), 'wb') as f:
+            pickle.dump(self, f, 2)
 
 
 class WrfHydroRun(object):
@@ -471,7 +488,7 @@ class WrfHydroRun(object):
         # Convert strings to pathlib.Path objects.
 
         # TODO(JLM): Make symlinks the default option? Also allow copying?
-        
+
         # Loop to make symlinks for each TBL file
         for from_file in self.setup.model.table_files:
             # Create file paths to symlink

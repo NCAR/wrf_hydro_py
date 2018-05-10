@@ -17,19 +17,12 @@
 # python
 
 #######################################################
+from boltons.iterutils import remap
 import os
-wrf_hydro_py_path = '/home/docker/wrf_hydro_py/wrfhydro'
-USER = os.path.expanduser('~/')
-wrf_hydro_py_path = USER + '/WRF_Hydro/wrf_hydro_py/wrfhydro' # osx
-wrf_hydro_py_path = USER + '/wrf_hydro_py/wrfhydro'           # docker
-
-
-import sys
+import pathlib
 from pprint import pprint
-sys.path.insert(0, wrf_hydro_py_path)
-from wrf_hydro_model import *
-from utilities import *
-from ensemble import *
+import sys
+import wrfhydropy
 
 # ######################################################
 # Model Section
@@ -38,21 +31,29 @@ from ensemble import *
 
 #domain_top_path = '/home/docker/domain/croton_NY'
 #source_path = '/home/docker/wrf_hydro_nwm/trunk/NDHMS'
-domain_top_path = USER + '/Downloads/domain/croton_NY'
-domain_top_path = USER + '/domain/croton_NY'
-source_path = USER + '/WRF_Hydro/wrf_hydro_nwm_myFork/trunk/NDHMS'
-source_path = '/wrf_hydro_nwm/trunk/NDHMS/'
+USER = os.path.expanduser('~/')
+domain_top_path = pathlib.PosixPath(USER + '/Downloads/croton_NY')
+#domain_top_path = USER + '/domain/croton_NY'
+source_path = pathlib.PosixPath(USER + '/WRF_Hydro/wrf_hydro_nwm_public/trunk/NDHMS')
+#source_path = '/wrf_hydro_nwm/trunk/NDHMS/'
 
-theDomain = WrfHydroDomain(domain_top_dir=domain_top_path,
-                           model_version='v1.2.1',
-                           domain_config='NWM')
+theDomain = wrfhydropy.WrfHydroDomain(
+    domain_top_dir=domain_top_path,
+    model_version='v1.2.1',
+    domain_config='NWM'
+)
 
-theModel = WrfHydroModel(source_path)
+theModel = wrfhydropy.WrfHydroModel(
+    source_path,
+    model_config='NWM'
+)
 
-theSim = WrfHydroSim(theModel, theDomain)
+theSetup = wrfhydropy.WrfHydroSetup(
+    theModel,
+    theDomain
+)
 
 
-# Regular lists or numpy ndarrays
 #print('ensemble 0')
 #e0=WrfHydroEnsembleSim([])
 #print('len(e0): ',len(e0))
@@ -60,49 +61,100 @@ theSim = WrfHydroSim(theModel, theDomain)
 #print('len(e0): ',len(e0))
 
 print('ensemble 1')
-e1=WrfHydroEnsembleSim([theSim])
+e1=wrfhydropy.WrfHydroEnsembleSetup([theSetup])
 print('len(e1): ',len(e1))
 e1.members[0].description='the primal member'
 print(e1.members_dict)
-e1.replicate_member(4)
-print('len(e1): ',len(e1))
 
+print('len(e1): ',len(e1))
 print('e1.N: ',e1.N)
 print(e1.members_dict)
 
+e1.replicate_member(4)
 e1.members[1].description='the first member'
 print(e1.members_dict)
 
 e1.members[1].number=400
 print(e1.members_dict)
 
-
-m1=e1.members[1]
 m2=e1.members[2]
-import pathlib
+m3=e1.members[3]
 
-
-
-
-m1.domain.forcing_dir = \
+m2.domain.forcing_dir = \
     pathlib.PosixPath('/Users/jamesmcc/Downloads/domain/croton_NY/FORCING_FOO')
-m1.model.source_dir = pathlib.PosixPath('foo')
+m2.model.source_dir = pathlib.PosixPath('foo')
 
-import pathlib
-from deepdiff import DeepDiff
+## Does not recursively enter objects. All subobjects
 
-DeepDiff(m1.domain, m2.domain, eq_types={pathlib.PosixPath})
-DeepDiff(m1.model,  m2.model,  eq_types={pathlib.PosixPath})
-
-
-
-# ######################################################
-# ######################################################
-# ######################################################
+def is_subobj(obj):
+    try:
+        _ = obj.__dict__
+    except AttributeError:
+        return False
+    return True
 
 
-# Can I come up with a good visitor...
+# Get the member/setup object items which sub objects.
+def get_sub_objs(obj):
+    sub_obj_dict = {kk: is_subobj(obj[kk]) for (kk, vv) in obj.items()}
+    return list(remap(sub_obj_dict, lambda p, k, v: v).keys())
 
+
+def dictify(obj):
+    the_dict = obj.__dict__
+    sub_dicts = get_sub_objs(the_dict)
+    for ss in sub_dicts:
+        the_dict[ss] = dictify(the_dict[ss])
+    return the_dict
+
+mem0_ref_dict = dictify(e1.members[0])
+mem1_ref_dict = dictify(e1.members[1])
+
+diff1_new = DeepDiffEq(mem0_ref_dict, mem1_ref_dict, eq_types={pathlib.PosixPath})
+diff1_old = DeepDiffEq(e1.members[0], e1.members[nn], eq_types={pathlib.PosixPath})
+
+mem2_ref_dict = dictify(e1.members[2])
+diff2_new = DeepDiffEq(mem0_ref_dict, mem2_ref_dict, eq_types={pathlib.PosixPath})
+diff2_old = DeepDiffEq(e1.members[0], e1.members[nn], eq_types={pathlib.PosixPath})
+
+
+
+all_diff_keys=set({})
+
+# Verify refs
+
+# Compare every member/setup object to the zeroth member/setup object.
+if len(e1) == 1:
+    return {}
+
+
+
+def report_obj_diffs(obj1, obj2, eq_types):    
+    # member/setup object differences
+    diff0 = DeepDiffEq(e1.members[0], e1.members[nn], eq_types={pathlib.PosixPath})
+
+    unexpected_diffs = set(diff0.keys()) - set(['values_changed'])
+    if len(unexpected_diffs):
+        unexpected_diffs1 = { uu: diff0[uu] for uu in list(unexpected_diffs) }
+        raise ValueError(
+            'Unexpected attribute differences between ensemble members:',
+            unexpected_diffs1
+        )
+
+    diff1 = list(diff0['values_changed'].keys())
+    all_diff_keys = all_diff_keys | set([ ss.replace('root.','') for ss in diff1 ])
+
+    # Sub objects
+    for ss in sub_objs
+    DeepDiffEq(m1.domain, m2.domain, eq_types={pathlib.PosixPath})
+    DeepDiffEq(m1.model,  m2.model,  eq_types={pathlib.PosixPath})
+
+
+for nn in range(1, len(e1)):
+
+    
+
+# Come up with the visi
 from boltons.iterutils import remap
 import collections
 
@@ -134,7 +186,7 @@ def build_mem_refs_dict_list(bad_self):
 
         return(ref_dict)
 
-    exclude_types = [WrfHydroModel, WrfHydroDomain]
+    exclude_types = [wrfhydropy.WrfHydroModel, wrfhydropy.WrfHydroDomain]
     mems_refs_dict_list = [ build_component_types(mm) for mm, val in enumerate(bad_self.members) ]
     return(mems_refs_dict_list)
 
@@ -163,32 +215,9 @@ dd=DeepDiff(mrdl[1], mrdl[2])
 
 
 
-# ######################################################
-# Install the jmccreight/dev PR.
-import pathlib
-from deepdiff import DeepDiff
 
-# Great... 
-p1='foobar'
-p2='barfoo'
-assert p1 != p2
-assert not p1.__eq__(p2)
-assert bool(DeepDiff(p1, p2)) is True # True == not-empty
 
-# Huh?...
-pp1=pathlib.PosixPath(p1)
-pp2=pathlib.PosixPath(p2)
-assert pp1 != pp2
-assert not pp1.__eq__(pp2)
 
-assert bool(DeepDiff(pp1, pp2)) is True # True == not-empty
-
-assert bool(DeepDiff(pp1, pp2, eq_types={pathlib.PosixPath})) is True # True == not-empty
-DeepDiff(pp1, pp2, eq_types={pathlib.PosixPath})
-
-# ######################################################
-# Subclass instead of PR - dont depend on distribution of deepdiff.
-# Install the upstream/master.
 import pathlib
 from deepdiff import DeepDiff
 
@@ -207,6 +236,8 @@ class DeepDiffEq(DeepDiff):
                  verbose_level=1,
                  view='text',
                  **kwargs):
+
+        # Must set this first for some reason.
         self.eq_types = set(eq_types)
         super().__init__(t1,
                          t2,
@@ -220,6 +251,8 @@ class DeepDiffEq(DeepDiff):
                          verbose_level=1,
                          view='text',
                          **kwargs)
+
+    # Have to force override __diff_obj.
     def _DeepDiff__diff_obj(self, level, parents_ids=frozenset({}),
                             is_namedtuple=False):
         """Difference of 2 objects using their __eq__ if requested"""
@@ -231,13 +264,3 @@ class DeepDiffEq(DeepDiff):
                 return
         super(DeepDiffEq, self)._DeepDiff__diff_obj(level, parents_ids=frozenset({}),
                                                     is_namedtuple=False)
-
-p1='foobar'
-p2='barfoo'
-pp1=pathlib.PosixPath(p1)
-pp2=pathlib.PosixPath(p2)
-DeepDiffEq(pp1, pp2, eq_types={pathlib.PosixPath})
-DeepDiffEq(pp1, pp2, eq_types={DeepDiff})
-
-#######################################################
-

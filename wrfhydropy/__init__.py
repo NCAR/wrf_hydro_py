@@ -15,3 +15,5 @@ from .core.job import Scheduler, Job
 from .core import job_tools
 
 from .core.dartclasses import DartSetup
+
+from .core.ensemble import WrfHydroEnsembleSetup

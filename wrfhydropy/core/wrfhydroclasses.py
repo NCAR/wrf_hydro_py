@@ -16,7 +16,8 @@ from .utilities import \
     open_nwmdataset, \
     __make_relative__, \
     lock_pickle, \
-    unlock_pickle
+    unlock_pickle, \
+    get_git_revision_hash
 
 from .job_tools import \
     get_user, \
@@ -81,6 +82,7 @@ class WrfHydroModel(object):
         self.compile_options = dict()
         """dict: Compile-time options. Defaults are loaded from json file stored with source 
         code."""
+        self.git_hash = None
         self.version = None
         """str: Source code version from .version file stored with the source code."""
         self.compile_dir = None
@@ -121,7 +123,8 @@ class WrfHydroModel(object):
         self.compile_options = compile_options[self.version][self.model_config]
 
     def compile(
-        self, compiler: str,
+        self,
+        compiler: str,
         compile_dir: str = None,
         overwrite: bool = False,
         compile_options: dict = None
@@ -154,6 +157,7 @@ class WrfHydroModel(object):
                     raise IOError(str(self.compile_dir) + ' directory already exists')
 
         # Add compiler and compile options as attributes and update if needed
+        self.git_hash = get_git_revision_hash(self.source_dir)
         self.compiler = compiler
 
         if compile_options is not None:

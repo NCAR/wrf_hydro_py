@@ -19,7 +19,7 @@ from .job_tools import \
 
 from .job_tools import release as jt_release
 
-    
+
 class Scheduler(object):
     """A PBS/torque or slurm scheduler Job object.
 

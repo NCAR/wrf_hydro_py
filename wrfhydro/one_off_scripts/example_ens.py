@@ -34,9 +34,9 @@ from wrfhydropy.core.ensemble_tools import DeepDiffEq, dictify
 #source_path = '/home/docker/wrf_hydro_nwm/trunk/NDHMS'
 USER = os.path.expanduser('~/')
 domain_top_path = pathlib.PosixPath(USER + '/Downloads/croton_NY')
-#domain_top_path = USER + '/domain/croton_NY'
 source_path = pathlib.PosixPath(USER + '/WRF_Hydro/wrf_hydro_nwm_public/trunk/NDHMS')
-#source_path = '/wrf_hydro_nwm/trunk/NDHMS/'
+#domain_top_path = USER + '/domain/croton_NY'
+#source_path = USER + '/wrf_hydro_nwm_public/trunk/NDHMS/'
 
 theDomain = wrfhydropy.WrfHydroDomain(
     domain_top_dir=domain_top_path,
@@ -89,4 +89,6 @@ md = e1.members_dict
 
 {kk:collections.Counter(vv) for (kk,vv) in md.items()}
 
+## summarize the indices rather than just a count.
+#{kk:vv for (kk,vv) in md.items() if vv == 'the first member'}
 

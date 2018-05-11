@@ -16,4 +16,6 @@ from .core import job_tools
 
 from .core.dartclasses import DartSetup
 
-from .core.ensemble import WrfHydroEnsembleSetup
+from .core.ensemble import \
+    WrfHydroEnsembleSetup, \
+    WrfHydroEnsembleRun

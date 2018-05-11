@@ -408,7 +408,8 @@ class WrfHydroRun(object):
         wrf_hydro_setup: WrfHydroSetup,
         run_dir: str,
         rm_existing_run_dir = False,
-        jobs: list=None
+        jobs: list=None,
+        deepcopy_setup = True,    
     ):
         """Instantiate a WrfHydroRun object. A run is a WrfHydroSetup with multiple jobs.
         Args:
@@ -420,7 +421,10 @@ class WrfHydroRun(object):
         """
         # Initialize all attributes and methods
 
-        self.setup = wrf_hydro_setup
+        if deepcopy_setup:
+            self.setup = copy.deepcopy(wrf_hydro_setup)
+        else:
+            self.setup = wrf_hydro_setup
         """WrfHydroSetup: The WrfHydroSetup object used for the run"""
 
         self.run_dir = pathlib.PosixPath(run_dir)
@@ -468,7 +472,7 @@ class WrfHydroRun(object):
         #            times are different? Anything else that's flexible across
         #            jobs of a single run?
 
-        
+
         # Make run_dir directory if it does not exist.
         if self.run_dir.is_dir() and not rm_existing_run_dir:
             raise ValueError("Run directory already exists and rm_existing_run_dir is False.")

@@ -3,6 +3,7 @@ from boltons.iterutils import remap, get_path
 import copy
 import pathlib
 
+from .wrfhydroclasses import WrfHydroRun
 from .ensemble_tools import DeepDiffEq, dictify, get_sub_objs
 
 
@@ -182,37 +183,52 @@ class WrfHydroEnsembleSetup(object):
             update_obj_dict(self.members[ii], att_tuple)
 
 
+class WrfHydroEnsembleRun(object):
+    def __init__(
+        self,
+        ens_setup: WrfHydroEnsembleSetup,
+        run_dir: str,
+        rm_existing_run_dir = False,
+        jobs: list=None
+    ):
 
-    # Would want a method for detecting differences between ensemble members
-    # instead of just specifying them... 
-                                         
+        self.ens_setup = copy.deepcopy(ens_setup)
+        """WrfHydroSetup: The WrfHydroSetup object used for the run"""
 
+        # TODO(JLM): check all the setup members have to have rundirs with same path as run_dir
+        self.run_dir = pathlib.PosixPath(run_dir)
+        """pathlib.PosixPath: The location of where the jobs will be executed."""
 
-    # def get_ens_attributes(self, attribute, the_key):
+        self.jobs_completed = []
+        """Job: A list of previously executed jobs for this run."""
+        self.jobs_pending = []
+        """Job: A list of jobs *scheduled* to be executed for this run 
+            with prior job dependence."""
+        self.job_active = None
+        """Job: The job currently executing."""        
 
-    #     # Parse up the attribute
-    #     return_list = []
+        self.object_id = None
+        """str: A unique id to join object to run directory."""
+
+        self.members = []
+
+        # Create the members list of run objects.
+        for mm in self.ens_setup.members:
+            self.members.append(WrfHydroRun(mm, run_dir = mm.run_dir, deepcopy_setup=False))
+
+        # Make run_dir directory if it does not exist.
+        # if self.run_dir.is_dir() and not rm_existing_run_dir:
+        #     raise ValueError("Run directory already exists and rm_existing_run_dir is False.")
+
+        # if self.run_dir.exists():
+        #     shutil.rmtree(str(self.run_dir))
+        # self.run_dir.mkdir(parents=True)
+
+        ## TODO(JLM): I would prefer if the member runs dont make their parent dirs.
+    
         
-    #     def visit_path_key(path, key, value):
-    #         if key == the_key:
-    #             return_list.append(value) #print(path, key, value)
-    #             return key, value
-    #         return key, value
-
-    #     def remap_path_key(ll):
-    #         return(remap(ll, visit_path_key))
         
-    #     att_list = [remap_path_key(getattr(i, attribute)) for i in self.members ]
-    #     #att_list = [ i.hydro_namelist['nudging_nlist']['nlastobs'] for i in self.members ]
-    #     return(return_list)
-        
-
 #Ens:
-#Run method checks run dir name differences
-#Run dir names
-#Print differences across all fields, incl namelists
 #Job array submission
 #Operations on data.
-#Bulk edit of name lists: Run start and end times, etc.
-#Forcing source and run dirs (preprocess the run forcings for the run period)
 

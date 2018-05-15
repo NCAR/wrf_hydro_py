@@ -213,12 +213,12 @@ class DartSetup(object):
 
             # Save the object out to the compile directory
             self.pickle()
-            
+
             print('DART successfully compiled into ' + str(self.build_dir))
 
         else:
 
-            print('DART did not successfully compile.')
+            raise ValueError('DART did not successfully compile.')
 
 
     def pickle(self):

@@ -223,7 +223,7 @@ class WrfHydroModel(object):
 
             print('Model successfully compiled into ' + str(self.compile_dir))
         else:
-            print('Model did not successfully compile')
+            raise ValueError('Model did not successfully compile.')
 
 # WRF-Hydro Domain object
 class WrfHydroDomain(object):

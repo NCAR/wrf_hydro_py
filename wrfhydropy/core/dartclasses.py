@@ -14,7 +14,7 @@ import warnings
 import xarray as xr
 
 from .utilities import get_git_revision_hash
-
+from .ensemble import WrfHydroEnsembleRun
 
 class DartExec(object):
     def __init__(
@@ -224,3 +224,33 @@ class DartSetup(object):
     def pickle(self):
         with open(self.build_dir.joinpath('DartSetup.pkl'), 'wb') as f:
             pickle.dump(self, f, 2)
+
+
+class HydroDartRun(object):
+    """Class for dart and wrf-hydro runs (currently just filter?)."""
+    def __init__(
+        self,
+        dart_setup: DartSetup,
+        wrf_hydro_ens_run: WrfHydroEnsembleRun,
+        config: dict()={}
+    ):
+        self.dart_setup = dart_setup
+        self.wrf_hydro_ens_run = wrf_hydro_ens_run
+        self.config = config
+        # jobs_pending
+        # job_active
+        # jobs_completed
+
+
+    def pickle(
+        self,
+        path: pathlib.PosixPath=None
+    ):
+        filepath = path / 'HydroDartRun.pkl' 
+        with open(filepath, 'wb') as f:
+            pickle.dump(self, f, 2)
+
+
+    # def add_jobs()
+    # def run_jobs()
+

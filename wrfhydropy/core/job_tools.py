@@ -507,7 +507,7 @@ def hold(jobid, sched_name):
 
 def release(sched):
     """qrls (PBS) or scontrol un-delay (slurm) a job."""
-    
+
     if sched.sched_name == 'PBS':
         cmd_list = ['qrls', sched.sched_job_id]
     if sched.sched_name == 'slurm':
@@ -1021,7 +1021,7 @@ def solve_model_start_end_times(model_start_time, model_end_time, setup_obj):
     if type(model_end_time) is datetime.datetime:
 
         pass
-    
+
     elif model_end_time is None:
 
         # get one of kday or khour, convert it to timedelta

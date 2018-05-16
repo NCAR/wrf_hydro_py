@@ -262,7 +262,7 @@ class Job(object):
         self.hydro_namelist_file = None
         """dict: the file containing the hydro namelist used for this job."""
 
-        
+
         self.job_status = "created"
         """str: The status of the job object: created/submitted/running/complete."""
 

@@ -741,6 +741,11 @@ def default_job_spec(machine='docker'):
     with open(default_job_specs_file) as ff:
         default_job_specs = yaml.safe_load(ff)
     default_job_spec = default_job_specs[machine]
+    # One can not really construct a default scheduler without a user spec.
+    default_job_spec.pop('scheduler', None)
+    if 'modules' in default_job_spec.keys():
+        default_job_spec['modules'] = \
+            default_job_spec['modules']['base'] + ' ' + default_job_spec['modules']['gfort']
     default_job_spec['exe_cmd'] = default_job_spec['exe_cmd']['default']
     return default_job_spec
 
@@ -1106,12 +1111,17 @@ def check_job_input_files(job_obj, run_dir):
     hydro_file_dict['hydro_nlist']['restart_file'] = \
         bool(check_file_exist_colon(run_dir,
                                     job_obj.hydro_namelist['hydro_nlist']['restart_file']))
-    hydro_file_dict['nudging_nlist']['nudginglastobsfile'] = \
-        bool(check_file_exist_colon(run_dir,
-                                    job_obj.hydro_namelist['nudging_nlist']['nudginglastobsfile']))
+    if 'nudging_nlist' in hydro_file_dict.keys():
+        hydro_file_dict['nudging_nlist']['nudginglastobsfile'] = \
+            bool(check_file_exist_colon(run_dir,
+                                        job_obj.hydro_namelist['nudging_nlist']['nudginglastobsfile']))
 
     hrldas_exempt_list = []
     hydro_exempt_list = ['nudginglastobsfile', 'timeslicepath']
+
+    # Build conditional exemptions.
+    if job_obj.hydro_namelist['hydro_nlist']['udmp_opt'] == 0:
+        hydro_exempt_list = hydro_exempt_list + ['udmap_file']
 
     def check_nlst(nlst, file_dict):
 

@@ -909,14 +909,16 @@ class RestartDiffs(object):
         else:
             warnings.warn('length of candidate_sim.restart_lsm or reference_sim.restart_lsm is 0')
 
-        if len(candidate_run.restart_nudging) != 0 and len(reference_run.restart_nudging) != 0:
-            self.nudging = compare_ncfiles(
-                candidate_files=candidate_run.restart_nudging,
-                reference_files=reference_run.restart_nudging,
-                nccmp_options = nccmp_options,
-                exclude_vars = exclude_vars)
-            diff_counts = sum(1 for _ in filter(None.__ne__, self.nudging))
-            self.diff_counts.update({'nudging':diff_counts})
-        else:
-            warnings.warn('length of candidate_sim.restart_nudging or '
-                          'reference_sim.restart_nudging is 0')
+        if candidate_run.restart_nudging is not None or \
+           reference_run.restart_nudging is not None:
+            if len(candidate_run.restart_nudging) != 0 and len(reference_run.restart_nudging) != 0:
+                self.nudging = compare_ncfiles(
+                    candidate_files=candidate_run.restart_nudging,
+                    reference_files=reference_run.restart_nudging,
+                    nccmp_options = nccmp_options,
+                    exclude_vars = exclude_vars)
+                diff_counts = sum(1 for _ in filter(None.__ne__, self.nudging))
+                self.diff_counts.update({'nudging':diff_counts})
+            else:
+                warnings.warn('length of candidate_sim.restart_nudging or '
+                              'reference_sim.restart_nudging is 0')

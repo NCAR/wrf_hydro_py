@@ -325,7 +325,7 @@ class Job(object):
         # A method (used by  django) about specifying the root dir of the project.
         # https://stackoverflow.com/questions/25389095/python-get-path-of-root-project-structure
         #self.build_default_job(self)
-        default_job = default_job_spec()
+        default_job = default_job_spec(machine=get_machine())
         for ii in default_job.keys():
             if ii in self.__dict__.keys():
                 if self.__dict__[ii] is None and default_job[ii] is not None:
@@ -424,8 +424,9 @@ class Job(object):
         hydro_nlst = self.hydro_namelist['hydro_nlist']
         hydro_nlst['restart_file'] = check_file_exist_colon(run_dir, hydro_nlst['restart_file'])
         nudging_nlst = self.hydro_namelist['nudging_nlist']
-        nudging_nlst['nudginglastobsfile'] = \
-            check_file_exist_colon(run_dir, nudging_nlst['nudginglastobsfile'])
+        if nudging_nlst:
+            nudging_nlst['nudginglastobsfile'] = \
+                check_file_exist_colon(run_dir, nudging_nlst['nudginglastobsfile'])
 
         check_job_input_files(self, run_dir)
 

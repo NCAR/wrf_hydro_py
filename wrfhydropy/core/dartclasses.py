@@ -165,12 +165,14 @@ class DartSetup(object):
         mkmf_target = mkmf_dir / 'mkmf.template'
         mkmf_target.unlink()
         mkmf_target.symlink_to(self.mkmf_template)
-        mkmf_cmd = './mkmf'
-        print('DartSetup: Running "' + mkmf_cmd + '"')
-        self.mkmf_log = subprocess.run(shlex.split(mkmf_cmd),
-                                       stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE,
-                                       cwd=self.source_dir / 'build_templates')
+        # TODO(JLM): Apparently, one does not need to run mkmf.
+        # I'm going to leave this here for a while till i'm sure (5/18/18)
+        #mkmf_cmd = './mkmf'
+        #print('DartSetup: Running "' + mkmf_cmd + '"')
+        #self.mkmf_log = subprocess.run(shlex.split(mkmf_cmd),
+        #                               stdout=subprocess.PIPE,
+        #                               stderr=subprocess.PIPE,
+        #                               cwd=self.source_dir / 'build_templates')
 
         # compile
         build_cmd = './quickbuild.csh'

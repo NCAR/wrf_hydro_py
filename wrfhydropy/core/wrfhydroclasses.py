@@ -408,6 +408,7 @@ class WrfHydroRun(object):
         wrf_hydro_setup: WrfHydroSetup,
         run_dir: str,
         rm_existing_run_dir = False,
+        mode: str='r',
         jobs: list=None,
         deepcopy_setup = True,    
     ):
@@ -474,12 +475,15 @@ class WrfHydroRun(object):
 
 
         # Make run_dir directory if it does not exist.
-        if self.run_dir.is_dir() and not rm_existing_run_dir:
-            raise ValueError("Run directory already exists and rm_existing_run_dir is False.")
+        if self.run_dir.is_dir() and mode == 'w' and not rm_existing_run_dir:
+            raise ValueError("Run directory already exists, mode='w', " +
+                             "and rm_existing_run_dir is False: clobbering not allowed.")
 
         if self.run_dir.exists():
-            shutil.rmtree(str(self.run_dir))
-        self.run_dir.mkdir(parents=True)
+            if rm_existing_run_dir:
+                shutil.rmtree(str(self.run_dir))
+        else:
+            self.run_dir.mkdir(parents=True)
 
         # Check that compile object uid matches compile directory uid
         # This is to ensure that a new model has not been compiled into that directory unknowingly

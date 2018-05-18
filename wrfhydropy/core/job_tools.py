@@ -284,7 +284,6 @@ def job_id(all=False, name=None):       #pylint: disable=redefined-builtin
 
 def job_rundir(jobid, sched_name):
     """Return the directory job "id" was run in using qstat.
-
        Returns a dict, with id as key and rundir and value.
     """
     rundir = dict()
@@ -507,7 +506,7 @@ def hold(jobid, sched_name):
 
 def release(sched):
     """qrls (PBS) or scontrol un-delay (slurm) a job."""
-
+    
     if sched.sched_name == 'PBS':
         cmd_list = ['qrls', sched.sched_job_id]
     if sched.sched_name == 'slurm':
@@ -983,6 +982,7 @@ def compose_scheduled_bash_script(
 
         return jobstr
 
+
 def get_cheyenne_job_dependency_id(numeric_job_id):
     """Lovely bug in cheyenne's PBS that requires the full name on the job id."""
     cmd = 'qstat -w ' + str(numeric_job_id) + '| grep ' + str(numeric_job_id) + ' | cut -d" " -f1'
@@ -993,6 +993,7 @@ def get_cheyenne_job_dependency_id(numeric_job_id):
         stderr=subprocess.PIPE
     )
     return cmd_run.stdout.decode("utf-8").rstrip()
+
 
 def solve_model_start_end_times(model_start_time, model_end_time, setup_obj):
 

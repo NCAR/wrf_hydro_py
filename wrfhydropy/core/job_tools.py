@@ -4,6 +4,7 @@ from distutils.spawn import find_executable
 import io
 import os
 import pathlib
+import pickle
 import re
 import shlex
 import socket
@@ -1148,3 +1149,17 @@ def check_job_input_files(job_obj, run_dir):
     # Will this be by construction?
 
     return None
+
+
+def job_complete(run_dir):
+    if type(run_dir) is str:
+        run_dir = libpath.PosixPath(run_dir)
+    check_file = run_dir / '.job_not_complete'
+    return not(check_file.exists())
+
+
+def restore_completed_scheduled_job(run_dir):
+    while not job_complete(run_dir):
+        time.sleep(10)
+    return pickle.load(open(run_dir / 'WrfHydroRun.pkl', 'rb'))
+

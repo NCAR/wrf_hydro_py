@@ -437,7 +437,11 @@ class Job(object):
             # This is for when the submitted script calls the run method.
             # Note that this exe_cmd is for a python script which executes and optionally
             # waits for the model (it's NOT direct execution of the model).
-            exe_cmd = self.exe_cmd.format(**{'hostname': socket.gethostname()}) + " 2> {0} 1> {1}"
+            # TODO(JLM): Not sure why hostname: is in the following.
+            #            This may be deprecated 5/18/2018
+            #exe_cmd = self.exe_cmd.format(**{'hostname': socket.gethostname()}) + " 2> {0} 1> {1}"
+            exe_cmd = self.exe_cmd.format(**{'nproc': self.nproc})
+            exe_cmd += " 2> {0} 1> {1}"
             exe_cmd = exe_cmd.format(self.stderr_exe(run_dir), self.stdout_exe(run_dir))
             exe_cmd = shlex.split(exe_cmd)
             subprocess.run(exe_cmd, cwd=run_dir)
@@ -617,8 +621,3 @@ class Job(object):
         noah_nlst['restart_filename_requested'] = lsm_restart_file
         hydro_nlst['restart_file'] = hydro_restart_file
 
-    # @property
-    # def job_complete(self):
-    #     if self.scheduler.not_submitted:
-    #         return(False)
-    #     return( not os.path.isfile(run_dir + '/.job_not_complete') )

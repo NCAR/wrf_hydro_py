@@ -642,6 +642,8 @@ class WrfHydroRun(object):
         # Make sure there are no active jobs?
         # make sure all jobs are either scheduled or interactive?
 
+        run_dir = self.run_dir
+        
         if self.jobs_pending[0].scheduler:
 
             # submit the jobs_pending.
@@ -661,6 +663,7 @@ class WrfHydroRun(object):
             unlock_pickle(self)
             self.jobs_pending[0].release()
             self.destruct()
+            return run_dir
 
         else:
 

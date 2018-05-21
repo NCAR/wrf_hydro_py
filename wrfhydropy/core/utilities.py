@@ -245,3 +245,17 @@ def is_pickle_locked(run_obj):
     if total_lock == 1:
         raise ValueError('The internal_lock must match external_lock.')
     return bool(total_lock)
+
+
+def get_git_revision_hash(the_dir):
+    dirty = subprocess.run(
+        ['git', 'diff-index', 'HEAD'],  # --quiet seems to give the wrong result.
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        cwd=the_dir
+    ).returncode
+    the_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=the_dir)
+    the_hash = the_hash.decode('utf-8').split()[0]
+    if dirty:
+        the_hash += '--DIRTY--'
+    return the_hash

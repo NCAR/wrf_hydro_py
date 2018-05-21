@@ -4,6 +4,7 @@ from distutils.spawn import find_executable
 import io
 import os
 import pathlib
+import pickle
 import re
 import shlex
 import socket
@@ -284,7 +285,6 @@ def job_id(all=False, name=None):       #pylint: disable=redefined-builtin
 
 def job_rundir(jobid, sched_name):
     """Return the directory job "id" was run in using qstat.
-
        Returns a dict, with id as key and rundir and value.
     """
     rundir = dict()
@@ -742,6 +742,11 @@ def default_job_spec(machine='docker'):
     with open(default_job_specs_file) as ff:
         default_job_specs = yaml.safe_load(ff)
     default_job_spec = default_job_specs[machine]
+    # One can not really construct a default scheduler without a user spec.
+    default_job_spec.pop('scheduler', None)
+    if 'modules' in default_job_spec.keys() and default_job_spec['modules'] is not None:
+        default_job_spec['modules'] = \
+            default_job_spec['modules']['base'] + ' ' + default_job_spec['modules']['gfort']
     default_job_spec['exe_cmd'] = default_job_spec['exe_cmd']['default']
     return default_job_spec
 
@@ -983,6 +988,7 @@ def compose_scheduled_bash_script(
 
         return jobstr
 
+
 def get_cheyenne_job_dependency_id(numeric_job_id):
     """Lovely bug in cheyenne's PBS that requires the full name on the job id."""
     cmd = 'qstat -w ' + str(numeric_job_id) + '| grep ' + str(numeric_job_id) + ' | cut -d" " -f1'
@@ -993,6 +999,7 @@ def get_cheyenne_job_dependency_id(numeric_job_id):
         stderr=subprocess.PIPE
     )
     return cmd_run.stdout.decode("utf-8").rstrip()
+
 
 def solve_model_start_end_times(model_start_time, model_end_time, setup_obj):
 
@@ -1021,7 +1028,7 @@ def solve_model_start_end_times(model_start_time, model_end_time, setup_obj):
     if type(model_end_time) is datetime.datetime:
 
         pass
-    
+
     elif model_end_time is None:
 
         # get one of kday or khour, convert it to timedelta
@@ -1105,12 +1112,17 @@ def check_job_input_files(job_obj, run_dir):
     hydro_file_dict['hydro_nlist']['restart_file'] = \
         bool(check_file_exist_colon(run_dir,
                                     job_obj.hydro_namelist['hydro_nlist']['restart_file']))
-    hydro_file_dict['nudging_nlist']['nudginglastobsfile'] = \
-        bool(check_file_exist_colon(run_dir,
-                                    job_obj.hydro_namelist['nudging_nlist']['nudginglastobsfile']))
+    if 'nudging_nlist' in hydro_file_dict.keys():
+        hydro_file_dict['nudging_nlist']['nudginglastobsfile'] = \
+            bool(check_file_exist_colon(run_dir,
+                                        job_obj.hydro_namelist['nudging_nlist']['nudginglastobsfile']))
 
     hrldas_exempt_list = []
     hydro_exempt_list = ['nudginglastobsfile', 'timeslicepath']
+
+    # Build conditional exemptions.
+    if job_obj.hydro_namelist['hydro_nlist']['udmp_opt'] == 0:
+        hydro_exempt_list = hydro_exempt_list + ['udmap_file']
 
     def check_nlst(nlst, file_dict):
 
@@ -1137,3 +1149,17 @@ def check_job_input_files(job_obj, run_dir):
     # Will this be by construction?
 
     return None
+
+
+def job_complete(run_dir):
+    if type(run_dir) is str:
+        run_dir = libpath.PosixPath(run_dir)
+    check_file = run_dir / '.job_not_complete'
+    return not(check_file.exists())
+
+
+def restore_completed_scheduled_job(run_dir):
+    while not job_complete(run_dir):
+        time.sleep(10)
+    return pickle.load(open(run_dir / 'WrfHydroRun.pkl', 'rb'))
+

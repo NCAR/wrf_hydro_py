@@ -1,33 +1,34 @@
-# docker pull wrfhydro/domains:croton_NY
-# docker pull wrfhydro/dev:conda
+docker pull wrfhydro/domains:croton_NY
+docker pull wrfhydro/dev:conda
 
-# docker create --name croton wrfhydro/domains:croton_NY
-# # When done with the container: docker rm -v croton 
+docker create --name croton wrfhydro/domains:croton_NY
+# When done with the container: docker rm -v croton 
 
-# export WRF_HYDRO_DIR=~/WRF_Hydro
-# if [ $HOSTNAME == *"chimayo"* ]; then
-#   export PUBLIC_DIR=/Volumes/d1/chimayoSpace/git_repos/wrf_hydro_nwm_public:/home/docker/wrf_hydro_nwm_public
-# else
-#   export PUBLIC_DIR=${WRF_HYDRO_DIR}/wrf_hydro_nwm_public:/wrf_hydro_nwm_public
-# fi
+if [ $HOSTNAME == "chimayo.rap.ucar.edu" ]; then
+  echo chimayo
+  export PUBLIC_DIR=/Volumes/d1/chimayoSpace/git_repos/wrf_hydro_nwm_public:/home/docker/wrf_hydro_nwm_public
+  export WHP_DIR=/Volumes/d1/chimayoSpace/git_repos/wrf_hydro_py:/home/docker/wrf_hydro_py
+else
+  export PUBLIC_DIR=${WRF_HYDRO_DIR}/wrf_hydro_nwm_public:/wrf_hydro_nwm_public
+fi
 
-# docker run -it \
-#     -e WRF_HYDRO_TESTS_USER_SPEC='/home/docker/WRF_Hydro/wrf_hydro_tests/template_user_spec.yaml' \
-#     -v ${WRF_HYDRO_DIR}:/home/docker/WRF_Hydro \
-#     -v ${PUBLIC_DIR} \
-#     --volumes-from croton \
-#     wrfhydro/dev:conda
+docker run -it \
+    -e WRF_HYDRO_TESTS_USER_SPEC='/home/docker/WRF_Hydro/wrf_hydro_tests/template_user_spec.yaml' \
+    -v ${WHP_DIR} \
+    -v ${PUBLIC_DIR} \
+    --volumes-from croton \
+    wrfhydro/dev:conda
 
-# # Inside docker
-# if [ ! -e /home/docker/wrf_hydro_nwm_public ]; then
-#   cp -r /wrf_hydro_nwm_public /home/docker/wrf_hydro_nwm_public
-# fi
-  
-# cd ~/WRF_Hydro/wrf_hydro_py/
-# pip uninstall -y wrfhydropy
-# python setup.py develop
-# pip install boltons termcolor
-# python
+# Inside docker
+if [ ! -e /home/docker/wrf_hydro_nwm_public ]; then
+  echo 'copying source'
+  cp -r /wrf_hydro_nwm_public /home/docker/wrf_hydro_nwm_public
+fi
+
+cd ~/wrf_hydro_py/
+pip uninstall -y wrfhydropy
+python setup.py develop
+python
 
 from wrfhydropy import *
 
@@ -218,7 +219,7 @@ j1 = Job(
     model_end_time=time_2
 )
 
-run_interactive_3.add_job([j0,j1])
+run_interactive_3.add_jobs([j0,j1])
 run_interactive_3.run_jobs()
 
 assert len(run_interactive_3.chanobs) == 7*24

@@ -16,7 +16,7 @@ cheyenne:
 
   scheduler:
     name: "PBS"
-    max_walltime: 12:00
+    max_walltime: '12:00'
       
   cores_per_node: 36
 

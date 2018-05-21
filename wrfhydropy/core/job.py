@@ -19,7 +19,7 @@ from .job_tools import \
 
 from .job_tools import release as jt_release
 
-    
+
 class Scheduler(object):
     """A PBS/torque or slurm scheduler Job object.
 
@@ -262,7 +262,7 @@ class Job(object):
         self.hydro_namelist_file = None
         """dict: the file containing the hydro namelist used for this job."""
 
-        
+
         self.job_status = "created"
         """str: The status of the job object: created/submitted/running/complete."""
 
@@ -325,7 +325,7 @@ class Job(object):
         # A method (used by  django) about specifying the root dir of the project.
         # https://stackoverflow.com/questions/25389095/python-get-path-of-root-project-structure
         #self.build_default_job(self)
-        default_job = default_job_spec()
+        default_job = default_job_spec(machine=get_machine())
         for ii in default_job.keys():
             if ii in self.__dict__.keys():
                 if self.__dict__[ii] is None and default_job[ii] is not None:
@@ -424,8 +424,9 @@ class Job(object):
         hydro_nlst = self.hydro_namelist['hydro_nlist']
         hydro_nlst['restart_file'] = check_file_exist_colon(run_dir, hydro_nlst['restart_file'])
         nudging_nlst = self.hydro_namelist['nudging_nlist']
-        nudging_nlst['nudginglastobsfile'] = \
-            check_file_exist_colon(run_dir, nudging_nlst['nudginglastobsfile'])
+        if nudging_nlst:
+            nudging_nlst['nudginglastobsfile'] = \
+                check_file_exist_colon(run_dir, nudging_nlst['nudginglastobsfile'])
 
         check_job_input_files(self, run_dir)
 
@@ -436,7 +437,11 @@ class Job(object):
             # This is for when the submitted script calls the run method.
             # Note that this exe_cmd is for a python script which executes and optionally
             # waits for the model (it's NOT direct execution of the model).
-            exe_cmd = self.exe_cmd.format(**{'hostname': socket.gethostname()}) + " 2> {0} 1> {1}"
+            # TODO(JLM): Not sure why hostname: is in the following.
+            #            This may be deprecated 5/18/2018
+            #exe_cmd = self.exe_cmd.format(**{'hostname': socket.gethostname()}) + " 2> {0} 1> {1}"
+            exe_cmd = self.exe_cmd.format(**{'nproc': self.nproc})
+            exe_cmd += " 2> {0} 1> {1}"
             exe_cmd = exe_cmd.format(self.stderr_exe(run_dir), self.stdout_exe(run_dir))
             exe_cmd = shlex.split(exe_cmd)
             subprocess.run(exe_cmd, cwd=run_dir)
@@ -616,8 +621,3 @@ class Job(object):
         noah_nlst['restart_filename_requested'] = lsm_restart_file
         hydro_nlst['restart_file'] = hydro_restart_file
 
-    # @property
-    # def job_complete(self):
-    #     if self.scheduler.not_submitted:
-    #         return(False)
-    #     return( not os.path.isfile(run_dir + '/.job_not_complete') )

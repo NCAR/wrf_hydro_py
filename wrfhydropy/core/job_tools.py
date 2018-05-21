@@ -744,7 +744,7 @@ def default_job_spec(machine='docker'):
     default_job_spec = default_job_specs[machine]
     # One can not really construct a default scheduler without a user spec.
     default_job_spec.pop('scheduler', None)
-    if 'modules' in default_job_spec.keys():
+    if 'modules' in default_job_spec.keys() and default_job_spec['modules'] is not None:
         default_job_spec['modules'] = \
             default_job_spec['modules']['base'] + ' ' + default_job_spec['modules']['gfort']
     default_job_spec['exe_cmd'] = default_job_spec['exe_cmd']['default']

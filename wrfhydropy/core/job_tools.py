@@ -931,6 +931,8 @@ def compose_scheduled_bash_script(
             jobstr += 'module load {0}\n'.format(job.modules)
             jobstr += "\n"
 
+        jobstr += "jobname=$PBS_JOBNAME\n"
+        jobstr += "echo PBS_JOBNAME: $jobname\n"
         jobstr += "echo PBS_JOBID: $PBS_JOBID\n"
         jobstr += "sched_job_id=`echo ${PBS_JOBID} | cut -d'.' -f1`\n"
         jobstr += "echo sched_job_id: $sched_job_id\n"
@@ -949,17 +951,18 @@ def compose_scheduled_bash_script(
         jobstr += "\n"
 
         jobstr += "# DART job variables for future reference\n"
-        jobstr += "# JOBNAME=$PBS_JOBNAME\n"
-        jobstr += "# JOBID=\"$PBS_JOBID\"\n"
-        jobstr += "# ARRAY_INDEX=$PBS_ARRAY_INDEX\n"
+        jobstr += "ARRAY_INDEX=$PBS_ARRAY_INDEX\n"
         jobstr += "# NODELIST=`cat \"${PBS_NODEFILE}\"`\n"
-        jobstr += "# LAUNCHCMD=\"mpiexec_mpt\"\n"
         jobstr += "# \n"
 
         jobstr += "# CISL suggests users set TMPDIR when running batch jobs on Cheyenne.\n"
         jobstr += "export TMPDIR=/glade/scratch/$USER/temp\n"
         jobstr += "mkdir -p $TMPDIR\n"
         jobstr += "\n"
+
+        if job.is_job_array:
+            jobstr += 'cd `printf "member_%03d" $ARRAY_INDEX`\n'
+            jobstr += "\n"
 
         exestr  = "{0} ".format(job.exe_cmd)
         exestr += "2> {0} 1> {1}".format(job.stderr_exe(run_dir), job.stdout_exe(run_dir))

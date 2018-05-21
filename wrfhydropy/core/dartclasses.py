@@ -236,9 +236,9 @@ class HydroDartRun(object):
         wrf_hydro_ens_run: WrfHydroEnsembleRun,
         config: dict()={}
     ):
-        self.dart_setup = dart_setup
-        self.wrf_hydro_ens_run = wrf_hydro_ens_run
-        self.config = config
+        self.dart_setup = copy.deepcopy(dart_setup)
+        self.wrf_hydro_ens_run = copy.deepcopy(wrf_hydro_ens_run)
+        self.config = copy.deepcopy(config)
         # jobs_pending
         # job_active
         # jobs_completed

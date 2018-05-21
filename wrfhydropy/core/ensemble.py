@@ -1,10 +1,17 @@
 import ast
 from boltons.iterutils import remap, get_path
 import copy
+import datetime
 import pathlib
+import pickle
+import uuid
 
 from .wrfhydroclasses import WrfHydroRun
 from .ensemble_tools import DeepDiffEq, dictify, get_sub_objs
+
+from .job_tools import \
+    get_user, \
+    solve_model_start_end_times
 
 
 def copy_member(
@@ -189,6 +196,7 @@ class WrfHydroEnsembleRun(object):
         ens_setup: WrfHydroEnsembleSetup,
         run_dir: str,
         rm_existing_run_dir = False,
+        mode: str='r',
         jobs: list=None
     ):
 
@@ -202,33 +210,159 @@ class WrfHydroEnsembleRun(object):
         self.jobs_completed = []
         """Job: A list of previously executed jobs for this run."""
         self.jobs_pending = []
-        """Job: A list of jobs *scheduled* to be executed for this run 
+        """Job: A list of jobs *scheduled* to be executed for this run
             with prior job dependence."""
         self.job_active = None
-        """Job: The job currently executing."""        
-
+        """Job: The job currently executing."""
         self.object_id = None
         """str: A unique id to join object to run directory."""
-
         self.members = []
+        """List: ensemble of Run Objects."""
 
-        # Create the members list of run objects.
+        # #################################
+
+        # Make run_dir directory if it does not exist.
+        if self.run_dir.is_dir() and not rm_existing_run_dir:
+            raise ValueError("Run directory already exists and rm_existing_run_dir is False.")
+
+        if self.run_dir.exists():
+            shutil.rmtree(str(self.run_dir))
+            self.run_dir.mkdir(parents=True)
+
+        # This sets up the runs. Writes WrfHydroRun.pkl objects to each dir.
         for mm in self.ens_setup.members:
             self.members.append(WrfHydroRun(mm, run_dir = mm.run_dir, deepcopy_setup=False))
 
-        # Make run_dir directory if it does not exist.
-        # if self.run_dir.is_dir() and not rm_existing_run_dir:
-        #     raise ValueError("Run directory already exists and rm_existing_run_dir is False.")
+        if jobs:
+            self.add_jobs(jobs)
+        else:
+            self.pickle()
 
-        # if self.run_dir.exists():
-        #     shutil.rmtree(str(self.run_dir))
-        # self.run_dir.mkdir(parents=True)
 
-        ## TODO(JLM): I would prefer if the member runs dont make their parent dirs.
-    
-        
-        
-#Ens:
-#Job array submission
-#Operations on data.
+    def add_jobs(
+        self,
+        jobs: list
+    ):
+        """Add an Ensemble Run Job (array)."""
+
+        # Dont tamper with the passed object, let it remain a template in the calling level.
+        jobs = copy.deepcopy(jobs)
+
+        if type(jobs) is not list:
+            jobs = [jobs]
+
+        for jj in jobs:
+
+            # Attempt to add the job
+            if jj.scheduler:
+
+                # A scheduled job can be appended to the jobs.pending list if
+                # 1) there are no active or pending jobs
+                # 2) if it is (made) dependent on the last active or pending job.
+
+                # Get the job id of the last active or pending job.
+                last_job_id = None
+                if self.job_active:
+                    last_job_id = self.job_active.sched_job_id
+                if len(self.jobs_pending):
+                    last_job_id = self.jobs_pending[-1].scheduler.sched_job_id
+
+                # Check the dependency on a previous job
+                if last_job_id is not None:
+                    if jj.scheduler.afterok is not None and jj.scheduler.afterok != last_job_id:
+                        raise ValueError("The job's dependency/afterok conflicts with reality.")
+                    jj.scheduler.afterok = last_job_id
+                else: 
+                    if jj.scheduler.afterok is not None:
+                        raise ValueError("The job's dependency/afterok conflicts with reality.")
+
+            # Set submission-time job variables here.
+            jj.user = get_user()
+            job_submission_time = datetime.datetime.now()
+            jj.job_submission_time = str(job_submission_time)
+            jj.job_date_id = 'foobar' #'{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=job_submission_time)
+            jj.is_job_array = True
+
+            for mm in self.members:
+                mm.add_jobs(jj)
+
+            self.jobs_pending.append(jj)
+
+        self.pickle()
+
+
+    def run_jobs(self):
+
+        # Make sure there are no active jobs?
+        # make sure all jobs are either scheduled or interactive?
+
+        if self.jobs_pending[0].scheduler:
+
+            run_dir = self.run_dir
+
+            # submit the jobs_pending.
+            job_afterok = None
+            hold = True
+
+            # For each the job arrays,
+            for ii in range(self.jobs_pending):
+
+
+                #  For all the members,
+                for mm in self.members:
+
+                    # Set the dependence into all the members jobs,
+                    jj= mm.jobs_pending[ii]
+                    jj.scheduler.afterok = job_afterok
+
+                    # Write everything except the submission script,
+                    # (Job has is_job_array == TRUE)
+                    jj.schedule(self.run_dir, hold=hold)
+
+
+                # Submit the array job for all the members, using the last member to do so.
+                # Pass the array job id to subsequent job arrays
+                job_afterok = jj.schedule(self.run_dir, hold=hold, submit_array=True)
+                # Keep that info in the object.
+                self.jobs_pending[ii].sched_job_id = job_afterok
+                # Only hold the first job array
+                hold = False
+
+
+            self.pickle()
+            self.jobs_pending[0].release()
+            self.destruct()
+            return run_dir
+
+        else:
+
+            for jj in range(0, len(self.jobs_pending)):
+
+                self.job_active = self.jobs_pending.pop(0)
+                self.job_active.run(self.run_dir)
+                self.collect_output()
+                self.jobs_completed.append(self.job_active)
+                self.job_active = None
+                self.pickle()
+
+
+    # TODO(JLM): Can these un/pickle methods be abstracted to just take the name
+    # of the output file?
+    def pickle(self):
+        """Pickle the Run object into its run directory."""
+        # create a UID for the run and save in file
+        self.object_id = str(uuid.uuid4())
+        with open(self.run_dir.joinpath('.uid'), 'w') as f:
+            f.write(self.object_id)
+
+        # Save object to run directory
+        # Save the object out to the compile directory
+        with open(self.run_dir.joinpath('WrfHydroEnsembleRun.pkl'), 'wb') as f:
+            pickle.dump(self, f, 2)
+
+
+    def unpickle(self):
+        # Load run object from run directory after a scheduler job
+        with open(self.run_dir.joinpath('WrfHydroEnsembleRun.pkl'), 'rb') as f:
+            return(pickle.load(f))
 

@@ -59,15 +59,17 @@ def test_domain_nwm(tmp_data_dir, capsys):
     expected_dir = tmp_data_dir / 'data' / 'expected'
 
     # Load expected object
-    domain_object_expected = pickle.load(open(expected_dir / 'test_domain_nwm.pkl',"rb"))
+    domain_object_expected = pickle.load(open(expected_dir / 'test_domain_nwm.pkl', "rb"))
 
     # Generate new objects
-    domain_object = wrfhydropy.WrfHydroDomain(domain_top_dir=domain_top_dir,
-                                   domain_config='NWM',
-                                   model_version='v1.2.1')
+    domain_object = wrfhydropy.WrfHydroDomain(
+        domain_top_dir=domain_top_dir,
+        domain_config='NWM',
+        model_version='v1.2.1'
+    )
 
     # Compare expected to new
-    diffs = deepdiff.DeepDiff(domain_object_expected,domain_object)
+    diffs = deepdiff.DeepDiff(domain_object_expected, domain_object)
     assert diffs == {}
 
 
@@ -87,6 +89,9 @@ def test_domain_nwm(tmp_data_dir, capsys):
 
 # model_object_postcompile = copy.deepcopy(model_object_precompile)
 # model_object_postcompile.compile('gfort',compile_dir = compile_dir,overwrite=True)
+# # Because the actual test is done is a copied dir while the expected
+# # result is constricuted under this repo, need to manually set this
+# model_object_postcompile.git_hash = 'not-a-repo'
 
 # model_test_objects = {'model_object_precompile':model_object_precompile,
 #                       'model_object_postcompile':model_object_postcompile}
@@ -146,7 +151,7 @@ def test_model_nwm(tmp_data_dir, capsys):
 # Setup object tests
 
 
-# Make expected data
+# # Make expected data
 # domain_object_expected = pickle.load(open(test_data_dir / 'expected/test_domain_nwm.pkl', "rb"))
 # model_objects_expected = pickle.load(open(test_data_dir / 'expected/test_model_nwm.pkl', "rb"))
 # model_object_postcompile_expected=model_objects_expected['model_object_postcompile']
@@ -234,7 +239,7 @@ def mk_job_list():
     return [job_object_1, job_object_2]
 
 
-# Make expected data
+# # Make expected data
 # # Create a two-job list to pass to run for a two-job run.
 # job_list = mk_job_list()
 
@@ -327,7 +332,8 @@ def test_run_nwm(tmp_data_dir, capsys):
         setup_object,
         run_dir=run_dir,
         rm_existing_run_dir=True,
-        jobs=job_list)
+        jobs=job_list
+    )
 
     prerun_diffs = deepdiff.DeepDiff(
         run_objects_expected['run_object_prerun'],
@@ -335,11 +341,13 @@ def test_run_nwm(tmp_data_dir, capsys):
     )
 
     # with capsys.disabled():
-        # How to check that the diffs are actually allowable
-        # pprint.pprint(prerun_diffs['values_changed'])
-        # How to get the allowable diffs
-        # pprint.pprint(prerun_diffs['values_changed'].keys())
-        
+    #     #How to check that the diffs are actually allowable
+    #     #pprint.pprint(prerun_diffs['values_changed'])
+    #     pprint.pprint(prerun_diffs)
+    #     #How to get the allowable diffs
+    #     #pprint.pprint(prerun_diffs['values_changed'].keys())
+    #     pprint.pprint(prerun_diffs.keys())
+
     allowable_prerun_diffs = set(
         ['root.jobs_pending[0].job_date_id',
          'root.jobs_pending[1].job_submission_time',

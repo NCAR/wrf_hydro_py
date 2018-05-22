@@ -78,24 +78,24 @@ def test_domain_nwm(tmp_data_dir, capsys):
 # wrf_hydro_nwm_dir = test_data_dir / 'wrf_hydro_nwm_public'
 # source_dir = wrf_hydro_nwm_dir / 'source'
 # compile_dir = wrf_hydro_nwm_dir / 'compiled'
-
+#
 # model_object_precompile = wrfhydropy.WrfHydroModel(
 #     source_dir=source_dir,
 #     model_config='NWM'
 # )
-
+#
 # model_object_postcompile = copy.deepcopy(model_object_precompile)
 # model_object_postcompile.compile('gfort',compile_dir = compile_dir,overwrite=True)
 # # Because the actual test is done is a copied dir while the expected
 # # result is constricuted under this repo, need to manually set this
 # model_object_postcompile.git_hash = 'not-a-repo'
-
+#
 # model_test_objects = {'model_object_precompile':model_object_precompile,
 #                       'model_object_postcompile':model_object_postcompile}
-
+#
 # with open(test_data_dir / 'expected/test_model_nwm.pkl', 'wb') as f:
 #     pickle.dump(model_test_objects, f, 2)
-
+#
 
 # Define test
 def test_model_nwm(tmp_data_dir, capsys):
@@ -152,12 +152,12 @@ def test_model_nwm(tmp_data_dir, capsys):
 # domain_object_expected = pickle.load(open(test_data_dir / 'expected/test_domain_nwm.pkl', "rb"))
 # model_objects_expected = pickle.load(open(test_data_dir / 'expected/test_model_nwm.pkl', "rb"))
 # model_object_postcompile_expected=model_objects_expected['model_object_postcompile']
-
+#
 # setup_object = wrfhydropy.WrfHydroSetup(model_object_postcompile_expected,domain_object_expected)
 # # Changing the restart freq is needed for the multi job run
 # setup_object.namelist_hrldas['noahlsm_offline']['restart_frequency_hours'] = 6
 # setup_object.hydro_namelist['hydro_nlist']['rst_dt'] = 360
-
+#
 # with open(test_data_dir / 'expected/test_setup_nwm.pkl', 'wb') as f:
 #     pickle.dump(setup_object, f, 2)
 
@@ -235,28 +235,28 @@ def mk_job_list():
 # # Make expected data
 # # Create a two-job list to pass to run for a two-job run.
 # job_list = mk_job_list()
-
+#
 # with open(test_data_dir / 'expected/test_job_list_nwm.pkl', 'wb') as f:
 #      pickle.dump(job_list, f, 2)
-
-
-def test_job_list_nwm(tmp_data_dir, capsys):
-    with capsys.disabled():
-        print(
-            "\nQuestion: Job object still the same on NWM public? ",
-            end=''
-        )
-
-    expected_dir = tmp_data_dir / 'data' / 'expected'
-    job_list_expected = pickle.load(open(expected_dir / 'test_job_list_nwm.pkl', "rb"))
-
-    job_list = mk_job_list()
-
-    job_diffs = deepdiff.DeepDiff(
-        job_list_expected,
-        job_list
-    )
-    assert job_diffs == {}
+#
+#
+# def test_job_list_nwm(tmp_data_dir, capsys):
+#     with capsys.disabled():
+#         print(
+#             "\nQuestion: Job object still the same on NWM public? ",
+#             end=''
+#         )
+#
+#     expected_dir = tmp_data_dir / 'data' / 'expected'
+#     job_list_expected = pickle.load(open(expected_dir / 'test_job_list_nwm.pkl', "rb"))
+#
+#     job_list = mk_job_list()
+#
+#     job_diffs = deepdiff.DeepDiff(
+#         job_list_expected,
+#         job_list
+#     )
+#     assert job_diffs == {}
 
 
 # #################################
@@ -266,15 +266,20 @@ def test_job_list_nwm(tmp_data_dir, capsys):
 # # Make expected data
 # wrf_hydro_nwm_dir = test_data_dir / 'wrf_hydro_nwm_public'
 # run_dir = wrf_hydro_nwm_dir / 'run'
-
+#
 # setup_object = pickle.load(open(test_data_dir / 'expected/test_setup_nwm.pkl', "rb"))
 # job_list = pickle.load(open(test_data_dir / 'expected/test_job_list_nwm.pkl', "rb"))
-
-# run_object = wrfhydropy.WrfHydroRun(setup_object, run_dir=run_dir, jobs=job_list)
+#
+# run_object = wrfhydropy.WrfHydroRun(setup_object,
+#                                     run_dir=run_dir,
+#                                     jobs=job_list,
+#                                     rm_existing_run_dir = True,
+#                                     mode ='w')
+#
 # run_object_prerun = copy.deepcopy(run_object)
 # run_object.run_jobs()
 # run_object_postrun = run_object
-
+#
 # with open(test_data_dir / 'expected/test_run_nwm.pkl', 'wb') as f:
 #     pickle.dump({'run_object_prerun': run_object_prerun,
 #                  'run_object_postrun': run_object_postrun}, f, 2)

@@ -6,6 +6,7 @@ import os
 import pathlib
 import pickle
 import re
+import pkg_resources
 import shlex
 import socket
 import subprocess
@@ -13,11 +14,11 @@ import sys
 import time
 import warnings
 import yaml
-
 # Where is wrfhydropy/core dir in the filesystem?
 # A method (used by  django) about specifying the root dir of the project.
 # https://stackoverflow.com/questions/25389095/python-get-path-of-root-project-structure
 core_dir = pathlib.PosixPath(os.path.dirname(os.path.abspath(__file__)))
+DATA_PATH = pathlib.Path(pkg_resources.resource_filename('wrfhydropy', 'core/data/'))
 
 
 class PBSError(Exception):
@@ -738,7 +739,7 @@ def job_status_slurm(jobid=None):
 def default_job_spec(machine='docker'):
     if machine != 'docker':
         warnings.warn("Default job sepcs do not currently make sense except for docker.")
-    default_job_specs_file = core_dir / 'default_job_specs.yaml'
+    default_job_specs_file = DATA_PATH / 'default_job_specs.yaml'
     with open(default_job_specs_file) as ff:
         default_job_specs = yaml.safe_load(ff)
     default_job_spec = default_job_specs[machine]

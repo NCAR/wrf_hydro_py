@@ -440,27 +440,28 @@ def submit_scheduler(substr, sched_name, hold=False):
         substr_str = substr.decode('utf-8')
     else:
         substr_str = substr
-        
-    m = re.search(r"-N\s+(.*)\s", substr_str)       #pylint: disable=invalid-name
+
+    m = re.search(r"-N\s+(.*)\s", substr_str)
     if m:
-        jobname = m.group(1)        #pylint: disable=unused-variable
+        jobname = m.group(1)
     else:
         raise PBSError(
             None,
-            r"Error in scheduler_misc.submit(). Jobname (\"-N\s+(.*)\s\") not found in submit string.")
+            r"Error in scheduler_misc.submit(). Jobname (\"-N\s+(.*)\s\")" +
+            " not found in submit string."
+        )
 
-    
     if sched_name == 'PBS':
 
         qsub_cmd = "qsub"
         if hold:
             qsub_cmd += " -h"
 
-        p = subprocess.Popen( shlex.split(qsub_cmd),
-                              stdin=subprocess.PIPE,
-                              stdout=subprocess.PIPE,
-                              stderr=subprocess.STDOUT)
-        
+        p = subprocess.Popen(shlex.split(qsub_cmd),
+                             stdin=subprocess.PIPE,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT)
+
         stdout, stderr = p.communicate(input=substr)
         if re.search("error", stdout.decode('utf-8')):
             raise PBSError(0, "PBS Submission error.\n" + stdout + "\n" + stderr)
@@ -960,7 +961,7 @@ def compose_scheduled_bash_script(
         jobstr += "mkdir -p $TMPDIR\n"
         jobstr += "\n"
 
-        if job.is_job_array:
+        if job.array_size:
             jobstr += 'cd `printf "member_%03d" $ARRAY_INDEX`\n'
             jobstr += "\n"
 

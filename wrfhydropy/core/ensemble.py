@@ -281,7 +281,7 @@ class WrfHydroEnsembleRun(object):
             job_submission_time = datetime.datetime.now()
             jj.job_submission_time = str(job_submission_time)
             jj.job_date_id = 'foobar' #'{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=job_submission_time)
-            jj.is_job_array = True
+            jj.array_size = len(self.members)
 
             for mm in self.members:
                 mm.add_jobs(jj)
@@ -305,8 +305,7 @@ class WrfHydroEnsembleRun(object):
             hold = True
 
             # For each the job arrays,
-            for ii in range(self.jobs_pending):
-
+            for ii, _ in enumerate(self.jobs_pending):
 
                 #  For all the members,
                 for mm in self.members:
@@ -317,10 +316,10 @@ class WrfHydroEnsembleRun(object):
 
                     # Write everything except the submission script,
                     # (Job has is_job_array == TRUE)
-                    jj.schedule(self.run_dir, hold=hold)
+                    jj.schedule(mm.run_dir, hold=hold)
 
 
-                # Submit the array job for all the members, using the last member to do so.
+                # Submit the array job for all the members, using the last member [-1] to do so.
                 # Pass the array job id to subsequent job arrays
                 job_afterok = jj.schedule(self.run_dir, hold=hold, submit_array=True)
                 # Keep that info in the object.
@@ -330,7 +329,7 @@ class WrfHydroEnsembleRun(object):
 
 
             self.pickle()
-            self.jobs_pending[0].release()
+            self.members[-1].jobs_pending[0].release()
             self.destruct()
             return run_dir
 

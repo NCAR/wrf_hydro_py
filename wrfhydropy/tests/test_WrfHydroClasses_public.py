@@ -148,7 +148,7 @@ def test_model_nwm(tmp_data_dir, capsys):
 # Setup object tests
 
 
-# # Make expected data
+# # make expected data
 # domain_object_expected = pickle.load(open(test_data_dir / 'expected/test_domain_nwm.pkl', "rb"))
 # model_objects_expected = pickle.load(open(test_data_dir / 'expected/test_model_nwm.pkl', "rb"))
 # model_object_postcompile_expected=model_objects_expected['model_object_postcompile']

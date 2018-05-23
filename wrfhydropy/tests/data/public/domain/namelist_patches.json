@@ -3,30 +3,25 @@
         "NWM": {
             "hydro_namelist": {
                 "hydro_nlist": {
-                    "geo_static_flnm": "./NWM/DOMAIN/geo_em.nc",
+                    "geo_static_flnm": "./NWM/DOMAIN/geo_em.d01.nc",
                     "geo_finegrid_flnm": "./NWM/DOMAIN/Fulldom_hires.nc",
-                    "hydrotbl_f": "./NWM/DOMAIN/HYDRO_TBL_2D.nc",
+                    "hydrotbl_f": "./NWM/DOMAIN/hydro2dtbl.nc",
                     "land_spatial_meta_flnm": "./NWM/DOMAIN/GEOGRID_LDASOUT_Spatial_Metadata.nc",
-                    "restart_file": "./NWM/RESTART/HYDRO_RST.2011082600_DOMAIN1",
+                    "restart_file": "./NWM/RESTART/HYDRO_RST.2011-08-26_00_00_DOMAIN1",
                     "route_link_f": "./NWM/DOMAIN/Route_Link.nc",
                     "route_lake_f": "./NWM/DOMAIN/LAKEPARM.nc",
                     "gwbuckparm_file": "./NWM/DOMAIN/GWBUCKPARM.nc",
-                    "udmap_file": "./NWM/DOMAIN/spatialweights.nc",
-                    "rst_dt": 480,
-                    "rtout_domain": 1,
-                    "chrtout_domain": 1,
-                    "output_gw":1,
-                    "outlake":1
+                    "udmap_file": "./NWM/DOMAIN/spatialweights.nc"
                 },
                 "nudging_nlist": {
                     "timeslicepath": "./NWM/nudgingTimeSliceObs/",
                     "nudgingparamfile": "./NWM/DOMAIN/nudgingParams.nc",
-                    "nudginglastobsfile": "notAFile.junk"
+                    "nudginglastobsfile": "./NWM/RESTART/nudgingLastObs.2011-08-26_00_00_00.nc"
                 }
             },
             "namelist_hrldas": {
                 "noahlsm_offline": {
-                    "hrldas_setup_file": "./NWM/DOMAIN/wrfinput.nc",
+                    "hrldas_setup_file": "./NWM/DOMAIN/wrfinput_d01.nc",
                     "indir": "./FORCING",
                     "spatial_filename": "./NWM/DOMAIN/soil_properties.nc",
                     "restart_filename_requested": "./NWM/RESTART/RESTART.2011082600_DOMAIN1",
@@ -34,21 +29,117 @@
                     "start_month": 8,
                     "start_day": 26,
                     "start_hour": 0,
-                    "start_min": 0,
-                    "start_year": 2011,
-                    "start_month": 8,
-                    "start_day": 26,
-                    "start_hour": 0,
-                    "start_min": 0,
-                    "kday": 1 ,
-                    "restart_frequency_hours": 8
+                    "start_min": 0
                 },
                 "wrf_hydro_offline": {
                     "forc_typ": 1
                 }
             }
         },
-        "Gridded": {},
-        "Reach": {}
+        "Gridded": {
+            "hydro_namelist": {
+                "hydro_nlist": {
+                    "geo_static_flnm": "./Gridded/DOMAIN/geo_em.d01.nc",
+                    "geo_finegrid_flnm": "./Gridded/DOMAIN/Fulldom_hires.nc",
+                    "hydrotbl_f": "./Gridded/DOMAIN/hydro2dtbl.nc",
+                    "land_spatial_meta_flnm": "./Gridded/DOMAIN/GEOGRID_LDASOUT_Spatial_Metadata.nc",
+                    "restart_file": "./Gridded/RESTART/HYDRO_RST.2011-08-26_00_00_DOMAIN1",
+                    "route_link_f": "",
+                    "route_lake_f": "./Gridded/DOMAIN/LAKEPARM.nc",
+                    "gwbuckparm_file": "./Gridded/DOMAIN/GWBUCKPARM.nc",
+                    "gwbasmskfil": "./Gridded/DOMAIN/GWBASINS.nc",
+                    "udmap_file": "./Gridded/DOMAIN/spatialweights.nc"
+                },
+                "nudging_nlist": {}
+            },
+            "namelist_hrldas": {
+                "noahlsm_offline": {
+                    "hrldas_setup_file": "./Gridded/DOMAIN/wrfinput_d01.nc",
+                    "indir": "./FORCING",
+                    "spatial_filename": "./Gridded/DOMAIN/soil_properties.nc",
+                    "restart_filename_requested": "./Gridded/RESTART/RESTART.2011082600_DOMAIN1",
+                    "start_year": 2011,
+                    "start_month": 8,
+                    "start_day": 26,
+                    "start_hour": 0,
+                    "start_min": 0,
+                    "forcing_timestep": 3600,
+                    "noah_timestep": 3600,
+                    "output_timestep": 3600
+                },
+                "wrf_hydro_offline": {
+                    "forc_typ": 1
+                }
+            }
+        },
+        "Gridded_NO_LAKES": {
+            "hydro_namelist": {
+                "hydro_nlist": {
+                    "geo_static_flnm": "./Gridded/DOMAIN_NO_LAKES/geo_em.d01.nc",
+                    "geo_finegrid_flnm": "./Gridded/DOMAIN_NO_LAKES/Fulldom_hires.nc",
+                    "hydrotbl_f": "./Gridded/DOMAIN_NO_LAKES/hydro2dtbl.nc",
+                    "land_spatial_meta_flnm": "./Gridded/DOMAIN_NO_LAKES/GEOGRID_LDASOUT_Spatial_Metadata.nc",
+                    "restart_file": "./Gridded/RESTART_NO_LAKES/HYDRO_RST.2011-08-26_00_00_DOMAIN1",
+                    "route_link_f": "",
+                    "gwbuckparm_file": "./Gridded/DOMAIN_NO_LAKES/GWBUCKPARM.nc",
+                    "gwbasmskfil": "./Gridded/DOMAIN_NO_LAKES/GWBASINS.nc",
+                    "udmap_file": "./Gridded/DOMAIN_NO_LAKES/spatialweights.nc"
+                },
+                "nudging_nlist": {}
+            },
+            "namelist_hrldas": {
+                "noahlsm_offline": {
+                    "hrldas_setup_file": "./Gridded/DOMAIN_NO_LAKES/wrfinput_d01.nc",
+                    "indir": "./FORCING",
+                    "spatial_filename": "./Gridded/DOMAIN_NO_LAKES/soil_properties.nc",
+                    "restart_filename_requested": "./Gridded/RESTART_NO_LAKES/RESTART.2011082600_DOMAIN1",
+                    "start_year": 2011,
+                    "start_month": 8,
+                    "start_day": 26,
+                    "start_hour": 0,
+                    "start_min": 0,
+                    "forcing_timestep": 3600,
+                    "noah_timestep": 3600,
+                    "output_timestep": 3600
+                },
+                "wrf_hydro_offline": {
+                    "forc_typ": 1
+                }
+            }
+        },
+        "Reach" : {
+            "hydro_namelist": {
+                "hydro_nlist": {
+                    "geo_static_flnm": "./Reach/DOMAIN/geo_em.d01.nc",
+                    "geo_finegrid_flnm": "./Reach//DOMAIN/Fulldom_hires.nc",
+                    "hydrotbl_f": "./Reach/DOMAIN/hydro2dtbl.nc",
+                    "land_spatial_meta_flnm": "./Reach/DOMAIN/GEOGRID_LDASOUT_Spatial_Metadata.nc",
+                    "restart_file": "./Reach/RESTART/HYDRO_RST.2011-08-26_00_00_DOMAIN1",
+                    "route_link_f": "./Reach/DOMAIN/Route_Link.nc",
+                    "gwbuckparm_file": "./Reach/DOMAIN/GWBUCKPARM.nc",
+                    "gwbasmskfil": "./Reach/DOMAIN/GWBASINS.nc"
+                },
+                "nudging_nlist": {}
+            },
+            "namelist_hrldas": {
+                "noahlsm_offline": {
+                    "hrldas_setup_file": "./Reach/DOMAIN/wrfinput_d01.nc",
+                    "indir": "./FORCING",
+                    "spatial_filename": "./Reach/DOMAIN/soil_properties.nc",
+                    "restart_filename_requested": "./Reach/RESTART/RESTART.2011082600_DOMAIN1",
+                    "start_year": 2011,
+                    "start_month": 8,
+                    "start_day": 26,
+                    "start_hour": 0,
+                    "start_min": 0,
+                    "forcing_timestep": 3600,
+                    "noah_timestep": 3600,
+                    "output_timestep": 3600
+                },
+                "wrf_hydro_offline": {
+                    "forc_typ": 1
+                }
+            }
+        }
     }
 }

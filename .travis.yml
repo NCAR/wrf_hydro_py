@@ -11,9 +11,9 @@ services:
 before_install:
   - sudo chmod -R 777 $TRAVIS_BUILD_DIR
   - docker pull wrfhydro/dev:conda
-
+  
 script:
-  - docker run -v $TRAVIS_BUILD_DIR:/home/docker/wrf_hydro_py wrfhydro/dev:conda bash -c "cd /home/docker/wrf_hydro_py/wrfhydropy/tests; pytest -v"
+  - docker run -v $TRAVIS_BUILD_DIR:/home/docker/wrf_hydro_py wrfhydro/dev:conda bash -c "pip uninstall -y wrfhydropy; cd /home/docker/wrf_hydro_py; python setup.py install; cd /home/docker/wrf_hydro_py/wrfhydropy/tests; pytest -v"
 
 #deploy:
 #  provider: pypi

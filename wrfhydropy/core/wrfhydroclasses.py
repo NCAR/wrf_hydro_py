@@ -479,8 +479,8 @@ class WrfHydroRun(object):
         if self.run_dir.exists():
             if rm_existing_run_dir:
                 shutil.rmtree(str(self.run_dir))
-        else:
-            self.run_dir.mkdir(parents=True)
+
+        self.run_dir.mkdir(parents=True)
 
         # Check that compile object uid matches compile directory uid
         # This is to ensure that a new model has not been compiled into that directory unknowingly

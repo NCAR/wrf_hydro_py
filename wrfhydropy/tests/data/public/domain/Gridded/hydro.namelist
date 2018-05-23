@@ -7,20 +7,20 @@ sys_cpl = 1
 !!!! ------------------- MODEL INPUT DATA FILES ------------------- !!!!
 
 ! Specify land surface model gridded input data file (e.g.: "geo_em.d03.nc")
-GEO_STATIC_FLNM = "./DOMAIN/geo_em.nc"
+GEO_STATIC_FLNM = "./DOMAIN/geo_em.d01.nc"
 
 ! Specify the high-resolution routing terrain input data file (e.g.: "Fulldom_hires.nc")
 GEO_FINEGRID_FLNM = "./DOMAIN/Fulldom_hires.nc"
 
-! Specify the spatial hydro parameters file (e.g.: "HYDRO_TBL_2D.nc")
+! Specify the spatial hydro parameters file (e.g.: "hydro2dtbl.nc")
 ! If you specify a filename and the file does not exist, it will be created for you.
-HYDROTBL_F = "./DOMAIN/HYDRO_TBL_2D.nc"
+HYDROTBL_F = "./DOMAIN/hydro2dtbl.nc"
 
-! Specify spatial metadata file for land surface grid. (e.g.: "geospatial_data_template_land_GIS.nc")
-LAND_SPATIAL_META_FLNM = "./DOMAIN/geospatial_data_template_land_GIS.nc"
+! Specify spatial metadata file for land surface grid. (e.g.: "GEOGRID_LDASOUT_Spatial_Metadata.nc")
+LAND_SPATIAL_META_FLNM = "./DOMAIN/GEOGRID_LDASOUT_Spatial_Metadata.nc"
 
 ! Specify the name of the restart file if starting from restart...comment out with '!' if not...
-RESTART_FILE  = 'RESTART/HYDRO_RST.2011082600_DOMAIN1'
+RESTART_FILE  = 'RESTART/HYDRO_RST.2011-08-26_00_00_DOMAIN1'
 
 !!!! --------------------- MODEL SETUP OPTIONS -------------------- !!!!
 
@@ -29,7 +29,7 @@ IGRID = 1
 
 ! Specify the restart file write frequency...(minutes)
 ! A value of -99999 will output restarts on the first day of the month only.
-rst_dt = 10080
+rst_dt = 1440
 
 ! Reset the LSM soil states from the high-res routing restart file (1=overwrite, 0=no overwrite)
 ! NOTE: Only turn this option on if overland or subsurface rotuing is active!
@@ -78,24 +78,24 @@ t0OutputFlag = 1
 ! 0=None (default), 1=channel influxes (qSfcLatRunoff, qBucket)
 ! 2=channel+bucket fluxes    (qSfcLatRunoff, qBucket, qBtmVertRunoff_toBucket)
 ! 3=channel accumulations    (accSfcLatRunoff, accBucket) *** NOT TESTED ***
-output_channelBucket_influx = 0
+output_channelBucket_influx = 2
 
 ! Output netcdf file control
-CHRTOUT_DOMAIN = 0           ! Netcdf point timeseries output at all channel points (1d)
+CHRTOUT_DOMAIN = 1           ! Netcdf point timeseries output at all channel points (1d)
                              !      0 = no output, 1 = output
 CHANOBS_DOMAIN = 1           ! Netcdf point timeseries at forecast points or gage points (defined in Routelink)
                              !      0 = no output, 1 = output at forecast points or gage points.
-CHRTOUT_GRID = 0             ! Netcdf grid of channel streamflow values (2d)
+CHRTOUT_GRID = 1             ! Netcdf grid of channel streamflow values (2d)
                              !      0 = no output, 1 = output
                              !      NOTE: Not available with reach-based routing
-LSMOUT_DOMAIN = 0            ! Netcdf grid of variables passed between LSM and routing components (2d)
+LSMOUT_DOMAIN = 1            ! Netcdf grid of variables passed between LSM and routing components (2d)
                              !      0 = no output, 1 = output
                              !      NOTE: No scale_factor/add_offset available
-RTOUT_DOMAIN = 0             ! Netcdf grid of terrain routing variables on routing grid (2d)
+RTOUT_DOMAIN = 1             ! Netcdf grid of terrain routing variables on routing grid (2d)
                              !      0 = no output, 1 = output
-output_gw = 0                ! Netcdf GW output
+output_gw = 1                ! Netcdf GW output
                              !      0 = no output, 1 = output
-outlake  = 0                 ! Netcdf grid of lake values (1d)
+outlake  = 1                 ! Netcdf grid of lake values (1d)
                              !      0 = no output, 1 = output
 frxst_pts_out = 0            ! ASCII text file of forecast points or gage points (defined in Routelink)
                              !      0 = no output, 1 = output
@@ -138,7 +138,7 @@ CHANRTSWCRT = 1
 channel_option = 3
 
 ! Specify the reach file for reach-based routing options (e.g.: "Route_Link.nc")
-route_link_f = "./DOMAIN/RouteLink.nc"
+route_link_f = ""
 
 ! Specify the lake parameter file (e.g.: "LAKEPARM.nc" for netcdf or "LAKEPARM.TBL" for text).
 ! Note REQUIRED if lakes are on.
@@ -157,63 +157,11 @@ GWBUCKPARM_file = "./DOMAIN/GWBUCKPARM.nc"
 ! User defined mapping, such NHDPlus: 0=no (default), 1=yes
 UDMP_OPT = 0
 ! If on, specify the user-defined mapping file (e.g.: "spatialweights.nc")
-udmap_file = "./DOMAIN/spatialweights.nc"
+udmap_file = ""
 
 /
 
 &NUDGING_nlist
 
-! Path to the "timeslice" observation files.
-timeSlicePath = "./nudgingTimeSliceObs/"
-
-nudgingParamFile = "DOMAIN/nudgingParams.nc"
-
-! Nudging restart flie = "nudgingLastObsFile"
-! nudgingLastObsFile defaults to '', which will look for nudgingLastObs.YYYY-mm-dd_HH:MM:SS.nc
-!   **AT THE INITALIZATION TIME OF THE RUN**. Set to a missing file to use no restart.
-!nudgingLastObsFile = '/a/nonexistent/file/gives/nudging/cold/start'
-
-!! Parallel input of nudging timeslice observation files?
-readTimesliceParallel = .TRUE.
-
-! temporalPersistence defaults to true, only runs if necessary params present.
-temporalPersistence = .FALSE.
-
-! The total number of last (obs, modeled) pairs to save in nudgingLastObs for 
-! removal of bias. This is the maximum array length. (This option is active when persistBias=FALSE)
-! (Default=960=10days @15min obs resolution, if all the obs are present and longer if not.)
-nLastObs = 960
-
-! If using temporalPersistence the last observation persists by default. 
-! This option instead persists the bias after the last observation. 
-persistBias = .FALSE.
-
-! AnA (FALSE)  vs Forecast (TRUE) bias persistence.
-! If persistBias: Does the window for calculating the bias end at 
-! model init time (=t0)?
-! FALSE = window ends at model time (moving), 
-! TRUE = window ends at init=t0(fcst) time. 
-! (If commented out, Default=FALSE)
-! Note: Perfect restart tests require this option to be .FALSE.
-biasWindowBeforeT0 = .FALSE.
-
-! If persistBias: Only use this many last (obs, modeled) pairs. (If Commented out, Default=-1*nLastObs)
-! > 0: apply an age-based filter, units=hours.
-! = 0: apply no additional filter, use all available/usable obs.
-! < 0: apply an count-based filter, units=count
-maxAgePairsBiasPersist = -960
-
-! If persistBias: The minimum number of last (obs, modeled) pairs, with age less than
-! maxAgePairsBiasPersist, required to apply a bias correction. (default=8)
-minNumPairsBiasPersist = 8
-
-! If persistBias: give more weight to observations closer in time? (default=FALSE)
-invDistTimeWeightBias = .TRUE.
-
-! If persistBias: "No constructive interference in bias correction?", Reduce the bias adjustment
-! when the model and the bias adjustment have the same sign relative to the modeled flow at t0?
-! (default=FALSE)
-! Note: Perfect restart tests require this option to be .FALSE.
-noConstInterfBias = .FALSE.
 
 /

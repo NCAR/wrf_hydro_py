@@ -248,6 +248,19 @@ def is_pickle_locked(run_obj):
 
 
 def get_git_revision_hash(the_dir):
+
+    # First test if this is even a git repo. (Have to allow for this unless the wrfhydropy
+    # testing brings in the wrf_hydro_code as a repo with a .git file.)
+    dir_is_repo = subprocess.call(
+        ["git", "branch"],
+        stderr=subprocess.STDOUT,
+        stdout=open(os.devnull, 'w'),
+        cwd=the_dir
+    )
+    if dir_is_repo != 0:
+        warnings.warn('The source directory is NOT a git repo: ' + str(the_dir))
+        return 'not-a-repo'
+
     dirty = subprocess.run(
         ['git', 'diff-index', 'HEAD'],  # --quiet seems to give the wrong result.
         stdout=subprocess.PIPE,

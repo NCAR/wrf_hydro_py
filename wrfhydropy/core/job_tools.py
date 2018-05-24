@@ -464,8 +464,9 @@ def submit_scheduler(substr, sched_name, hold=False):
                              stderr=subprocess.STDOUT)
 
         stdout, stderr = p.communicate(input=substr)
-        if re.search("error", stdout.decode('utf-8')):
-            raise PBSError(0, "PBS Submission error.\n" + stdout + "\n" + stderr)
+        if re.search("error", stdout.decode('utf-8'), re.IGNORECASE):
+            print("PBS Submission error.\n" + stdout.decode('utf-8') + "\n")
+            raise PBSError(0, 'PBS Submission error.')
         else:
             jobid = stdout.decode('utf-8').split(".")[0]
             return jobid
@@ -509,7 +510,7 @@ def hold(jobid, sched_name):
 
 def release(sched):
     """qrls (PBS) or scontrol un-delay (slurm) a job."""
-    
+    print('sched.sched_job_id: ', sched.sched_job_id)
     if sched.sched_name == 'PBS':
         cmd_list = ['qrls', sched.sched_job_id]
     if sched.sched_name == 'slurm':
@@ -962,9 +963,10 @@ def compose_scheduled_bash_script(
         jobstr += "mkdir -p $TMPDIR\n"
         jobstr += "\n"
 
-        if job.array_size:
-            jobstr += 'cd `printf "member_%03d" $ARRAY_INDEX`\n'
-            jobstr += "\n"
+        if job.scheduler.array_size:
+            jobstr += 'cd `printf "member_%03d" $(($ARRAY_INDEX-1))`\n'
+            jobstr += "echo In ens member dir: `pwd`\n"
+            
 
         exestr  = "{0} ".format(job.exe_cmd)
         exestr += "2> {0} 1> {1}".format(job.stderr_exe(run_dir), job.stdout_exe(run_dir))

@@ -373,7 +373,13 @@ class Job(object):
 
             model_exe_cmd = self.exe_cmd
             py_script_name = str(run_dir / (self.job_date_id + ".wrfhydropy.py"))
-            py_run_cmd = "python " + py_script_name + \
+            # I think it's preferable to call the abs path, but in a job array that dosent work.
+            if self.scheduler.array_size:
+                py_script_name_call = self.job_date_id + ".wrfhydropy.py"
+            else:
+                py_script_name_call = py_script_name
+
+            py_run_cmd = "python " + py_script_name_call + \
                          " --sched_job_id $sched_job_id --job_date_id $job_date_id"
 
             # This needs to happen before composing the scripts.
@@ -389,7 +395,7 @@ class Job(object):
 
         # Only complete the scheduling if not a job array or
         # if there is a specific flag to complete the job array.
-        if (not self.array_size) or (self.array_size and submit_array):
+        if (not self.scheduler.array_size) or (self.scheduler.array_size and submit_array):
 
             filename = run_dir / (self.job_date_id + '.' + self.scheduler.sched_name + '.job')
             jobstr = compose_scheduled_bash_script(run_dir=run_dir, job=self)
@@ -409,8 +415,7 @@ class Job(object):
                 self.scheduler.not_submitted = True
                 raise e
 
-            if (not self.array_size):
-                self.scheduler.sched_job_id = sched_job_id
+            self.scheduler.sched_job_id = sched_job_id
 
             touch(str(run_dir) + '/.job_not_complete')
             return sched_job_id

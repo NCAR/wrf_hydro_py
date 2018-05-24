@@ -281,7 +281,7 @@ class WrfHydroEnsembleRun(object):
             job_submission_time = datetime.datetime.now()
             jj.job_submission_time = str(job_submission_time)
             jj.job_date_id = 'foobar' #'{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=job_submission_time)
-            jj.array_size = len(self.members)
+            jj.scheduler.array_size = len(self.members)
 
             for mm in self.members:
                 mm.add_jobs(jj)

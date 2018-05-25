@@ -1,20 +1,21 @@
 import copy
-import datetime
+from datetime import datetime, timedelta
 import f90nml
-import json
 import os
 import pathlib
 import pickle
-import re
 import shlex
 import shutil
 import subprocess
 import uuid
 import warnings
-import xarray as xr
 
-from .utilities import get_git_revision_hash
-from .ensemble import WrfHydroEnsembleRun
+from .utilities import \
+    get_git_revision_hash, \
+    get_ens_last_restart_datetime
+
+from .job import Job, Scheduler
+
 
 class DartExec(object):
     def __init__(
@@ -232,23 +233,75 @@ class HydroDartRun(object):
     """Class for dart and wrf-hydro runs (currently just filter?)."""
     def __init__(
         self,
-        dart_setup: DartSetup,
-        wrf_hydro_ens_run: WrfHydroEnsembleRun,
-        config: dict()={}
+        run_dir: str,
+        config: dict
     ):
-        self.dart_setup = copy.deepcopy(dart_setup)
-        self.wrf_hydro_ens_run = copy.deepcopy(wrf_hydro_ens_run)
+
+        self.run_dir = pathlib.PosixPath(str(run_dir))
+        """The absolute path to the hydro-dart run dir."""
         self.config = copy.deepcopy(config)
+        """The configuation from the experiment setup."""
+
+        self.dart_setup_pkl = run_dir / "HydroDartRun.pkl"
+        self.wrf_hydro_ens_run_pkl = run_dir / "WrfHydroEnsembleRun.pkl"
+        self.exp_dir = self.run_dir / 'experiment_dir'
+
         # jobs_pending
         # job_active
         # jobs_completed
 
-
-    def pickle(
-        self,
-        path: pathlib.PosixPath=None
+    def advance_ensemble(
+        self, 
+        model_start_time: datetime=None,
+        model_end_time: datetime=None,
+        entry_script: str=None,
+        exit_script: str=None,
+        afterok: str=None,
+        afterany: str=None
     ):
-        filepath = path / 'HydroDartRun.pkl' 
+
+        if entry_script is not None:
+            subprocess.run(entry_script)
+
+        # Setup job and scheduler.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            # Create a default job
+            the_job = Job(nproc=self.config['run_experiment']['wrf_hydro_ens_advance']['nproc'])
+
+            # Create a dummy scheduler
+            the_sched = Scheduler(
+                job_name=self.config['run_experiment']['wrf_hydro_ens_advance']['nproc'],
+                account=self.config['run_experiment']['wrf_hydro_ens_advance']['account'],
+                nproc=self.config['run_experiment']['wrf_hydro_ens_advance']['nproc'],
+                nnodes=self.config['run_experiment']['wrf_hydro_ens_advance']['nnodes'],
+                walltime=self.config['run_experiment']['wrf_hydro_ens_advance']['walltime']
+            )
+
+        the_job.scheduler = the_sched
+
+        ens_run = pickle.load(open(self.wrf_hydro_ens_run_pkl, 'rb'))
+
+        if model_start_time is None:
+            model_start_time = get_ens_last_restart_datetime(ens_run)
+        if model_end_time is None:
+            model_end_time = \
+                model_start_time + \
+                timedelta(hours=self.config['run_experiment']['time']['advance_model_hours'])
+
+        the_job.model_start_time = model_start_time
+        the_job.model_end_time = model_end_time
+
+        ens_run.add_jobs(the_job)
+        ens_run.run_jobs()
+
+        if exit_script is not None:
+            subprocess.run(exit_script)
+
+
+    def pickle(self):
+        filepath = self.run_dir / 'HydroDartRun.pkl' 
         with open(filepath, 'wb') as f:
             pickle.dump(self, f, 2)
 

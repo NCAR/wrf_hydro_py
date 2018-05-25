@@ -280,7 +280,8 @@ class WrfHydroEnsembleRun(object):
             jj.user = get_user()
             job_submission_time = datetime.datetime.now()
             jj.job_submission_time = str(job_submission_time)
-            jj.job_date_id = 'foobar' #'{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=job_submission_time)
+            jj.job_date_id = 'job_' + str(len(self.jobs_completed))
+            # alternative" '{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=job_submission_time)
             jj.scheduler.array_size = len(self.members)
 
             for mm in self.members:
@@ -345,10 +346,16 @@ class WrfHydroEnsembleRun(object):
                 self.pickle()
 
 
-    # TODO(JLM): Can these un/pickle methods be abstracted to just take the name
-    # of the output file?
+    def collect_output(self):
+        for mm in self.members:
+            mm.collect_output()
+
+
     def pickle(self):
-        """Pickle the Run object into its run directory."""
+        """Pickle the Run object into its run directory. Collect output first."""
+
+        self.collect_output()
+
         # create a UID for the run and save in file
         self.object_id = str(uuid.uuid4())
         with open(self.run_dir.joinpath('.uid'), 'w') as f:
@@ -361,7 +368,13 @@ class WrfHydroEnsembleRun(object):
 
 
     def unpickle(self):
-        # Load run object from run directory after a scheduler job
+        """ Load run object from run directory after a scheduler job. """
         with open(self.run_dir.joinpath('WrfHydroEnsembleRun.pkl'), 'rb') as f:
             return(pickle.load(f))
 
+
+    def destruct(self):
+        """ Pickle first. This gets rid of everything but the methods."""
+        self.pickle()
+        print("Jobs have been submitted to  the scheduler: This run object will now self destruct.")
+        self.__dict__ = {}

@@ -966,7 +966,7 @@ def compose_scheduled_bash_script(
         if job.scheduler.array_size:
             jobstr += 'cd `printf "member_%03d" $(($ARRAY_INDEX-1))`\n'
             jobstr += "echo In ens member dir: `pwd`\n"
-            
+            jobstr += "\n"
 
         exestr  = "{0} ".format(job.exe_cmd)
         exestr += "2> {0} 1> {1}".format(job.stderr_exe(run_dir), job.stdout_exe(run_dir))

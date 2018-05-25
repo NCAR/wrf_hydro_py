@@ -392,7 +392,8 @@ class Job(object):
 
             # The bash submission script which calls the python script.
             self.exe_cmd = py_run_cmd
-
+            return
+            
         # Only complete the scheduling if not a job array or
         # if there is a specific flag to complete the job array.
         if (not self.scheduler.array_size) or (self.scheduler.array_size and submit_array):
@@ -417,7 +418,12 @@ class Job(object):
 
             self.scheduler.sched_job_id = sched_job_id
 
-            touch(str(run_dir) + '/.job_not_complete')
+            if self.scheduler.array_size:
+                # This is really convention-y. Not great.
+                [touch(str(run_dir) + '/member_{0}/.job_not_complete'.format("%03d" % (ii,)))
+                 for ii in range(self.scheduler.array_size)]
+            else:
+                touch(str(run_dir) + '/.job_not_complete')
             return sched_job_id
 
 

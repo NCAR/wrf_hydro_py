@@ -668,12 +668,10 @@ class WrfHydroRun(object):
 
     def collect_output(self):
 
-        if self.job_active.exit_status != 0:
-            warnings.warn('Model run failed.')
+        if self.job_active is not None:
+            warnings.warn('Model run in progress or job failed..')
             return(None)
 
-        print('Model run succeeded.\n')
-        #####################
         # Grab outputs as WrfHydroXX classes of file paths
 
         # Get channel files
@@ -757,7 +755,8 @@ class WrfHydroRun(object):
 
 
     def destruct(self):
-        # This gets rid of everything but the methods.
+        # Pickle first. This gets rid of everything but the methods.
+        self.pickle()
         print("Jobs have been submitted to  the scheduler: This run object will now self destruct.")
         self.__dict__ = {}
 

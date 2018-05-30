@@ -306,7 +306,7 @@ def get_last_restart_datetime(
     else:
         the_sep = '_'
 
-    fmt = '%Y-%m-%d_%H_%M' + the_sep + 'DOMAIN1'
+    fmt = '%Y-%m-%d_%H' + the_sep + '%M_DOMAIN1'
     hydro_last_restart_datetime = datetime.strptime(
             str(hydro_last_restart).split('_RST.')[-1], fmt
     )
@@ -330,7 +330,7 @@ def get_last_restart_datetime(
         else:
             warning.warn("No LSM RESTART file exists for this run.")
 
-    fmt = '%Y%m%d%H%M_DOMAIN1'
+    fmt = '%Y%m%d%H_DOMAIN1'
     lsm_last_restart_datetime = datetime.strptime(
         str(lsm_last_restart).split('RESTART.')[-1],
         fmt
@@ -343,6 +343,8 @@ def get_last_restart_datetime(
         return lsm_last_restart_datetime
 
     if hydro_last_restart_datetime != lsm_last_restart_datetime:
+        print(hydro_last_restart_datetime)
+        print(lsm_last_restart_datetime)
         raise ValueError("Last Hydro and LSM restart times do not match.")
     else:
         return hydro_last_restart_datetime

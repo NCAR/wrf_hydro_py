@@ -249,6 +249,7 @@ class HydroDartRun(object):
         # jobs_pending
         # job_active
         # jobs_completed
+        self.pickle()        
 
     def advance_ensemble(
         self, 
@@ -276,12 +277,16 @@ class HydroDartRun(object):
                 account=self.config['run_experiment']['wrf_hydro_ens_advance']['account'],
                 nproc=self.config['run_experiment']['wrf_hydro_ens_advance']['nproc'],
                 nnodes=self.config['run_experiment']['wrf_hydro_ens_advance']['nnodes'],
-                walltime=self.config['run_experiment']['wrf_hydro_ens_advance']['walltime']
+                walltime=self.config['run_experiment']['wrf_hydro_ens_advance']['walltime'],
+                afterok=afterok
             )
+            # TODO(JLM): add afterany
 
         the_job.scheduler = the_sched
 
         ens_run = pickle.load(open(self.wrf_hydro_ens_run_pkl, 'rb'))
+        # TODO (JLM): this is in place of the "sweeper" job or part of the submit script.
+        ens_run.collect_ensemble_runs()
 
         if model_start_time is None:
             model_start_time = get_ens_last_restart_datetime(ens_run)
@@ -295,9 +300,10 @@ class HydroDartRun(object):
 
         ens_run.add_jobs(the_job)
         ens_run.run_jobs()
-
         if exit_script is not None:
             subprocess.run(exit_script)
+
+        self.pickle()
 
 
     def pickle(self):

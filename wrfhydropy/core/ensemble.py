@@ -4,6 +4,9 @@ import copy
 import datetime
 import pathlib
 import pickle
+import shlex
+import subprocess
+import time
 import uuid
 
 from .wrfhydroclasses import WrfHydroRun
@@ -168,7 +171,8 @@ class WrfHydroEnsembleSetup(object):
 
             def visit(path, key, value):
                 superpath = path + (key,)
-                #print(superpath)
+                #print(superpath) #
+
                 if superpath != att_tuple[0:len(superpath)]:
                     return True
                 if len(superpath) == len(att_tuple):
@@ -236,6 +240,7 @@ class WrfHydroEnsembleRun(object):
         if jobs:
             self.add_jobs(jobs)
         else:
+            self.collect_output()
             self.pickle()
 
 
@@ -276,11 +281,15 @@ class WrfHydroEnsembleRun(object):
                     if jj.scheduler.afterok is not None:
                         raise ValueError("The job's dependency/afterok conflicts with reality.")
 
+
             # Set submission-time job variables here.
             jj.user = get_user()
             job_submission_time = datetime.datetime.now()
             jj.job_submission_time = str(job_submission_time)
-            jj.job_date_id = 'job_' + str(len(self.jobs_completed))
+            jj.job_date_id = 'job_' + str(len(self.jobs_completed) +
+                                          bool(self.job_active) +
+                                          len(self.jobs_pending))
+
             # alternative" '{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=job_submission_time)
             jj.scheduler.array_size = len(self.members)
 
@@ -289,13 +298,16 @@ class WrfHydroEnsembleRun(object):
 
             self.jobs_pending.append(jj)
 
+        self.collect_output()
         self.pickle()
 
 
     def run_jobs(self):
 
-        # Make sure there are no active jobs?
         # make sure all jobs are either scheduled or interactive?
+        
+        if self.job_active is not None:
+            raise ValueError("There is an active ensemble run.")
 
         if self.jobs_pending[0].scheduler:
 
@@ -312,7 +324,7 @@ class WrfHydroEnsembleRun(object):
                 for mm in self.members:
 
                     # Set the dependence into all the members jobs,
-                    jj= mm.jobs_pending[ii]
+                    jj = mm.jobs_pending[ii]
                     jj.scheduler.afterok = job_afterok
 
                     # Write everything except the submission script,
@@ -321,14 +333,15 @@ class WrfHydroEnsembleRun(object):
 
 
                 # Submit the array job for all the members, using the last member [-1] to do so.
-                # Pass the array job id to subsequent job arrays
                 job_afterok = jj.schedule(self.run_dir, hold=hold, submit_array=True)
                 # Keep that info in the object.
                 self.jobs_pending[ii].sched_job_id = job_afterok
+                # This is the "sweeper" job for job arrays.
+                #job_afterok = self.jobs_pending[ii].collect_job_array(str_to_collect_ensemble)
                 # Only hold the first job array
                 hold = False
 
-
+            self.job_active = self.jobs_pending.pop(0)
             self.pickle()
             self.members[-1].jobs_pending[0].release()
             self.destruct()
@@ -340,10 +353,41 @@ class WrfHydroEnsembleRun(object):
 
                 self.job_active = self.jobs_pending.pop(0)
                 self.job_active.run(self.run_dir)
-                self.collect_output()
                 self.jobs_completed.append(self.job_active)
                 self.job_active = None
+                self.collect_output()
                 self.pickle()
+
+
+    str_to_collect_ensemble = (
+        "import pickle \n"
+        "import sys \n"
+        "import wrfhydropy \n"
+        "ens_run = pickle.load(open('WrfHydroEnsembleRun.pkl', 'rb')) \n",
+        "ens_run.collect_ensemble_runs() \n"
+        "sys.exit()"
+    )[0]
+
+
+    def collect_ensemble_runs(
+        self
+    ):
+        """Collect a completed job array. """
+        def n_jobs_not_complete(run_dir):
+            the_cmd = '/bin/bash -c "ls member_*/.job_not_complete 2> /dev/null | wc -l"'
+            return subprocess.run(shlex.split(the_cmd), cwd=run_dir).returncode
+        while n_jobs_not_complete(self.run_dir) != 0:
+            time.sleep(6)
+
+        if self.job_active:
+            self.jobs_completed.append(self.job_active)
+            self.job_active = None
+
+        for ii, _ in enumerate(self.members):
+            self.members[ii] = self.members[ii].unpickle()
+
+        self.collect_output()
+        self.pickle()
 
 
     def collect_output(self):
@@ -351,10 +395,9 @@ class WrfHydroEnsembleRun(object):
             mm.collect_output()
 
 
+
     def pickle(self):
         """Pickle the Run object into its run directory. Collect output first."""
-
-        self.collect_output()
 
         # create a UID for the run and save in file
         self.object_id = str(uuid.uuid4())

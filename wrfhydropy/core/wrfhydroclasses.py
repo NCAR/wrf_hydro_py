@@ -599,8 +599,9 @@ class WrfHydroRun(object):
                     if jj.scheduler.afterok is not None and jj.scheduler.afterok != last_job_id:
                         raise ValueError("The job's dependency/afterok conflicts with reality.")
                     jj.scheduler.afterok = last_job_id
-                else: 
-                    if jj.scheduler.afterok is not None:
+                else:
+                    # If this is NOT a job array, then need the afterok.
+                    if jj.scheduler.array_size is None and jj.scheduler.afterok is not None:
                         raise ValueError("The job's dependency/afterok conflicts with reality.")
 
             # Set submission-time job variables here.
@@ -713,13 +714,13 @@ class WrfHydroRun(object):
         for file in self.run_dir.glob('RESTART*'):
             file = WrfHydroStatic(file)
             self.restart_lsm.append(file)
-                                
+
         if len(self.restart_lsm) > 0:
             self.restart_lsm = sorted(self.restart_lsm,
                                       key=lambda file: file.stat().st_mtime_ns)
         else:
             self.restart_lsm = None
-                                    
+
         ### Nudging restarts
         self.restart_nudging = []
         for file in self.run_dir.glob('nudgingLastObs*'):
@@ -732,11 +733,13 @@ class WrfHydroRun(object):
         else:
             self.restart_nudging = None
 
-        self.pickle()    
+    def pickle(
+        self
+    ):
+        """Pickle the Run object into its run directory. Collect output first."""
 
-
-    def pickle(self):
-        """Pickle the Run object into its run directory."""
+        # Collecting here seems to be causing more problems than it solves.
+        
         # create a UID for the run and save in file
         self.object_id = str(uuid.uuid4())
         with open(self.run_dir.joinpath('.uid'), 'w') as f:
@@ -755,7 +758,7 @@ class WrfHydroRun(object):
 
 
     def destruct(self):
-        # Pickle first. This gets rid of everything but the methods.
+        """Pickle first. This gets rid of everything but the methods."""
         self.pickle()
         print("Jobs have been submitted to  the scheduler: This run object will now self destruct.")
         self.__dict__ = {}

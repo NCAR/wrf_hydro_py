@@ -117,10 +117,10 @@ class Scheduler(object):
         self._ppn        = ppn
 
         self._job_date_id = job_date_id
-        
+
         self.wait_for_complete = wait_for_complete
         self.monitor_freq_s = monitor_freq_s
-        
+
         # Set attributes.
 
         # Try to get a default scheduler?
@@ -393,7 +393,7 @@ class Job(object):
             # The bash submission script which calls the python script.
             self.exe_cmd = py_run_cmd
             return
-            
+
         # Only complete the scheduling if not a job array or
         # if there is a specific flag to complete the job array.
         if (not self.scheduler.array_size) or (self.scheduler.array_size and submit_array):
@@ -497,14 +497,18 @@ class Job(object):
         # TODO(JLM): The following be made a method which checks the run.
         #            The following should not be run if the scheduler is not waiting.
         #            Put this in collect_run?
+
         try:
 
             # Get diag files
             # TODO(JLM): diag_files should be scrapped orrenamed to no conflict between jobs.
             run_dir_posix = pathlib.PosixPath(run_dir)
+            print('run_dir_posix:', run_dir_posix)
             self.diag_files = list(run_dir_posix.glob('diag_hydro.*'))
-            self.stdout_file = list(run_dir_posix.glob(self.job_date_id+'.*stdout'))[0]
-            self.stderr_file = list(run_dir_posix.glob(self.job_date_id+'.*stderr'))[0]
+
+            #self.stdout_file = list(run_dir_posix.glob(self.job_date_id+'.*stdout'))[0]
+            #self.stderr_file = list(run_dir_posix.glob(self.job_date_id+'.*stderr'))[0]
+
             self.tracejob_file = list(run_dir_posix.glob(self.job_date_id+'.*tracejob'))
             if len(self.tracejob_file):
                 self.tracejob_file = self.tracejob_file[0]
@@ -519,8 +523,10 @@ class Job(object):
                 if 'The model finished successfully.......' in diag_file:
                     self.exit_status = 0
                     self.job_status='completed success'
+
         except Exception as e:
-            warnings.warn('Could not parse diag files') 
+
+            #raise ValueError('Could not parse diag files, run_dir:' + str(run_dir) )
             print(e)    
 
 

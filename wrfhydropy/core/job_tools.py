@@ -464,6 +464,7 @@ def submit_scheduler(substr, sched_name, hold=False):
                              stderr=subprocess.STDOUT)
 
         stdout, stderr = p.communicate(input=substr)
+
         if re.search("error", stdout.decode('utf-8'), re.IGNORECASE):
             print("PBS Submission error.\n" + stdout.decode('utf-8') + "\n")
             raise PBSError(0, 'PBS Submission error.')

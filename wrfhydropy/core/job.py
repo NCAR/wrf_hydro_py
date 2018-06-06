@@ -392,7 +392,6 @@ class Job(object):
 
             # The bash submission script which calls the python script.
             self.exe_cmd = py_run_cmd
-            return
 
         # Only complete the scheduling if not a job array or
         # if there is a specific flag to complete the job array.

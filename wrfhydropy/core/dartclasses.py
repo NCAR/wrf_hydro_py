@@ -283,7 +283,7 @@ class HydroDartRun(object):
 
             # Create a dummy scheduler
             the_sched = Scheduler(
-                job_name=self.config['run_experiment']['wrf_hydro_ens_advance']['nproc'],
+                job_name=self.config['run_experiment']['wrf_hydro_ens_advance']['job_name'],
                 account=self.config['run_experiment']['wrf_hydro_ens_advance']['account'],
                 nproc=self.config['run_experiment']['wrf_hydro_ens_advance']['nproc'],
                 nnodes=self.config['run_experiment']['wrf_hydro_ens_advance']['nnodes'],

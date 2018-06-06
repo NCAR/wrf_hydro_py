@@ -643,7 +643,6 @@ class WrfHydroRun(object):
             hold = True
 
             for jj in self.jobs_pending:
-
                 jj.scheduler.afterok = job_afterok
                 # TODO(JLM): why not make hold an attribute?
                 jj.schedule(self.run_dir, hold=hold)
@@ -658,7 +657,6 @@ class WrfHydroRun(object):
         else:
 
             for jj in range(0, len(self.jobs_pending)):
-
                 self.job_active = self.jobs_pending.pop(0)
                 self.job_active.run(self.run_dir)
                 self.collect_output()

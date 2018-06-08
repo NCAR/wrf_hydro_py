@@ -1,3 +1,5 @@
+![](https://ral.ucar.edu/sites/default/files/public/wrf_hydro_symbol_logo_2017_09_150pxby63px.png) WRF-HYDRO
+
 [![Build Status](https://travis-ci.org/NCAR/wrf_hydro_py.svg?branch=master)](https://travis-ci.org/NCAR/wrf_hydro_py)
 [![PyPI](https://img.shields.io/pypi/v/wrfhydropy.svg)](https://pypi.python.org/pypi/wrfhydropy)
 [![GitHub release](https://img.shields.io/github/release/NCAR/wrf_hydro_py.svg)](https://github.com/NCAR/wrf_hydro_py/releases/latest)

@@ -2,3 +2,13 @@ name: xarray-docs
 channels:
   - conda-forge
   - defaults
+dependencies:
+  - pandas
+  - f90nml
+  - deepdiff
+  - pathlib
+  - xarray
+  - datetime
+  - pytest
+  - pytest-datadir-ng
+  - boltons

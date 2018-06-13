@@ -26,7 +26,7 @@ author = 'Joe Mills'
 # The short X.Y version
 version = ''
 # The full version, including alpha/beta/rc tags
-release = '0.0.1'
+release = '0.0.3'
 
 
 # -- General configuration ---------------------------------------------------
@@ -40,14 +40,14 @@ release = '0.0.1'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
-    'sphinx.ext.coverage',
     'sphinx.ext.viewcode',
-    'sphinx.ext.githubpages',
     'sphinx.ext.napoleon'
 ]
-napoleon_google_docstring = True
-#napoleon_use_param = True
-#napoleon_use_ivar = True
+
+napoleon_google_docstring = False
+napoleon_use_param = False
+napoleon_use_ivar = True
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 

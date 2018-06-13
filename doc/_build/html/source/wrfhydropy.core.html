@@ -433,7 +433,7 @@ limited. Taken from the machine_spec.yaml file if not specified.</p>
 <dl class="attribute">
 <dt id="wrfhydropy.core.job.Job.job_status">
 <code class="descname">job_status</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.job.Job.job_status" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>str</em> – The status of the job object: created/submitted/running/complete.</p>
+<dd><p><a href="#id1"><span class="problematic" id="id2">**</span></a>str* – The status of the job object* – created/submitted/running/complete.</p>
 </dd></dl>
 
 <dl class="attribute">
@@ -504,9 +504,7 @@ if not present.</p>
 <dt id="wrfhydropy.core.job.Job.schedule">
 <code class="descname">schedule</code><span class="sig-paren">(</span><em>run_dir</em>, <em>hold: bool = False</em><span class="sig-paren">)</span> &#x2192; object<a class="reference internal" href="../_modules/wrfhydropy/core/job.html#Job.schedule"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.job.Job.schedule" title="Permalink to this definition">¶</a></dt>
 <dd><p>Scheulde a run of the wrf_hydro simulation
-Args:</p>
-<blockquote>
-<div>self: A Self object</div></blockquote>
+:Parameters: <strong>self</strong> – A Self object</p>
 </dd></dl>
 
 <dl class="attribute">
@@ -841,68 +839,94 @@ Inner dict contains:
 <dt id="wrfhydropy.core.utilities.compare_nc_nccmp">
 <code class="descclassname">wrfhydropy.core.utilities.</code><code class="descname">compare_nc_nccmp</code><span class="sig-paren">(</span><em>candidate_nc: str, reference_nc: str, nccmp_options: list = ['--data', '--metadata', '--force', '--quiet'], exclude_vars: list = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/utilities.html#compare_nc_nccmp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.utilities.compare_nc_nccmp" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compare two netcdf files using nccmp
-Args:</p>
+:Parameters: * <strong>candidate_restart</strong> – The path for the candidate restart file</p>
 <blockquote>
-<div>candidate_restart: The path for the candidate restart file
-ref_restarts: The path for the reference restart file
-nccmp_options: List of long-form command line options passed to nccmp,
-see <a class="reference external" href="http://nccmp.sourceforge.net/">http://nccmp.sourceforge.net/</a> for options
-exclude_vars: A list of strings containing variables names to
-exclude from the comparison</div></blockquote>
-<dl class="docutils">
-<dt>Returns:</dt>
-<dd>Either a pandas dataframe if possible or subprocess object</dd>
-</dl>
+<div><ul class="simple">
+<li><strong>ref_restarts</strong> – The path for the reference restart file</li>
+<li><strong>nccmp_options</strong> – List of long-form command line options passed to nccmp,</li>
+<li><strong>see http</strong> – //nccmp.sourceforge.net/ for options</li>
+<li><strong>exclude_vars</strong> – A list of strings containing variables names to</li>
+<li><strong>exclude from the comparison</strong></li>
+</ul>
+</div></blockquote>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Either a pandas dataframe if possible or subprocess object</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="function">
 <dt id="wrfhydropy.core.utilities.compare_ncfiles">
 <code class="descclassname">wrfhydropy.core.utilities.</code><code class="descname">compare_ncfiles</code><span class="sig-paren">(</span><em>candidate_files: list, reference_files: list, nccmp_options: list = ['--data', '--metadata', '--force', '--quiet'], exclude_vars: list = ['ACMELT', 'ACSNOW', 'SFCRUNOFF', 'UDRUNOFF', 'ACCPRCP', 'ACCECAN', 'ACCEDIR', 'ACCETRAN', 'qstrmvolrt']</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/utilities.html#compare_ncfiles"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.utilities.compare_ncfiles" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compare lists of netcdf restart files element-wise. Files must have common names
-Args:</p>
+:Parameters: * <strong>candidate_files</strong> – List of candidate restart file paths</p>
 <blockquote>
-<div>candidate_files: List of candidate restart file paths
-reference_files: List of reference restart file paths
-nccmp_options: List of long-form command line options passed to nccmp,
-see <a class="reference external" href="http://nccmp.sourceforge.net/">http://nccmp.sourceforge.net/</a> for options
-exclude_vars: A list of strings containing variables names to
-exclude from the comparison</div></blockquote>
-<dl class="docutils">
-<dt>Returns:</dt>
-<dd>A named list of either pandas dataframes if possible or subprocess objects</dd>
-</dl>
+<div><ul class="simple">
+<li><strong>reference_files</strong> – List of reference restart file paths</li>
+<li><strong>nccmp_options</strong> – List of long-form command line options passed to nccmp,</li>
+<li><strong>see http</strong> – //nccmp.sourceforge.net/ for options</li>
+<li><strong>exclude_vars</strong> – A list of strings containing variables names to</li>
+<li><strong>exclude from the comparison</strong></li>
+</ul>
+</div></blockquote>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A named list of either pandas dataframes if possible or subprocess objects</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="function">
 <dt id="wrfhydropy.core.utilities.compare_restarts">
 <code class="descclassname">wrfhydropy.core.utilities.</code><code class="descname">compare_restarts</code><span class="sig-paren">(</span><em>candidate_files: list, reference_files: list, nccmp_options: list = ['--data', '--metadata', '--force', '--quiet'], exclude_vars: list = ['ACMELT', 'ACSNOW', 'SFCRUNOFF', 'UDRUNOFF', 'ACCPRCP', 'ACCECAN', 'ACCEDIR', 'ACCETRAN', 'qstrmvolrt']</em><span class="sig-paren">)</span><a class="headerlink" href="#wrfhydropy.core.utilities.compare_restarts" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compare lists of netcdf restart files element-wise. Files must have common names
-Args:</p>
+:Parameters: * <strong>candidate_files</strong> – List of candidate restart file paths</p>
 <blockquote>
-<div>candidate_files: List of candidate restart file paths
-reference_files: List of reference restart file paths
-nccmp_options: List of long-form command line options passed to nccmp,
-see <a class="reference external" href="http://nccmp.sourceforge.net/">http://nccmp.sourceforge.net/</a> for options
-exclude_vars: A list of strings containing variables names to
-exclude from the comparison</div></blockquote>
-<dl class="docutils">
-<dt>Returns:</dt>
-<dd>A named list of either pandas dataframes if possible or subprocess objects</dd>
-</dl>
+<div><ul class="simple">
+<li><strong>reference_files</strong> – List of reference restart file paths</li>
+<li><strong>nccmp_options</strong> – List of long-form command line options passed to nccmp,</li>
+<li><strong>see http</strong> – //nccmp.sourceforge.net/ for options</li>
+<li><strong>exclude_vars</strong> – A list of strings containing variables names to</li>
+<li><strong>exclude from the comparison</strong></li>
+</ul>
+</div></blockquote>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A named list of either pandas dataframes if possible or subprocess objects</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="function">
 <dt id="wrfhydropy.core.utilities.diff_namelist">
 <code class="descclassname">wrfhydropy.core.utilities.</code><code class="descname">diff_namelist</code><span class="sig-paren">(</span><em>namelist1: str</em>, <em>namelist2: str</em>, <em>**kwargs</em><span class="sig-paren">)</span> &#x2192; dict<a class="reference internal" href="../_modules/wrfhydropy/core/utilities.html#diff_namelist"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.utilities.diff_namelist" title="Permalink to this definition">¶</a></dt>
 <dd><p>Diff two fortran namelist files and return a dictionary of differences.</p>
-<dl class="docutils">
-<dt>Args:</dt>
-<dd>namelist1: String containing path to the first namelist file.
-namelist2: String containing path to the second namelist file.
-<a href="#id1"><span class="problematic" id="id2">**</span></a>kwargs: Additional arguments passed onto deepdiff.DeepDiff method</dd>
-<dt>Returns:</dt>
-<dd>The differences between the two namelists</dd>
-</dl>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>namelist1</strong> – String containing path to the first namelist file.</li>
+<li><strong>namelist2</strong> – String containing path to the second namelist file.</li>
+<li><strong>**kwargs</strong> – Additional arguments passed onto deepdiff.DeepDiff method</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The differences between the two namelists</p>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="function">
@@ -929,18 +953,26 @@ namelist2: String containing path to the second namelist file.
 <dt id="wrfhydropy.core.utilities.open_nwmdataset">
 <code class="descclassname">wrfhydropy.core.utilities.</code><code class="descname">open_nwmdataset</code><span class="sig-paren">(</span><em>paths: list</em>, <em>chunks: dict = None</em>, <em>forecast: bool = True</em><span class="sig-paren">)</span> &#x2192; xarray.core.dataset.Dataset<a class="reference internal" href="../_modules/wrfhydropy/core/utilities.html#open_nwmdataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.utilities.open_nwmdataset" title="Permalink to this definition">¶</a></dt>
 <dd><p>Open a multi-file wrf-hydro output dataset</p>
-<dl class="docutils">
-<dt>Args:</dt>
-<dd>paths: List ,iterable, or generator of file paths to wrf-hydro netcdf output files
-chunks: chunks argument passed on to xarray DataFrame.chunk() method
-forecast: If forecast the nreference time dimensions is retained, if not then
-reference_time dimension is set to a dummy value (1970-01-01) to ease concatenation
-and analysis</dd>
-<dt>Returns:</dt>
-<dd>An xarray dataset of dask arrays chunked by chunk_size along the feature_id
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>paths</strong> – List ,iterable, or generator of file paths to wrf-hydro netcdf output files</li>
+<li><strong>chunks</strong> – chunks argument passed on to xarray DataFrame.chunk() method</li>
+<li><strong>forecast</strong> – If forecast the nreference time dimensions is retained, if not then</li>
+<li><strong>reference_time dimension is set to a dummy value</strong> (<em>1970-01-01</em>)</li>
+<li><strong>and analysis</strong></li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">An xarray dataset of dask arrays chunked by chunk_size along the feature_id
 dimension concatenated along the time and
-reference_time dimensions</dd>
-</dl>
+reference_time dimensions</p>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="function">
@@ -1057,21 +1089,25 @@ setup.</p>
 <dt id="wrfhydropy.core.wrfhydroclasses.WrfHydroModel.compile">
 <code class="descname">compile</code><span class="sig-paren">(</span><em>compiler: str</em>, <em>compile_dir: str = None</em>, <em>overwrite: bool = False</em>, <em>compile_options: dict = None</em><span class="sig-paren">)</span> &#x2192; str<a class="reference internal" href="../_modules/wrfhydropy/core/wrfhydroclasses.html#WrfHydroModel.compile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.wrfhydroclasses.WrfHydroModel.compile" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compiles WRF-Hydro using specified compiler and compile options.
-Args:</p>
+:Parameters: * <strong>compiler</strong> – The compiler to use, must be one of ‘pgi’,’gfort’,</p>
 <blockquote>
-<div><dl class="docutils">
-<dt>compiler: The compiler to use, must be one of ‘pgi’,’gfort’,</dt>
-<dd>‘ifort’, or ‘luna’.</dd>
-</dl>
-<p>compile_dir: A non-existant directory to use for compilation.
-overwrite: Overwrite compile directory if exists.
-compile_options: Changes to default compile-time options.</p>
+<div><blockquote>
+<div>‘ifort’, or ‘luna’.</div></blockquote>
+<ul class="simple">
+<li><strong>compile_dir</strong> – A non-existant directory to use for compilation.</li>
+<li><strong>overwrite</strong> – Overwrite compile directory if exists.</li>
+<li><strong>compile_options</strong> – Changes to default compile-time options.</li>
+</ul>
 </div></blockquote>
-<dl class="docutils">
-<dt>Returns:</dt>
-<dd>Success of compilation and compile directory used. Sets additional
-attributes to WrfHydroModel</dd>
-</dl>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Success of compilation and compile directory used. Sets additional
+attributes to WrfHydroModel</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="attribute">
@@ -1165,13 +1201,15 @@ code.</p>
 <code class="descname">add_jobs</code><span class="sig-paren">(</span><em>jobs: list</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/wrfhydroclasses.html#WrfHydroRun.add_jobs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.wrfhydroclasses.WrfHydroRun.add_jobs" title="Permalink to this definition">¶</a></dt>
 <dd><p>Dispatch a run the wrf_hydro setup: either run() or schedule_run()
 If a scheduler is passed, then that run is scheduled.
-Args:</p>
-<blockquote>
-<div>As for run and schedule_run().</div></blockquote>
-<dl class="docutils">
-<dt>Returns:</dt>
-<dd>A WrfHydroRun object</dd>
-</dl>
+:Parameters: <strong>As for run and schedule_run().</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A WrfHydroRun object</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="attribute">
@@ -1233,14 +1271,20 @@ with prior job dependence.</p>
 <dd><p>Make all file paths relative to a given directory, useful for opening file
 attributes in a run object after it has been moved or copied to a new directory or
 system.
-Args:</p>
+:Parameters: * <strong>basepath</strong> – The base path to use for relative paths. Defaults to run directory.</p>
 <blockquote>
-<div>basepath: The base path to use for relative paths. Defaults to run directory.
-This rarely needs to be defined.</div></blockquote>
-<dl class="docutils">
-<dt>Returns:</dt>
-<dd>self with relative files paths for file-like attributes</dd>
-</dl>
+<div><ul class="simple">
+<li><strong>This rarely needs to be defined.</strong></li>
+</ul>
+</div></blockquote>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">self with relative files paths for file-like attributes</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="attribute">
@@ -1336,13 +1380,15 @@ version and domain configuration</p>
 <dt id="wrfhydropy.core.wrfhydroclasses.WrfHydroStatic.open">
 <code class="descname">open</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/wrfhydroclasses.html#WrfHydroStatic.open"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.wrfhydroclasses.WrfHydroStatic.open" title="Permalink to this definition">¶</a></dt>
 <dd><p>Open a WrfHydroStatic object
-Args:</p>
-<blockquote>
-<div>self</div></blockquote>
-<dl class="docutils">
-<dt>Returns:</dt>
-<dd>An xarray dataset object.</dd>
-</dl>
+:Parameters: <strong>self</strong></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">An xarray dataset object.</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 </dd></dl>
@@ -1355,14 +1401,20 @@ Args:</p>
 <dt id="wrfhydropy.core.wrfhydroclasses.WrfHydroTs.open">
 <code class="descname">open</code><span class="sig-paren">(</span><em>chunks: dict = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/wrfhydroclasses.html#WrfHydroTs.open"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.wrfhydroclasses.WrfHydroTs.open" title="Permalink to this definition">¶</a></dt>
 <dd><p>Open a WrfHydroTs object
-Args:</p>
+:Parameters: * <strong>self</strong></p>
 <blockquote>
-<div>self
-chunks: chunks argument passed on to xarray.DataFrame.chunk() method</div></blockquote>
-<dl class="docutils">
-<dt>Returns:</dt>
-<dd>An xarray mfdataset object concatenated on dimension ‘Time’.</dd>
-</dl>
+<div><ul class="simple">
+<li><strong>chunks</strong> – chunks argument passed on to xarray.DataFrame.chunk() method</li>
+</ul>
+</div></blockquote>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">An xarray mfdataset object concatenated on dimension ‘Time’.</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 </dd></dl>

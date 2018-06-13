@@ -1,4 +1,4 @@
-name: xarray-docs
+name: wrfhydropy-docs
 channels:
   - conda-forge
   - defaults

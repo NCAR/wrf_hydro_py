@@ -1,0 +1,450 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>wrfhydropy.core.ensemble &mdash; wrfhydropy 0.0.3 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="wrfhydropy 0.0.3 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> wrfhydropy
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">wrfhydropy</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>wrfhydropy.core.ensemble</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for wrfhydropy.core.ensemble</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">ast</span>
+<span class="kn">from</span> <span class="nn">boltons.iterutils</span> <span class="k">import</span> <span class="n">remap</span><span class="p">,</span> <span class="n">get_path</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">pathlib</span>
+
+<span class="kn">from</span> <span class="nn">.wrfhydroclasses</span> <span class="k">import</span> <span class="n">WrfHydroRun</span>
+<span class="kn">from</span> <span class="nn">.ensemble_tools</span> <span class="k">import</span> <span class="n">DeepDiffEq</span><span class="p">,</span> <span class="n">dictify</span><span class="p">,</span> <span class="n">get_sub_objs</span>
+
+
+<div class="viewcode-block" id="copy_member"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.ensemble.copy_member">[docs]</a><span class="k">def</span> <span class="nf">copy_member</span><span class="p">(</span>
+    <span class="n">member</span><span class="p">,</span>
+    <span class="n">do_copy</span><span class="p">:</span> <span class="nb">bool</span>
+<span class="p">):</span>
+    <span class="k">if</span> <span class="n">do_copy</span><span class="p">:</span>
+        <span class="k">return</span><span class="p">(</span><span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">member</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span><span class="p">(</span><span class="n">member</span><span class="p">)</span></div>
+
+
+<span class="c1"># ########################</span>
+<span class="c1"># Classes for constructing and running a wrf_hydro simulation</span>
+<div class="viewcode-block" id="WrfHydroEnsembleSetup"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.ensemble.WrfHydroEnsembleSetup">[docs]</a><span class="k">class</span> <span class="nc">WrfHydroEnsembleSetup</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class for a WRF-Hydro model, which consitutes the model source code and compiled binary.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">members</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+        <span class="n">ensemble_dir</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;&#39;</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Instantiate a WrfHydroEnsembleSim object.</span>
+<span class="sd">        Args:</span>
+<span class="sd">            members: </span>
+<span class="sd">            ensemble_dir: Optional, </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            A WrfHydroEnsembleSim object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__members</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">members</span> <span class="o">=</span> <span class="n">members</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__diffs_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="sd">&quot;&quot;&quot;list: of WrfHydroSim objects.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span><span class="p">(</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">members</span><span class="p">)</span> <span class="p">)</span>
+
+    <span class="c1"># The &quot;canonical&quot; name for len</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">N</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="fm">__len__</span><span class="p">())</span>
+
+    <span class="c1"># Data to store with the &quot;member&quot; simulations, conceptually this</span>
+    <span class="c1"># data belongs to the members:</span>
+    <span class="c1"># 1) member number</span>
+    <span class="c1"># 2) description</span>
+    <span class="c1"># 3) member_dir</span>
+    <span class="c1"># 4) forcing_source_dir</span>
+    <span class="c1">#</span>
+    <span class="c1"># Ensemblize the individual members.</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">members</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__members</span><span class="p">)</span>
+
+    <span class="nd">@members</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">members</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">new_members</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> 
+        <span class="n">copy_members</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span>
+    <span class="p">):</span>
+
+        <span class="k">if</span><span class="p">(</span> <span class="nb">type</span><span class="p">(</span><span class="n">new_members</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">list</span> <span class="p">):</span>
+            <span class="n">new_members</span> <span class="o">=</span> <span class="p">[</span> <span class="n">new_members</span> <span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">nn</span> <span class="ow">in</span> <span class="n">new_members</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__members</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">copy_member</span><span class="p">(</span><span class="n">nn</span><span class="p">,</span> <span class="n">copy_members</span><span class="p">))</span>
+            <span class="c1"># If copying an existing ensemble member, nuke the metadata</span>
+            <span class="c1"># number is the detector for all ensemble metadata.</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">nn</span><span class="p">,</span> <span class="s1">&#39;number&#39;</span><span class="p">):</span>
+                <span class="nb">delattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__members</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__members</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="s1">&#39;number&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Put refs to these properties in the ensemble objects</span>
+        <span class="k">for</span> <span class="n">mm</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__members</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__members</span><span class="p">[</span><span class="n">mm</span><span class="p">],</span> <span class="s1">&#39;number&#39;</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__members</span><span class="p">[</span><span class="n">mm</span><span class="p">]</span><span class="o">.</span><span class="n">number</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%03d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">mm</span><span class="p">,)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__members</span><span class="p">[</span><span class="n">mm</span><span class="p">]</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__members</span><span class="p">[</span><span class="n">mm</span><span class="p">]</span><span class="o">.</span><span class="n">run_dir</span> <span class="o">=</span> <span class="s1">&#39;member_&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">__members</span><span class="p">[</span><span class="n">mm</span><span class="p">]</span><span class="o">.</span><span class="n">number</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__members</span><span class="p">[</span><span class="n">mm</span><span class="p">]</span><span class="o">.</span><span class="n">forcing_source_dir</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+
+
+    <span class="c1"># A quick way to setup a basic ensemble from a single sim.</span>
+<div class="viewcode-block" id="WrfHydroEnsembleSetup.replicate_member"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.ensemble.WrfHydroEnsembleSetup.replicate_member">[docs]</a>    <span class="k">def</span> <span class="nf">replicate_member</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                         <span class="n">N</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                         <span class="n">copy_members</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">N</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;WTF mate?&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">members</span> <span class="o">=</span> <span class="p">[</span> <span class="bp">self</span><span class="o">.</span><span class="n">members</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">nn</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">]</span></div>
+
+
+    <span class="c1"># The diffs_dict attribute has getter (@property) and setter methods.</span>
+    <span class="c1"># The get method summarizes all differences across all the attributes of the</span>
+    <span class="c1">#   members list attribute and (should) only report member attributes when there</span>
+    <span class="c1">#   is at least one difference between members.</span>
+    <span class="c1"># The setter method is meant as a convenient way to specify the differences in</span>
+    <span class="c1">#   member attributes across the ensemble.</span>
+
+
+    <span class="nd">@property</span>        
+    <span class="k">def</span> <span class="nf">diffs_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Ensemble is of lenght 1, no differences.&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">{}</span>
+
+        <span class="n">mem_0_ref_dict</span> <span class="o">=</span> <span class="n">dictify</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">members</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="n">all_diff_keys</span><span class="o">=</span><span class="nb">set</span><span class="p">({})</span>
+        <span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)):</span>
+            <span class="n">mem_ii_ref_dict</span> <span class="o">=</span> <span class="n">dictify</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">members</span><span class="p">[</span><span class="n">ii</span><span class="p">])</span>
+            <span class="n">diff</span> <span class="o">=</span> <span class="n">DeepDiffEq</span><span class="p">(</span><span class="n">mem_0_ref_dict</span><span class="p">,</span> <span class="n">mem_ii_ref_dict</span><span class="p">,</span> <span class="n">eq_types</span><span class="o">=</span><span class="p">{</span><span class="n">pathlib</span><span class="o">.</span><span class="n">PosixPath</span><span class="p">})</span>
+
+            <span class="n">unexpected_diffs</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">diff</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">-</span> <span class="nb">set</span><span class="p">([</span><span class="s1">&#39;values_changed&#39;</span><span class="p">])</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">unexpected_diffs</span><span class="p">):</span>
+                <span class="n">unexpected_diffs1</span> <span class="o">=</span> <span class="p">{</span> <span class="n">uu</span><span class="p">:</span> <span class="n">diff0</span><span class="p">[</span><span class="n">uu</span><span class="p">]</span> <span class="k">for</span> <span class="n">uu</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">unexpected_diffs</span><span class="p">)</span> <span class="p">}</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s1">&#39;Unexpected attribute differences between ensemble members:&#39;</span><span class="p">,</span>
+                    <span class="n">unexpected_diffs1</span>
+                <span class="p">)</span>
+
+            <span class="n">diff_keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">diff</span><span class="p">[</span><span class="s1">&#39;values_changed&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="n">all_diff_keys</span> <span class="o">=</span> <span class="n">all_diff_keys</span> <span class="o">|</span> <span class="nb">set</span><span class="p">([</span> <span class="n">ss</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;root&#39;</span><span class="p">,</span><span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">ss</span> <span class="ow">in</span> <span class="n">diff_keys</span> <span class="p">])</span>
+
+        <span class="n">diff_tuples</span> <span class="o">=</span> <span class="p">[</span><span class="n">ss</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;][&#39;</span><span class="p">,</span><span class="s1">&#39;,&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">ss</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">all_diff_keys</span><span class="p">)]</span>
+        <span class="n">diff_tuples</span> <span class="o">=</span> <span class="p">[</span><span class="n">ss</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;[&#39;</span><span class="p">,</span><span class="s1">&#39;(&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">ss</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">diff_tuples</span><span class="p">)]</span>
+        <span class="n">diff_tuples</span> <span class="o">=</span> <span class="p">[</span><span class="n">ss</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;]&#39;</span><span class="p">,</span><span class="s1">&#39;)&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">ss</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">diff_tuples</span><span class="p">)]</span>
+        <span class="n">diff_tuples</span> <span class="o">=</span> <span class="p">[</span><span class="n">ast</span><span class="o">.</span><span class="n">literal_eval</span><span class="p">(</span><span class="n">ss</span><span class="p">)</span> <span class="k">for</span> <span class="n">ss</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">diff_tuples</span><span class="p">)]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">__diffs_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">dd</span> <span class="ow">in</span> <span class="n">diff_tuples</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__diffs_dict</span><span class="p">[</span><span class="n">dd</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span> <span class="n">get_path</span><span class="p">(</span><span class="n">dictify</span><span class="p">(</span><span class="n">mm</span><span class="p">),</span> <span class="n">dd</span><span class="p">)</span> <span class="k">for</span> <span class="n">mm</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">members</span> <span class="p">]</span>
+
+        <span class="k">return</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__diffs_dict</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="WrfHydroEnsembleSetup.set_diffs_dict"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.ensemble.WrfHydroEnsembleSetup.set_diffs_dict">[docs]</a>    <span class="k">def</span> <span class="nf">set_diffs_dict</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">att_tuple</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span>
+        <span class="n">values</span><span class="p">:</span> <span class="nb">list</span>
+    <span class="p">):</span>
+
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">list</span><span class="p">:</span>
+            <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="n">values</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">the_value</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="n">the_value</span> <span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">))]</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The number of values supplied does not equal the number of members.&quot;</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">update_obj_dict</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">att_tuple</span><span class="p">):</span>
+
+            <span class="k">def</span> <span class="nf">visit</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+                <span class="n">superpath</span> <span class="o">=</span> <span class="n">path</span> <span class="o">+</span> <span class="p">(</span><span class="n">key</span><span class="p">,)</span>
+                <span class="c1">#print(superpath)</span>
+                <span class="k">if</span> <span class="n">superpath</span> <span class="o">!=</span> <span class="n">att_tuple</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="nb">len</span><span class="p">(</span><span class="n">superpath</span><span class="p">)]:</span>
+                    <span class="k">return</span> <span class="kc">True</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">superpath</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">att_tuple</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="n">new_value</span>
+                <span class="k">return</span> <span class="kc">True</span>
+
+            <span class="n">the_remap</span> <span class="o">=</span> <span class="n">remap</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">,</span> <span class="n">visit</span><span class="p">)</span>
+            <span class="n">obj</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">the_remap</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">ss</span> <span class="ow">in</span> <span class="n">get_sub_objs</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">):</span>
+                <span class="n">att_tuple_0</span> <span class="o">=</span> <span class="n">att_tuple</span>
+                <span class="n">att_tuple</span> <span class="o">=</span> <span class="n">att_tuple</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">att_tuple</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">update_obj_dict</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">ss</span><span class="p">],</span> <span class="n">att_tuple</span><span class="p">)</span>
+                <span class="n">att_tuple</span> <span class="o">=</span> <span class="n">att_tuple_0</span>
+
+        <span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)):</span>
+            <span class="n">new_value</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span>
+            <span class="c1">#print(new_value)</span>
+            <span class="n">update_obj_dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">members</span><span class="p">[</span><span class="n">ii</span><span class="p">],</span> <span class="n">att_tuple</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="WrfHydroEnsembleRun"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.ensemble.WrfHydroEnsembleRun">[docs]</a><span class="k">class</span> <span class="nc">WrfHydroEnsembleRun</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">ens_setup</span><span class="p">:</span> <span class="n">WrfHydroEnsembleSetup</span><span class="p">,</span>
+        <span class="n">run_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">rm_existing_run_dir</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">jobs</span><span class="p">:</span> <span class="nb">list</span><span class="o">=</span><span class="kc">None</span>
+    <span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">ens_setup</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">ens_setup</span><span class="p">)</span>
+        <span class="sd">&quot;&quot;&quot;WrfHydroSetup: The WrfHydroSetup object used for the run&quot;&quot;&quot;</span>
+
+        <span class="c1"># TODO(JLM): check all the setup members have to have rundirs with same path as run_dir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_dir</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">PosixPath</span><span class="p">(</span><span class="n">run_dir</span><span class="p">)</span>
+        <span class="sd">&quot;&quot;&quot;pathlib.PosixPath: The location of where the jobs will be executed.&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">jobs_completed</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="sd">&quot;&quot;&quot;Job: A list of previously executed jobs for this run.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">jobs_pending</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="sd">&quot;&quot;&quot;Job: A list of jobs *scheduled* to be executed for this run </span>
+<span class="sd">            with prior job dependence.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_active</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="sd">&quot;&quot;&quot;Job: The job currently executing.&quot;&quot;&quot;</span>        
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">object_id</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="sd">&quot;&quot;&quot;str: A unique id to join object to run directory.&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">members</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Create the members list of run objects.</span>
+        <span class="k">for</span> <span class="n">mm</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ens_setup</span><span class="o">.</span><span class="n">members</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">members</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">WrfHydroRun</span><span class="p">(</span><span class="n">mm</span><span class="p">,</span> <span class="n">run_dir</span> <span class="o">=</span> <span class="n">mm</span><span class="o">.</span><span class="n">run_dir</span><span class="p">,</span> <span class="n">deepcopy_setup</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span></div>
+
+        <span class="c1"># Make run_dir directory if it does not exist.</span>
+        <span class="c1"># if self.run_dir.is_dir() and not rm_existing_run_dir:</span>
+        <span class="c1">#     raise ValueError(&quot;Run directory already exists and rm_existing_run_dir is False.&quot;)</span>
+
+        <span class="c1"># if self.run_dir.exists():</span>
+        <span class="c1">#     shutil.rmtree(str(self.run_dir))</span>
+        <span class="c1"># self.run_dir.mkdir(parents=True)</span>
+
+        <span class="c1">## TODO(JLM): I would prefer if the member runs dont make their parent dirs.</span>
+    
+        
+        
+<span class="c1">#Ens:</span>
+<span class="c1">#Job array submission</span>
+<span class="c1">#Operations on data.</span>
+
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018, Joe Mills.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.0.3',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

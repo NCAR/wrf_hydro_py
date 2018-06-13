@@ -8,6 +8,4 @@ dependencies:
   - deepdiff
   - pathlib
   - xarray
-  - pytest
-  - pytest-datadir-ng
   - boltons

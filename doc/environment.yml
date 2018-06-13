@@ -9,3 +9,4 @@ dependencies:
   - pathlib
   - xarray
   - boltons
+  - pytest

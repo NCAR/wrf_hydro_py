@@ -1,0 +1,4 @@
+name: xarray-docs
+channels:
+  - conda-forge
+  - defaults

@@ -234,7 +234,7 @@ class HydroDartRun(object):
         self,
         dart_setup: DartSetup,
         wrf_hydro_ens_run: WrfHydroEnsembleRun,
-        config: dict()={}
+        config: dict={}
     ):
         self.dart_setup = dart_setup
         self.wrf_hydro_ens_run = wrf_hydro_ens_run
@@ -248,6 +248,9 @@ class HydroDartRun(object):
         self,
         path: pathlib.PosixPath=None
     ):
+
+        if path is None:
+            path = self.config['experiment']['experiment_dir']
         filepath = path / 'HydroDartRun.pkl' 
         with open(filepath, 'wb') as f:
             pickle.dump(self, f, 2)

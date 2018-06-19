@@ -214,7 +214,12 @@ class WrfHydroEnsembleRun(object):
 
         # Create the members list of run objects.
         for mm in self.ens_setup.members:
-            self.members.append(WrfHydroRun(mm, run_dir = mm.run_dir, deepcopy_setup=False))
+            self.members.append(WrfHydroRun(
+                mm,
+                run_dir = mm.run_dir,
+                deepcopy_setup=False
+            )
+        )
 
         # Make run_dir directory if it does not exist.
         # if self.run_dir.is_dir() and not rm_existing_run_dir:

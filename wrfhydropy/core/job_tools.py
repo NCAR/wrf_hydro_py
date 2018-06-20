@@ -441,30 +441,32 @@ def submit_scheduler(substr, sched_name, hold=False):
         substr_str = substr.decode('utf-8')
     else:
         substr_str = substr
-        
-    m = re.search(r"-N\s+(.*)\s", substr_str)       #pylint: disable=invalid-name
+
+    m = re.search(r"-N\s+(.*)\s", substr_str)
     if m:
-        jobname = m.group(1)        #pylint: disable=unused-variable
+        jobname = m.group(1)
     else:
         raise PBSError(
             None,
-            r"Error in scheduler_misc.submit(). Jobname (\"-N\s+(.*)\s\") not found in submit string.")
+            r"Error in scheduler_misc.submit(). Jobname (\"-N\s+(.*)\s\")" +
+            " not found in submit string."
+        )
 
-    
     if sched_name == 'PBS':
 
         qsub_cmd = "qsub"
         if hold:
             qsub_cmd += " -h"
 
-        p = subprocess.Popen( shlex.split(qsub_cmd),
-                              stdin=subprocess.PIPE,
-                              stdout=subprocess.PIPE,
-                              stderr=subprocess.STDOUT)
-        
+        p = subprocess.Popen(shlex.split(qsub_cmd),
+                             stdin=subprocess.PIPE,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT)
+
         stdout, stderr = p.communicate(input=substr)
-        if re.search("error", stdout.decode('utf-8')):
-            raise PBSError(0, "PBS Submission error.\n" + stdout + "\n" + stderr)
+        if re.search("error", stdout.decode('utf-8'), re.IGNORECASE):
+            print("PBS Submission error.\n" + stdout.decode('utf-8') + "\n")
+            raise PBSError(0, 'PBS Submission error.')
         else:
             jobid = stdout.decode('utf-8').split(".")[0]
             return jobid
@@ -508,7 +510,7 @@ def hold(jobid, sched_name):
 
 def release(sched):
     """qrls (PBS) or scontrol un-delay (slurm) a job."""
-    
+    print('sched.sched_job_id: ', sched.sched_job_id)
     if sched.sched_name == 'PBS':
         cmd_list = ['qrls', sched.sched_job_id]
     if sched.sched_name == 'slurm':
@@ -752,11 +754,19 @@ def default_job_spec(machine='docker'):
     return default_job_spec
 
 
+#def compose_scheduled_python_script_2(
+#    run_dir: str,
+#    job: object
+#    py_run_cmd: str,
+#    model_exe_cmd: str
+#):
+
+
 def compose_scheduled_python_script(
     py_run_cmd: str,
     model_exe_cmd: str
 ):
-    jobstr  = "#!/usr/bin/env python\n"
+    jobstr  = "#!/usr/bin/env python3\n"
     jobstr += "\n"
 
     jobstr += "import argparse\n"
@@ -806,17 +816,18 @@ def compose_scheduled_python_script(
     jobstr += "print(\"Running the model.\")\n"
     jobstr += "run_object.job_active.job_start_time = str(datetime.datetime.now())\n"
     jobstr += "run_object.job_active.run(run_object.run_dir)\n"
-    jobstr += "run_object.job_active.job_start_time = str(datetime.datetime.now())\n"
+    jobstr += "run_object.job_active.job_end_time = str(datetime.datetime.now())\n"
     jobstr += "\n"
+
+    jobstr += "run_object.job_active._sched_job_complete = True\n"
+    jobstr += "run_object.jobs_completed.append(run_object.job_active)\n"
+    jobstr += "run_object.job_active = None\n"
 
     jobstr += "print(\"Collecting model output.\")\n"
     jobstr += "run_object.collect_output()\n"
     jobstr += "print(\"Job completed.\")\n"
     jobstr += "\n"
 
-    jobstr += "run_object.job_active._sched_job_complete = True\n"
-    jobstr += "run_object.jobs_completed.append(run_object.job_active)\n"
-    jobstr += "run_object.job_active = None\n"
     jobstr += "run_object.pickle()\n"
     jobstr += "\n"
     jobstr += "sys.exit(0)\n"
@@ -830,6 +841,9 @@ def compose_scheduled_bash_script(
 ):
     """ Write Job as a string suitable for job.scheduler.sched_name """
 
+    #if job.array_size:
+    #    run
+    
     if job.scheduler.sched_name.lower() == "slurm":
         ###Write this Job as a string suitable for slurm
         ### NOT USED:
@@ -900,8 +914,10 @@ def compose_scheduled_bash_script(
 
         jobstr += "# Not using PBS standard error and out files to capture model output\n"
         jobstr += "# but these hidden files might catch output and errors from the scheduler.\n"
-        jobstr += "#PBS -o {0}\n".format(job.stdout_pbs_tmp(run_dir))
-        jobstr += "#PBS -e {0}\n".format(job.stderr_pbs_tmp(run_dir))
+        #jobstr += "#PBS -o {0}\n".format(job.stdout_pbs_tmp(run_dir))
+        jobstr += "#PBS -o {0}\n".format(run_dir)
+        #jobstr += "#PBS -e {0}\n".format(job.stderr_pbs_tmp(run_dir))
+        jobstr += "#PBS -e {0}\n".format(run_dir)
         jobstr += "\n"
 
         if job.scheduler.afterok:
@@ -927,39 +943,41 @@ def compose_scheduled_bash_script(
 
         # End PBS Header
 
-        if job.modules:
-            jobstr += 'module purge\n'
-            jobstr += 'module load {0}\n'.format(job.modules)
-            jobstr += "\n"
+        #if job.modules:
+        #    jobstr += 'module purge\n'
+        #    jobstr += 'module load {0}\n'.format(job.modules)
+        #    jobstr += "\n"
 
+        
+        jobstr += "jobname=$PBS_JOBNAME\n"
+        jobstr += "ARRAY_INDEX=$PBS_ARRAY_INDEX\n"
+        jobstr += "# NODELIST=`cat \"${PBS_NODEFILE}\"`\n"
+        jobstr += "sched_job_id=`echo ${PBS_JOBID} | cut -d'.' -f1`\n"       
+        jobstr += "# \n"
+
+        jobstr += "echo PBS_JOBNAME: $PBS_JOBNAME\n"
+        jobstr += "echo jobname: $jobname\n"
         jobstr += "echo PBS_JOBID: $PBS_JOBID\n"
-        jobstr += "sched_job_id=`echo ${PBS_JOBID} | cut -d'.' -f1`\n"
         jobstr += "echo sched_job_id: $sched_job_id\n"
+        
         jobstr += "job_date_id={0}\n".format(job.job_date_id)
         jobstr += "echo job_date_id: $job_date_id\n"
         jobstr += "\n"
 
+        jobstr += "# CISL suggests users set TMPDIR when running batch jobs on Cheyenne.\n"
         jobstr += "export TMPDIR=/glade/scratch/$USER/temp\n"
         jobstr += "mkdir -p $TMPDIR\n"
+        jobstr += "\n"
 
         if job.scheduler.queue == 'share':
             jobstr += "export MPI_USE_ARRAY=false\n"
 
+        if job.scheduler.array_size:
+            jobstr += 'member_dir=`printf "member_%03d" $(($ARRAY_INDEX-1))`\n'
+            run_dir = run_dir / '${member_dir}'
+           
         jobstr += "cd {0}\n".format(run_dir)
         jobstr += "echo \"pwd:\" `pwd`\n"
-        jobstr += "\n"
-
-        jobstr += "# DART job variables for future reference\n"
-        jobstr += "# JOBNAME=$PBS_JOBNAME\n"
-        jobstr += "# JOBID=\"$PBS_JOBID\"\n"
-        jobstr += "# ARRAY_INDEX=$PBS_ARRAY_INDEX\n"
-        jobstr += "# NODELIST=`cat \"${PBS_NODEFILE}\"`\n"
-        jobstr += "# LAUNCHCMD=\"mpiexec_mpt\"\n"
-        jobstr += "# \n"
-
-        jobstr += "# CISL suggests users set TMPDIR when running batch jobs on Cheyenne.\n"
-        jobstr += "export TMPDIR=/glade/scratch/$USER/temp\n"
-        jobstr += "mkdir -p $TMPDIR\n"
         jobstr += "\n"
 
         exestr  = "{0} ".format(job.exe_cmd)

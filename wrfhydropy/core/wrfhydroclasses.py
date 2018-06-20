@@ -458,9 +458,6 @@ class WrfHydroRun(object):
         self.object_id = None
         """str: A unique id to join object to run directory."""
 
-        self._pickle_lock_file = None
-        """pathlib.PosixPath: The pickle lock file path."""
-        
         # Establish the values. 
         
         # TODO(JLM): Check that the setup object is "complete".
@@ -559,6 +556,8 @@ class WrfHydroRun(object):
 
         if jobs:
             self.add_jobs(jobs)
+        else:
+            self.pickle()
 
 
     def add_jobs(
@@ -600,15 +599,17 @@ class WrfHydroRun(object):
                     if jj.scheduler.afterok is not None and jj.scheduler.afterok != last_job_id:
                         raise ValueError("The job's dependency/afterok conflicts with reality.")
                     jj.scheduler.afterok = last_job_id
-                else: 
-                    if jj.scheduler.afterok is not None:
+                else:
+                    # If this is NOT a job array, then need the afterok.
+                    if jj.scheduler.array_size is None and jj.scheduler.afterok is not None:
                         raise ValueError("The job's dependency/afterok conflicts with reality.")
 
             # Set submission-time job variables here.
             jj.user = get_user()
             job_submission_time = datetime.datetime.now()
             jj.job_submission_time = str(job_submission_time)
-            jj.job_date_id = '{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=job_submission_time)
+            if jj.job_date_id is None:
+                jj.job_date_id = '{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=job_submission_time)
 
             jj.model_start_time, jj.model_end_time = solve_model_start_end_times(
                 jj.model_start_time,
@@ -623,18 +624,9 @@ class WrfHydroRun(object):
             # Satisfying the model start/end times and restart options
             jj.apply_model_start_end_job_namelists()
 
-            # Check the the resulting namelists are 
-
-            # in the job object?
-            # Determine a different job_name?
-            # Tag the namelists with the job name and symlink? When is the namelist written?
-
-            # TODO(JLM): 
-            # Edit the namelists with model start/end times and if restarting.
-            # Stash the namelists in the job.
-            # This begs for consistency check across jobs: start previous job = end current job
-
             self.jobs_pending.append(jj)
+
+        self.pickle()
 
 
     def run_jobs(self):
@@ -643,11 +635,10 @@ class WrfHydroRun(object):
         # make sure all jobs are either scheduled or interactive?
 
         run_dir = self.run_dir
-        
+
         if self.jobs_pending[0].scheduler:
 
             # submit the jobs_pending.
-            lock_pickle(self)
             job_afterok = None
             hold = True
 
@@ -660,7 +651,6 @@ class WrfHydroRun(object):
                 hold = False
 
             self.pickle()
-            unlock_pickle(self)
             self.jobs_pending[0].release()
             self.destruct()
             return run_dir
@@ -679,12 +669,10 @@ class WrfHydroRun(object):
 
     def collect_output(self):
 
-        if self.job_active.exit_status != 0:
-            warnings.warn('Model run failed.')
+        if self.job_active is not None:
+            warnings.warn('Model run in progress or job failed..')
             return(None)
 
-        print('Model run succeeded.\n')
-        #####################
         # Grab outputs as WrfHydroXX classes of file paths
 
         # Get channel files
@@ -726,13 +714,13 @@ class WrfHydroRun(object):
         for file in self.run_dir.glob('RESTART*'):
             file = WrfHydroStatic(file)
             self.restart_lsm.append(file)
-                                
+
         if len(self.restart_lsm) > 0:
             self.restart_lsm = sorted(self.restart_lsm,
                                       key=lambda file: file.stat().st_mtime_ns)
         else:
             self.restart_lsm = None
-                                    
+
         ### Nudging restarts
         self.restart_nudging = []
         for file in self.run_dir.glob('nudgingLastObs*'):
@@ -745,10 +733,13 @@ class WrfHydroRun(object):
         else:
             self.restart_nudging = None
 
-        self.pickle()    
+    def pickle(
+        self
+    ):
+        """Pickle the Run object into its run directory. Collect output first."""
 
-
-    def pickle(self):
+        # Collecting here seems to be causing more problems than it solves.
+        
         # create a UID for the run and save in file
         self.object_id = str(uuid.uuid4())
         with open(self.run_dir.joinpath('.uid'), 'w') as f:
@@ -767,7 +758,8 @@ class WrfHydroRun(object):
 
 
     def destruct(self):
-        # This gets rid of everything but the methods.
+        """Pickle first. This gets rid of everything but the methods."""
+        self.pickle()
         print("Jobs have been submitted to  the scheduler: This run object will now self destruct.")
         self.__dict__ = {}
 

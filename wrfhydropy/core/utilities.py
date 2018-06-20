@@ -1,15 +1,17 @@
+from datetime import datetime
 import deepdiff
 import f90nml
 import io
+import numpy as np
 import os
 import pandas as pd
 import pathlib
+import re
 import subprocess
 import warnings
 import xarray as xr
+
 from .job_tools import touch
-import pathlib
-import numpy as np
 
 def compare_nc_nccmp(candidate_nc: str,
                      reference_nc: str,
@@ -272,3 +274,88 @@ def get_git_revision_hash(the_dir):
     if dirty:
         the_hash += '--DIRTY--'
     return the_hash
+
+
+def get_last_restart_datetime(
+    run_obj #: .wrfhydroclasses.WrfHydroRun
+):
+
+    # Do hydro and LSM separately.
+    # If neither: error
+    # If both: make sure they match.
+    # Else: take one.
+
+    # Hydro
+    # Assume failure
+    hydro_last_restart_datetime = None
+    # TODO(JLM): can turn off hydro checking if LSM-only run.
+    if len(run_obj.restart_hydro):
+        hydro_last_restart = sorted(run_obj.restart_hydro)[-1]
+    else:
+        rst = [ff for ff in run_obj.setup.domain.hydro_files
+               if re.search('HYDRO_RST', str(ff))]
+        if len(rst):
+            hydro_last_restart = sorted(rst)[-1]
+        else:
+            warning.warn("No HYDRO_RST file exists for this run.")
+
+    has_colon = re.search(':', str(hydro_last_restart))
+
+    if has_colon:
+        the_sep = ':'
+    else:
+        the_sep = '_'
+
+    fmt = '%Y-%m-%d_%H' + the_sep + '%M_DOMAIN1'
+    hydro_last_restart_datetime = datetime.strptime(
+            str(hydro_last_restart).split('_RST.')[-1], fmt
+    )
+
+    # LSM
+    # Short-circuit LSM checking if channel-only (or other?) run?
+    forc_typ = run_obj.setup.namelist_hrldas['wrf_hydro_offline']['forc_typ']
+    if forc_typ in [8, 9]:
+        if hydro_last_restart_datetime is None:
+            raise ValueError("No restart files found for this channel-only run.")
+        return hydro_last_restart_datetime
+
+    lsm_last_restart = None
+    if len(run_obj.restart_lsm):
+        lsm_last_restart = sorted(run_obj.restart_lsm)[-1]
+    else:
+        rst = [ff for ff in run_obj.setup.domain.lsm_files
+               if re.search('RESTART', str(ff))]
+        if len(rst):
+            lsm_last_restart = sorted(rst)[-1]
+        else:
+            warning.warn("No LSM RESTART file exists for this run.")
+
+    fmt = '%Y%m%d%H_DOMAIN1'
+    lsm_last_restart_datetime = datetime.strptime(
+        str(lsm_last_restart).split('RESTART.')[-1],
+        fmt
+    )
+
+    if hydro_last_restart_datetime is None and lsm_last_restart_datetime is None:
+        raise ValueError("No restarts were found.")
+
+    if hydro_last_restart_datetime is None:
+        return lsm_last_restart_datetime
+
+    if hydro_last_restart_datetime != lsm_last_restart_datetime:
+        print(hydro_last_restart_datetime)
+        print(lsm_last_restart_datetime)
+        raise ValueError("Last Hydro and LSM restart times do not match.")
+    else:
+        return hydro_last_restart_datetime
+
+
+def get_ens_last_restart_datetime(
+    ens_run_obj #: .wrfhydroclasses.WrfHydroEnsembleRun
+):
+
+    ens_last = [get_last_restart_datetime(mm) for mm in ens_run_obj.members]
+    check = [ll == ens_last[0] for ll in ens_last]
+    if not all(check):
+        raise ValueError("The ensemble members have different final restart files.")
+    return ens_last[0]

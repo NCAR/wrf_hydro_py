@@ -1,20 +1,21 @@
 import copy
-import datetime
+from datetime import datetime, timedelta
 import f90nml
-import json
 import os
 import pathlib
 import pickle
-import re
 import shlex
 import shutil
 import subprocess
 import uuid
 import warnings
-import xarray as xr
 
-from .utilities import get_git_revision_hash
-from .ensemble import WrfHydroEnsembleRun
+from .utilities import \
+    get_git_revision_hash, \
+    get_ens_last_restart_datetime
+
+from .job import Job, Scheduler
+
 
 class DartExec(object):
     def __init__(
@@ -113,6 +114,7 @@ class DartSetup(object):
         self.perfect_model_obs = None
         self.filter = None
         """DartExec classes for compile-time executables and their namelists.."""
+        # TODO(JLM): move these to a list called "executables"?
 
         ## Setup directory paths
         self.source_dir = pathlib.PosixPath(source_dir).absolute()
@@ -124,7 +126,14 @@ class DartSetup(object):
             self.build_dir = pathlib.PosixPath(self.build_dir)
             self.build_dir.mkdir()
             # TODO(JLM): enforce that basename(build_dir) is experiment_dir
-        
+
+        self.run_scripts = []
+        scripts_path = self.source_dir / 'models/wrfHydro/shell_scripts/'
+        # Build this with the list of scripts to include in the run dir
+        # Should remain static... or it could be an option. seems unlikely.
+        scripts_basenames = ['advance_ensemble.py']
+        self.run_scripts = [scripts_path / nn for nn in scripts_basenames]
+
         ## Load master namelists
         # TODO(JLM): allow flexibility in the input_nml_file, check its
         # basename: if none, then do the following, else leave it alone.
@@ -233,27 +242,108 @@ class HydroDartRun(object):
     def __init__(
         self,
         dart_setup: DartSetup,
-        wrf_hydro_ens_run: WrfHydroEnsembleRun,
+        wrf_hydro_ens_run, #: WrfHydroEnsembleRun,
         config: dict={}
     ):
-        self.dart_setup = dart_setup
-        self.wrf_hydro_ens_run = wrf_hydro_ens_run
-        self.config = config
+
+        self.run_dir = pathlib.PosixPath(str(run_dir))
+        """The absolute path to the hydro-dart run dir."""
+        self.config = copy.deepcopy(config)
+        """The configuation from the experiment setup."""
+
+        self.wrf_hydro_ens_run_pkl = run_dir / "WrfHydroEnsembleRun.pkl"
+        self.exp_dir = self.run_dir / 'experiment_dir'
+        self.dart_setup_pkl = self.exp_dir / (config['dart']['build_dir'] + "/DartSetup.pkl")
+
+        self.binaries = {}
+        self.scripts = {}
+
         # jobs_pending
         # job_active
         # jobs_completed
+        self.pickle()        
+
+    def advance_ensemble(
+        self, 
+        model_start_time: datetime=None,
+        model_end_time: datetime=None,
+        entry_script: str=None,
+        exit_script: str=None,
+        afterok: str=None,
+        afterany: str=None
+    ):
+
+        # Setup job and scheduler.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            # Create a default job
+            the_job = Job(nproc=self.config['run_experiment']['wrf_hydro_ens_advance']['nproc'])
+
+            # TODO(JLM): add the entry and exit to the job
+
+            # Create a dummy scheduler
+            the_sched = Scheduler(
+                job_name=self.config['run_experiment']['wrf_hydro_ens_advance']['nproc'],
+                account=self.config['run_experiment']['wrf_hydro_ens_advance']['account'],
+                nproc=self.config['run_experiment']['wrf_hydro_ens_advance']['nproc'],
+                nnodes=self.config['run_experiment']['wrf_hydro_ens_advance']['nnodes'],
+                walltime=self.config['run_experiment']['wrf_hydro_ens_advance']['walltime'],
+                afterok=afterok
+            )
+            # TODO(JLM): add afterany
+
+        the_job.scheduler = the_sched
+
+        ens_run = pickle.load(open(self.wrf_hydro_ens_run_pkl, 'rb'))
+        # TODO (JLM): this is in place of the "sweeper" job or part of the submit script.
+        ens_run.collect_ensemble_runs()
+
+        if model_start_time is None:
+            model_start_time = get_ens_last_restart_datetime(ens_run)
+        if model_end_time is None:
+            model_end_time = \
+                model_start_time + \
+                timedelta(hours=self.config['run_experiment']['time']['advance_model_hours'])
+
+        the_job.model_start_time = model_start_time
+        the_job.model_end_time = model_end_time
+
+        ens_run.add_jobs(the_job)
+        ens_run.run_jobs()
+
+        self.pickle()
 
 
     def pickle(
         self,
         path: pathlib.PosixPath=None
     ):
-
         if path is None:
             path = self.config['experiment']['experiment_dir']
         filepath = path / 'HydroDartRun.pkl' 
+
         with open(filepath, 'wb') as f:
             pickle.dump(self, f, 2)
+
+
+    def establish_run_dir(self):
+
+        dart_setup = pickle.load(open(self.dart_setup_pkl,'rb'))
+
+        binary_src_path = dart_setup.build_dir
+        the_binary = self.config['run_experiment']['dart']['exe']
+        binary_src = binary_src_path / the_binary
+        binary_link = self.config['experiment']['run_dir'] / the_binary
+        binary_link.symlink_to(binary_src)
+        self.binaries[the_binary] = binary_link
+
+        for ss in dart_setup.run_scripts:
+            script_src = ss
+            script_base = os.path.basename(str(script_src))
+            script_link = self.config['experiment']['run_dir'] / script_base
+            script_link.symlink_to(script_src)
+            self.scripts[script_base] = script_link
 
 
     # def add_jobs()

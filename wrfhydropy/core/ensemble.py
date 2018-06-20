@@ -235,7 +235,12 @@ class WrfHydroEnsembleRun(object):
 
         # This sets up the runs. Writes WrfHydroRun.pkl objects to each dir.
         for mm in self.ens_setup.members:
-            self.members.append(WrfHydroRun(mm, run_dir = mm.run_dir, deepcopy_setup=False))
+            self.members.append(WrfHydroRun(
+                mm,
+                run_dir = mm.run_dir,
+                deepcopy_setup=False
+            )
+        )
 
         if jobs:
             self.add_jobs(jobs)

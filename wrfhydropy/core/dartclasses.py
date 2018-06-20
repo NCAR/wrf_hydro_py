@@ -241,8 +241,9 @@ class HydroDartRun(object):
     """Class for dart and wrf-hydro runs (currently just filter?)."""
     def __init__(
         self,
-        run_dir: str,
-        config: dict
+        dart_setup: DartSetup,
+        wrf_hydro_ens_run, #: WrfHydroEnsembleRun,
+        config: dict={}
     ):
 
         self.run_dir = pathlib.PosixPath(str(run_dir))
@@ -256,7 +257,7 @@ class HydroDartRun(object):
 
         self.binaries = {}
         self.scripts = {}
-        
+
         # jobs_pending
         # job_active
         # jobs_completed
@@ -314,8 +315,14 @@ class HydroDartRun(object):
         self.pickle()
 
 
-    def pickle(self):
-        filepath = self.run_dir / 'HydroDartRun.pkl' 
+    def pickle(
+        self,
+        path: pathlib.PosixPath=None
+    ):
+        if path is None:
+            path = self.config['experiment']['experiment_dir']
+        filepath = path / 'HydroDartRun.pkl' 
+
         with open(filepath, 'wb') as f:
             pickle.dump(self, f, 2)
 

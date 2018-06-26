@@ -17,7 +17,7 @@ import yaml
 # Where is wrfhydropy/core dir in the filesystem?
 # A method (used by  django) about specifying the root dir of the project.
 # https://stackoverflow.com/questions/25389095/python-get-path-of-root-project-structure
-core_dir = pathlib.PosixPath(os.path.dirname(os.path.abspath(__file__)))
+core_dir = pathlib.Path(__file__).absolute().parent
 DATA_PATH = pathlib.Path(pkg_resources.resource_filename('wrfhydropy', 'core/data/'))
 
 
@@ -45,8 +45,8 @@ def get_sched_name():
 
 
 def in_docker():
-    path = "/proc/" + str(os.getpid()) + "/cgroup"
-    if not os.path.isfile(path): return False
+    path = pathlib.Path("/proc/" + str(os.getpid()) + "/cgroup")
+    if not path.is_file(): return False
     with open(path) as f:
         for line in f:
             if re.match("\d+:[\w=]+:/docker(-[ce]e)?/\w+", line):

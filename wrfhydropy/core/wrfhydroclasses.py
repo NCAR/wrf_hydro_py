@@ -554,7 +554,7 @@ class WrfHydroRun(object):
                        *self.setup.domain.lsm_files]
         for ff in model_files:
                 if re.match('.*/RESTART/.*',str(ff)):
-                    symlink_path = self.run_dir.joinpath(os.path.basename(ff))
+                    symlink_path = self.run_dir.joinpath(os.path.basename(ff)).absolute()
                     symlink_path.symlink_to(ff)
 
         if jobs:

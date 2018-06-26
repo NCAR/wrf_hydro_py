@@ -3,7 +3,6 @@ import f90nml
 import io
 import os
 import pandas as pd
-import pathlib
 import subprocess
 import warnings
 import xarray as xr
@@ -233,7 +232,7 @@ def unlock_pickle(run_obj):
     if not is_pickle_locked(run_obj):
         raise ValueError('The pickle file, ' + run_obj.run_dir + ', is already unlocked')
     pickle_lock_file = get_pickle_lock_file(run_obj)
-    os.remove(pickle_lock_file)
+    pickle_lock_file.unlink()
     run_obj._pickle_lock_file = None
 
 

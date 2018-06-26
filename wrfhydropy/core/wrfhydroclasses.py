@@ -108,18 +108,18 @@ class WrfHydroModel(object):
 
         ## Load master namelists
         self.hydro_namelists = \
-            json.load(open(self.source_dir.joinpath('hydro_namelists.json')))
+            json.load(self.source_dir.joinpath('hydro_namelists.json').open())
 
         self.hrldas_namelists = \
-            json.load(open(self.source_dir.joinpath('hrldas_namelists.json')))
+            json.load(self.source_dir.joinpath('hrldas_namelists.json').open())
 
         ## Get code version
-        with open(self.source_dir.joinpath('.version')) as f:
+        with self.source_dir.joinpath('.version').open() as f:
             self.version = f.read()
 
         ## Load compile options
         self.model_config = model_config
-        compile_options = json.load(open(self.source_dir.joinpath('compile_options.json')))
+        compile_options = json.load(self.source_dir.joinpath('compile_options.json').open())
         self.compile_options = compile_options[self.version][self.model_config]
 
     def compile(
@@ -167,7 +167,7 @@ class WrfHydroModel(object):
         compile_options_file = self.source_dir.joinpath('compile_options.sh')
 
         # Write setEnvar file
-        with open(compile_options_file,'w') as file:
+        with compile_options_file.open(mode='w') as file:
             for option, value in self.compile_options.items():
                 file.write("export {}={}\n".format(option, value))
 
@@ -188,7 +188,7 @@ class WrfHydroModel(object):
         # this directory with another object
         self.object_id = str(uuid.uuid4())
 
-        with open(self.compile_dir.joinpath('.uid'),'w') as f:
+        with self.compile_dir.joinpath('.uid').open(mode='w') as f:
             f.write(self.object_id)
 
         if self.compile_log.returncode == 0:
@@ -218,7 +218,7 @@ class WrfHydroModel(object):
             self.wrf_hydro_exe = self.compile_dir.joinpath('wrf_hydro.exe')
 
             # Save the object out to the compile directory
-            with open(self.compile_dir.joinpath('WrfHydroModel.pkl'), 'wb') as f:
+            with self.compile_dir.joinpath('WrfHydroModel.pkl').open(mode='wb') as f:
                 pickle.dump(self, f, 2)
 
             print('Model successfully compiled into ' + str(self.compile_dir))
@@ -256,7 +256,7 @@ class WrfHydroDomain(object):
         """pathlib.Path: pathlib.Path to the namelist_patches json file."""
 
         # Load namelist patches
-        self.namelist_patches = json.load(open(self.namelist_patch_file, 'r'))
+        self.namelist_patches = json.load(self.namelist_patch_file.open(mode='r'))
         """dict: Domain-specific namelist settings."""
 
         self.model_version = model_version
@@ -393,12 +393,12 @@ class WrfHydroSetup(object):
     ):
         # create a UID for the run and save in file
         self.object_id = str(uuid.uuid4())
-        with open(dir.joinpath('.uid'), 'w') as f:
+        with dir.joinpath('.uid').open(mode='w') as f:
             f.write(self.object_id)
 
         # Save object to run directory
         # Save the object out to the compile directory
-        with open(dir.joinpath('WrfHydroSetup.pkl'), 'wb') as f:
+        with dir.joinpath('WrfHydroSetup.pkl').open(mode='wb') as f:
             pickle.dump(self, f, 2)
 
 
@@ -487,7 +487,7 @@ class WrfHydroRun(object):
 
         # Check that compile object uid matches compile directory uid
         # This is to ensure that a new model has not been compiled into that directory unknowingly
-        with open(self.setup.model.compile_dir.joinpath('.uid')) as f:
+        with self.setup.model.compile_dir.joinpath('.uid').open() as f:
             compile_uid = f.read()
 
         if self.setup.model.object_id != compile_uid:
@@ -751,18 +751,18 @@ class WrfHydroRun(object):
     def pickle(self):
         # create a UID for the run and save in file
         self.object_id = str(uuid.uuid4())
-        with open(self.run_dir.joinpath('.uid'), 'w') as f:
+        with self.run_dir.joinpath('.uid').open('w') as f:
             f.write(self.object_id)
 
         # Save object to run directory
         # Save the object out to the compile directory
-        with open(self.run_dir.joinpath('WrfHydroRun.pkl'), 'wb') as f:
+        with self.run_dir.joinpath('WrfHydroRun.pkl').open('wb') as f:
             pickle.dump(self, f, 2)
 
 
     def unpickle(self):
         # Load run object from run directory after a scheduler job
-        with open(self.run_dir.joinpath('WrfHydroRun.pkl'), 'rb') as f:
+        with self.run_dir.joinpath('WrfHydroRun.pkl').open('rb') as f:
             return(pickle.load(f))
 
 
@@ -810,7 +810,7 @@ class DomainDirectory(object):
         self.namelist_patch_file = self.domain_top_dir.joinpath(namelist_patch_file)
 
         # Load namelist patches
-        self.namelist_patches = json.load(open(self.namelist_patch_file, 'r'))
+        self.namelist_patches = json.load(self.namelist_patch_file.open(mode='r'))
 
         self.model_version = model_version
         self.domain_config = domain_config

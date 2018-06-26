@@ -29,7 +29,7 @@ class WrfHydroEnsembleSetup(object):
     ):
         """Instantiate a WrfHydroEnsembleSim object.
         Args:
-            members: 
+            members: A list of wrfhydropy.WrfHydroSetup objects
             ensemble_dir: Optional, 
         Returns:
             A WrfHydroEnsembleSim object.
@@ -45,6 +45,7 @@ class WrfHydroEnsembleSetup(object):
     # The "canonical" name for len
     @property
     def N(self):
+        """The "canonical" name for len"""
         return(self.__len__())
 
     # Data to store with the "member" simulations, conceptually this
@@ -95,17 +96,15 @@ class WrfHydroEnsembleSetup(object):
         else:
             self.members = [ self.members[0] for nn in range(N-1) ]
 
-
-    # The diffs_dict attribute has getter (@property) and setter methods.
-    # The get method summarizes all differences across all the attributes of the
-    #   members list attribute and (should) only report member attributes when there
-    #   is at least one difference between members.
-    # The setter method is meant as a convenient way to specify the differences in
-    #   member attributes across the ensemble.
-
-
     @property        
     def diffs_dict(self):
+        '''The diffs_dict attribute has getter (@property) and setter methods.
+        The get method summarizes all differences across all the attributes of the
+        members list attribute and (should) only report member attributes when there
+        is at least one difference between members.
+        The setter method is meant as a convenient way to specify the differences in
+        member attributes across the ensemble.
+        '''
 
         if len(self) == 1:
             print('Ensemble is of lenght 1, no differences.')

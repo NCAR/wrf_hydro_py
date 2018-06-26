@@ -44,6 +44,7 @@ extensions = [
     'sphinx.ext.napoleon'
 ]
 
+
 napoleon_google_docstring = True
 napoleon_use_param = False
 napoleon_use_ivar = True

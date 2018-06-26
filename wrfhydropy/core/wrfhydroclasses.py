@@ -1,7 +1,6 @@
 import copy
 import datetime
 import json
-import os
 import pathlib
 import pickle
 import re
@@ -554,7 +553,7 @@ class WrfHydroRun(object):
                        *self.setup.domain.lsm_files]
         for ff in model_files:
                 if re.match('.*/RESTART/.*',str(ff)):
-                    symlink_path = self.run_dir.joinpath(os.path.basename(ff)).absolute()
+                    symlink_path = self.run_dir.joinpath(ff.name).absolute()
                     symlink_path.symlink_to(ff)
 
         if jobs:

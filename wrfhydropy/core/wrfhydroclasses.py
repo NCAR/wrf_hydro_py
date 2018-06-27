@@ -198,25 +198,18 @@ class WrfHydroModel(object):
                                             )
 
         # Create compile command for machine spec
+        compile_cmd = '/bin/bash -c "'
         if self.machine_spec is not None:
             modules = ' '.join(self.machine_spec['modules'][self.compiler])
-            compile_cmd = '/bin/bash -c "' + \
-                'module purge && module load ' + \
-                modules + \
-                ' && ' + \
-                './compile_offline_NoahMP.sh ' + \
-                str(compile_options_file.absolute()) + \
-                '"'
-            print(compile_cmd)
-            compile_cmd = shlex.split(compile_cmd)
-            print(compile_cmd)
-        else:
-            compile_cmd = shlex.split(
-                '/bin/bash -c "' +
-                './compile_offline_NoahMP.sh' +
-                str(compile_options_file.absolute()) +
-                '"'
-            )
+            compile_cmd += "module purge && module load " + modules + " && "
+        compile_cmd += './compile_offline_NoahMP.sh '
+        compile_cmd += str(compile_options_file.absolute())
+        compile_cmd += '"'
+
+        print(compile_cmd)
+        compile_cmd = shlex.split(compile_cmd)
+        print(compile_cmd)
+
 
         self.compile_log = subprocess.run(compile_cmd,
                                           stdout=subprocess.PIPE,

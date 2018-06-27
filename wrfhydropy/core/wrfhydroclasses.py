@@ -174,13 +174,15 @@ class WrfHydroModel(object):
         self.configure_log = subprocess.run(['./configure', compiler],
                                             stdout=subprocess.PIPE,
                                             stderr=subprocess.PIPE,
-                                            cwd=self.source_dir)
+                                            cwd=str(self.source_dir.absolute())
+                                            )
 
         self.compile_log = subprocess.run(['./compile_offline_NoahMP.sh',
                                            str(compile_options_file.absolute())],
                                           stdout=subprocess.PIPE,
                                           stderr=subprocess.PIPE,
-                                          cwd=self.source_dir)
+                                          cwd=str(self.source_dir.absolute())
+                                            )
         # Change to back to previous working directory
 
         # Add in unique ID file to match this object to prevent assosciating
@@ -459,7 +461,7 @@ class WrfHydroRun(object):
 
         self._pickle_lock_file = None
         """pathlib.PosixPath: The pickle lock file path."""
-        
+
         # Establish the values. 
         
         # TODO(JLM): Check that the setup object is "complete".

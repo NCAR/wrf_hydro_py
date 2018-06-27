@@ -192,6 +192,7 @@ class WrfHydroModel(object):
                 file.write("export {}={}\n".format(option, value))
 
         # Compile
+
         # Create compile command for machine spec
         compile_cmd = '/bin/bash -c "'
         if self.machine_spec is not None:
@@ -587,11 +588,13 @@ class WrfHydroRun(object):
                 symlink_path = self.run_dir.joinpath(ff.name).absolute()
                 symlink_path.symlink_to(ff)
 
+
     def add_jobs(
             self,
             jobs: list
     ):
         """Add jobs to the run object
+
         Args:
             jobs: List of Job objects
         """

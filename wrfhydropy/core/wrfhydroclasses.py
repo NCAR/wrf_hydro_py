@@ -160,7 +160,6 @@ class WrfHydroModel(object):
 
         """
 
-        self.modules = None
         # A bunch of ugly logic to check compile directory.
         if compile_dir is None:
             self.compile_dir = self.source_dir.joinpath('Run')
@@ -199,11 +198,12 @@ class WrfHydroModel(object):
 
         # Create compile command for machine spec
         if self.machine_spec is not None:
-            self.modules = ' '.join(self.machine_spec['modules'][self.compiler])
+            modules = ' '.join(self.machine_spec['modules'][self.compiler])
+            print(modules)
             compile_cmd = shlex.split(
                 '/bin/bash -c "' +
                 'module purge && module load ' +
-                self.modules +
+                modules +
                  ' && ' +
                  './compile_offline_NoahMP.sh ' +
                  str(compile_options_file.absolute()) +

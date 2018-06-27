@@ -200,18 +200,17 @@ class WrfHydroModel(object):
         if self.machine_spec is not None:
             modules = ' '.join(self.machine_spec['modules'][self.compiler])
             compile_cmd = shlex.split(
-                ['module purge && module load ' +
+                'module purge && module load ' +
                  modules +
                  ' && ' +
                  './compile_offline_NoahMP.sh ' +
                  str(compile_options_file.absolute())
-                 ]
             )
         else:
             compile_cmd = shlex.split(
-                ['./compile_offline_NoahMP.sh' +
+                './compile_offline_NoahMP.sh' +
                  str(compile_options_file.absolute())
-                 ]
+
             )
 
         self.compile_log = subprocess.run(compile_cmd,

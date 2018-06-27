@@ -224,6 +224,7 @@ class Job(object):
             nproc: int,
             exe_cmd: str=None,
             scheduler: Scheduler = None,
+            modules: list = None,
             model_start_time: str=None,
             model_end_time: str=None,
             model_restart: bool=True,
@@ -238,6 +239,7 @@ class Job(object):
         self.machine = get_machine()
         """str: The name of the machine being used."""
         self.modules = modules
+
         """str: The modules to be loaded prior to execution. Taken from machine_spec.yaml 
         if not present."""
         self.scheduler = scheduler

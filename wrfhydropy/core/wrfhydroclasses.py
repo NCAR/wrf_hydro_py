@@ -4,7 +4,9 @@ import json
 import os
 import pathlib
 import pickle
+from pprint import pprint
 import re
+import shlex
 import shutil
 import subprocess
 import uuid
@@ -172,16 +174,24 @@ class WrfHydroModel(object):
                 file.write("export {}={}\n".format(option, value))
 
         # Compile
-        self.configure_log = subprocess.run(['./configure', compiler],
-                                            stdout=subprocess.PIPE,
-                                            stderr=subprocess.PIPE,
-                                            cwd=self.source_dir)
+        self.configure_log = subprocess.run(
+            ['./configure', compiler],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd=self.source_dir
+        )
 
-        self.compile_log = subprocess.run(['./compile_offline_NoahMP.sh',
-                                           str(compile_options_file.absolute())],
-                                          stdout=subprocess.PIPE,
-                                          stderr=subprocess.PIPE,
-                                          cwd=self.source_dir)
+        #self.compile_log = subprocess.Popen(
+        self.compile_log = subprocess.run(
+            shlex.split('./compile_offline_NoahMP.sh ' + str(compile_options_file.absolute())),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            #shell=True,
+            #executable='/bin/bash',
+            cwd=self.source_dir
+        )
+        #if popen: self.compile_log.wait()
+
         # Change to back to previous working directory
 
         # Add in unique ID file to match this object to prevent assosciating
@@ -223,6 +233,7 @@ class WrfHydroModel(object):
 
             print('Model successfully compiled into ' + str(self.compile_dir))
         else:
+            pprint(str(self.compile_log))
             raise ValueError('Model did not successfully compile.')
 
 # WRF-Hydro Domain object
@@ -659,9 +670,9 @@ class WrfHydroRun(object):
             for jj in range(0, len(self.jobs_pending)):
                 self.job_active = self.jobs_pending.pop(0)
                 self.job_active.run(self.run_dir)
-                self.collect_output()
                 self.jobs_completed.append(self.job_active)
                 self.job_active = None
+                self.collect_output()
                 self.pickle()
 
 

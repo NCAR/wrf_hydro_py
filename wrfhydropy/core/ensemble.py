@@ -294,7 +294,6 @@ class WrfHydroEnsembleRun(object):
             jj.job_date_id = 'job_' + str(len(self.jobs_completed) +
                                           bool(self.job_active) +
                                           len(self.jobs_pending))
-
             # alternative" '{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=job_submission_time)
             jj.scheduler.array_size = len(self.members)
 

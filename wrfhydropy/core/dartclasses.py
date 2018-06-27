@@ -246,12 +246,12 @@ class HydroDartRun(object):
         config: dict={}
     ):
 
-        self.run_dir = pathlib.PosixPath(str(run_dir))
+        self.run_dir = pathlib.PosixPath(str(wrf_hydro_ens_run.run_dir))
         """The absolute path to the hydro-dart run dir."""
         self.config = copy.deepcopy(config)
         """The configuation from the experiment setup."""
 
-        self.wrf_hydro_ens_run_pkl = run_dir / "WrfHydroEnsembleRun.pkl"
+        self.wrf_hydro_ens_run_pkl = self.run_dir / "WrfHydroEnsembleRun.pkl"
         self.exp_dir = self.run_dir / 'experiment_dir'
         self.dart_setup_pkl = self.exp_dir / (config['dart']['build_dir'] + "/DartSetup.pkl")
 

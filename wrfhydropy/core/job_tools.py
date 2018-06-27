@@ -755,14 +755,6 @@ def default_job_spec(machine='docker'):
     return default_job_spec
 
 
-#def compose_scheduled_python_script_2(
-#    run_dir: str,
-#    job: object
-#    py_run_cmd: str,
-#    model_exe_cmd: str
-#):
-
-
 def compose_scheduled_python_script(
     py_run_cmd: str,
     model_exe_cmd: str

@@ -220,14 +220,16 @@ class Scheduler(object):
 
 class Job(object): 
     def __init__(
-            self,
-            nproc: int,
-            exe_cmd: str=None,
-            modules: str=None,
-            scheduler: Scheduler = None,
-            model_start_time: str=None,
-            model_end_time: str=None,
-            model_restart: bool=True
+        self,
+        nproc: int,
+        exe_cmd: str=None,
+        modules: str=None,
+        scheduler: Scheduler = None,
+        model_start_time: str=None,
+        model_end_time: str=None,
+        model_restart: bool=True,
+        entry_cmd: str=None,
+        exit_cmd: str=None            
     ):
 
         self.exe_cmd = exe_cmd
@@ -251,6 +253,11 @@ class Job(object):
         self.model_restart = model_restart
         """bool: Look for restart files at modelstart_time?"""
 
+        self.entry_cmd = entry_cmd
+        """str: A command line command to execute before the model execution (after module load)."""
+        self.exit_cmd = exit_cmd
+        """str: A command line command to execute after the model execution (after module load)."""
+        
         # These are only outputs/atts of the object.
         self.namelist_hrldas = None
         """dict: the HRLDAS namelist used for this job."""
@@ -393,6 +400,7 @@ class Job(object):
             # The bash submission script which calls the python script.
             self.exe_cmd = py_run_cmd
 
+
         # Only complete the scheduling if not a job array or
         # if there is a specific flag to complete the job array.
         if (not self.scheduler.array_size) or (self.scheduler.array_size and submit_array):
@@ -465,7 +473,10 @@ class Job(object):
             exe_cmd += " 2> {0} 1> {1}"
             exe_cmd = exe_cmd.format(self.stderr_exe(run_dir), self.stdout_exe(run_dir))
             exe_cmd = shlex.split(exe_cmd)
-            subprocess.run(exe_cmd, cwd=run_dir)
+            #subprocess.run(exe_cmd, cwd=run_dir)
+            proc = subprocess.Popen(exe_cmd, cwd=run_dir)
+            proc.wait()
+            #subprocess.run(exe_cmd, cwd=run_dir, shell=True, executable='/bin/bash')
 
         else:
 
@@ -477,19 +488,27 @@ class Job(object):
             exe_cmd = '/bin/bash -c "'
             if self.modules:
                 exe_cmd += "module purge && module load " + self.modules + " && "
+
+            if self.entry_cmd is not None:
+                exe_cmd += self.entry_cmd
+                exe_cmd += " 2>> {0} 1>> {1}".format(self.stderr_file, self.stdout_file) + " && "
+
             exe_cmd += self.exe_cmd.format(**{'nproc': self.nproc})
-            exe_cmd += " 2> {0} 1> {1}".format(self.stderr_file, self.stdout_file)
+            exe_cmd += " 2>> {0} 1>> {1}".format(self.stderr_file, self.stdout_file)
+
+            if self.exit_cmd is not None:
+                exe_cmd += " && " + self.exit_cmd
+                exe_cmd += " 2>> {0} 1>> {1}".format(self.stderr_file, self.stdout_file)
+
             exe_cmd += '"'
             self.exe_cmd = exe_cmd
 
             self.job_status='running'
             self.job_start_time = str(datetime.datetime.now())
-            self.run_log = subprocess.run(
-                shlex.split(exe_cmd),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                cwd=run_dir
-            )
+
+            proc = subprocess.Popen(shlex.split(exe_cmd), cwd=run_dir)
+            self.run_log = proc.wait()
+            
             self.job_end_time = str(datetime.datetime.now())
             self.job_status='completed'
 
@@ -502,7 +521,6 @@ class Job(object):
             # Get diag files
             # TODO(JLM): diag_files should be scrapped orrenamed to no conflict between jobs.
             run_dir_posix = pathlib.PosixPath(run_dir)
-            print('run_dir_posix:', run_dir_posix)
             self.diag_files = list(run_dir_posix.glob('diag_hydro.*'))
 
             #self.stdout_file = list(run_dir_posix.glob(self.job_date_id+'.*stdout'))[0]

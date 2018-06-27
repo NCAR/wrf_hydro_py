@@ -223,7 +223,6 @@ class Job(object):
             self,
             nproc: int,
             exe_cmd: str=None,
-            modules: str=None,
             scheduler: Scheduler = None,
             model_start_time: str=None,
             model_end_time: str=None,

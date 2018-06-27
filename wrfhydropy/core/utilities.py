@@ -10,6 +10,7 @@ from .job_tools import touch
 import pathlib
 import numpy as np
 
+
 def compare_nc_nccmp(candidate_nc: str,
                      reference_nc: str,
                      nccmp_options: list = ['--data','--metadata','--force','--quiet'],
@@ -254,7 +255,7 @@ def get_git_revision_hash(the_dir):
         ["git", "branch"],
         stderr=subprocess.STDOUT,
         stdout=open(os.devnull, 'w'),
-        cwd=the_dir
+        cwd=str(the_dir.absolute())
     )
     if dir_is_repo != 0:
         warnings.warn('The source directory is NOT a git repo: ' + str(the_dir))
@@ -264,10 +265,72 @@ def get_git_revision_hash(the_dir):
         ['git', 'diff-index', 'HEAD'],  # --quiet seems to give the wrong result.
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        cwd=the_dir
+        cwd=str(the_dir.absolute())
     ).returncode
-    the_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=the_dir)
+    the_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=str(the_dir.absolute()))
     the_hash = the_hash.decode('utf-8').split()[0]
     if dirty:
         the_hash += '--DIRTY--'
     return the_hash
+
+def get_machine_spec(machine_name: str) -> dict:
+    """Make all file paths relative to a given directory, useful for opening file
+    attributes in a run object after it has been moved or copied to a new directory or
+    system.
+    Args:
+        machine_name: Name of a known machine. Known machines include 'cheyenne' and
+        'wrfhydro_docker'
+    Returns:
+        machine specification dictionary for use with a wrfhydropy.WrfHydroModel class
+    """
+
+    known_machines = {'cheyenne':
+                          {'modules':
+                               {'base':['nco/4.6.2','python/3.6.2'],
+                                'ifort':['intel/16.0.3','ncarenv/1.2','ncarcompilers/0.4.1',
+                                         'mpt/2.15f','netcdf/4.4.1'],
+                                'gfort':['gnu/7.1.0','ncarenv/1.2','ncarcompilers/0.4.1',
+                                         'mpt/2.15','netcdf/4.4.1.1']
+                                },
+                           'scheduler':
+                               {'name':'PBS',
+                                'max_walltime':'12:00'},
+                           'cores_per_node':36,
+                           'exe_cmd':
+                               {'PBS':'mpiexec_mpt ./wrf_hydro.exe',
+                                'default': 'mpirun -np %d ./wrf_hydro.exe'
+                                }
+                           },
+                      'wrfhydro_docker':
+                          {'modules':None,
+                           'scheduler':None,
+                           'cores_per_node': None,
+                           'exe_cmd':
+                               {'default': 'mpirun -ppn %d ./wrf_hydro.exe'}
+                           }
+                      }
+    if machine_name not in known_machines.keys():
+        raise LookupError(machine_name + ' is not a known machine')
+    else:
+        return known_machines[machine_name]
+
+def check_machine_spec(machine_spec: dict) -> dict:
+    """Make all file paths relative to a given directory, useful for opening file
+    attributes in a run object after it has been moved or copied to a new directory or
+    system.
+    Args:
+        machine_name: Name of a known machine. Known machines include 'cheyenne' and
+        'wrfhydro_docker'
+    Returns:
+        The input machine specification
+    Raises:
+        KeyError if reauired keys are missing from the machine_spec dictionary
+    """
+
+    required_keys = get_machine_spec('cheyenne').keys()
+    missing_keys = set(machine_spec.keys()) - set(required_keys)
+
+    if machine_spec.keys() != required_keys:
+        raise KeyError('Missing required keys')
+    else:
+        return required_keys

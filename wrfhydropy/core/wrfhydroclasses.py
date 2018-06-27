@@ -6,6 +6,7 @@ import pickle
 import re
 import shutil
 import subprocess
+import typing.Union
 import uuid
 import warnings
 import xarray as xr
@@ -16,7 +17,9 @@ from .utilities import \
     __make_relative__, \
     lock_pickle, \
     unlock_pickle, \
-    get_git_revision_hash
+    get_git_revision_hash,\
+    get_machine_spec, \
+    check_machine_spec
 
 from .job_tools import \
     get_user, \
@@ -57,23 +60,41 @@ class WrfHydroModel(object):
     def __init__(
         self,
         source_dir: str,
-        model_config: str
+        model_config: str,
+        machine_spec: typing.Union[dict,str] = None
     ):
         """Instantiate a WrfHydroModel object.
         Args:
             source_dir: Directory containing the source code, e.g.
                'wrf_hydro_nwm/trunk/NDHMS'.
-            new_compile_dir: Optional, new directory to to hold results
-               of code compilation.
+            model_config: The configuration of the model. Used to match a model to a domain
+            configuration. Must be one of either 'NWM', 'Gridded', or 'Reach'.
+            machine_spec: Optional dictionary of machine specification or string containing the
+            name of a known machine. Known machine names include 'cheyenne'. For an
+            example of a machine specification see the 'cheyenne' machine specification using
+            wrfhydropy.get_machine_spec('cheyenne').
         Returns:
             A WrfHydroModel object.
         """
+
+
+
         # Instantiate all attributes and methods
         self.source_dir = None
         """pathlib.Path: pathlib.Path object for source code directory."""
         self.model_config = None
         """str: String indicating model configuration for compile options, must be one of 'NWM', 
         'Gridded', or 'Reach'."""
+
+        if type(machine_spec) == str:
+            machine_spec = get_machine_spec(machine_spec)
+        else:
+            self.machine_spec = check_machine_spec(machine_spec)
+
+
+        """list: List of modules to use for model. Note these modules will be used for all 
+        subsequent system calls for model operations."""
+
         self.hydro_namelists = dict()
         """dict: Master dictionary of all hydro.namelists stored with the source code."""
         self.hrldas_namelists = dict()
@@ -174,13 +195,15 @@ class WrfHydroModel(object):
         self.configure_log = subprocess.run(['./configure', compiler],
                                             stdout=subprocess.PIPE,
                                             stderr=subprocess.PIPE,
-                                            cwd=self.source_dir)
+                                            cwd=str(self.source_dir.absolute())
+                                            )
 
         self.compile_log = subprocess.run(['./compile_offline_NoahMP.sh',
                                            str(compile_options_file.absolute())],
                                           stdout=subprocess.PIPE,
                                           stderr=subprocess.PIPE,
-                                          cwd=self.source_dir)
+                                          cwd=str(self.source_dir.absolute())
+                                            )
         # Change to back to previous working directory
 
         # Add in unique ID file to match this object to prevent assosciating
@@ -459,7 +482,7 @@ class WrfHydroRun(object):
 
         self._pickle_lock_file = None
         """pathlib.PosixPath: The pickle lock file path."""
-        
+
         # Establish the values. 
         
         # TODO(JLM): Check that the setup object is "complete".

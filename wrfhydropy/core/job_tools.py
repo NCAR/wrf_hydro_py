@@ -76,6 +76,7 @@ def get_user():
             sp = subprocess.run(['whoami'], stdout=subprocess.PIPE)
             return sp.stdout.decode('utf-8').split('\n')[0]
     else:
+        # TODO (JLM): Get rid of this lame return value
         return "?"
 
 
@@ -177,7 +178,8 @@ def exetime(deltatime):
 
 def touch(filename, mode=0o666, dir_fd=None, **kwargs):
     flags = os.O_CREAT | os.O_APPEND
-    with os.fdopen(os.open(filename, flags=flags, mode=mode, dir_fd=dir_fd)) as f:
+    filename.open(mode='a+')
+    with os.fdopen(os.open(str(filename), flags=flags, mode=mode, dir_fd=dir_fd)) as f:
         os.utime(f.fileno() if os.utime in os.supports_fd else filename,
                  dir_fd=None if os.supports_fd else dir_fd, **kwargs)
 
@@ -740,7 +742,7 @@ def default_job_spec(machine='docker'):
     if machine != 'docker':
         warnings.warn("Default job sepcs do not currently make sense except for docker.")
     default_job_specs_file = DATA_PATH / 'default_job_specs.yaml'
-    with open(default_job_specs_file) as ff:
+    with default_job_specs_file.open() as ff:
         default_job_specs = yaml.safe_load(ff)
     default_job_spec = default_job_specs[machine]
     # One can not really construct a default scheduler without a user spec.
@@ -1154,7 +1156,7 @@ def check_job_input_files(job_obj, run_dir):
 
 def job_complete(run_dir):
     if type(run_dir) is str:
-        run_dir = libpath.PosixPath(run_dir)
+        run_dir = pathlib.Path(run_dir)
     check_file = run_dir / '.job_not_complete'
     return not(check_file.exists())
 
@@ -1162,5 +1164,6 @@ def job_complete(run_dir):
 def restore_completed_scheduled_job(run_dir):
     while not job_complete(run_dir):
         time.sleep(10)
-    return pickle.load(open(run_dir / 'WrfHydroRun.pkl', 'rb'))
+    run_pkl_path = run_dir / 'WrfHydroRun.pkl'
+    return pickle.load(run_pkl_path.open('rb'))
 

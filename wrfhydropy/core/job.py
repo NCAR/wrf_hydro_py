@@ -402,7 +402,7 @@ class Job(object):
             raise e
 
         # TODO(JLM): should make this a helper method
-        touch(str(run_dir) + '/.job_not_complete')
+        touch(run_dir.joinpath('/.job_not_complete'))
 
 
     def release(self):

@@ -373,7 +373,7 @@ class Job(object):
 
         model_exe_cmd = self.exe_cmd
         py_script_name = run_dir / (self.job_date_id + ".wrfhydropy.py")
-        py_run_cmd = "python " + py_script_name + \
+        py_run_cmd = "python " + str(py_script_name.absolute()) + \
                      " --sched_job_id $sched_job_id --job_date_id $job_date_id"
 
         # This needs to happen before composing the scripts.

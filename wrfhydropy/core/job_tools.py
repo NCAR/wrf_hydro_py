@@ -740,7 +740,7 @@ def default_job_spec(machine='docker'):
     if machine != 'docker':
         warnings.warn("Default job sepcs do not currently make sense except for docker.")
     default_job_specs_file = DATA_PATH / 'default_job_specs.yaml'
-    with open(default_job_specs_file) as ff:
+    with default_job_specs_file.open() as ff:
         default_job_specs = yaml.safe_load(ff)
     default_job_spec = default_job_specs[machine]
     # One can not really construct a default scheduler without a user spec.

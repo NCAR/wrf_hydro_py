@@ -254,7 +254,7 @@ def get_git_revision_hash(the_dir):
         ["git", "branch"],
         stderr=subprocess.STDOUT,
         stdout=open(os.devnull, 'w'),
-        cwd=the_dir
+        cwd=str(the_dir.absolute())
     )
     if dir_is_repo != 0:
         warnings.warn('The source directory is NOT a git repo: ' + str(the_dir))

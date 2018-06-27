@@ -76,6 +76,7 @@ def get_user():
             sp = subprocess.run(['whoami'], stdout=subprocess.PIPE)
             return sp.stdout.decode('utf-8').split('\n')[0]
     else:
+        # TODO (JLM): Get rid of this lame return value
         return "?"
 
 
@@ -177,7 +178,7 @@ def exetime(deltatime):
 
 def touch(filename, mode=0o666, dir_fd=None, **kwargs):
     flags = os.O_CREAT | os.O_APPEND
-    filename.open()
+    filename.open(mode='a+')
     with os.fdopen(os.open(str(filename), flags=flags, mode=mode, dir_fd=dir_fd)) as f:
         os.utime(f.fileno() if os.utime in os.supports_fd else filename,
                  dir_fd=None if os.supports_fd else dir_fd, **kwargs)

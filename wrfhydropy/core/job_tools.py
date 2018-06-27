@@ -177,7 +177,8 @@ def exetime(deltatime):
 
 def touch(filename, mode=0o666, dir_fd=None, **kwargs):
     flags = os.O_CREAT | os.O_APPEND
-    with os.fdopen(os.open(filename, flags=flags, mode=mode, dir_fd=dir_fd)) as f:
+    filename.open()
+    with os.fdopen(os.open(str(filename), flags=flags, mode=mode, dir_fd=dir_fd)) as f:
         os.utime(f.fileno() if os.utime in os.supports_fd else filename,
                  dir_fd=None if os.supports_fd else dir_fd, **kwargs)
 
@@ -1162,5 +1163,6 @@ def job_complete(run_dir):
 def restore_completed_scheduled_job(run_dir):
     while not job_complete(run_dir):
         time.sleep(10)
-    return pickle.load(open(run_dir / 'WrfHydroRun.pkl', 'rb'))
+    run_pkl_path = run_dir / 'WrfHydroRun.pkl'
+    return pickle.load(run_pkl_path.open('rb'))
 

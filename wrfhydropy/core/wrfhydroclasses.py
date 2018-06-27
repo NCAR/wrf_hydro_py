@@ -191,12 +191,6 @@ class WrfHydroModel(object):
                 file.write("export {}={}\n".format(option, value))
 
         # Compile
-        self.configure_log = subprocess.run(['./configure', compiler],
-                                            stdout=subprocess.PIPE,
-                                            stderr=subprocess.PIPE,
-                                            cwd=str(self.source_dir.absolute())
-                                            )
-
         # Create compile command for machine spec
         compile_cmd = '/bin/bash -c "'
         if self.machine_spec is not None:

@@ -237,7 +237,7 @@ class Job(object):
         then there will be ab error."""
         self.machine = get_machine()
         """str: The name of the machine being used."""
-        self.modules = modules
+        #self.modules = modules
         """str: The modules to be loaded prior to execution. Taken from machine_spec.yaml 
         if not present."""
         self.scheduler = scheduler

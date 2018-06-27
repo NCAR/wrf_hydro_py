@@ -199,10 +199,10 @@ class WrfHydroModel(object):
 
         # Create compile command for machine spec
         compile_cmd = '/bin/bash -c "'
-        compile_cmd += './configure ' + compiler + '; '
         if self.machine_spec is not None:
             modules = ' '.join(self.machine_spec['modules'][self.compiler])
             compile_cmd += 'module load ' + modules + '; '
+        compile_cmd += './configure ' + compiler + '; '
         compile_cmd += './compile_offline_NoahMP.sh '
         compile_cmd += str(compile_options_file.absolute())
         compile_cmd += '"'

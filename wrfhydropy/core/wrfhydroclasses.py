@@ -17,13 +17,14 @@ from .utilities import \
     __make_relative__, \
     lock_pickle, \
     unlock_pickle, \
-    get_git_revision_hash,\
+    get_git_revision_hash, \
     get_machine_spec, \
     check_machine_spec
 
 from .job_tools import \
     get_user, \
     solve_model_start_end_times
+
 
 #########################
 # netcdf file object classes
@@ -38,7 +39,7 @@ class WrfHydroTs(list):
         Returns:
             An xarray mfdataset object concatenated on dimension 'Time'.
         """
-        return open_nwmdataset(self,chunks=chunks)
+        return open_nwmdataset(self, chunks=chunks)
 
 
 class WrfHydroStatic(pathlib.PosixPath):
@@ -53,15 +54,16 @@ class WrfHydroStatic(pathlib.PosixPath):
 
 
 #########################
-# Classes for constructing and running a wrf_hydro setup 
+# Classes for constructing and running a wrf_hydro setup
 class WrfHydroModel(object):
     """Class for a WRF-Hydro model, which consitutes the model source code and compiled binary.
     """
+
     def __init__(
-        self,
-        source_dir: str,
-        model_config: str,
-        machine_spec: [dict, str] = None
+            self,
+            source_dir: str,
+            model_config: str,
+            machine_spec: [dict, str] = None
     ):
         """Instantiate a WrfHydroModel object.
         Args:
@@ -88,7 +90,6 @@ class WrfHydroModel(object):
             self.machine_spec = get_machine_spec(machine_spec)
         else:
             self.machine_spec = check_machine_spec(machine_spec)
-
 
         """list: List of modules to use for model. Note these modules will be used for all 
         subsequent system calls for model operations."""
@@ -141,11 +142,11 @@ class WrfHydroModel(object):
         self.compile_options = compile_options[self.version][self.model_config]
 
     def compile(
-        self,
-        compiler: str,
-        compile_dir: str = None,
-        overwrite: bool = False,
-        compile_options: dict = None
+            self,
+            compiler: str,
+            compile_dir: str = None,
+            overwrite: bool = False,
+            compile_options: dict = None
     ) -> str:
         """Compiles WRF-Hydro using specified compiler and compile options.
         Args:
@@ -199,21 +200,21 @@ class WrfHydroModel(object):
         # Create compile command for machine spec
         if self.machine_spec is not None:
             modules = ' '.join(self.machine_spec['modules'][self.compiler])
-            print(modules)
             compile_cmd = shlex.split(
                 '/bin/bash -c "' +
                 'module purge && module load ' +
                 modules +
-                 ' && ' +
-                 './compile_offline_NoahMP.sh ' +
-                 str(compile_options_file.absolute()) +
+                ' && ' +
+                './compile_offline_NoahMP.sh ' +
+                str(compile_options_file.absolute()) +
                 '"'
             )
+            print(compile_cmd)
         else:
             compile_cmd = shlex.split(
                 '/bin/bash -c "' +
                 './compile_offline_NoahMP.sh' +
-                 str(compile_options_file.absolute()) +
+                str(compile_options_file.absolute()) +
                 '"'
             )
 
@@ -232,24 +233,24 @@ class WrfHydroModel(object):
 
         if self.compile_log.returncode == 0:
             # Open permissions on compiled files
-            subprocess.run(['chmod','-R','755',str(self.source_dir.joinpath('Run'))])
+            subprocess.run(['chmod', '-R', '755', str(self.source_dir.joinpath('Run'))])
 
             # Wrf hydro always puts files in source directory under a new directory called 'Run'
             # Copy files to new directory if its not the same as the source code directory
             if str(self.compile_dir.parent) != str(self.source_dir):
                 for file in self.source_dir.joinpath('Run').glob('*.TBL'):
-                    shutil.copyfile(file,str(self.compile_dir.joinpath(file.name)))
+                    shutil.copyfile(file, str(self.compile_dir.joinpath(file.name)))
 
                 shutil.copyfile(str(self.source_dir.joinpath('Run').joinpath('wrf_hydro.exe')),
-                         str(self.compile_dir.joinpath('wrf_hydro.exe')))
+                                str(self.compile_dir.joinpath('wrf_hydro.exe')))
 
-                #Remove old files
+                # Remove old files
                 shutil.rmtree(self.source_dir.joinpath('Run'))
 
             # Open permissions on copied compiled files
             subprocess.run(['chmod', '-R', '755', str(self.compile_dir)])
 
-            #Get file lists as attributes
+            # Get file lists as attributes
             # Get list of table file paths
             self.table_files = list(self.compile_dir.glob('*.TBL'))
 
@@ -264,17 +265,19 @@ class WrfHydroModel(object):
         else:
             raise ValueError('Model did not successfully compile.')
 
+
 # WRF-Hydro Domain object
 class WrfHydroDomain(object):
     """Class for a WRF-Hydro domain, which consitutes all domain-specific files needed for a
     setup.
     """
+
     def __init__(self,
-        domain_top_dir: str,
-        domain_config: str,
-        model_version: str,
-        namelist_patch_file: str = 'namelist_patches.json'
-    ):
+                 domain_top_dir: str,
+                 domain_config: str,
+                 model_version: str,
+                 namelist_patch_file: str = 'namelist_patches.json'
+                 ):
         """Instantiate a WrfHydroDomain object
         Args:
             domain_top_dir: Parent directory containing all domain directories and files.
@@ -318,7 +321,7 @@ class WrfHydroDomain(object):
         for key, value in domain_hydro_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
             if file_path.is_file() is True:
-                if file_path.suffix =='.nc':
+                if file_path.suffix == '.nc':
                     self.hydro_files.append(WrfHydroStatic(file_path))
                 else:
                     self.hydro_files.append(file_path)
@@ -330,7 +333,7 @@ class WrfHydroDomain(object):
         for key, value in domain_nudging_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
             if file_path.is_file() is True:
-                if file_path.suffix =='.nc':
+                if file_path.suffix == '.nc':
                     self.nudging_files.append(WrfHydroStatic(file_path))
                 else:
                     self.nudging_files.append(file_path)
@@ -356,12 +359,14 @@ class WrfHydroDomain(object):
 
 
 class WrfHydroSetup(object):
-    """Class for a WRF-Hydro setup object, which is comprised of a WrfHydroModel and a WrfHydroDomain.
+    """Class for a WRF-Hydro setup object, which is comprised of a WrfHydroModel and a
+    WrfHydroDomain.
     """
+
     def __init__(
-        self,
-        wrf_hydro_model: object,
-        wrf_hydro_domain: object
+            self,
+            wrf_hydro_model: object,
+            wrf_hydro_domain: object
     ):
         """Instantiates a WrfHydroSetup object
         Args:
@@ -373,14 +378,14 @@ class WrfHydroSetup(object):
 
         # Validate that hte domain and model are compatible
         if wrf_hydro_model.model_config != wrf_hydro_domain.domain_config:
-            raise TypeError('Model configuration '+
-                            wrf_hydro_model.model_config+
-                            ' not compatible with domain configuration '+
+            raise TypeError('Model configuration ' +
+                            wrf_hydro_model.model_config +
+                            ' not compatible with domain configuration ' +
                             wrf_hydro_domain.domain_config)
         if wrf_hydro_model.version not in list(wrf_hydro_domain.namelist_patches.keys()):
-            raise TypeError('Model version '+
-                            wrf_hydro_model.versions+
-                            ' not compatible with domain versions '+
+            raise TypeError('Model version ' +
+                            wrf_hydro_model.versions +
+                            ' not compatible with domain versions ' +
                             str(list(wrf_hydro_domain.namelist_patches.keys())))
 
         # assign objects to self
@@ -397,7 +402,8 @@ class WrfHydroSetup(object):
         version and domain configuration"""
 
         self.namelist_hrldas = \
-            copy.deepcopy(self.model.hrldas_namelists[self.model.version][self.domain.domain_config])
+            copy.deepcopy(
+                self.model.hrldas_namelists[self.model.version][self.domain.domain_config])
         """dict: A copy of the hrldas_namelist used by the WrfHydroModel for the specified model 
         version and domain configuration"""
 
@@ -425,10 +431,10 @@ class WrfHydroSetup(object):
                                                          ['namelist_hrldas']
                                                          ['wrf_hydro_offline'])
 
-    # Dont self pickle, there's no natural location.    
+    # Dont self pickle, there's no natural location.
     def pickle(
-        self,
-        dir
+            self,
+            dir
     ):
         # create a UID for the run and save in file
         self.object_id = str(uuid.uuid4())
@@ -443,19 +449,19 @@ class WrfHydroSetup(object):
 
 class WrfHydroRun(object):
     def __init__(
-        self,
-        wrf_hydro_setup: WrfHydroSetup,
-        run_dir: str,
-        rm_existing_run_dir = False,
-        mode: str='r',
-        jobs: list=None,
-        deepcopy_setup = True,    
+            self,
+            wrf_hydro_setup: WrfHydroSetup,
+            run_dir: str,
+            rm_existing_run_dir=False,
+            mode: str = 'r',
+            jobs: list = None,
+            deepcopy_setup=True,
     ):
         """Instantiate a WrfHydroRun object. A run is a WrfHydroSetup with multiple jobs.
         Args:
-            wrf_hydro_setup: A setup object. 
+            wrf_hydro_setup: A setup object.
             run_dir: str, where to execute the job. This is an attribute of the Run object.
-            job: Optional, Job object 
+            job: Optional, Job object
         Returns:
             A WrfHydroRun object.
         """
@@ -469,14 +475,14 @@ class WrfHydroRun(object):
 
         self.run_dir = pathlib.PosixPath(run_dir)
         """pathlib.PosixPath: The location of where the jobs will be executed."""
-        
+
         self.jobs_completed = []
         """Job: A list of previously executed jobs for this run."""
         self.jobs_pending = []
         """Job: A list of jobs *scheduled* to be executed for this run 
         with prior job dependence."""
         self.job_active = None
-        """Job: The job currently executing."""        
+        """Job: The job currently executing."""
 
         # TODO(JLM): these are properties of the run.
         self.channel_rt = list()
@@ -500,8 +506,8 @@ class WrfHydroRun(object):
         self._pickle_lock_file = None
         """pathlib.PosixPath: The pickle lock file path."""
 
-        # Establish the values. 
-        
+        # Establish the values.
+
         # TODO(JLM): Check that the setup object is "complete".
         # TODO(JLM): What constitutes a complete sim object?
         #            1) compiler specified, 2) domain_config specified.
@@ -592,20 +598,19 @@ class WrfHydroRun(object):
                        *self.setup.domain.nudging_files,
                        *self.setup.domain.lsm_files]
         for ff in model_files:
-                if re.match('.*/RESTART/.*',str(ff)):
-                    symlink_path = self.run_dir.joinpath(ff.name).absolute()
-                    symlink_path.symlink_to(ff)
+            if re.match('.*/RESTART/.*', str(ff)):
+                symlink_path = self.run_dir.joinpath(ff.name).absolute()
+                symlink_path.symlink_to(ff)
 
         if jobs:
             self.add_jobs(jobs)
 
-
     def add_jobs(
-        self,
-        jobs: list
+            self,
+            jobs: list
     ):
         """Dispatch a run the wrf_hydro setup: either run() or schedule_run()
-        If a scheduler is passed, then that run is scheduled. 
+        If a scheduler is passed, then that run is scheduled.
         Args:
             As for run and schedule_run().
         Returns:
@@ -639,7 +644,7 @@ class WrfHydroRun(object):
                     if jj.scheduler.afterok is not None and jj.scheduler.afterok != last_job_id:
                         raise ValueError("The job's dependency/afterok conflicts with reality.")
                     jj.scheduler.afterok = last_job_id
-                else: 
+                else:
                     if jj.scheduler.afterok is not None:
                         raise ValueError("The job's dependency/afterok conflicts with reality.")
 
@@ -655,26 +660,25 @@ class WrfHydroRun(object):
                 self.setup
             )
 
-            # Add a namelist to each job 
+            # Add a namelist to each job
             jj.namelist_hrldas = copy.deepcopy(self.setup.namelist_hrldas)
             jj.hydro_namelist = copy.deepcopy(self.setup.hydro_namelist)
 
             # Satisfying the model start/end times and restart options
             jj.apply_model_start_end_job_namelists()
 
-            # Check the the resulting namelists are 
+            # Check the the resulting namelists are
 
             # in the job object?
             # Determine a different job_name?
             # Tag the namelists with the job name and symlink? When is the namelist written?
 
-            # TODO(JLM): 
+            # TODO(JLM):
             # Edit the namelists with model start/end times and if restarting.
             # Stash the namelists in the job.
             # This begs for consistency check across jobs: start previous job = end current job
 
             self.jobs_pending.append(jj)
-
 
     def run_jobs(self):
 
@@ -682,7 +686,7 @@ class WrfHydroRun(object):
         # make sure all jobs are either scheduled or interactive?
 
         run_dir = self.run_dir
-        
+
         if self.jobs_pending[0].scheduler:
 
             # submit the jobs_pending.
@@ -691,7 +695,6 @@ class WrfHydroRun(object):
             hold = True
 
             for jj in self.jobs_pending:
-
                 jj.scheduler.afterok = job_afterok
                 # TODO(JLM): why not make hold an attribute?
                 jj.schedule(self.run_dir, hold=hold)
@@ -707,7 +710,6 @@ class WrfHydroRun(object):
         else:
 
             for jj in range(0, len(self.jobs_pending)):
-
                 self.job_active = self.jobs_pending.pop(0)
                 self.job_active.run(self.run_dir)
                 self.collect_output()
@@ -715,12 +717,11 @@ class WrfHydroRun(object):
                 self.job_active = None
                 self.pickle()
 
-
     def collect_output(self):
 
         if self.job_active.exit_status != 0:
             warnings.warn('Model run failed.')
-            return(None)
+            return (None)
 
         print('Model run succeeded.\n')
         #####################
@@ -739,11 +740,11 @@ class WrfHydroRun(object):
             # for file in self.chanobs:
             #     file.relative_to(file.parent)
 
-        #Get Lakeout files
+        # Get Lakeout files
         if len(list(self.run_dir.glob('*LAKEOUT*'))) > 0:
             self.lakeout = WrfHydroTs(list(self.run_dir.glob('*LAKEOUT*')))
 
-        #Get gwout files
+        # Get gwout files
         if len(list(self.run_dir.glob('*GWOUT*'))) > 0:
             self.gwout = WrfHydroTs(list(self.run_dir.glob('*GWOUT*')))
 
@@ -765,27 +766,26 @@ class WrfHydroRun(object):
         for file in self.run_dir.glob('RESTART*'):
             file = WrfHydroStatic(file)
             self.restart_lsm.append(file)
-                                
+
         if len(self.restart_lsm) > 0:
             self.restart_lsm = sorted(self.restart_lsm,
                                       key=lambda file: file.stat().st_mtime_ns)
         else:
             self.restart_lsm = None
-                                    
+
         ### Nudging restarts
         self.restart_nudging = []
         for file in self.run_dir.glob('nudgingLastObs*'):
             file = WrfHydroStatic(file)
             self.restart_nudging.append(file)
-                                        
+
         if len(self.restart_nudging) > 0:
             self.restart_nudging = sorted(self.restart_nudging,
                                           key=lambda file: file.stat().st_mtime_ns)
         else:
             self.restart_nudging = None
 
-        self.pickle()    
-
+        self.pickle()
 
     def pickle(self):
         # create a UID for the run and save in file
@@ -798,20 +798,17 @@ class WrfHydroRun(object):
         with self.run_dir.joinpath('WrfHydroRun.pkl').open('wb') as f:
             pickle.dump(self, f, 2)
 
-
     def unpickle(self):
         # Load run object from run directory after a scheduler job
         with self.run_dir.joinpath('WrfHydroRun.pkl').open('rb') as f:
-            return(pickle.load(f))
-
+            return (pickle.load(f))
 
     def destruct(self):
         # This gets rid of everything but the methods.
         print("Jobs have been submitted to  the scheduler: This run object will now self destruct.")
         self.__dict__ = {}
 
-
-    def make_relative(self,basepath = None):
+    def make_relative(self, basepath=None):
         """Make all file paths relative to a given directory, useful for opening file
         attributes in a run object after it has been moved or copied to a new directory or
         system.
@@ -821,12 +818,13 @@ class WrfHydroRun(object):
         Returns:
             self with relative files paths for file-like attributes
         """
-        __make_relative__(run_object=self,basepath=basepath)
+        __make_relative__(run_object=self, basepath=basepath)
 
 
 class DomainDirectory(object):
     """An object that represents a WRF-Hydro domain directory. Primarily used as a utility class
        for WrfHydroDomain"""
+
     def __init__(self,
                  domain_top_dir: str,
                  domain_config: str,
@@ -862,7 +860,7 @@ class DomainDirectory(object):
         self.hydro_files = []
         for key, value in domain_hydro_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
-            if file_path.suffix =='.nc':
+            if file_path.suffix == '.nc':
                 self.hydro_files.append(WrfHydroStatic(file_path))
             else:
                 self.hydro_files.append(file_path)
@@ -874,7 +872,7 @@ class DomainDirectory(object):
         self.nudging_files = []
         for key, value in domain_nudging_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
-            if file_path.suffix =='.nc':
+            if file_path.suffix == '.nc':
                 self.nudging_files.append(WrfHydroStatic(file_path))
             else:
                 self.nudging_files.append(file_path)
@@ -897,14 +895,15 @@ class DomainDirectory(object):
             if key == 'indir':
                 self.forcing = file_path
 
+
 ####Classes
 class RestartDiffs(object):
     def __init__(self,
                  candidate_run: WrfHydroRun,
                  reference_run: WrfHydroRun,
-                 nccmp_options: list = ['--data','--metadata', '--force', '--quiet'],
-                 exclude_vars: list = ['ACMELT','ACSNOW','SFCRUNOFF','UDRUNOFF','ACCPRCP',
-                                       'ACCECAN','ACCEDIR','ACCETRAN','qstrmvolrt']):
+                 nccmp_options: list = ['--data', '--metadata', '--force', '--quiet'],
+                 exclude_vars: list = ['ACMELT', 'ACSNOW', 'SFCRUNOFF', 'UDRUNOFF', 'ACCPRCP',
+                                       'ACCECAN', 'ACCEDIR', 'ACCETRAN', 'qstrmvolrt']):
         """Calculate Diffs between restart objects for two WrfHydroRun objects
         Args:
             candidate_run: The candidate WrfHydroRun object
@@ -929,14 +928,13 @@ class RestartDiffs(object):
         """list: List of pandas dataframes if possible or subprocess objects containing nudging 
         restart file diffs"""
 
-
         if len(candidate_run.restart_hydro) != 0 and len(reference_run.restart_hydro) != 0:
             self.hydro = compare_ncfiles(candidate_files=candidate_run.restart_hydro,
                                          reference_files=reference_run.restart_hydro,
-                                         nccmp_options = nccmp_options,
-                                         exclude_vars = exclude_vars)
+                                         nccmp_options=nccmp_options,
+                                         exclude_vars=exclude_vars)
             diff_counts = sum(1 for _ in filter(None.__ne__, self.hydro))
-            self.diff_counts.update({'hydro':diff_counts})
+            self.diff_counts.update({'hydro': diff_counts})
         else:
             warnings.warn('length of candidate_sim.restart_hydro or reference_sim.restart_hydro '
                           'is 0')
@@ -944,23 +942,23 @@ class RestartDiffs(object):
         if len(candidate_run.restart_lsm) != 0 and len(reference_run.restart_lsm) != 0:
             self.lsm = compare_ncfiles(candidate_files=candidate_run.restart_lsm,
                                        reference_files=reference_run.restart_lsm,
-                                       nccmp_options = nccmp_options,
-                                       exclude_vars = exclude_vars)
+                                       nccmp_options=nccmp_options,
+                                       exclude_vars=exclude_vars)
             diff_counts = sum(1 for _ in filter(None.__ne__, self.lsm))
-            self.diff_counts.update({'lsm':diff_counts})
+            self.diff_counts.update({'lsm': diff_counts})
         else:
             warnings.warn('length of candidate_sim.restart_lsm or reference_sim.restart_lsm is 0')
 
         if candidate_run.restart_nudging is not None or \
-           reference_run.restart_nudging is not None:
+                        reference_run.restart_nudging is not None:
             if len(candidate_run.restart_nudging) != 0 and len(reference_run.restart_nudging) != 0:
                 self.nudging = compare_ncfiles(
                     candidate_files=candidate_run.restart_nudging,
                     reference_files=reference_run.restart_nudging,
-                    nccmp_options = nccmp_options,
-                    exclude_vars = exclude_vars)
+                    nccmp_options=nccmp_options,
+                    exclude_vars=exclude_vars)
                 diff_counts = sum(1 for _ in filter(None.__ne__, self.nudging))
-                self.diff_counts.update({'nudging':diff_counts})
+                self.diff_counts.update({'nudging': diff_counts})
             else:
                 warnings.warn('length of candidate_sim.restart_nudging or '
                               'reference_sim.restart_nudging is 0')

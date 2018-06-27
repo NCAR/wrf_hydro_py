@@ -328,9 +328,9 @@ def check_machine_spec(machine_spec: dict) -> dict:
     """
 
     required_keys = get_machine_spec('cheyenne').keys()
-    missing_keys = set(machine_spec.keys()) - set(required_keys)
+    missing_keys = list(set(required_keys) - set(machine_spec.keys()))
 
     if machine_spec.keys() != required_keys:
-        raise KeyError('Missing required keys')
+        raise KeyError('Missing the following required keys: ' + ','.join(missing_keys))
     else:
         return machine_spec

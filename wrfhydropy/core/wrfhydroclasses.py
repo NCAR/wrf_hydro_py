@@ -4,6 +4,7 @@ import json
 import pathlib
 import pickle
 import re
+import shlex
 import shutil
 import subprocess
 import typing.Union
@@ -77,8 +78,6 @@ class WrfHydroModel(object):
             A WrfHydroModel object.
         """
 
-
-
         # Instantiate all attributes and methods
         self.source_dir = None
         """pathlib.Path: pathlib.Path object for source code directory."""
@@ -87,7 +86,7 @@ class WrfHydroModel(object):
         'Gridded', or 'Reach'."""
 
         if type(machine_spec) == str:
-            machine_spec = get_machine_spec(machine_spec)
+            self.machine_spec = get_machine_spec(machine_spec)
         else:
             self.machine_spec = check_machine_spec(machine_spec)
 
@@ -198,13 +197,25 @@ class WrfHydroModel(object):
                                             cwd=str(self.source_dir.absolute())
                                             )
 
-        self.compile_log = subprocess.run(['./compile_offline_NoahMP.sh',
-                                           str(compile_options_file.absolute())],
+        # Create compile command for machine spec
+        if self.machine_spec is not None:
+            modules = ' '.join(self.machine_spec['modules'][self.compiler])
+            compile_cmd = ['module purge && module load ' +
+                           modules +
+                           '&&' +
+                           './compile_offline_NoahMP.sh' +
+                           str(compile_options_file.absolute())
+                           ]
+        else:
+            compile_cmd = ['./compile_offline_NoahMP.sh' +
+                           str(compile_options_file.absolute())
+                           ]
+
+        self.compile_log = subprocess.run(compile_cmd,
                                           stdout=subprocess.PIPE,
                                           stderr=subprocess.PIPE,
                                           cwd=str(self.source_dir.absolute())
-                                            )
-        # Change to back to previous working directory
+                                          )
 
         # Add in unique ID file to match this object to prevent assosciating
         # this directory with another object

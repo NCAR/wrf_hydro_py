@@ -372,7 +372,7 @@ class Job(object):
         # swap their execution commands.
 
         model_exe_cmd = self.exe_cmd
-        py_script_name = str(run_dir / (self.job_date_id + ".wrfhydropy.py"))
+        py_script_name = run_dir / (self.job_date_id + ".wrfhydropy.py")
         py_run_cmd = "python " + py_script_name + \
                      " --sched_job_id $sched_job_id --job_date_id $job_date_id"
 
@@ -381,14 +381,14 @@ class Job(object):
 
         # The python script
         selfstr = compose_scheduled_python_script(py_run_cmd, model_exe_cmd)
-        with open(py_script_name, "w") as myfile:
+        with py_script_name.open(mode="w") as myfile:
             myfile.write(selfstr)
 
         # The bash submission script which calls the python script.
         self.exe_cmd = py_run_cmd
         filename = run_dir / (self.job_date_id + '.' + self.scheduler.sched_name + '.job')
         jobstr = compose_scheduled_bash_script(run_dir=run_dir, job=self)
-        with open(filename, "w") as myfile:
+        with filename.open(mode="w") as myfile:
             myfile.write(jobstr)
 
         try:
@@ -492,7 +492,7 @@ class Job(object):
             self.exit_status = 1
             self.job_status='completed failure'
             # String match diag files for successfull run
-            with open(run_dir.joinpath('diag_hydro.00000')) as f:
+            with run_dir.joinpath('diag_hydro.00000').open() as f:
                 diag_file = f.read()
                 if 'The model finished successfully.......' in diag_file:
                     self.exit_status = 0

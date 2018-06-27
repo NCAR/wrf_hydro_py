@@ -202,8 +202,8 @@ class WrfHydroModel(object):
             compile_cmd = shlex.split(
                 ['module purge && module load ' +
                  modules +
-                 '&&' +
-                 './compile_offline_NoahMP.sh' +
+                 ' && ' +
+                 './compile_offline_NoahMP.sh ' +
                  str(compile_options_file.absolute())
                  ]
             )

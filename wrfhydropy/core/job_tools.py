@@ -1156,7 +1156,7 @@ def check_job_input_files(job_obj, run_dir):
 
 def job_complete(run_dir):
     if type(run_dir) is str:
-        run_dir = libpath.PosixPath(run_dir)
+        run_dir = pathlib.Path(run_dir)
     check_file = run_dir / '.job_not_complete'
     return not(check_file.exists())
 

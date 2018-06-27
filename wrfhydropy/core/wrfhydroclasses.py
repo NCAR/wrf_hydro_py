@@ -206,11 +206,7 @@ class WrfHydroModel(object):
         compile_cmd += './compile_offline_NoahMP.sh '
         compile_cmd += str(compile_options_file.absolute())
         compile_cmd += '"'
-
-        print(compile_cmd)
         compile_cmd = shlex.split(compile_cmd)
-        print(compile_cmd)
-
 
         self.compile_log = subprocess.run(compile_cmd,
                                           stdout=subprocess.PIPE,

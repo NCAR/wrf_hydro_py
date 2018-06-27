@@ -25,6 +25,7 @@ from .job_tools import \
     get_user, \
     solve_model_start_end_times
 
+from .job import Job
 
 #########################
 # netcdf file object classes
@@ -195,7 +196,7 @@ class WrfHydroModel(object):
         compile_cmd = '/bin/bash -c "'
         if self.machine_spec is not None:
             modules = ' '.join(self.machine_spec['modules'][self.compiler])
-            compile_cmd += 'module load ' + modules + '; '
+            compile_cmd += 'module purge; module load ' + modules + '; '
         compile_cmd += './configure ' + compiler + '; '
         compile_cmd += './compile_offline_NoahMP.sh '
         compile_cmd += str(compile_options_file.absolute())
@@ -437,15 +438,15 @@ class WrfHydroRun(object):
             wrf_hydro_setup: WrfHydroSetup,
             run_dir: str,
             rm_existing_run_dir=False,
-            mode: str = 'r',
-            jobs: list = None,
-            deepcopy_setup=True,
+            deepcopy_setup=True
     ):
         """Instantiate a WrfHydroRun object. A run is a WrfHydroSetup with multiple jobs.
         Args:
             wrf_hydro_setup: A setup object.
-            run_dir: str, where to execute the job. This is an attribute of the Run object.
-            job: Optional, Job object
+            run_dir: Path to directory to execute the run.
+            rm_existing_run_dir: Remove run directory if it exists
+            deepcopy_setup: Create a deep copy of the setup object to use for the run.
+
         Returns:
             A WrfHydroRun object.
         """
@@ -504,15 +505,15 @@ class WrfHydroRun(object):
 
 
         # Make run_dir directory if it does not exist.
-        if self.run_dir.is_dir() and mode == 'w' and not rm_existing_run_dir:
-            raise ValueError("Run directory already exists, mode='w', " +
-                             "and rm_existing_run_dir is False: clobbering not allowed.")
-
-        if self.run_dir.exists():
+        if self.run_dir.is_dir():
             if rm_existing_run_dir:
                 shutil.rmtree(str(self.run_dir))
-
-        self.run_dir.mkdir(parents=True)
+                self.run_dir.mkdir(parents=True)
+            else:
+                raise ValueError("Run directory already exists, mode='w', " +
+                                 "and rm_existing_run_dir is False: clobbering not allowed.")
+        else:
+            self.run_dir.mkdir(parents=True)
 
         # Check that compile object uid matches compile directory uid
         # This is to ensure that a new model has not been compiled into that directory unknowingly
@@ -586,25 +587,19 @@ class WrfHydroRun(object):
                 symlink_path = self.run_dir.joinpath(ff.name).absolute()
                 symlink_path.symlink_to(ff)
 
-        if jobs:
-            self.add_jobs(jobs)
-
     def add_jobs(
             self,
             jobs: list
     ):
-        """Dispatch a run the wrf_hydro setup: either run() or schedule_run()
-        If a scheduler is passed, then that run is scheduled.
+        """Add jobs to the run object
         Args:
-            As for run and schedule_run().
-        Returns:
-            A WrfHydroRun object
+            jobs: List of Job objects
         """
 
         # Dont tamper with the passed object, let it remain a template in the calling level.
         jobs = copy.deepcopy(jobs)
 
-        if type(jobs) is not list:
+        if type(jobs) is Job:
             jobs = [jobs]
 
         for jj in jobs:

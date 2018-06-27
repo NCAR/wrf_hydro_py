@@ -266,7 +266,7 @@ def get_git_revision_hash(the_dir):
         stderr=subprocess.PIPE,
         cwd=str(the_dir.absolute())
     ).returncode
-    the_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=the_dir)
+    the_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=str(the_dir.absolute()))
     the_hash = the_hash.decode('utf-8').split()[0]
     if dirty:
         the_hash += '--DIRTY--'

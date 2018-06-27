@@ -333,4 +333,4 @@ def check_machine_spec(machine_spec: dict) -> dict:
     if machine_spec.keys() != required_keys:
         raise KeyError('Missing required keys')
     else:
-        return required_keys
+        return machine_spec

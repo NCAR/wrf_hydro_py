@@ -7,7 +7,6 @@ import re
 import shlex
 import shutil
 import subprocess
-import typing.Union
 import uuid
 import warnings
 import xarray as xr
@@ -62,7 +61,7 @@ class WrfHydroModel(object):
         self,
         source_dir: str,
         model_config: str,
-        machine_spec: typing.Union[dict,str] = None
+        machine_spec: [dict, str] = None
     ):
         """Instantiate a WrfHydroModel object.
         Args:

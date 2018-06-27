@@ -264,7 +264,7 @@ def get_git_revision_hash(the_dir):
         ['git', 'diff-index', 'HEAD'],  # --quiet seems to give the wrong result.
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        cwd=the_dir
+        cwd=str(the_dir.absolute())
     ).returncode
     the_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=the_dir)
     the_hash = the_hash.decode('utf-8').split()[0]

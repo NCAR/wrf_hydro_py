@@ -6,6 +6,7 @@ import pathlib
 import shlex
 import socket
 import subprocess
+import sys
 import warnings
 
 from .job_tools import \
@@ -469,14 +470,44 @@ class Job(object):
             # TODO(JLM): Not sure why hostname: is in the following.
             #            This may be deprecated 5/18/2018
             #exe_cmd = self.exe_cmd.format(**{'hostname': socket.gethostname()}) + " 2> {0} 1> {1}"
-            exe_cmd = self.exe_cmd.format(**{'nproc': self.nproc})
-            exe_cmd += " 2> {0} 1> {1}"
-            exe_cmd = exe_cmd.format(self.stderr_exe(run_dir), self.stdout_exe(run_dir))
+            std_base = "{0}.{1}".format(
+                self.job_date_id,
+                self.scheduler.sched_job_id
+            )
+
+            self.stderr_file = run_dir / (std_base + ".stderr")
+            self.stdout_file = run_dir / (std_base + ".stdout")
+
+            # source the modules before execution.
+            exe_cmd = '/bin/bash -c "'
+            if self.modules:
+                exe_cmd += "module purge && module load " + self.modules + " && "
+
+            if self.entry_cmd is not None:
+                exe_cmd += self.entry_cmd
+                exe_cmd += " 2>> {0} 1>> {1}".format(self.stderr_file, self.stdout_file)
+                exe_cmd += " && "
+                print("entry_cmd:", self.entry_cmd, '\n')
+
+            exe_cmd += self.exe_cmd.format(**{'nproc': self.nproc})
+            exe_cmd += " 2>> {0} 1>> {1}"
+            exe_cmd = exe_cmd.format(self.stderr_file, self.stdout_file)
+
+            if self.exit_cmd is not None:
+                exe_cmd += " && " + self.exit_cmd
+                exe_cmd += " 2>> {0} 1>> {1}".format(self.stderr_file, self.stdout_file)
+                print("exit_cmd:", self.exit_cmd, '\n')
+
+            exe_cmd += '"'
+
+            self.exe_cmd = exe_cmd
+            print("exe_cmd: ", exe_cmd, '\n')
+
             exe_cmd = shlex.split(exe_cmd)
-            #subprocess.run(exe_cmd, cwd=run_dir)
             proc = subprocess.Popen(exe_cmd, cwd=run_dir)
-            proc.wait()
-            #subprocess.run(exe_cmd, cwd=run_dir, shell=True, executable='/bin/bash')
+            #proc.wait()
+
+            proc = subprocess.run(exe_cmd, cwd=run_dir)
 
         else:
 
@@ -629,8 +660,10 @@ class Job(object):
         duration = self.model_end_time - self.model_start_time
         if duration.seconds == 0:
             noah_nlst['kday'] = int(duration.days)
+            noah_nlst.pop('khour')
         else:
             noah_nlst['khour'] = int(duration.days*60 + duration.seconds/3600)
+            noah_nlst.pop('kday')
 
         # Start
         noah_nlst['start_year'] = int(self.model_start_time.year)

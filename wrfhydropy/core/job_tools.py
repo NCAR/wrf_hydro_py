@@ -1136,6 +1136,10 @@ def check_job_input_files(job_obj, run_dir):
     if job_obj.hydro_namelist['hydro_nlist']['udmp_opt'] == 0:
         hydro_exempt_list = hydro_exempt_list + ['udmap_file']
 
+    if job_obj.namelist_hrldas['wrf_hydro_offline']['forc_typ'] in [9,10]:
+        hydro_exempt_list = hydro_exempt_list + ['restart_filename_requested']
+
+
     def check_nlst(nlst, file_dict):
 
         # Scan the dicts for FALSE exempting certain ones for certain configs.

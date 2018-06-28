@@ -267,8 +267,8 @@ class HydroDartRun(object):
         self, 
         model_start_time: datetime=None,
         model_end_time: datetime=None,
-        entry_script: str=None,
-        exit_script: str=None,
+        job_entry_cmd: str=None,
+        job_exit_cmd: str=None,
         afterok: str=None,
         afterany: str=None
     ):
@@ -278,7 +278,11 @@ class HydroDartRun(object):
             warnings.simplefilter("ignore")
 
             # Create a default job
-            the_job = Job(nproc=self.config['run_experiment']['wrf_hydro_ens_advance']['nproc'])
+            the_job = Job(
+                nproc=self.config['run_experiment']['wrf_hydro_ens_advance']['nproc'],
+                entry_cmd=job_entry_cmd,
+                exit_cmd=job_exit_cmd
+            )
 
             # TODO(JLM): add the entry and exit to the job
 

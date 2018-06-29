@@ -3,6 +3,7 @@ import datetime
 import json
 import pathlib
 import pickle
+from pprint import pprint
 import re
 import shlex
 import shutil
@@ -193,6 +194,7 @@ class WrfHydroModel(object):
 
         # Compile
 
+
         # Create compile command for machine spec
         compile_cmd = '/bin/bash -c "'
         if self.machine_spec is not None:
@@ -249,6 +251,7 @@ class WrfHydroModel(object):
 
             print('Model successfully compiled into ' + str(self.compile_dir))
         else:
+            pprint(str(self.compile_log))
             raise ValueError('Model did not successfully compile.')
 
 
@@ -584,10 +587,14 @@ class WrfHydroRun(object):
                        *self.setup.domain.nudging_files,
                        *self.setup.domain.lsm_files]
         for ff in model_files:
+
             if re.match('.*/RESTART/.*', str(ff)):
                 symlink_path = self.run_dir.joinpath(ff.name).absolute()
                 symlink_path.symlink_to(ff)
-
+        if jobs:
+            self.add_jobs(jobs)
+        else:
+            self.pickle()
 
     def add_jobs(
             self,
@@ -627,14 +634,17 @@ class WrfHydroRun(object):
                         raise ValueError("The job's dependency/afterok conflicts with reality.")
                     jj.scheduler.afterok = last_job_id
                 else:
-                    if jj.scheduler.afterok is not None:
+                    # If this is NOT a job array, then need the afterok.
+                    if jj.scheduler.array_size is None and jj.scheduler.afterok is not None:
+
                         raise ValueError("The job's dependency/afterok conflicts with reality.")
 
             # Set submission-time job variables here.
             jj.user = get_user()
             job_submission_time = datetime.datetime.now()
             jj.job_submission_time = str(job_submission_time)
-            jj.job_date_id = '{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=job_submission_time)
+            if jj.job_date_id is None:
+                jj.job_date_id = '{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=job_submission_time)
 
             jj.model_start_time, jj.model_end_time = solve_model_start_end_times(
                 jj.model_start_time,
@@ -649,18 +659,11 @@ class WrfHydroRun(object):
             # Satisfying the model start/end times and restart options
             jj.apply_model_start_end_job_namelists()
 
-            # Check the the resulting namelists are
-
-            # in the job object?
-            # Determine a different job_name?
-            # Tag the namelists with the job name and symlink? When is the namelist written?
-
-            # TODO(JLM):
-            # Edit the namelists with model start/end times and if restarting.
-            # Stash the namelists in the job.
-            # This begs for consistency check across jobs: start previous job = end current job
-
             self.jobs_pending.append(jj)
+
+        self.pickle()
+
+
 
     def run_jobs(self):
 
@@ -672,7 +675,6 @@ class WrfHydroRun(object):
         if self.jobs_pending[0].scheduler:
 
             # submit the jobs_pending.
-            lock_pickle(self)
             job_afterok = None
             hold = True
 
@@ -684,7 +686,6 @@ class WrfHydroRun(object):
                 hold = False
 
             self.pickle()
-            unlock_pickle(self)
             self.jobs_pending[0].release()
             self.destruct()
             return run_dir
@@ -694,19 +695,17 @@ class WrfHydroRun(object):
             for jj in range(0, len(self.jobs_pending)):
                 self.job_active = self.jobs_pending.pop(0)
                 self.job_active.run(self.run_dir)
-                self.collect_output()
                 self.jobs_completed.append(self.job_active)
                 self.job_active = None
+                self.collect_output()
                 self.pickle()
 
     def collect_output(self):
 
-        if self.job_active.exit_status != 0:
-            warnings.warn('Model run failed.')
-            return (None)
+        if self.job_active is not None:
+            warnings.warn('Model run in progress or job failed..')
+            return(None)
 
-        print('Model run succeeded.\n')
-        #####################
         # Grab outputs as WrfHydroXX classes of file paths
 
         # Get channel files
@@ -738,8 +737,10 @@ class WrfHydroRun(object):
             self.restart_hydro.append(file)
 
         if len(self.restart_hydro) > 0:
-            self.restart_hydro = sorted(self.restart_hydro,
-                                        key=lambda file: file.stat().st_mtime_ns)
+            self.restart_hydro = sorted(
+                self.restart_hydro,
+                key=lambda file: file.stat().st_mtime_ns
+            )
         else:
             self.restart_hydro = None
 
@@ -750,8 +751,10 @@ class WrfHydroRun(object):
             self.restart_lsm.append(file)
 
         if len(self.restart_lsm) > 0:
-            self.restart_lsm = sorted(self.restart_lsm,
-                                      key=lambda file: file.stat().st_mtime_ns)
+            self.restart_lsm = sorted(
+                self.restart_lsm,
+                key=lambda file: file.stat().st_mtime_ns
+            )
         else:
             self.restart_lsm = None
 
@@ -767,9 +770,15 @@ class WrfHydroRun(object):
         else:
             self.restart_nudging = None
 
-        self.pickle()
+          
+    def pickle(
+        self
+    ):
+        """Pickle the Run object into its run directory. Collect output first."""
 
-    def pickle(self):
+
+        # Collecting here seems to be causing more problems than it solves.
+        
         # create a UID for the run and save in file
         self.object_id = str(uuid.uuid4())
         with self.run_dir.joinpath('.uid').open('w') as f:
@@ -786,7 +795,8 @@ class WrfHydroRun(object):
             return (pickle.load(f))
 
     def destruct(self):
-        # This gets rid of everything but the methods.
+        """Pickle first. This gets rid of everything but the methods."""
+        self.pickle()
         print("Jobs have been submitted to  the scheduler: This run object will now self destruct.")
         self.__dict__ = {}
 

@@ -242,6 +242,7 @@ class Job(object):
         self.machine = get_machine()
         """str: The name of the machine being used."""
         self.modules = modules
+
         """str: The modules to be loaded prior to execution. Taken from machine_spec.yaml 
         if not present."""
         self.scheduler = scheduler
@@ -387,6 +388,7 @@ class Job(object):
             else:
                 py_script_name_call = py_script_name
 
+
             py_run_cmd = "python " + py_script_name_call + \
                          " --sched_job_id $sched_job_id --job_date_id $job_date_id"
 
@@ -400,7 +402,6 @@ class Job(object):
 
             # The bash submission script which calls the python script.
             self.exe_cmd = py_run_cmd
-
 
         # Only complete the scheduling if not a job array or
         # if there is a specific flag to complete the job array.
@@ -433,6 +434,7 @@ class Job(object):
             else:
                 touch(str(run_dir) + '/.job_not_complete')
             return sched_job_id
+
 
 
     def release(self):
@@ -566,7 +568,7 @@ class Job(object):
             self.exit_status = 1
             self.job_status='completed failure'
             # String match diag files for successfull run
-            with open(run_dir.joinpath('diag_hydro.00000')) as f:
+            with run_dir.joinpath('diag_hydro.00000').open() as f:
                 diag_file = f.read()
                 if 'The model finished successfully.......' in diag_file:
                     self.exit_status = 0

@@ -7,11 +7,13 @@ import os
 import pandas as pd
 import pathlib
 import re
+
 import subprocess
 import warnings
 import xarray as xr
 
 from .job_tools import touch
+
 
 def compare_nc_nccmp(candidate_nc: str,
                      reference_nc: str,
@@ -235,7 +237,7 @@ def unlock_pickle(run_obj):
     if not is_pickle_locked(run_obj):
         raise ValueError('The pickle file, ' + run_obj.run_dir + ', is already unlocked')
     pickle_lock_file = get_pickle_lock_file(run_obj)
-    os.remove(pickle_lock_file)
+    pickle_lock_file.unlink()
     run_obj._pickle_lock_file = None
 
 
@@ -257,7 +259,7 @@ def get_git_revision_hash(the_dir):
         ["git", "branch"],
         stderr=subprocess.STDOUT,
         stdout=open(os.devnull, 'w'),
-        cwd=the_dir
+        cwd=str(the_dir.absolute())
     )
     if dir_is_repo != 0:
         warnings.warn('The source directory is NOT a git repo: ' + str(the_dir))
@@ -267,14 +269,13 @@ def get_git_revision_hash(the_dir):
         ['git', 'diff-index', 'HEAD'],  # --quiet seems to give the wrong result.
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        cwd=the_dir
+        cwd=str(the_dir.absolute())
     ).returncode
-    the_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=the_dir)
+    the_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=str(the_dir.absolute()))
     the_hash = the_hash.decode('utf-8').split()[0]
     if dirty:
         the_hash += '--DIRTY--'
     return the_hash
-
 
 def get_last_restart_datetime(
     run_obj #: .wrfhydroclasses.WrfHydroRun

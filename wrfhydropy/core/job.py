@@ -27,7 +27,7 @@ class Scheduler(object):
     Initialize either with all the parameters, or with 'qsubstr' a PBS submit script as a string.
     If 'qsubstr' is given, all other arguments are ignored and set using Job.read().
 
-    Variables 
+    Variables
         On cheyenne, PBS attributes are described in `man qsub` and `man pbs_resources`.
         See also: https://www2.cisl.ucar.edu/resources/computational-systems/cheyenne/running-jobs/submitting-jobs-pbs
         A dictionary can be constructed in advance from specification files by the function
@@ -36,7 +36,7 @@ class Scheduler(object):
     Var Name    default            example         Notes
       PBS usage on Chyenne
     -------------------------------------------------------------------------------------------
-    name                           "my_job"            
+    name                           "my_job"
       -N
     account                        "NRAL0017"
       -A
@@ -108,7 +108,7 @@ class Scheduler(object):
         # TODO(JLM): remove this testing comment/hack below when not testing it.
         #self.sched_version = int(re.split("[\+\ \.]", get_version())[2])
 
-        # Extra Coercion 
+        # Extra Coercion
         self.email_who  = os.path.expandvars(email_who)
         self.walltime   = ':'.join((walltime+':00').split(':')[0:3])
 
@@ -125,12 +125,12 @@ class Scheduler(object):
         # Set attributes.
 
         # Try to get a default scheduler?
-        
+
         # Check for required inputs
         # TODO(JLM): Deal with setting ppn from machine_spec_file.
         self.solve_nodes_cores()
 
-        # Extra Coercion 
+        # Extra Coercion
         self.email_who  = os.path.expandvars(email_who)
         self.walltime   = ':'.join((walltime+':00').split(':')[0:3])
 
@@ -144,12 +144,12 @@ class Scheduler(object):
         self.exetime = exetime
 
         # TODO(JLM): the term job here is a bit at odds with where I'm putting the attributes
-        # sched_id (this requires some refactoring with job_tools)? job_script seems ok, however. 
+        # sched_id (this requires some refactoring with job_tools)? job_script seems ok, however.
         # sched_job_id is set at submission
         self.sched_job_id = None
 
         self.job_script = None
-        
+
         # PBS has a silly stream buffer that 1) has a limit, 2) cant be seen until the job ends.
         # Separate and standardize the stdout/stderr of the exe_cmd and the scheduler.
 
@@ -201,7 +201,7 @@ class Scheduler(object):
     @nproc.setter
     def nproc(self, value):
         self._nproc = value
-    
+
     @property
     def nnodes(self):
         self.solve_nodes_cores()
@@ -219,7 +219,7 @@ class Scheduler(object):
         self._ppn = value
 
 
-class Job(object): 
+class Job(object):
     def __init__(
         self,
         nproc: int,

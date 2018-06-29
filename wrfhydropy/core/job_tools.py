@@ -175,15 +175,6 @@ def exetime(deltatime):
     return (datetime.datetime.now()
             +datetime.timedelta(hours=hours(deltatime))).strftime("%Y%m%d%H%M.%S")
 
-
-def touch(filename, mode=0o666, dir_fd=None, **kwargs):
-    flags = os.O_CREAT | os.O_APPEND
-    filename.open(mode='a+')
-    with os.fdopen(os.open(str(filename), flags=flags, mode=mode, dir_fd=dir_fd)) as f:
-        os.utime(f.fileno() if os.utime in os.supports_fd else filename,
-                 dir_fd=None if os.supports_fd else dir_fd, **kwargs)
-
-
 def _qstat(jobid=None,
            username=get_user(),
            full=False,
@@ -1076,20 +1067,6 @@ def solve_model_start_end_times(model_start_time, model_end_time, setup_obj):
                         'None, str, datetime.timedelta, dict.')
 
     return model_start_time, model_end_time
-
-
-def check_file_exist_colon(run_dir, file_str):
-    """Takes a file WITH A COLON (not without)."""
-    if type(file_str) is not str:
-        file_str = str(file_str)
-    file_colon = pathlib.PosixPath(file_str)
-    file_no_colon = pathlib.PosixPath(file_str.replace(':','_'))
-    if (run_dir / file_colon).exists():
-        return './' + str(file_colon)
-    if (run_dir / file_no_colon).exists():
-        return './' + str(file_no_colon)
-    return None
-
 
 def check_job_input_files(job_obj, run_dir):
 

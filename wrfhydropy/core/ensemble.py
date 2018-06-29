@@ -380,6 +380,7 @@ class WrfHydroEnsembleRun(object):
         def n_jobs_not_complete(run_dir):
             the_cmd = '/bin/bash -c "ls member_*/.job_not_complete 2> /dev/null | wc -l"'
             return subprocess.run(shlex.split(the_cmd), cwd=run_dir).returncode
+
         while n_jobs_not_complete(self.run_dir) != 0:
             time.sleep(6)
 
@@ -397,7 +398,6 @@ class WrfHydroEnsembleRun(object):
     def collect_output(self):
         for mm in self.members:
             mm.collect_output()
-
 
 
     def pickle(self):

@@ -713,8 +713,10 @@ class WrfHydroRun(object):
             self.restart_hydro.append(file)
 
         if len(self.restart_hydro) > 0:
-            self.restart_hydro = sorted(self.restart_hydro,
-                                        key=lambda file: file.stat().st_mtime_ns)
+            self.restart_hydro = sorted(
+                self.restart_hydro,
+                key=lambda file: file.stat().st_mtime_ns
+            )
         else:
             self.restart_hydro = None
 
@@ -725,8 +727,10 @@ class WrfHydroRun(object):
             self.restart_lsm.append(file)
 
         if len(self.restart_lsm) > 0:
-            self.restart_lsm = sorted(self.restart_lsm,
-                                      key=lambda file: file.stat().st_mtime_ns)
+            self.restart_lsm = sorted(
+                self.restart_lsm,
+                key=lambda file: file.stat().st_mtime_ns
+            )
         else:
             self.restart_lsm = None
 
@@ -735,13 +739,14 @@ class WrfHydroRun(object):
         for file in self.run_dir.glob('nudgingLastObs*'):
             file = WrfHydroStatic(file)
             self.restart_nudging.append(file)
-                                        
+
         if len(self.restart_nudging) > 0:
             self.restart_nudging = sorted(self.restart_nudging,
                                           key=lambda file: file.stat().st_mtime_ns)
         else:
             self.restart_nudging = None
 
+            
     def pickle(
         self
     ):

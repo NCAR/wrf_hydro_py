@@ -48,7 +48,7 @@ class DeepDiffEq(DeepDiff):
 
         # Must set this first for some reason.
         self.eq_types = set(eq_types)
-        
+
         super().__init__(t1,
                          t2,
                          ignore_order=False,

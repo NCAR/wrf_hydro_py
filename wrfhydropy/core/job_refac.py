@@ -1,26 +1,6 @@
-import datetime
 import f90nml
-import math
-import os
 import pathlib
-import shlex
-import socket
-import subprocess
-import sys
-import warnings
 import numpy as np
-
-from .job_tools import \
-    touch, submit_scheduler, PBSError, \
-    get_sched_name, get_machine, get_user, seconds, \
-    core_dir, default_job_spec, \
-    compose_scheduled_python_script, \
-    compose_scheduled_bash_script, \
-    check_file_exist_colon, \
-    check_job_input_files
-
-from .job_tools import release as jt_release
-from .scheduler import Scheduler
 
 class Job(object):
     def __init__(
@@ -82,7 +62,7 @@ class Job(object):
         # TODO(JLM): make the setup namelists @properties without setter (protect them)
 
         # write hydro.namelist for the job
-        self.hydro_namelist_file = self.run_dir.joinpath(self.job_date_id + '.hydro.namelist')
+        self.hydro_namelist_file = self.run_dir.joinpath(self.job_id + '.hydro.namelist')
         f90nml.write(self.hydro_namelist, self.hydro_namelist_file)
         nlst_file = self.run_dir.joinpath('hydro.namelist')
         if nlst_file.exists():
@@ -90,7 +70,7 @@ class Job(object):
         nlst_file.symlink_to(self.hydro_namelist_file)
 
         # write namelist.hrldas
-        self.namelist_hrldas_file = self.run_dir.joinpath(self.job_date_id + '.namelist.hrldas')
+        self.namelist_hrldas_file = self.run_dir.joinpath(self.job_id + '.namelist.hrldas')
         f90nml.write(self.namelist_hrldas, self.namelist_hrldas_file)
         nlst_file = self.run_dir.joinpath('namelist.hrldas')
         if nlst_file.exists():
@@ -132,10 +112,6 @@ class Job(object):
 
         lsm_restart_file = lsm_restart_dirname + '/' + lsm_restart_basename
         hydro_restart_file = hydro_restart_dirname + '/' + hydro_restart_basename
-
-        if not self.model_restart:
-            lsm_restart_file = '!!! ' + lsm_restart_file
-            hydro_restart_file = '!!! ' + hydro_restart_file
 
         noah_nlst['restart_filename_requested'] = lsm_restart_file
         hydro_nlst['restart_file'] = hydro_restart_file

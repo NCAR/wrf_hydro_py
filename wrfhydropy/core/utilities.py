@@ -22,8 +22,8 @@ def compare_nc_nccmp(candidate_nc: str,
 
     """Compare two netcdf files using nccmp
     Args:
-        candidate_restart: The path for the candidate restart file
-        ref_restarts: The path for the reference restart file
+        candidate_nc: The path for the candidate restart file
+        reference_nc: The path for the reference restart file
         nccmp_options: List of long-form command line options passed to nccmp,
         see http://nccmp.sourceforge.net/ for options
         exclude_vars: A list of strings containing variables names to

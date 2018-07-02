@@ -269,8 +269,10 @@ def check_file_exist_colon(run_dir, file_str):
     """Takes a file WITH A COLON (not without)."""
     if type(file_str) is not str:
         file_str = str(file_str)
-    file_colon = pathlib.PosixPath(file_str)
-    file_no_colon = pathlib.PosixPath(file_str.replace(':','_'))
+    file_colon = pathlib.Path(file_str)
+    file_no_colon = pathlib.Path(file_str.replace(':','_'))
+    run_dir = pathlib.Path(run_dir)
+
     if (run_dir / file_colon).exists():
         return './' + str(file_colon)
     if (run_dir / file_no_colon).exists():

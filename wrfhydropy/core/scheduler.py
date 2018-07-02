@@ -1,7 +1,7 @@
 import math
 import warnings
 from abc import ABC, abstractmethod
-
+from .job import Job
 #This is maybe a little too smart, don't auto pick scheduler, it should be expplicity suplied via
 # the scheduler object
 # def get_sched_name():
@@ -21,11 +21,12 @@ class Scheduler(ABC):
         super().__init__()
 
     @abstractmethod
-    def add_job(self):
+    def add_job(self,
+                job: Job):
         pass
 
     @abstractmethod
-    def submit(self):
+    def schedule(self):
         pass
 
 
@@ -92,9 +93,6 @@ class PBSCheyenne(Scheduler):
             monitor_freq_s: int = None,
             afterok: str = None,
             array_size: int = None,
-            pmem: str = None,
-            grab_env: str = False,
-            exetime: str = None,
             job_id: str = None
     ):
 
@@ -161,9 +159,37 @@ class PBSCheyenne(Scheduler):
         # not existing being missing.
         self._sched_job_complete = False
 
-    def add_job(self):
-        pass
-    def submit(self):
+    def add_job(self,
+                job: Job):
+
+        if not job.submit_array:
+            # Write python to be executed by the bash script given to the scheduler.
+            # Execute the model from python script and the python script from the bash script:
+            # swap their execution commands.
+
+            model_exe_cmd = job.exe_cmd
+            py_script_name = str(job.run_dir / (self.job_date_id + ".wrfhydropy.py"))
+            # I think it's preferable to call the abs path, but in a job array that dosent work.
+            if self.scheduler.array_size:
+                py_script_name_call = self.job_date_id + ".wrfhydropy.py"
+            else:
+                py_script_name_call = py_script_name
+
+            py_run_cmd = "python " + py_script_name_call + \
+                         " --sched_job_id $sched_job_id --job_date_id $job_date_id"
+
+            # This needs to happen before composing the scripts.
+            self.scheduler.not_submitted = False
+
+            # The python script
+            selfstr = compose_scheduled_python_script(py_run_cmd, model_exe_cmd)
+            with open(py_script_name, "w") as myfile:
+                myfile.write(selfstr)
+
+            # The bash submission script which calls the python script.
+            self.exe_cmd = py_run_cmd
+
+    def schedule(self):
         pass
 
     def solve_nodes_cores(self):

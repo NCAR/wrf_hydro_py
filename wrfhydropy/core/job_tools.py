@@ -17,7 +17,7 @@ import yaml
 # Where is wrfhydropy/core dir in the filesystem?
 # A method (used by  django) about specifying the root dir of the project.
 # https://stackoverflow.com/questions/25389095/python-get-path-of-root-project-structure
-core_dir = pathlib.Path(__file__).absolute().parent
+core_dir = pathlib.PosixPath(os.path.dirname(os.path.abspath(__file__)))
 DATA_PATH = pathlib.Path(pkg_resources.resource_filename('wrfhydropy', 'core/data/'))
 
 
@@ -45,8 +45,8 @@ def get_sched_name():
 
 
 def in_docker():
-    path = pathlib.Path("/proc/" + str(os.getpid()) + "/cgroup")
-    if not path.is_file(): return False
+    path = "/proc/" + str(os.getpid()) + "/cgroup"
+    if not os.path.isfile(path): return False
     with open(path) as f:
         for line in f:
             if re.match("\d+:[\w=]+:/docker(-[ce]e)?/\w+", line):
@@ -76,7 +76,6 @@ def get_user():
             sp = subprocess.run(['whoami'], stdout=subprocess.PIPE)
             return sp.stdout.decode('utf-8').split('\n')[0]
     else:
-        # TODO (JLM): Get rid of this lame return value
         return "?"
 
 
@@ -178,8 +177,7 @@ def exetime(deltatime):
 
 def touch(filename, mode=0o666, dir_fd=None, **kwargs):
     flags = os.O_CREAT | os.O_APPEND
-    filename.open(mode='a+')
-    with os.fdopen(os.open(str(filename), flags=flags, mode=mode, dir_fd=dir_fd)) as f:
+    with os.fdopen(os.open(filename, flags=flags, mode=mode, dir_fd=dir_fd)) as f:
         os.utime(f.fileno() if os.utime in os.supports_fd else filename,
                  dir_fd=None if os.supports_fd else dir_fd, **kwargs)
 
@@ -745,7 +743,7 @@ def default_job_spec(machine='docker'):
     if machine != 'docker':
         warnings.warn("Default job sepcs do not currently make sense except for docker.")
     default_job_specs_file = DATA_PATH / 'default_job_specs.yaml'
-    with default_job_specs_file.open() as ff:
+    with open(default_job_specs_file) as ff:
         default_job_specs = yaml.safe_load(ff)
     default_job_spec = default_job_specs[machine]
     # One can not really construct a default scheduler without a user spec.
@@ -1171,7 +1169,7 @@ def check_job_input_files(job_obj, run_dir):
 
 def job_complete(run_dir):
     if type(run_dir) is str:
-        run_dir = pathlib.Path(run_dir)
+        run_dir = libpath.PosixPath(run_dir)
     check_file = run_dir / '.job_not_complete'
     return not(check_file.exists())
 
@@ -1179,6 +1177,5 @@ def job_complete(run_dir):
 def restore_completed_scheduled_job(run_dir):
     while not job_complete(run_dir):
         time.sleep(10)
-    run_pkl_path = run_dir / 'WrfHydroRun.pkl'
-    return pickle.load(run_pkl_path.open('rb'))
+    return pickle.load(open(run_dir / 'WrfHydroRun.pkl', 'rb'))
 

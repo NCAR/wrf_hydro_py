@@ -1,7 +1,5 @@
 import math
-import os
 import warnings
-import getpass
 from abc import ABC, abstractmethod
 
 #This is maybe a little too smart, don't auto pick scheduler, it should be expplicity suplied via
@@ -33,11 +31,6 @@ class Scheduler(ABC):
 
 
 class PBSCheyenne(Scheduler):
-    def add_job(self):
-        pass
-    def submit(self):
-        pass
-
     """A PBS/torque scheduler Job object.
 
     Initialize either with all the parameters, or with 'qsubstr' a PBS submit script as a string.
@@ -126,26 +119,13 @@ class PBSCheyenne(Scheduler):
         self.wait_for_complete = wait_for_complete
         self.monitor_freq_s = monitor_freq_s
 
-        # Set attributes.
-
-        # Try to get a default scheduler?
-
-        # Check for required inputs
         # TODO(JLM): Deal with setting ppn from machine_spec_file.
         self.solve_nodes_cores()
-
-        # Extra Coercion
-        self.email_who = os.path.expandvars(email_who)
-        self.walltime = ':'.join((walltime + ':00').split(':')[0:3])
 
         self.nproc_last_node = (self.nproc - (self.nnodes * self.ppn)) % self.ppn
         if self.nproc_last_node > 0:
             if self.nproc_last_node >= self.ppn:
                 raise ValueError('nproc - (nnodes * ppn) = {0} >= ppn'.format(self.nproc_last_node))
-
-        # Currently unsupported.
-        self.pmem = pmem
-        self.exetime = exetime
 
         # TODO(JLM): the term job here is a bit at odds with where I'm putting the attributes
         # sched_id (this requires some refactoring with job_tools)? job_script seems ok, however.
@@ -180,6 +160,11 @@ class PBSCheyenne(Scheduler):
         # A status that depends on job being submitted and the .job_not_complete file
         # not existing being missing.
         self._sched_job_complete = False
+
+    def add_job(self):
+        pass
+    def submit(self):
+        pass
 
     def solve_nodes_cores(self):
         if None not in [self._nproc, self._nnodes, self._ppn]:

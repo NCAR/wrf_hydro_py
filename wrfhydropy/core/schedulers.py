@@ -157,6 +157,78 @@ class PBSCheyenne(Scheduler):
         # not existing being missing.
         self._sched_job_complete = False
 
+    def _compose_scheduled_python_script(
+            py_run_cmd: str,
+            model_exe_cmd: str
+    ):
+        jobstr = "#!/usr/bin/env python3\n"
+        jobstr += "\n"
+
+        jobstr += "import argparse\n"
+        jobstr += "import datetime\n"
+        jobstr += "import os\n"
+        jobstr += "import pickle\n"
+        jobstr += "import sys\n"
+        jobstr += "import wrfhydropy\n"
+        jobstr += "\n"
+
+        jobstr += "parser = argparse.ArgumentParser()\n"
+        jobstr += "parser.add_argument('--sched_job_id',\n"
+        jobstr += "                    help='The numeric part of the scheduler job ID.')\n"
+        jobstr += "parser.add_argument('--job_date_id',\n"
+        jobstr += "                    help='The date-time identifier created by Schduler obj.')\n"
+        jobstr += "args = parser.parse_args()\n"
+        jobstr += "\n"
+
+        jobstr += "print('sched_job_id: ', args.sched_job_id)\n"
+        jobstr += "print('job_date_id: ', args.job_date_id)\n"
+        jobstr += "\n"
+
+        jobstr += "run_object = pickle.load(open('WrfHydroRun.pkl', 'rb'))\n"
+        jobstr += "\n"
+
+        jobstr += "# The lowest index jobs_pending should be the job to run. Verify that it \n"
+        jobstr += "# has the same job_date_id as passed first, then set job to active.\n"
+        jobstr += "if run_object.job_active:\n"
+        jobstr += "    msg = 'There is an active job conflicting with this scheduled job.'\n"
+        jobstr += "    raise ValueError(msg)\n"
+        jobstr += "if not run_object.jobs_pending[0].job_date_id == args.job_date_id:\n"
+        jobstr += "    msg = 'The first pending job does not match the passed job_date_id.'\n"
+        jobstr += "    raise ValueError(msg)\n"
+        jobstr += "\n"
+
+        jobstr += "# Promote the job to active.\n"
+        jobstr += "run_object.job_active = run_object.jobs_pending.pop(0)\n"
+
+        jobstr += "# Set some run-time attributes of the job.\n"
+        jobstr += "run_object.job_active.py_exe_cmd = \"" + py_run_cmd + "\"\n"
+        jobstr += "run_object.job_active.scheduler.sched_job_id = args.sched_job_id\n"
+        jobstr += "run_object.job_active.exe_cmd = \"" + model_exe_cmd + "\"\n"
+        jobstr += "# Pickle before running the job.\n"
+        jobstr += "run_object.pickle()\n"
+        jobstr += "\n"
+
+        jobstr += "print(\"Running the model.\")\n"
+        jobstr += "run_object.job_active.job_start_time = str(datetime.datetime.now())\n"
+        jobstr += "run_object.job_active.run(run_object.run_dir)\n"
+        jobstr += "run_object.job_active.job_end_time = str(datetime.datetime.now())\n"
+        jobstr += "\n"
+
+        jobstr += "run_object.job_active._sched_job_complete = True\n"
+        jobstr += "run_object.jobs_completed.append(run_object.job_active)\n"
+        jobstr += "run_object.job_active = None\n"
+
+        jobstr += "print(\"Collecting model output.\")\n"
+        jobstr += "run_object.collect_output()\n"
+        jobstr += "print(\"Job completed.\")\n"
+        jobstr += "\n"
+
+        jobstr += "run_object.pickle()\n"
+        jobstr += "\n"
+        jobstr += "sys.exit(0)\n"
+
+        return jobstr
+
     def add_job(self,
                 job: Job):
 
@@ -180,7 +252,7 @@ class PBSCheyenne(Scheduler):
             self.scheduler.not_submitted = False
 
             # The python script
-            selfstr = compose_scheduled_python_script(py_run_cmd, model_exe_cmd)
+            selfstr = self._compose_scheduled_python_script(py_run_cmd, model_exe_cmd)
             with open(py_script_name, "w") as myfile:
                 myfile.write(selfstr)
 

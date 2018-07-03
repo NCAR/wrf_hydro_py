@@ -15,7 +15,7 @@ class Job(object):
     ):
 
         # Attributes set at instantiation through arguments
-        self.run_dir = pathlib.Path(job_id)
+        self.run_dir = pathlib.Path('.job_' + job_id)
         """Path: Path to the run directory"""
 
         self.exe_cmd = exe_cmd
@@ -54,6 +54,7 @@ class Job(object):
                             }
         """dict: the hydro namelist used for this job."""
 
+
         # Attributes set by Scheduler class if job is used in scheduler
         self.job_start_time = None
         """str?: The time at the start of the execution."""
@@ -64,7 +65,11 @@ class Job(object):
         self.job_submission_time = None
         """str?: The time the job object was created."""
 
-    def _get_hrldas_times(self):
+        if model_start_time is not None and model_end_time is not None:
+            self._set_hrldas_times()
+            self._set_hydro_times()
+
+    def _set_hrldas_times(self):
         # Duration
         self.hrldas_times['kday'] = None
         self.hrldas_times['khour'] = None
@@ -93,9 +98,7 @@ class Job(object):
 
         self.hrldas_times['restart_filename_requested'] = lsm_restart_file
 
-        return self.hrldas_times
-
-    def _get_hydro_times(self):
+    def _set_hydro_times(self):
         hydro_restart_dirname = '.'  # os.path.dirname(hydro_nlst['restart_file'])
         # Format - 2011-08-26_00_00 - minutes
         hydro_restart_basename = 'HYDRO_RST.' + \
@@ -103,6 +106,12 @@ class Job(object):
         hydro_restart_file = hydro_restart_dirname + '/' + hydro_restart_basename
         self.hydro_times['restart_file'] = hydro_restart_file
 
-        return self.hydro_times
+    def add_hydro_namelist(self, namelist: dict):
+        self.hydro_namelist = namelist
+        if self.model_start_time is not None and self.model_end_time is not None:
+            self.hydro_namelist.update(self.hydro_times)
 
-
+    def add_hrldas_namelist(self, namelist: dict):
+        self.hrldas_namelist = namelist
+        if self.model_start_time is not None and self.model_end_time is not None:
+            self.hrldas_namelist.update(self.hrldas_times)

@@ -3,6 +3,8 @@ from .domain import Domain
 from .schedulers import Scheduler
 from .job import Job
 
+import warnings
+
 class Simulation(object):
     """Class for a WRF-Hydro setup object, which is comprised of a WrfHydroModel and a
     WrfHydroDomain.
@@ -41,7 +43,7 @@ class Simulation(object):
         """dict: hrldas namelists for each job keyed by job id"""
 
     # Public methods
-    def add(self,obj:object):
+    def add(self, obj: object):
         if isinstance(obj, Model):
             self._addmodel(obj)
 
@@ -96,17 +98,8 @@ class Simulation(object):
                                                     [self.domain.domain_config]
                                                     ['namelist_hrldas']
                                                     ['wrf_hydro_offline'])
-        self._base_hydro_namelist = hydro_namelist
-        self._base_hrldas_namelist = hrldas_namelist
-
-    def _set_job_namelists(self):
-
-        for job in self.jobs:
-            hrldas_times = job.get_hrldas_times()
-            hydro_times = job.get_hydro_times()
-
-            self.job_hrldas_namelists[job.job_id] = self.base_hrldas_namelist.update(hrldas_times)
-            self.job_hydro_namelists[job.job_id] = self.base_hydro_namelist.update(hydro_times)
+        self.base_hydro_namelist = hydro_namelist
+        self.base_hrldas_namelist = hrldas_namelist
 
     def _addmodel(self, model: Model):
         """Private method to add a Model to a Simulation
@@ -114,8 +107,16 @@ class Simulation(object):
             model: The Model to add
         """
         if self.domain is not None:
+            # Check that model and domain are compatible
             self._validate_model_domain(model, self.domain)
-        self.model = model
+
+            # Add in model
+            self.model = model
+
+            # Setup base namelists
+            self._set_base_namelists()
+        else:
+            self.model = model
 
     def _adddomain(self, domain: Domain):
         """Private method to add a Domain to a Simulation
@@ -123,8 +124,16 @@ class Simulation(object):
             domain: The Domain to add
         """
         if self.model is not None:
+            # Check that model and domain are compatible
             self._validate_model_domain(self.model, domain)
-        self.domain = domain
+
+            # Add in domain
+            self.domain = domain
+
+            # Setup base namelists
+            self._set_base_namelists()
+        else:
+            self.domain = domain
 
     def _addscheduler(self, scheduler: Scheduler):
         """Private method to add a Scheduler to a Simulation
@@ -138,6 +147,14 @@ class Simulation(object):
         Args:
             scheduler: The Scheduler to add
         """
+
+        # Add in base namelists form model and domain if none supplied with job
+        if job.model_start_time is None or job.model_end_time is None:
+            warnings.warn('No model start or end time specified in job, using default from '
+                          'self.base_hydro_namelist and self.base_hrldas_namelist')
+        job.add_hrldas_namelist(self.base_hrldas_namelist)
+        job.add_hydro_namelist(self.base_hydro_namelist)
+
         self.jobs.append(job)
 
 

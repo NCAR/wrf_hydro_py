@@ -29,8 +29,6 @@ class Scheduler(ABC):
     def schedule(self):
         pass
 
-
-
 class PBSCheyenne(Scheduler):
     """A PBS/torque scheduler Job object.
 

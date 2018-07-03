@@ -12,7 +12,7 @@ import subprocess
 import warnings
 import xarray as xr
 
-from .job_tools import touch
+from .fileutilities import touch
 
 
 def compare_nc_nccmp(candidate_nc: str,

@@ -129,7 +129,7 @@ class Model(object):
 
         if type(machine_spec) == str:
             self.machine_spec = get_machine_spec(machine_spec)
-        else:
+        if machine_spec == dict:
             self.machine_spec = check_machine_spec(machine_spec)
 
         """list: List of modules to use for model. Note these modules will be used for all 

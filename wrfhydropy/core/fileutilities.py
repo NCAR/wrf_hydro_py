@@ -198,71 +198,71 @@ class WrfHydroStatic(pathlib.PosixPath):
         return xr.open_dataset(self)
 
 
-class RestartDiffs(object):
-    def __init__(self,
-                 candidate_run: WrfHydroRun,
-                 reference_run: WrfHydroRun,
-                 nccmp_options: list = ['--data', '--metadata', '--force', '--quiet'],
-                 exclude_vars: list = ['ACMELT', 'ACSNOW', 'SFCRUNOFF', 'UDRUNOFF', 'ACCPRCP',
-                                       'ACCECAN', 'ACCEDIR', 'ACCETRAN', 'qstrmvolrt']):
-        """Calculate Diffs between restart objects for two WrfHydroRun objects
-        Args:
-            candidate_run: The candidate WrfHydroRun object
-            reference_run: The reference WrfHydroRun object
-            nccmp_options: List of long-form command line options passed to nccmp,
-            see http://nccmp.sourceforge.net/ for options
-            exclude_vars: A list of strings containing variables names to
-            exclude from the comparison
-        Returns:
-            A DomainDirectory directory object
-        """
-        # Instantiate all attributes
-        self.diff_counts = dict()
-        """dict: Counts of diffs by restart type"""
-        self.hydro = list()
-        """list: List of pandas dataframes if possible or subprocess objects containing hydro 
-        restart file diffs"""
-        self.lsm = list()
-        """list: List of pandas dataframes if possible or subprocess objects containing lsm restart 
-        file diffs"""
-        self.nudging = list()
-        """list: List of pandas dataframes if possible or subprocess objects containing nudging 
-        restart file diffs"""
-
-        if len(candidate_run.restart_hydro) != 0 and len(reference_run.restart_hydro) != 0:
-            self.hydro = compare_ncfiles(candidate_files=candidate_run.restart_hydro,
-                                         reference_files=reference_run.restart_hydro,
-                                         nccmp_options=nccmp_options,
-                                         exclude_vars=exclude_vars)
-            diff_counts = sum(1 for _ in filter(None.__ne__, self.hydro))
-            self.diff_counts.update({'hydro': diff_counts})
-        else:
-            warnings.warn('length of candidate_sim.restart_hydro or reference_sim.restart_hydro '
-                          'is 0')
-
-        if len(candidate_run.restart_lsm) != 0 and len(reference_run.restart_lsm) != 0:
-            self.lsm = compare_ncfiles(candidate_files=candidate_run.restart_lsm,
-                                       reference_files=reference_run.restart_lsm,
-                                       nccmp_options=nccmp_options,
-                                       exclude_vars=exclude_vars)
-            diff_counts = sum(1 for _ in filter(None.__ne__, self.lsm))
-            self.diff_counts.update({'lsm': diff_counts})
-        else:
-            warnings.warn('length of candidate_sim.restart_lsm or reference_sim.restart_lsm is 0')
-
-        if candidate_run.restart_nudging is not None or \
-                        reference_run.restart_nudging is not None:
-            if len(candidate_run.restart_nudging) != 0 and len(reference_run.restart_nudging) != 0:
-                self.nudging = compare_ncfiles(
-                    candidate_files=candidate_run.restart_nudging,
-                    reference_files=reference_run.restart_nudging,
-                    nccmp_options=nccmp_options,
-                    exclude_vars=exclude_vars)
-                diff_counts = sum(1 for _ in filter(None.__ne__, self.nudging))
-                self.diff_counts.update({'nudging': diff_counts})
-            else:
-                warnings.warn('length of candidate_sim.restart_nudging or '
-                              'reference_sim.restart_nudging is 0')
+# class RestartDiffs(object):
+#     def __init__(self,
+#                  candidate_run: WrfHydroRun,
+#                  reference_run: WrfHydroRun,
+#                  nccmp_options: list = ['--data', '--metadata', '--force', '--quiet'],
+#                  exclude_vars: list = ['ACMELT', 'ACSNOW', 'SFCRUNOFF', 'UDRUNOFF', 'ACCPRCP',
+#                                        'ACCECAN', 'ACCEDIR', 'ACCETRAN', 'qstrmvolrt']):
+#         """Calculate Diffs between restart objects for two WrfHydroRun objects
+#         Args:
+#             candidate_run: The candidate WrfHydroRun object
+#             reference_run: The reference WrfHydroRun object
+#             nccmp_options: List of long-form command line options passed to nccmp,
+#             see http://nccmp.sourceforge.net/ for options
+#             exclude_vars: A list of strings containing variables names to
+#             exclude from the comparison
+#         Returns:
+#             A DomainDirectory directory object
+#         """
+#         # Instantiate all attributes
+#         self.diff_counts = dict()
+#         """dict: Counts of diffs by restart type"""
+#         self.hydro = list()
+#         """list: List of pandas dataframes if possible or subprocess objects containing hydro
+#         restart file diffs"""
+#         self.lsm = list()
+#         """list: List of pandas dataframes if possible or subprocess objects containing lsm restart
+#         file diffs"""
+#         self.nudging = list()
+#         """list: List of pandas dataframes if possible or subprocess objects containing nudging
+#         restart file diffs"""
+#
+#         if len(candidate_run.restart_hydro) != 0 and len(reference_run.restart_hydro) != 0:
+#             self.hydro = compare_ncfiles(candidate_files=candidate_run.restart_hydro,
+#                                          reference_files=reference_run.restart_hydro,
+#                                          nccmp_options=nccmp_options,
+#                                          exclude_vars=exclude_vars)
+#             diff_counts = sum(1 for _ in filter(None.__ne__, self.hydro))
+#             self.diff_counts.update({'hydro': diff_counts})
+#         else:
+#             warnings.warn('length of candidate_sim.restart_hydro or reference_sim.restart_hydro '
+#                           'is 0')
+#
+#         if len(candidate_run.restart_lsm) != 0 and len(reference_run.restart_lsm) != 0:
+#             self.lsm = compare_ncfiles(candidate_files=candidate_run.restart_lsm,
+#                                        reference_files=reference_run.restart_lsm,
+#                                        nccmp_options=nccmp_options,
+#                                        exclude_vars=exclude_vars)
+#             diff_counts = sum(1 for _ in filter(None.__ne__, self.lsm))
+#             self.diff_counts.update({'lsm': diff_counts})
+#         else:
+#             warnings.warn('length of candidate_sim.restart_lsm or reference_sim.restart_lsm is 0')
+#
+#         if candidate_run.restart_nudging is not None or \
+#                         reference_run.restart_nudging is not None:
+#             if len(candidate_run.restart_nudging) != 0 and len(reference_run.restart_nudging) != 0:
+#                 self.nudging = compare_ncfiles(
+#                     candidate_files=candidate_run.restart_nudging,
+#                     reference_files=reference_run.restart_nudging,
+#                     nccmp_options=nccmp_options,
+#                     exclude_vars=exclude_vars)
+#                 diff_counts = sum(1 for _ in filter(None.__ne__, self.nudging))
+#                 self.diff_counts.update({'nudging': diff_counts})
+#             else:
+#                 warnings.warn('length of candidate_sim.restart_nudging or '
+#                               'reference_sim.restart_nudging is 0')
 
 
 def check_file_exist_colon(run_dir, file_str):

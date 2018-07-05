@@ -285,3 +285,80 @@ def touch(filename, mode=0o666, dir_fd=None, **kwargs):
     with os.fdopen(os.open(str(filename), flags=flags, mode=mode, dir_fd=dir_fd)) as f:
         os.utime(f.fileno() if os.utime in os.supports_fd else filename,
                  dir_fd=None if os.supports_fd else dir_fd, **kwargs)
+
+def check_job_input_files(job_obj, run_dir):
+
+    # A run object, check it's next (first pending) job for all the dependencies.
+    # This is after this jobs namelists are established.
+    # Properties of the setup_obj identify some of the required input files.
+
+    def visit_is_file(path, key, value):
+        if value is None:
+            return False
+        return type(value) is str or type(value) is dict
+
+    def visit_not_none(path, key, value):
+        return bool(value)
+
+    def visit_str_posix_exists(path, key, value):
+        if type(value) is dict:
+            return True
+        return key, (run_dir / pathlib.PosixPath(value)).exists()
+
+    def remap_nlst(nlst):
+        # The outer remap removes empty dicts
+        files = remap(nlst,  visit=visit_is_file)
+        files = remap(files, visit=visit_not_none)
+        exists = remap(files, visit=visit_str_posix_exists)
+        return exists
+
+    hrldas_file_dict = remap_nlst(job_obj.namelist_hrldas)
+    hydro_file_dict = remap_nlst(job_obj.hydro_namelist)
+
+    # INDIR is a special case: do some regex magic and counting.
+
+    # What are the colon cases? Hydro/nudging restart files
+    hydro_file_dict['hydro_nlist']['restart_file'] = \
+        bool(check_file_exist_colon(run_dir,
+                                    job_obj.hydro_namelist['hydro_nlist']['restart_file']))
+    if 'nudging_nlist' in hydro_file_dict.keys():
+        hydro_file_dict['nudging_nlist']['nudginglastobsfile'] = \
+            bool(check_file_exist_colon(run_dir,
+                                        job_obj.hydro_namelist['nudging_nlist']['nudginglastobsfile']))
+
+    hrldas_exempt_list = []
+    hydro_exempt_list = ['nudginglastobsfile', 'timeslicepath']
+
+    # Build conditional exemptions.
+    if job_obj.hydro_namelist['hydro_nlist']['udmp_opt'] == 0:
+        hydro_exempt_list = hydro_exempt_list + ['udmap_file']
+
+    if job_obj.namelist_hrldas['wrf_hydro_offline']['forc_typ'] in [9,10]:
+        hydro_exempt_list = hydro_exempt_list + ['restart_filename_requested']
+
+
+    def check_nlst(nlst, file_dict):
+
+        # Scan the dicts for FALSE exempting certain ones for certain configs.
+        def visit_missing_file(path, key, value):
+            if type(value) is dict:
+                return True
+            if not value:
+                message = 'The namelist file ' + key + ' = ' + \
+                          str(get_path(nlst, (path))[key]) + ' does not exist'
+                if key not in [*hrldas_exempt_list, *hydro_exempt_list]:
+                    raise ValueError(message)
+                else:
+                    warnings.warn(message)
+            return False
+
+        remap(file_dict, visit=visit_missing_file)
+        return None
+
+    check_nlst(job_obj.namelist_hrldas, hrldas_file_dict)
+    check_nlst(job_obj.hydro_namelist, hydro_file_dict)
+
+    # Check the parameter table files: do the ones in the model match the ones in the rundir?
+    # Will this be by construction?
+
+    return None

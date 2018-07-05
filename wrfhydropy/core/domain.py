@@ -97,7 +97,7 @@ class Domain(object):
 
         self.forcing_data = WrfHydroTs(self.forcing_dir.glob('*'))
 
-    def copy_files(self,dir: str,symlink: bool=True):
+    def copy_files(self,dest_dir: str,symlink: bool=True):
         """Copy domain files to new directory
         Args:
             dir: The destination directory for domain files
@@ -105,16 +105,16 @@ class Domain(object):
         """
 
         # Convert dir to pathlib.Path
-        dir = pathlib.Path(dir)
+        dest_dir = pathlib.Path(dest_dir)
 
         # Make directory if it does not exist.
-        if not dir.is_dir():
-            dir.mkdir(parents=True)
+        if not dest_dir.is_dir():
+            dest_dir.mkdir(parents=True)
 
         # Create symlinks/copies
         # Symlink/copy in forcing
         from_dir = self.forcing_dir
-        to_dir = dir.joinpath(from_dir.name)
+        to_dir = dest_dir.joinpath(from_dir.name)
         if symlink:
             to_dir.symlink_to(from_dir, target_is_directory=True)
         else:
@@ -126,7 +126,7 @@ class Domain(object):
             # Get new file path for run directory, relative to the top-level domain directory
             # This is needed to ensure the path matches the domain namelist
             relative_path = from_path.relative_to(self.domain_top_dir)
-            to_path = dir.joinpath(relative_path)
+            to_path = dest_dir.joinpath(relative_path)
             if to_path.parent.is_dir() is False:
                 to_path.parent.mkdir(parents=True)
             if symlink:
@@ -135,11 +135,11 @@ class Domain(object):
                 shutil.copy(str(from_path),str(to_path))
 
         # Symlink in nudging files
-        for file_path in self.nudging_files:
+        for from_path in self.nudging_files:
             # Get new file path for run directory, relative to the top-level domain directory
             # This is needed to ensure the path matches the domain namelist
             relative_path = from_path.relative_to(self.domain_top_dir)
-            to_path = dir.joinpath(relative_path)
+            to_path = dest_dir.joinpath(relative_path)
             if to_path.parent.is_dir() is False:
                 to_path.parent.mkdir(parents=True)
             if symlink:
@@ -148,11 +148,11 @@ class Domain(object):
                 shutil.copy(str(from_path),str(to_path))
 
         # Symlink in lsm files
-        for file_path in self.lsm_files:
+        for from_path in self.lsm_files:
             # Get new file path for run directory, relative to the top-level domain directory
             # This is needed to ensure the path matches the domain namelist
             relative_path = from_path.relative_to(self.domain_top_dir)
-            to_path = dir.joinpath(relative_path)
+            to_path = dest_dir.joinpath(relative_path)
             if to_path.parent.is_dir() is False:
                 to_path.parent.mkdir(parents=True)
             if symlink:
@@ -166,7 +166,7 @@ class Domain(object):
                        *self.lsm_files]
         for ff in model_files:
             if re.match('.*/RESTART/.*', str(ff)):
-                to_path = dir.joinpath(ff.name).absolute()
+                to_path = dest_dir.joinpath(ff.name).absolute()
                 if symlink:
                     to_path.symlink_to(ff)
                 else:

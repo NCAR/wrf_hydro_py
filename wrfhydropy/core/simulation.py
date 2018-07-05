@@ -3,6 +3,7 @@ from .domain import Domain
 from .schedulers import Scheduler
 from .job import Job
 
+import pathlib
 import warnings
 
 class Simulation(object):
@@ -30,6 +31,9 @@ class Simulation(object):
         self.output = None
         """CompletedSim: A CompletedSim object returned by the self.collect() method"""
 
+        self.sim_dir = None
+        """pathlib.Path: Simulation directory path"""
+
         self.base_hydro_namelist = {}
         """dict: base hydro namelist produced from model and domain"""
 
@@ -55,6 +59,33 @@ class Simulation(object):
 
         if isinstance(obj,Job):
             self._addjob(obj)
+
+    def compose(self,sim_dir: pathlib.Path, symlink_domain: bool = True):
+        """Compose simulation directories and files
+        Args:
+            sim_dir: The top-level simulation directory.
+            symlink_domain: Symlink the domain files rather than copy
+        """
+
+        self.sim_dir = pathlib.Path(sim_dir)
+
+        print("Composing simulation into directory:'" + str(self.sim_dir.absolute()) + "'")
+
+        # Compile model, also makes sim_dir directory at compile time
+        print('Compiling WRF-Hydro source code...')
+        self.model.compile(compile_dir=self.sim_dir)
+
+        # Symlink in domain files
+        print('Getting domain files...')
+        self.domain.copy_files(dest_dir=self.sim_dir,symlink=symlink_domain)
+
+        # Make job directories
+        print('Making job directories...')
+        for job in self.jobs:
+            job.sim_dir = self.sim_dir
+            job.write_namelists() # write namelists
+
+        print('Simulation successfully composed')
 
     # Private methods
     def _validate_model_domain(self, model, domain):
@@ -149,9 +180,6 @@ class Simulation(object):
         """
 
         # Add in base namelists form model and domain if none supplied with job
-        if job.model_start_time is None or job.model_end_time is None:
-            warnings.warn('No model start or end time specified in job, using default from '
-                          'self.base_hydro_namelist and self.base_hrldas_namelist')
         job.add_hrldas_namelist(self.base_hrldas_namelist)
         job.add_hydro_namelist(self.base_hydro_namelist)
 

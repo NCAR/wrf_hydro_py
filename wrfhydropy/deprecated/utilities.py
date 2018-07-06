@@ -12,9 +12,6 @@ import subprocess
 import warnings
 import xarray as xr
 
-from .fileutilities import touch
-
-
 def compare_nc_nccmp(candidate_nc: str,
                      reference_nc: str,
                      nccmp_options: list = ['--data','--metadata','--force','--quiet'],

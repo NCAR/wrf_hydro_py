@@ -4,8 +4,8 @@ from .schedulers import Scheduler
 from .job import Job
 
 import copy
+import os
 import pathlib
-import warnings
 
 class Simulation(object):
     """Class for a WRF-Hydro setup object, which is comprised of a WrfHydroModel and a
@@ -89,9 +89,35 @@ class Simulation(object):
             job.add_hrldas_namelist(self.base_hrldas_namelist)
             job.add_hydro_namelist(self.base_hydro_namelist)
 
-            job.write_namelists() # write namelists
+            job._make_job_dir()
+            job._write_namelists() # write namelists
+
+        # Add jobs to scheduler
+        if self.scheduler is not None:
+            print('Adding jobs to scheduler...')
+            for job in self.jobs:
+                self.scheduler.add_job(job)
 
         print('Simulation successfully composed')
+
+    def run(self):
+
+        # Change to simulation directory so that all runs are relative to the sim dir.
+        # This is needed so that a simulation can be run from inside the sim dir using relative
+        # paths
+
+        if self.scheduler is None:
+            original_dir = os.getcwd()
+            os.chdir(self.sim_dir)
+
+            for job in self.jobs:
+                job.run()
+
+            os.chdir(original_dir)
+
+        else:
+            self.scheduler.schedule()
+
 
     # Private methods
     def _validate_model_domain(self, model, domain):

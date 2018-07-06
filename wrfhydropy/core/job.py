@@ -6,7 +6,8 @@ import shutil
 import subprocess
 import shlex
 import warnings
-
+import pickle
+import os
 from .fileutilities import check_file_exist_colon
 
 class Job(object):
@@ -73,6 +74,99 @@ class Job(object):
         # Property attributes
         self._sim_dir = None
 
+    def add_hydro_namelist(self, namelist: dict):
+        self.hydro_namelist = namelist
+        if self.model_start_time is None or self.model_end_time is None:
+            warnings.warn('model start or end time was not specified in job, start end times will be '
+                          'used from supplied namelist')
+            self.model_start_time, self.model_end_time = self._solve_model_start_end_times()
+
+        self._set_hydro_times()
+        self.hydro_namelist['hydro_nlist'].update(self.hydro_times['hydro_nlist'])
+        self.hydro_namelist['nudging_nlist'].update(self.hydro_times['nudging_nlist'])
+
+
+    def add_hrldas_namelist(self, namelist: dict):
+        self.hrldas_namelist = namelist
+        if self.model_start_time is None or self.model_end_time is None:
+            warnings.warn('model start or end time was not specified in job, start end times will be '
+                          'used from supplied namelist')
+            self.model_start_time, self.model_end_time = self._solve_model_start_end_times()
+        self._set_hrldas_times()
+        self.hrldas_namelist['noahlsm_offline'].update(self.hrldas_times['noahlsm_offline'])
+
+    def run(self):
+        """Run the job
+        """
+        # Create curent dir path to use for all operations. Needed so that everything can be run
+        # relative to the simulation directory
+
+        current_dir = pathlib.Path(os.curdir)
+
+        # Print some basic info about the run
+        print('\nRunning job ' + self.job_id + ': ')
+        print('    Wall start time: ' + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        print('    Model start time: ' + self.model_start_time.strftime('%Y-%m-%d %H:%M'))
+        print('    Model end time: ' + self.model_end_time.strftime('%Y-%m-%d %H:%M'))
+
+        # Check for restart files both as specified and in the run dir..
+        # Alias the mutables for some brevity
+        hydro_nlst = self.hydro_namelist['hydro_nlist']
+        hydro_nlst['restart_file'] = check_file_exist_colon(current_dir, hydro_nlst[
+            'restart_file'])
+        nudging_nlst = self.hydro_namelist['nudging_nlist']
+        if nudging_nlst:
+            nudging_nlst['nudginglastobsfile'] = \
+                check_file_exist_colon(current_dir, nudging_nlst['nudginglastobsfile'])
+
+        # Copy namelists from job_dir to current_dir
+        hydro_namelist_path = self._rel_job_dir.joinpath('hydro.namelist')
+        hrldas_namelist_path = self._rel_job_dir.joinpath('namelist.hrldas')
+        shutil.copy(str(hydro_namelist_path),str(current_dir))
+        shutil.copy(str(hrldas_namelist_path),str(current_dir))
+
+        # These dont have the sched_job_id that the scheduled job output files have.
+        self.stderr_file = current_dir / ("{0}.stderr".format(self.job_id))
+        self.stdout_file = current_dir / ("{0}.stdout".format(self.job_id))
+
+        # Fromulate bash command string
+        cmd_string = '/bin/bash -c "'
+        if self.entry_cmd is not None:
+            cmd_string += self.entry_cmd + ';'
+
+        cmd_string += self.exe_cmd + ';'
+
+        if self.exit_cmd is not None:
+            cmd_string += self.exit_cmd
+
+        cmd_string += '"'
+
+        # Set start time of job execution
+        self.job_start_time = str(datetime.datetime.now())
+
+        self._proc_log = subprocess.run(shlex.split(cmd_string),
+                                        cwd=current_dir,
+                                        stderr = open(self.stderr_file,mode='w'),
+                                        stdout = open(self.stdout_file,mode='w'))
+
+        self.job_end_time = str(datetime.datetime.now())
+
+        # cleanup job-specific run files
+        diag_files = current_dir.glob('*diag*')
+        for file in diag_files:
+            shutil.move(str(file), str(self._rel_job_dir))
+
+        shutil.move(str(self.stdout_file),str(self._rel_job_dir))
+        shutil.move(str(self.stderr_file),str(self._rel_job_dir))
+        current_dir.joinpath('hydro.namelist').unlink()
+        current_dir.joinpath('namelist.hrldas').unlink()
+
+    def _write_namelists(self):
+        """Write namelist dicts to FORTRAN namelist files
+        """
+        f90nml.write(self.hydro_namelist, self.job_dir.joinpath('hydro.namelist'))
+        f90nml.write(self.hrldas_namelist, self.job_dir.joinpath('namelist.hrldas'))
+
     def _set_hrldas_times(self):
         # Duration
         self.hrldas_times['noahlsm_offline']['kday'] = None
@@ -122,106 +216,36 @@ class Job(object):
         self.hydro_times['hydro_nlist']['restart_file'] = hydro_restart_file
         self.hydro_times['nudging_nlist']['nudginglastobsfile'] = nudging_restart_file
 
-    def add_hydro_namelist(self, namelist: dict):
-        self.hydro_namelist = namelist
-        if self.model_start_time is None or self.model_end_time is None:
-            warnings.warn('model start or end time was not specified in job, start end times will be '
-                          'used from supplied namelist')
-            self.model_start_time, self.model_end_time = self._solve_model_start_end_times()
-
-        self._set_hydro_times()
-        self.hydro_namelist['hydro_nlist'].update(self.hydro_times['hydro_nlist'])
-        self.hydro_namelist['nudging_nlist'].update(self.hydro_times['nudging_nlist'])
-
-
-    def add_hrldas_namelist(self, namelist: dict):
-        self.hrldas_namelist = namelist
-        if self.model_start_time is None or self.model_end_time is None:
-            warnings.warn('model start or end time was not specified in job, start end times will be '
-                          'used from supplied namelist')
-            self.model_start_time, self.model_end_time = self._solve_model_start_end_times()
-        self._set_hrldas_times()
-        self.hrldas_namelist['noahlsm_offline'].update(self.hrldas_times['noahlsm_offline'])
-
-    def write_namelists(self):
-        """Write namelist dicts to FORTRAN namelist files
-        Args:
-            sim_dir: The top-level simulation directory. A new sub-directory for the job will be
-            created and named after the job_id. Namelist files will be written into the job
-            sub-directory
-        """
-
-        if not self.job_dir.is_dir():
+    def _make_job_dir(self):
+        if self.job_dir.is_dir():
+            raise IsADirectoryError(str(self.job_dir) + 'already exists')
+        else:
             self.job_dir.mkdir(parents=True)
 
-        f90nml.write(self.hydro_namelist,self.job_dir.joinpath('hydro.namelist'))
-        f90nml.write(self.hrldas_namelist,self.job_dir.joinpath('namelist.hrldas'))
+    def _write_run_script(self):
+        self._pickle()
 
-    def run(self):
-        """Run the job
-        Args:
-            sim_dir: The top-level simulation directory. A new sub-directory for the job will be
-            created and named after the job_id. Namelist files will be written into the job
-            sub-directory
-        """
+        pystr = ""
+        pystr += "# import modules\n"
+        pystr += "import wrfhydropy\n"
+        pystr += "import pickle\n"
+        pystr += "import argparse\n"
 
-        # Print some basic info about the run
-        print('\nRunning job ' + self.job_id + ': ')
-        print('    Wall start time: ' + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-        print('    Model start time: ' + self.model_start_time.strftime('%Y-%m-%d %H:%M'))
-        print('    Model end time: ' + self.model_end_time.strftime('%Y-%m-%d %H:%M'))
+        pystr += "parser = argparse.ArgumentParser()\n"
+        pystr += "parser.add_argument('--job_id',\n"
+        pystr += "                    help='The numeric part of the scheduler job ID.')\n"
+        pystr += "args = parser.parse_args()\n"
+        pystr += "\n"
 
-        # Check for restart files both as specified and in the run dir..
-        # Alias the mutables for some brevity
-        hydro_nlst = self.hydro_namelist['hydro_nlist']
-        hydro_nlst['restart_file'] = check_file_exist_colon(self._sim_dir, hydro_nlst[
-            'restart_file'])
-        nudging_nlst = self.hydro_namelist['nudging_nlist']
-        if nudging_nlst:
-            nudging_nlst['nudginglastobsfile'] = \
-                check_file_exist_colon(self.sim_dir, nudging_nlst['nudginglastobsfile'])
+        pystr += "#load job object\n"
+        pystr += "job_dir = '.job_' + args.job_id + '/WrfHydroJob.pkl'\n"
+        pystr += "job = pickle.load(open(job_dir,mode='rb'))\n"
+        pystr += "#Run the job\n"
+        pystr += "job.run()\n"
 
-        # Copy namelists from job_dir to sim_dir
-        hydro_namelist_path = self.job_dir.joinpath('hydro.namelist').absolute()
-        hrldas_namelist_path = self.job_dir.joinpath('namelist.hrldas').absolute()
-        shutil.copy(str(hydro_namelist_path),str(self.sim_dir))
-        shutil.copy(str(hrldas_namelist_path),str(self.sim_dir))
-
-        # These dont have the sched_job_id that the scheduled job output files have.
-        self.stderr_file = self.sim_dir / ("{0}.stderr".format(self.job_id))
-        self.stdout_file = self.sim_dir / ("{0}.stdout".format(self.job_id))
-
-        # Fromulate bash command string
-        cmd_string = '/bin/bash -c "'
-        if self.entry_cmd is not None:
-            cmd_string += self.entry_cmd + ';'
-
-        cmd_string += self.exe_cmd + ';'
-
-        if self.exit_cmd is not None:
-            cmd_string += self.exit_cmd
-
-        cmd_string += '"'
-
-        # Set start time of job execution
-        self.job_start_time = str(datetime.datetime.now())
-
-        self._proc_log = subprocess.run(shlex.split(cmd_string),
-                                        cwd=self.sim_dir,
-                                        stderr = open(self.stderr_file,mode='w'),
-                                        stdout = open(self.stdout_file,mode='w'))
-
-        self.job_end_time = str(datetime.datetime.now())
-
-        # cleanup job-specific run files
-        diag_files = self.sim_dir.glob('*diag*')
-        for file in diag_files:
-            shutil.move(str(file), str(self.job_dir))
-
-        shutil.move(str(self.stdout_file),str(self.job_dir))
-        shutil.move(str(self.stderr_file),str(self.job_dir))
-        self.sim_dir.joinpath('hydro.namelist').unlink()
-        self.sim_dir.joinpath('namelist.hrldas').unlink()
+        pystr_file = self.sim_dir.joinpath('run_job.py')
+        with open(str(pystr_file),mode='w') as f:
+            f.write(pystr)
 
     def _solve_model_start_end_times(self):
         noah_namelist = self.hrldas_namelist['noahlsm_offline']
@@ -242,6 +266,10 @@ class Job(object):
 
         return model_start_time, model_end_time
 
+    def _pickle(self):
+        with self.job_dir.joinpath('WrfHydroJob.pkl').open(mode='wb') as f:
+            pickle.dump(self, f, 2)
+
     # properties
     @property
     def sim_dir(self):
@@ -254,4 +282,9 @@ class Job(object):
     def job_dir(self):
         """Path: Path to the run directory"""
         job_dir_name = '.job_' + self.job_id
-        return self._sim_dir.joinpath(job_dir_name)
+
+        return self.sim_dir.joinpath(job_dir_name)
+
+    @property
+    def _rel_job_dir(self):
+        return self.job_dir.relative_to(self.sim_dir)

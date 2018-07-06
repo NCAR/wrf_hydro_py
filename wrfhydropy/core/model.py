@@ -175,7 +175,6 @@ class Model(object):
         ## Get code version
         with self.source_dir.joinpath('.version').open() as f:
             self.version = f.read()
-        print(self.version)
 
         ## Get model config
         self.model_config = model_config

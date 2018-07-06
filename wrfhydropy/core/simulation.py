@@ -3,6 +3,7 @@ from .domain import Domain
 from .schedulers import Scheduler
 from .job import Job
 
+import copy
 import pathlib
 import warnings
 
@@ -83,6 +84,11 @@ class Simulation(object):
         print('Making job directories...')
         for job in self.jobs:
             job.sim_dir = self.sim_dir
+
+            # Add in base namelists form model and domain if none supplied with job
+            job.add_hrldas_namelist(self.base_hrldas_namelist)
+            job.add_hydro_namelist(self.base_hydro_namelist)
+
             job.write_namelists() # write namelists
 
         print('Simulation successfully composed')
@@ -95,7 +101,7 @@ class Simulation(object):
                             model.model_config +
                             ' not compatible with domain configuration ' +
                             domain.domain_config)
-        if model.version not in list(domain.namelist_patches.keys()):
+        if model.version != domain.model_version:
             raise TypeError('Model version ' +
                             model.version +
                             ' not compatible with domain versions ' +
@@ -103,30 +109,22 @@ class Simulation(object):
 
     def _set_base_namelists(self):
         # Create namelists
-        hydro_namelist = self.model.hydro_namelists[self.model.version][self.domain.domain_config]
-        hrldas_namelist = self.model.hrldas_namelists[self.model.version][self.domain.domain_config]
+        hydro_namelist = self.model.hydro_namelists
+        hrldas_namelist = self.model.hrldas_namelists
 
         ## Update namelists with namelist patches
         hydro_namelist['hydro_nlist'].update(self.domain.namelist_patches
-                                             [self.model.version]
-                                             [self.domain.domain_config]
                                              ['hydro_namelist']
                                              ['hydro_nlist'])
 
         hydro_namelist['nudging_nlist'].update(self.domain.namelist_patches
-                                               [self.model.version]
-                                               [self.domain.domain_config]
                                                ['hydro_namelist']
                                                ['nudging_nlist'])
 
         hrldas_namelist['noahlsm_offline'].update(self.domain.namelist_patches
-                                                  [self.model.version]
-                                                  [self.domain.domain_config]
                                                   ['namelist_hrldas']
                                                   ['noahlsm_offline'])
         hrldas_namelist['wrf_hydro_offline'].update(self.domain.namelist_patches
-                                                    [self.model.version]
-                                                    [self.domain.domain_config]
                                                     ['namelist_hrldas']
                                                     ['wrf_hydro_offline'])
         self.base_hydro_namelist = hydro_namelist
@@ -137,12 +135,14 @@ class Simulation(object):
         Args:
             model: The Model to add
         """
+        model = copy.deepcopy(model)
+
         if self.domain is not None:
             # Check that model and domain are compatible
             self._validate_model_domain(model, self.domain)
 
             # Add in model
-            self.model = model
+            self.model = copy.deepcopy(model)
 
             # Setup base namelists
             self._set_base_namelists()
@@ -154,6 +154,8 @@ class Simulation(object):
         Args:
             domain: The Domain to add
         """
+
+        domain = copy.deepcopy(domain)
         if self.model is not None:
             # Check that model and domain are compatible
             self._validate_model_domain(self.model, domain)
@@ -171,7 +173,7 @@ class Simulation(object):
         Args:
             scheduler: The Scheduler to add
         """
-        self.scheduler = scheduler
+        self.scheduler = copy.deepcopy(scheduler)
 
     def _addjob(self, job: Job):
         """Private method to add a job to a Simulation
@@ -179,10 +181,7 @@ class Simulation(object):
             scheduler: The Scheduler to add
         """
 
-        # Add in base namelists form model and domain if none supplied with job
-        job.add_hrldas_namelist(self.base_hrldas_namelist)
-        job.add_hydro_namelist(self.base_hydro_namelist)
-
+        job = copy.deepcopy(job)
         self.jobs.append(job)
 
 

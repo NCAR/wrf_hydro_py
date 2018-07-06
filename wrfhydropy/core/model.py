@@ -172,19 +172,24 @@ class Model(object):
         ## Setup directory paths
         self.source_dir = pathlib.Path(source_dir).absolute()
 
-        ## Load master namelists
-        self.hydro_namelists = \
-            json.load(self.source_dir.joinpath('hydro_namelists.json').open())
-
-        self.hrldas_namelists = \
-            json.load(self.source_dir.joinpath('hrldas_namelists.json').open())
-
         ## Get code version
         with self.source_dir.joinpath('.version').open() as f:
             self.version = f.read()
+        print(self.version)
+
+        ## Get model config
+        self.model_config = model_config
+
+        ## Load master namelists
+        self.hydro_namelists = \
+            json.load(self.source_dir.joinpath('hydro_namelists.json').open())
+        self.hydro_namelists = self.hydro_namelists[self.version][self.model_config]
+
+        self.hrldas_namelists = \
+            json.load(self.source_dir.joinpath('hrldas_namelists.json').open())
+        self.hrldas_namelists = self.hrldas_namelists[self.version][self.model_config]
 
         ## Load compile options
-        self.model_config = model_config
         compile_json = json.load(self.source_dir.joinpath('compile_options.json').open())
         self.compile_options = compile_json[self.version][self.model_config]
 

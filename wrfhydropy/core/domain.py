@@ -54,9 +54,10 @@ class Domain(object):
         """list: Files specified in noahlsm_offline section of the domain namelist patches"""
         ###
 
+        self.namelist_patches = self.namelist_patches[self.model_version][self.domain_config]
+
         # Create file paths from hydro namelist
-        domain_hydro_nlist = self.namelist_patches[self.model_version][self.domain_config][
-            'hydro_namelist']['hydro_nlist']
+        domain_hydro_nlist = self.namelist_patches['hydro_namelist']['hydro_nlist']
 
         for key, value in domain_hydro_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
@@ -67,8 +68,7 @@ class Domain(object):
                     self.hydro_files.append(file_path)
 
         # Create file paths from nudging namelist
-        domain_nudging_nlist = self.namelist_patches[self.model_version][self.domain_config
-        ]['hydro_namelist']['nudging_nlist']
+        domain_nudging_nlist = self.namelist_patches['hydro_namelist']['nudging_nlist']
 
         for key, value in domain_nudging_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
@@ -80,8 +80,7 @@ class Domain(object):
 
         # Create symlinks from lsm namelist
         domain_lsm_nlist = \
-            self.namelist_patches[self.model_version][self.domain_config]['namelist_hrldas'
-            ]["noahlsm_offline"]
+            self.namelist_patches['namelist_hrldas']["noahlsm_offline"]
 
         for key, value in domain_lsm_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
@@ -166,6 +165,12 @@ class Domain(object):
                        *self.lsm_files]
         for ff in model_files:
             if re.match('.*/RESTART/.*', str(ff)):
+                to_path = dest_dir.joinpath(ff.name).absolute()
+                if symlink:
+                    to_path.symlink_to(ff)
+                else:
+                    shutil.copy(str(ff),str(to_path))
+            if re.match('.*/nudgingLastObs/.*', str(ff)):
                 to_path = dest_dir.joinpath(ff.name).absolute()
                 if symlink:
                     to_path.symlink_to(ff)

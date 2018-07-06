@@ -53,7 +53,9 @@ class Job(object):
         """dict: the HRLDAS namelist used for this job."""
 
         self.hydro_times = {'hydro_nlist':
-                                {'restart_file':None}
+                                {'restart_file':None},
+                            'nudging_nlist':
+                                {'nudginglastobsfile':None}
                             }
         """dict: the hydro namelist used for this job."""
 
@@ -68,24 +70,27 @@ class Job(object):
         self.job_submission_time = None
         """str?: The time the job object was created."""
 
+        # Property attributes
+        self._sim_dir = None
+
     def _set_hrldas_times(self):
         # Duration
-        self.hrldas_times['kday'] = None
-        self.hrldas_times['khour'] = None
+        self.hrldas_times['noahlsm_offline']['kday'] = None
+        self.hrldas_times['noahlsm_offline']['khour'] = None
         duration = self.model_end_time - self.model_start_time
         if duration.seconds == 0:
-            self.hrldas_times['kday'] = int(duration.days)
-            self.hrldas_times.pop('khour')
+            self.hrldas_times['noahlsm_offline']['kday'] = int(duration.days)
+            self.hrldas_times['noahlsm_offline'].pop('khour')
         else:
-            self.hrldas_times['khour'] = int(duration.days * 60 + duration.seconds / 3600)
-            self.hrldas_times.pop('kday')
+            self.hrldas_times['noahlsm_offline']['khour'] = int(duration.days * 60 + duration.seconds / 3600)
+            self.hrldas_times['noahlsm_offline'].pop('kday')
 
         # Start
-        self.hrldas_times['start_year'] = int(self.model_start_time.year)
-        self.hrldas_times['start_month'] = int(self.model_start_time.month)
-        self.hrldas_times['start_day'] = int(self.model_start_time.day)
-        self.hrldas_times['start_hour'] = int(self.model_start_time.hour)
-        self.hrldas_times['start_min'] = int(self.model_start_time.minute)
+        self.hrldas_times['noahlsm_offline']['start_year'] = int(self.model_start_time.year)
+        self.hrldas_times['noahlsm_offline']['start_month'] = int(self.model_start_time.month)
+        self.hrldas_times['noahlsm_offline']['start_day'] = int(self.model_start_time.day)
+        self.hrldas_times['noahlsm_offline']['start_hour'] = int(self.model_start_time.hour)
+        self.hrldas_times['noahlsm_offline']['start_min'] = int(self.model_start_time.minute)
 
         lsm_restart_dirname = '.'  # os.path.dirname(noah_nlst['restart_filename_requested'])
 
@@ -95,15 +100,27 @@ class Job(object):
 
         lsm_restart_file = lsm_restart_dirname + '/' + lsm_restart_basename
 
-        self.hrldas_times['restart_filename_requested'] = lsm_restart_file
+        self.hrldas_times['noahlsm_offline']['restart_filename_requested'] = lsm_restart_file
 
     def _set_hydro_times(self):
         hydro_restart_dirname = '.'  # os.path.dirname(hydro_nlst['restart_file'])
         # Format - 2011-08-26_00_00 - minutes
         hydro_restart_basename = 'HYDRO_RST.' + \
                                  self.model_start_time.strftime('%Y-%m-%d_%H:%M') + '_DOMAIN1'
-        hydro_restart_file = hydro_restart_dirname + '/' + hydro_restart_basename
-        self.hydro_times['restart_file'] = hydro_restart_file
+
+        # Format - 2011-08-26_00_00 - seconds
+        nudging_restart_basename = 'nudgingLastObs.' + \
+                                 self.model_start_time.strftime('%Y-%m-%d_%H:%M:%S') + '.nc'
+
+        # Use convenience function to return name of file with or without colons in name
+        # This is needed because the model outputs restarts with colons, and our distributed
+        # domains do not have restarts with colons so that they can be easily shared across file
+        # systems
+        hydro_restart_file = check_file_exist_colon(self.sim_dir,hydro_restart_basename)
+        nudging_restart_file = check_file_exist_colon(self.sim_dir,nudging_restart_basename)
+
+        self.hydro_times['hydro_nlist']['restart_file'] = hydro_restart_file
+        self.hydro_times['nudging_nlist']['nudginglastobsfile'] = nudging_restart_file
 
     def add_hydro_namelist(self, namelist: dict):
         self.hydro_namelist = namelist
@@ -113,7 +130,8 @@ class Job(object):
             self.model_start_time, self.model_end_time = self._solve_model_start_end_times()
 
         self._set_hydro_times()
-        self.hydro_namelist.update(self.hydro_times)
+        self.hydro_namelist['hydro_nlist'].update(self.hydro_times['hydro_nlist'])
+        self.hydro_namelist['nudging_nlist'].update(self.hydro_times['nudging_nlist'])
 
 
     def add_hrldas_namelist(self, namelist: dict):
@@ -123,7 +141,7 @@ class Job(object):
                           'used from supplied namelist')
             self.model_start_time, self.model_end_time = self._solve_model_start_end_times()
         self._set_hrldas_times()
-        self.hrldas_namelist.update(self.hrldas_times)
+        self.hrldas_namelist['noahlsm_offline'].update(self.hrldas_times['noahlsm_offline'])
 
     def write_namelists(self):
         """Write namelist dicts to FORTRAN namelist files

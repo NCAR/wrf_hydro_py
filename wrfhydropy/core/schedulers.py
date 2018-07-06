@@ -1,9 +1,7 @@
 import math
-import os
 import warnings
-import getpass
 from abc import ABC, abstractmethod
-
+from .job import Job
 #This is maybe a little too smart, don't auto pick scheduler, it should be expplicity suplied via
 # the scheduler object
 # def get_sched_name():
@@ -23,21 +21,15 @@ class Scheduler(ABC):
         super().__init__()
 
     @abstractmethod
-    def add_job(self):
+    def add_job(self,
+                job: Job):
         pass
 
     @abstractmethod
-    def submit(self):
+    def schedule(self):
         pass
-
-
 
 class PBSCheyenne(Scheduler):
-    def add_job(self):
-        pass
-    def submit(self):
-        pass
-
     """A PBS/torque scheduler Job object.
 
     Initialize either with all the parameters, or with 'qsubstr' a PBS submit script as a string.
@@ -99,9 +91,6 @@ class PBSCheyenne(Scheduler):
             monitor_freq_s: int = None,
             afterok: str = None,
             array_size: int = None,
-            pmem: str = None,
-            grab_env: str = False,
-            exetime: str = None,
             job_id: str = None
     ):
 
@@ -126,26 +115,13 @@ class PBSCheyenne(Scheduler):
         self.wait_for_complete = wait_for_complete
         self.monitor_freq_s = monitor_freq_s
 
-        # Set attributes.
-
-        # Try to get a default scheduler?
-
-        # Check for required inputs
         # TODO(JLM): Deal with setting ppn from machine_spec_file.
         self.solve_nodes_cores()
-
-        # Extra Coercion
-        self.email_who = os.path.expandvars(email_who)
-        self.walltime = ':'.join((walltime + ':00').split(':')[0:3])
 
         self.nproc_last_node = (self.nproc - (self.nnodes * self.ppn)) % self.ppn
         if self.nproc_last_node > 0:
             if self.nproc_last_node >= self.ppn:
                 raise ValueError('nproc - (nnodes * ppn) = {0} >= ppn'.format(self.nproc_last_node))
-
-        # Currently unsupported.
-        self.pmem = pmem
-        self.exetime = exetime
 
         # TODO(JLM): the term job here is a bit at odds with where I'm putting the attributes
         # sched_id (this requires some refactoring with job_tools)? job_script seems ok, however.
@@ -180,6 +156,111 @@ class PBSCheyenne(Scheduler):
         # A status that depends on job being submitted and the .job_not_complete file
         # not existing being missing.
         self._sched_job_complete = False
+
+    def _compose_scheduled_python_script(
+            py_run_cmd: str,
+            model_exe_cmd: str
+    ):
+        jobstr = "#!/usr/bin/env python3\n"
+        jobstr += "\n"
+
+        jobstr += "import argparse\n"
+        jobstr += "import datetime\n"
+        jobstr += "import os\n"
+        jobstr += "import pickle\n"
+        jobstr += "import sys\n"
+        jobstr += "import wrfhydropy\n"
+        jobstr += "\n"
+
+        jobstr += "parser = argparse.ArgumentParser()\n"
+        jobstr += "parser.add_argument('--sched_job_id',\n"
+        jobstr += "                    help='The numeric part of the scheduler job ID.')\n"
+        jobstr += "parser.add_argument('--job_date_id',\n"
+        jobstr += "                    help='The date-time identifier created by Schduler obj.')\n"
+        jobstr += "args = parser.parse_args()\n"
+        jobstr += "\n"
+
+        jobstr += "print('sched_job_id: ', args.sched_job_id)\n"
+        jobstr += "print('job_date_id: ', args.job_date_id)\n"
+        jobstr += "\n"
+
+        jobstr += "run_object = pickle.load(open('WrfHydroRun.pkl', 'rb'))\n"
+        jobstr += "\n"
+
+        jobstr += "# The lowest index jobs_pending should be the job to run. Verify that it \n"
+        jobstr += "# has the same job_date_id as passed first, then set job to active.\n"
+        jobstr += "if run_object.job_active:\n"
+        jobstr += "    msg = 'There is an active job conflicting with this scheduled job.'\n"
+        jobstr += "    raise ValueError(msg)\n"
+        jobstr += "if not run_object.jobs_pending[0].job_date_id == args.job_date_id:\n"
+        jobstr += "    msg = 'The first pending job does not match the passed job_date_id.'\n"
+        jobstr += "    raise ValueError(msg)\n"
+        jobstr += "\n"
+
+        jobstr += "# Promote the job to active.\n"
+        jobstr += "run_object.job_active = run_object.jobs_pending.pop(0)\n"
+
+        jobstr += "# Set some run-time attributes of the job.\n"
+        jobstr += "run_object.job_active.py_exe_cmd = \"" + py_run_cmd + "\"\n"
+        jobstr += "run_object.job_active.scheduler.sched_job_id = args.sched_job_id\n"
+        jobstr += "run_object.job_active.exe_cmd = \"" + model_exe_cmd + "\"\n"
+        jobstr += "# Pickle before running the job.\n"
+        jobstr += "run_object.pickle()\n"
+        jobstr += "\n"
+
+        jobstr += "print(\"Running the model.\")\n"
+        jobstr += "run_object.job_active.job_start_time = str(datetime.datetime.now())\n"
+        jobstr += "run_object.job_active.run(run_object.run_dir)\n"
+        jobstr += "run_object.job_active.job_end_time = str(datetime.datetime.now())\n"
+        jobstr += "\n"
+
+        jobstr += "run_object.job_active._sched_job_complete = True\n"
+        jobstr += "run_object.jobs_completed.append(run_object.job_active)\n"
+        jobstr += "run_object.job_active = None\n"
+
+        jobstr += "print(\"Collecting model output.\")\n"
+        jobstr += "run_object.collect_output()\n"
+        jobstr += "print(\"Job completed.\")\n"
+        jobstr += "\n"
+
+        jobstr += "run_object.pickle()\n"
+        jobstr += "\n"
+        jobstr += "sys.exit(0)\n"
+
+        return jobstr
+
+    def add_job(self,
+                job: Job):
+
+        if not job.submit_array:
+            # Write python to be executed by the bash script given to the scheduler.
+            # Execute the model from python script and the python script from the bash script:
+            # swap their execution commands.
+
+            model_exe_cmd = job.exe_cmd
+            py_script_name = str(job.run_dir / (self.job_date_id + ".wrfhydropy.py"))
+            # I think it's preferable to call the abs path, but in a job array that dosent work.
+            if self.scheduler.array_size:
+                py_script_name_call = self.job_date_id + ".wrfhydropy.py"
+            else:
+                py_script_name_call = py_script_name
+
+            py_run_cmd = "python " + py_script_name_call + \
+                         " --sched_job_id $sched_job_id --job_date_id $job_date_id"
+
+            # This needs to happen before composing the scripts.
+            self.scheduler.not_submitted = False
+
+            # The python script
+            selfstr = self._compose_scheduled_python_script(py_run_cmd, model_exe_cmd)
+            with open(py_script_name, "w") as myfile:
+                myfile.write(selfstr)
+
+            # The bash submission script which calls the python script.
+            self.exe_cmd = py_run_cmd
+
+    def schedule(self):
+        pass
 
     def solve_nodes_cores(self):
         if None not in [self._nproc, self._nnodes, self._ppn]:

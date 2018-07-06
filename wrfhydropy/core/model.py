@@ -104,8 +104,9 @@ class Model(object):
             self,
             source_dir: str,
             model_config: str,
-            machine_spec: [dict, str] = None
-    ):
+            machine_spec: [dict, str] = None,
+            compiler: str = 'gfort',
+            compile_options: dict = None):
         """Instantiate a WrfHydroModel object.
         Args:
             source_dir: Directory containing the source code, e.g.
@@ -116,6 +117,10 @@ class Model(object):
             name of a known machine. Known machine names include 'cheyenne'. For an
             example of a machine specification see the 'cheyenne' machine specification using
             wrfhydropy.get_machine_spec('cheyenne').
+            compiler: The compiler to use, must be one of 'pgi','gfort',
+                'ifort', or 'luna'.
+            compile_options: Changes to default compile-time options.
+
         Returns:
             A WrfHydroModel object.
         """
@@ -127,9 +132,10 @@ class Model(object):
         """str: String indicating model configuration for compile options, must be one of 'NWM', 
         'Gridded', or 'Reach'."""
 
+        self.machine_spec = machine_spec
         if type(machine_spec) == str:
             self.machine_spec = get_machine_spec(machine_spec)
-        else:
+        if machine_spec == dict:
             self.machine_spec = check_machine_spec(machine_spec)
 
         """list: List of modules to use for model. Note these modules will be used for all 
@@ -166,21 +172,31 @@ class Model(object):
         ## Setup directory paths
         self.source_dir = pathlib.Path(source_dir).absolute()
 
-        ## Load master namelists
-        self.hydro_namelists = \
-            json.load(self.source_dir.joinpath('hydro_namelists.json').open())
-
-        self.hrldas_namelists = \
-            json.load(self.source_dir.joinpath('hrldas_namelists.json').open())
-
         ## Get code version
         with self.source_dir.joinpath('.version').open() as f:
             self.version = f.read()
+        print(self.version)
+
+        ## Get model config
+        self.model_config = model_config
+
+        ## Load master namelists
+        self.hydro_namelists = \
+            json.load(self.source_dir.joinpath('hydro_namelists.json').open())
+        self.hydro_namelists = self.hydro_namelists[self.version][self.model_config]
+
+        self.hrldas_namelists = \
+            json.load(self.source_dir.joinpath('hrldas_namelists.json').open())
+        self.hrldas_namelists = self.hrldas_namelists[self.version][self.model_config]
 
         ## Load compile options
-        self.model_config = model_config
-        compile_options = json.load(self.source_dir.joinpath('compile_options.json').open())
-        self.compile_options = compile_options[self.version][self.model_config]
+        compile_json = json.load(self.source_dir.joinpath('compile_options.json').open())
+        self.compile_options = compile_json[self.version][self.model_config]
+
+        # Add compiler and compile options as attributes and update if needed
+        self.compiler = compiler
+        if compile_options is not None:
+            self.compile_options.update(compile_options)
 
     def get_githash(self) -> str:
         """Get the git hash if source_dir is a git repository
@@ -193,43 +209,28 @@ class Model(object):
 
     def compile(
             self,
-            compiler: str,
-            compile_dir: str = None,
-            overwrite: bool = False,
-            compile_options: dict = None
-    ) -> str:
+            compile_dir: pathlib.Path) -> str:
         """Compiles WRF-Hydro using specified compiler and compile options.
         Args:
-            compiler: The compiler to use, must be one of 'pgi','gfort',
-                'ifort', or 'luna'.
             compile_dir: A non-existant directory to use for compilation.
-            overwrite: Overwrite compile directory if exists.
-            compile_options: Changes to default compile-time options.
         Returns:
             Success of compilation and compile directory used. Sets additional
             attributes to WrfHydroModel
-
         """
 
-        # A bunch of ugly logic to check compile directory.
-        if compile_dir is None:
-            self.compile_dir = self.source_dir.joinpath('Run')
-        else:
-            self.compile_dir = pathlib.Path(compile_dir).absolute()
-            if self.compile_dir.is_dir() is False:
-                self.compile_dir.mkdir(parents=True)
-            else:
-                if self.compile_dir.is_dir() is True and overwrite is True:
-                    shutil.rmtree(str(self.compile_dir))
-                    self.compile_dir.mkdir()
-                else:
-                    raise IOError(str(self.compile_dir) + ' directory already exists')
+        self.compile_dir = pathlib.Path(compile_dir)
 
-        # Add compiler and compile options as attributes and update if needed
-        self.compiler = compiler
+        # check compile directory.
+        if self.compile_dir.is_dir():
+            raise IsADirectoryError(str(self.compile_dir.absolute()) + ' directory already exists')
 
-        if compile_options is not None:
-            self.compile_options.update(compile_options)
+        # MAke compile directory
+        self.compile_dir.mkdir(parents=True)
+
+        # Remove run directory if it exists in the source_dir
+        source_compile_dir = self.source_dir.joinpath('Run')
+        if source_compile_dir.is_dir():
+            shutil.rmtree(str(source_compile_dir.absolute()))
 
         # Get directory for setEnvar
         compile_options_file = self.source_dir.joinpath('compile_options.sh')
@@ -245,7 +246,7 @@ class Model(object):
         if self.machine_spec is not None:
             modules = ' '.join(self.machine_spec['modules'][self.compiler])
             compile_cmd += 'module purge; module load ' + modules + '; '
-        compile_cmd += './configure ' + compiler + '; '
+        compile_cmd += './configure ' + self.compiler + '; '
         compile_cmd += './compile_offline_NoahMP.sh '
         compile_cmd += str(compile_options_file.absolute())
         compile_cmd += '"'
@@ -269,16 +270,16 @@ class Model(object):
             subprocess.run(['chmod', '-R', '755', str(self.source_dir.joinpath('Run'))])
 
             # Wrf hydro always puts files in source directory under a new directory called 'Run'
-            # Copy files to new directory if its not the same as the source code directory
-            if str(self.compile_dir.parent) != str(self.source_dir):
-                for file in self.source_dir.joinpath('Run').glob('*.TBL'):
-                    shutil.copyfile(file, str(self.compile_dir.joinpath(file.name)))
+            # Copy files to the specified simulation directory if its not the same as the
+            # source code directory
+            for file in self.source_dir.joinpath('Run').glob('*.TBL'):
+                shutil.copyfile(file, str(self.compile_dir.joinpath(file.name)))
 
-                shutil.copyfile(str(self.source_dir.joinpath('Run').joinpath('wrf_hydro.exe')),
-                                str(self.compile_dir.joinpath('wrf_hydro.exe')))
+            shutil.copyfile(str(self.source_dir.joinpath('Run').joinpath('wrf_hydro.exe')),
+                            str(self.compile_dir.joinpath('wrf_hydro.exe')))
 
-                # Remove old files
-                shutil.rmtree(self.source_dir.joinpath('Run'))
+            # Remove old files
+            shutil.rmtree(self.source_dir.joinpath('Run'))
 
             # Open permissions on copied compiled files
             subprocess.run(['chmod', '-R', '755', str(self.compile_dir)])
@@ -294,28 +295,28 @@ class Model(object):
             with self.compile_dir.joinpath('WrfHydroModel.pkl').open(mode='wb') as f:
                 pickle.dump(self, f, 2)
 
-            print('Model successfully compiled into ' + str(self.compile_dir))
+            print('Model successfully compiled into ' + str(self.compile_dir.absolute()))
         else:
             raise ValueError('Model did not successfully compile.')
 
-    def copy_files(self, dir: str, symlink: bool = True):
+    def copy_files(self, dest_dir: str, symlink: bool = True):
         """Copy domain files to new directory
         Args:
-            dir: The destination directory for domain files
-            symlink: Symlink domain files instead of copy
+            dest_dir: The destination directory for files
+            symlink: Symlink files instead of copy
         """
 
         # Convert dir to pathlib.Path
-        dir = pathlib.Path(dir)
+        dest_dir = pathlib.Path(dest_dir)
 
         # Make directory if it does not exist.
-        if not dir.is_dir():
-            dir.mkdir(parents=True)
+        if not dest_dir.is_dir():
+            dest_dir.mkdir(parents=True)
 
         # Loop to make symlinks/copies for each TBL file
         for from_file in self.table_files:
             # Create file paths to symlink
-            to_file = dir.joinpath(from_file.name)
+            to_file = dest_dir.joinpath(from_file.name)
             # Create symlinks
             if symlink:
                 to_file.symlink_to(from_file)
@@ -324,7 +325,7 @@ class Model(object):
 
         # Symlink/copy in exe
         from_file = self.wrf_hydro_exe
-        to_file = dir.joinpath(from_file.name)
+        to_file = dest_dir.joinpath(from_file.name)
         if symlink:
             to_file.symlink_to(from_file)
         else:

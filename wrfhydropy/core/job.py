@@ -8,6 +8,8 @@ import shlex
 import warnings
 import pickle
 import os
+import copy
+
 from .fileutilities import check_file_exist_colon
 
 class Job(object):
@@ -95,7 +97,13 @@ class Job(object):
         self._set_hrldas_times()
         self.hrldas_namelist['noahlsm_offline'].update(self.hrldas_times['noahlsm_offline'])
 
-    def run(self):
+    def clone(self, N):
+        clones = []
+        for ii in range(N):
+            clones.append(copy.deepcopy(self))
+        return(clones)
+
+    def _run(self):
         """Run the job
         """
         # Create curent dir path to use for all operations. Needed so that everything can be run
@@ -120,8 +128,8 @@ class Job(object):
                 check_file_exist_colon(current_dir, nudging_nlst['nudginglastobsfile'])
 
         # Copy namelists from job_dir to current_dir
-        hydro_namelist_path = self._rel_job_dir.joinpath('hydro.namelist')
-        hrldas_namelist_path = self._rel_job_dir.joinpath('namelist.hrldas')
+        hydro_namelist_path = self.job_dir.joinpath('hydro.namelist')
+        hrldas_namelist_path = self.job_dir.joinpath('namelist.hrldas')
         shutil.copy(str(hydro_namelist_path),str(current_dir))
         shutil.copy(str(hrldas_namelist_path),str(current_dir))
 
@@ -154,10 +162,10 @@ class Job(object):
         # cleanup job-specific run files
         diag_files = current_dir.glob('*diag*')
         for file in diag_files:
-            shutil.move(str(file), str(self._rel_job_dir))
+            shutil.move(str(file), str(self.job_dir))
 
-        shutil.move(str(self.stdout_file),str(self._rel_job_dir))
-        shutil.move(str(self.stderr_file),str(self._rel_job_dir))
+        shutil.move(str(self.stdout_file),str(self.job_dir))
+        shutil.move(str(self.stderr_file),str(self.job_dir))
         current_dir.joinpath('hydro.namelist').unlink()
         current_dir.joinpath('namelist.hrldas').unlink()
 
@@ -220,7 +228,7 @@ class Job(object):
         if self.job_dir.is_dir():
             raise IsADirectoryError(str(self.job_dir) + 'already exists')
         else:
-            self.job_dir.mkdir(parents=True)
+            self.job_dir.mkdir()
 
     def _write_run_script(self):
         self._pickle()
@@ -241,10 +249,10 @@ class Job(object):
         pystr += "job_dir = '.job_' + args.job_id + '/WrfHydroJob.pkl'\n"
         pystr += "job = pickle.load(open(job_dir,mode='rb'))\n"
         pystr += "#Run the job\n"
-        pystr += "job.run()\n"
+        pystr += "job._run()\n"
 
-        pystr_file = self.sim_dir.joinpath('run_job.py')
-        with open(str(pystr_file),mode='w') as f:
+        pystr_file = 'run_job.py'
+        with open(pystr_file,mode='w') as f:
             f.write(pystr)
 
     def _solve_model_start_end_times(self):
@@ -282,9 +290,8 @@ class Job(object):
     def job_dir(self):
         """Path: Path to the run directory"""
         job_dir_name = '.job_' + self.job_id
+        return pathlib.Path(job_dir_name)
 
-        return self.sim_dir.joinpath(job_dir_name)
-
-    @property
-    def _rel_job_dir(self):
-        return self.job_dir.relative_to(self.sim_dir)
+    #@property
+    #def _rel_job_dir(self):
+    #    return self.job_dir.relative_to(self.sim_dir)

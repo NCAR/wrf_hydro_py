@@ -69,55 +69,66 @@ class Simulation(object):
         """
 
         self.sim_dir = pathlib.Path(sim_dir)
+        print("Composing simulation into directory:'" + str(self.sim_dir) + "'")
+        if self.sim_dir.is_dir():
+            raise IsADirectoryError(str(self.sim_dir) + 'already exists')
+        else:
+            self.sim_dir.mkdir()
 
-        print("Composing simulation into directory:'" + str(self.sim_dir.absolute()) + "'")
+        # Run in simulation directory, but get current directory to cd back out
+        original_dir = os.getcwd()
+        os.chdir(self.sim_dir)
 
-        # Compile model, also makes sim_dir directory at compile time
-        print('Compiling WRF-Hydro source code...')
-        self.model.compile(compile_dir=self.sim_dir)
+        try:
+            # Compile model, also makes sim_dir directory at compile time
+            print('Compiling WRF-Hydro source code...')
+            self.model.compile(compile_dir=os.getcwd())
 
-        # Symlink in domain files
-        print('Getting domain files...')
-        self.domain.copy_files(dest_dir=self.sim_dir,symlink=symlink_domain)
+            # Symlink in domain files
+            print('Getting domain files...')
+            self.domain.copy_files(dest_dir=os.getcwd(),symlink=symlink_domain)
 
-        # Make job directories
-        print('Making job directories...')
-        for job in self.jobs:
-            job.sim_dir = self.sim_dir
-
-            # Add in base namelists form model and domain if none supplied with job
-            job.add_hrldas_namelist(self.base_hrldas_namelist)
-            job.add_hydro_namelist(self.base_hydro_namelist)
-
-            job._make_job_dir()
-            job._write_namelists() # write namelists
-
-        # Add jobs to scheduler
-        if self.scheduler is not None:
-            print('Adding jobs to scheduler...')
+            # Make job directories
+            print('Making job directories...')
             for job in self.jobs:
-                self.scheduler.add_job(job)
+                job.sim_dir = self.sim_dir
 
-        print('Simulation successfully composed')
+                # Add in base namelists form model and domain if none supplied with job
+                job.add_hrldas_namelist(self.base_hrldas_namelist)
+                job.add_hydro_namelist(self.base_hydro_namelist)
+
+                job._make_job_dir()
+                job._write_namelists() # write namelists
+
+            # Add jobs to scheduler
+            if self.scheduler is not None:
+                print('Adding jobs to scheduler...')
+                for job in self.jobs:
+                    self.scheduler.add_job(job)
+
+            print('Simulation successfully composed')
+        finally:
+            os.chdir(original_dir)
 
     def run(self):
 
         # Change to simulation directory so that all runs are relative to the sim dir.
         # This is needed so that a simulation can be run from inside the sim dir using relative
         # paths
+        #
+        # Run in simulation directory, but get current directory to cd back out
+        original_dir = os.getcwd()
+        os.chdir(self.sim_dir)
 
-        if self.scheduler is None:
-            original_dir = os.getcwd()
-            os.chdir(self.sim_dir)
+        try:
+            if self.scheduler is None:
 
-            for job in self.jobs:
-                job.run()
-
+                for job in self.jobs:
+                    job._run()
+            else:
+                self.scheduler.schedule()
+        finally:
             os.chdir(original_dir)
-
-        else:
-            self.scheduler.schedule()
-
 
     # Private methods
     def _validate_model_domain(self, model, domain):

@@ -220,11 +220,8 @@ class Model(object):
         self.compile_dir = pathlib.Path(compile_dir)
 
         # check compile directory.
-        if self.compile_dir.is_dir():
-            raise IsADirectoryError(str(self.compile_dir.absolute()) + ' directory already exists')
-
-        # MAke compile directory
-        self.compile_dir.mkdir(parents=True)
+        if not self.compile_dir.is_dir():
+            raise IsADirectoryError(str(self.compile_dir.absolute()) + ' directory does not exist')
 
         # Remove run directory if it exists in the source_dir
         source_compile_dir = self.source_dir.joinpath('Run')

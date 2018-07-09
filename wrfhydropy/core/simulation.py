@@ -2,12 +2,12 @@ from .model import Model
 from .domain import Domain
 from .schedulers import Scheduler
 from .job import Job
-from .machines import Machine
 
 import copy
 import os
 import pathlib
 
+#TODO (TJM): Add in collect method to update sim object with job statuses post run and outputs
 class Simulation(object):
     """Class for a WRF-Hydro setup object, which is comprised of a WrfHydroModel and a
     WrfHydroDomain.

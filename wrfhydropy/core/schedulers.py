@@ -67,7 +67,6 @@ class PBSCheyenne(Scheduler):
     def __init__(
             self,
             account: str,
-            sequential: bool = True,
             email_who: str = None,
             nproc: int = 36,
             nnodes: int = 2,
@@ -87,7 +86,6 @@ class PBSCheyenne(Scheduler):
         # Attribute
         self.jobs = []
         self.scheduled_jobs = []
-        self.sequential = sequential
 
         ## Scheduler options dict
         ## TODO: Make this more elegant than hard coding for maintenance sake
@@ -103,6 +101,10 @@ class PBSCheyenne(Scheduler):
     def schedule(self):
         import subprocess
         import shlex
+        import pathlib
+        import os
+
+        current_dir = pathlib.Path(os.curdir)
 
         # TODO: Find a way to protect the job order so that once someone executes schedule...
         # they can't change the order, may not be an issue except for if scheduling fails
@@ -114,6 +116,7 @@ class PBSCheyenne(Scheduler):
         pbs_jids = []
         pbs_scripts = []
 
+        qsub_str = '/bin/bash -c "'
         for job_num, option in enumerate(self.jobs):
 
             # This gets the pbs script name and pbs jid for submission
@@ -123,33 +126,24 @@ class PBSCheyenne(Scheduler):
             pbs_scripts.append(str(self.jobs[job_num].job_dir) + '/job_' + job_id + '.pbs')
             pbs_jids.append('job_' + job_id)
 
-            if self.sequential:
-                # If first job, schedule using hold
-                if job_num == 0:
-                    qsub_str = pbs_jids[job_num] + "=`qsub -h " + pbs_scripts[job_num] + "`"
-                # Else schedule using job dependency on previous pbs jid
-                else:
-                    qsub_str = pbs_jids[job_num] + "=qsub -W depend=afterok:$" + pbs_jids[
-                        job_num-1] + " " + pbs_scripts[job_num] + "`"
+            # If first job, schedule using hold
+            if job_num == 0:
+                qsub_str += pbs_jids[job_num] + "=`qsub -h " + pbs_scripts[job_num] + "`;"
+            # Else schedule using job dependency on previous pbs jid
             else:
-                    qsub_str = 'qsub ' + pbs_scripts[job_num]
-            print(qsub_str)
-            # submit_proc = subprocess.run(shlex.split(qsub_str),
-            #                              stderr=subprocess.PIPE,
-            #                              stdout=subprocess.PIPE)
-            # if submit_proc.returncode == 0:
-            #     self.scheduled_jobs.append(self.jobs[job_num])
-            # else:
-            #     print(submit_proc.stderr)
-            #     print(submit_proc.stdout)
-            #     raise RuntimeError('Scheduling of job ' + job_id + 'failed')
+                qsub_str += pbs_jids[job_num] + "=`qsub -W depend=afterok:$" + pbs_jids[
+                    job_num-1] + " " + pbs_scripts[job_num] + "`;"
 
-        # Release hold on first job to kick off the scheduling sequence if sequential
-        if self.sequential:
-            # subprocess.run(['qrls', '$' + pbs_jids[0]],
-            #                stderr=subprocess.PIPE,
-            #                stdout=subprocess.PIPE)
-            print('qrls' + ' $' + pbs_jids[0])
+        qsub_str += 'qrls $' + pbs_jids[0] + ";"
+        qsub_str += '"'
+
+        # This stacks up dependent jobs in PBS in the same order as the job list
+        subprocess.run(shlex.split(qsub_str),
+                       cwd=str(current_dir))
+
+        # This releases the first job and triggers PBS to start the job sequence
+        subprocess.run(shlex.split('qrls $' + pbs_jids[0]),
+                       cwd=str(current_dir))
 
     def _write_job_pbs(self):
         """ Write bash PBS and python scripts for submitting each job """

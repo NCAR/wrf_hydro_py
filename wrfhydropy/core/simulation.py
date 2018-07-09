@@ -2,6 +2,7 @@ from .model import Model
 from .domain import Domain
 from .schedulers import Scheduler
 from .job import Job
+from .machines import Machine
 
 import copy
 import os
@@ -61,6 +62,9 @@ class Simulation(object):
         if isinstance(obj,Job):
             self._addjob(obj)
 
+        if isinstance(obj,Machine):
+            self._addmachine(obj)
+
     def compose(self,sim_dir: pathlib.Path, symlink_domain: bool = True):
         """Compose simulation directories and files
         Args:
@@ -77,7 +81,7 @@ class Simulation(object):
 
         # Run in simulation directory, but get current directory to cd back out
         original_dir = os.getcwd()
-        os.chdir(self.sim_dir)
+        os.chdir(str(self.sim_dir))
 
         try:
             # Compile model, also makes sim_dir directory at compile time
@@ -88,9 +92,10 @@ class Simulation(object):
             print('Getting domain files...')
             self.domain.copy_files(dest_dir=os.getcwd(),symlink=symlink_domain)
 
-            # Make job directories
+            # Update job objects and make job directories
             print('Making job directories...')
             for job in self.jobs:
+                # update attributes
                 job.sim_dir = self.sim_dir
 
                 # Add in base namelists form model and domain if none supplied with job
@@ -118,7 +123,7 @@ class Simulation(object):
         #
         # Run in simulation directory, but get current directory to cd back out
         original_dir = os.getcwd()
-        os.chdir(self.sim_dir)
+        os.chdir(str(self.sim_dir))
 
         try:
             if self.scheduler is None:
@@ -217,11 +222,17 @@ class Simulation(object):
         Args:
             scheduler: The Scheduler to add
         """
-
         job = copy.deepcopy(job)
         self.jobs.append(job)
 
+    def _addmachine(self, machine: Machine):
+        """Private method to add a Machine to a Simulation
+        Args:
+            machine: The Machine to add
+        """
 
+        machine = copy.deepcopy(machine)
+        self.machine = machine
 
 
 

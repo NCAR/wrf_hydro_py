@@ -15,22 +15,22 @@ from .fileutilities import check_file_exist_colon
 class Job(object):
     def __init__(
             self,
-            exe_cmd: str,
             job_id: str,
-            entry_cmd: str = None,
-            exit_cmd: str = None,
             model_start_time: np.datetime64 = None,
-            model_end_time: np.datetime64 = None
-    ):
+            model_end_time: np.datetime64 = None,
+            exe_cmd: str = None,
+            entry_cmd: str = None,
+            exit_cmd: str = None):
 
         # Attributes set at instantiation through arguments
-        self.exe_cmd = exe_cmd
-        """str: The command to be executed."""
+        self._exe_cmd = exe_cmd
+        """str: The job-specfific command to be executed. If None command is taken from machine 
+        class"""
 
-        self.entry_cmd = entry_cmd
+        self._entry_cmd = entry_cmd
         """str: A command line command to execute before the exe_cmd"""
 
-        self.exit_cmd = exit_cmd
+        self._exit_cmd = exit_cmd
         """str: A command line command to execute after the exe_cmd"""
 
         self.job_id = job_id
@@ -62,15 +62,17 @@ class Job(object):
                             }
         """dict: the hydro namelist used for this job."""
 
+        self.exit_status = None
+        """int: The exit status of the model job parsed from WRF-Hydro diag files"""
 
         # Attributes set by Scheduler class if job is used in scheduler
-        self.job_start_time = None
+        self._job_start_time = None
         """str?: The time at the start of the execution."""
 
-        self.job_end_time = None
+        self._job_end_time = None
         """str?: The time at the end of the execution."""
 
-        self.job_submission_time = None
+        self._job_submission_time = None
         """str?: The time the job object was created."""
 
         # Property attributes
@@ -79,8 +81,8 @@ class Job(object):
     def add_hydro_namelist(self, namelist: dict):
         self.hydro_namelist = namelist
         if self.model_start_time is None or self.model_end_time is None:
-            warnings.warn('model start or end time was not specified in job, start end times will be '
-                          'used from supplied namelist')
+            warnings.warn('model start or end time was not specified in job, start end times will \
+            be used from supplied namelist')
             self.model_start_time, self.model_end_time = self._solve_model_start_end_times()
 
         self._set_hydro_times()
@@ -91,8 +93,8 @@ class Job(object):
     def add_hrldas_namelist(self, namelist: dict):
         self.hrldas_namelist = namelist
         if self.model_start_time is None or self.model_end_time is None:
-            warnings.warn('model start or end time was not specified in job, start end times will be '
-                          'used from supplied namelist')
+            warnings.warn('model start or end time was not specified in job, start end times will \
+            be used from supplied namelist')
             self.model_start_time, self.model_end_time = self._solve_model_start_end_times()
         self._set_hrldas_times()
         self.hrldas_namelist['noahlsm_offline'].update(self.hrldas_times['noahlsm_offline'])
@@ -139,13 +141,13 @@ class Job(object):
 
         # Fromulate bash command string
         cmd_string = '/bin/bash -c "'
-        if self.entry_cmd is not None:
-            cmd_string += self.entry_cmd + ';'
+        if self._entry_cmd is not None:
+            cmd_string += self._entry_cmd + ';'
 
-        cmd_string += self.exe_cmd + ';'
+        cmd_string += self._exe_cmd + ';'
 
-        if self.exit_cmd is not None:
-            cmd_string += self.exit_cmd
+        if self._exit_cmd is not None:
+            cmd_string += self._exit_cmd
 
         cmd_string += '"'
 
@@ -153,11 +155,18 @@ class Job(object):
         self.job_start_time = str(datetime.datetime.now())
 
         self._proc_log = subprocess.run(shlex.split(cmd_string),
-                                        cwd=current_dir,
-                                        stderr = open(self.stderr_file,mode='w'),
-                                        stdout = open(self.stdout_file,mode='w'))
+                                        cwd=str(current_dir),
+                                        stderr = self.stderr_file.open(mode='w'),
+                                        stdout = self.stdout_file.open(mode='w'))
 
         self.job_end_time = str(datetime.datetime.now())
+
+        # String match diag files for successfull run
+        self.exit_status = 1
+        with current_dir.joinpath('diag_hydro.00000').open() as f:
+            diag_file = f.read()
+            if 'The model finished successfully.......' in diag_file:
+                self.exit_status = 0
 
         # cleanup job-specific run files
         diag_files = current_dir.glob('*diag*')
@@ -172,8 +181,8 @@ class Job(object):
     def _write_namelists(self):
         """Write namelist dicts to FORTRAN namelist files
         """
-        f90nml.write(self.hydro_namelist, self.job_dir.joinpath('hydro.namelist'))
-        f90nml.write(self.hrldas_namelist, self.job_dir.joinpath('namelist.hrldas'))
+        f90nml.write(self.hydro_namelist, str(self.job_dir.joinpath('hydro.namelist')))
+        f90nml.write(self.hrldas_namelist, str(self.job_dir.joinpath('namelist.hrldas')))
 
     def _set_hrldas_times(self):
         # Duration
@@ -250,6 +259,7 @@ class Job(object):
         pystr += "job = pickle.load(open(job_dir,mode='rb'))\n"
         pystr += "#Run the job\n"
         pystr += "job._run()\n"
+        pystr += "job._pickle()\n"
 
         pystr_file = 'run_job.py'
         with open(pystr_file,mode='w') as f:

@@ -1,20 +1,8 @@
-import math
+# Note: All other imports for individual schedulers should be done in the respective scheduler
+# class functions so that imports can be isolated to relevant schedulers
+
 from abc import ABC, abstractmethod
 from .job import Job
-
-#This is maybe a little too smart, don't auto pick scheduler, it should be expplicity suplied via
-# the scheduler object
-# def get_sched_name():
-#     """Tries to find qsub, then sbatch. Returns "PBS" if qsub
-#     is found, else returns "slurm" if sbatch is found, else returns
-#     "other" if neither is found. """
-#     if find_executable("qsub") is not None:
-#         return "PBS"
-#     elif find_executable("sbatch") is not None:
-#         return "slurm"
-#     else:
-#         return None
-
 
 class Scheduler(ABC):
     def __init__(self):
@@ -30,7 +18,7 @@ class Scheduler(ABC):
         pass
 
 class PBSCheyenne(Scheduler):
-    """A PBS/torque scheduler Job object.
+    """A PBS scheduler Job object.
 
     Initialize either with all the parameters, or with 'qsubstr' a PBS submit script as a string.
     If 'qsubstr' is given, all other arguments are ignored and set using Job.read().
@@ -97,6 +85,7 @@ class PBSCheyenne(Scheduler):
 
         # Attribute
         self.jobs = []
+        self.scheduled_jobs = []
 
         ## Scheduler options dict
         ## TODO: Make this more elegant than hard coding for maintenance sake
@@ -110,8 +99,51 @@ class PBSCheyenne(Scheduler):
         self.jobs.append(job)
 
     def schedule(self):
+        import subprocess
+        import shlex
+        import pathlib
+        import os
+
+        current_dir = pathlib.Path(os.curdir)
+
+        # TODO: Find a way to protect the job order so that once someone executes schedule...
+        # they can't change the order, may not be an issue except for if scheduling fails
+        # somewhere
+
         self._write_job_pbs()
 
+        # Make lists to store pbs scripts and pbs job ids to get previous dependency
+        pbs_jids = []
+        pbs_scripts = []
+
+        qsub_str = '/bin/bash -c "'
+        for job_num, option in enumerate(self.jobs):
+
+            # This gets the pbs script name and pbs jid for submission
+            # the obs jid is stored in a list so that the previous jid can be retrieved for
+            # dependency
+            job_id = self.jobs[job_num].job_id
+            pbs_scripts.append(str(self.jobs[job_num].job_dir) + '/job_' + job_id + '.pbs')
+            pbs_jids.append('job_' + job_id)
+
+            # If first job, schedule using hold
+            if job_num == 0:
+                qsub_str += pbs_jids[job_num] + "=`qsub -h " + pbs_scripts[job_num] + "`;"
+            # Else schedule using job dependency on previous pbs jid
+            else:
+                qsub_str += pbs_jids[job_num] + "=`qsub -W depend=afterok:$" + pbs_jids[
+                    job_num-1] + " " + pbs_scripts[job_num] + "`;"
+
+        qsub_str += 'qrls $' + pbs_jids[0] + ";"
+        qsub_str += '"'
+
+        # This stacks up dependent jobs in PBS in the same order as the job list
+        subprocess.run(shlex.split(qsub_str),
+                       cwd=str(current_dir))
+
+        # This releases the first job and triggers PBS to start the job sequence
+        subprocess.run(shlex.split('qrls $' + pbs_jids[0]),
+                       cwd=str(current_dir))
 
     def _write_job_pbs(self):
         """ Write bash PBS and python scripts for submitting each job """
@@ -162,7 +194,7 @@ class PBSCheyenne(Scheduler):
 
             jobstr += 'python run_job.py --job_id {0}\n'.format(job.job_id)
 
-            pbs_file = job.job_dir.joinpath(job.job_id + '.pbs')
+            pbs_file = job.job_dir.joinpath('job_' + job.job_id + '.pbs')
             with pbs_file.open(mode='w') as f:
                 f.write(jobstr)
 
@@ -170,6 +202,8 @@ class PBSCheyenne(Scheduler):
             job._write_run_script()
 
     def _solve_nodes_cores(self):
+        import math
+
         if not self._nproc and self._nnodes and self._ppn:
             self._nproc = self._nnodes * self._ppn
         if not self._nnodes and self._nproc and self._ppn:

@@ -8,68 +8,6 @@ import warnings
 import os
 import shlex
 
-def get_machine_spec(machine_name: str) -> dict:
-    """Make all file paths relative to a given directory, useful for opening file
-    attributes in a run object after it has been moved or copied to a new directory or
-    system.
-    Args:
-        machine_name: Name of a known machine. Known machines include 'cheyenne' and
-        'wrfhydro_docker'
-    Returns:
-        machine specification dictionary for use with a wrfhydropy.WrfHydroModel class
-    """
-
-    known_machines = {'cheyenne':
-                          {'modules':
-                               {'base':['nco/4.6.2','python/3.6.2'],
-                                'ifort':['intel/16.0.3','ncarenv/1.2','ncarcompilers/0.4.1',
-                                         'mpt/2.15f','netcdf/4.4.1'],
-                                'gfort':['gnu/7.1.0','ncarenv/1.2','ncarcompilers/0.4.1',
-                                         'mpt/2.15','netcdf/4.4.1.1']
-                                },
-                           'scheduler':
-                               {'name':'PBS',
-                                'max_walltime':'12:00'},
-                           'cores_per_node':36,
-                           'exe_cmd':
-                               {'PBS':'mpiexec_mpt ./wrf_hydro.exe',
-                                'default': 'mpirun -np %d ./wrf_hydro.exe'
-                                }
-                           },
-                      'wrfhydro_docker':
-                          {'modules':None,
-                           'scheduler':None,
-                           'cores_per_node': None,
-                           'exe_cmd':
-                               {'default': 'mpirun -ppn %d ./wrf_hydro.exe'}
-                           }
-                      }
-    if machine_name not in known_machines.keys():
-        raise LookupError(machine_name + ' is not a known machine')
-    else:
-        return known_machines[machine_name]
-
-def check_machine_spec(machine_spec: dict) -> dict:
-    """Make all file paths relative to a given directory, useful for opening file
-    attributes in a run object after it has been moved or copied to a new directory or
-    system.
-    Args:
-        machine_name: Name of a known machine. Known machines include 'cheyenne' and
-        'wrfhydro_docker'
-    Returns:
-        The input machine specification
-    Raises:
-        KeyError if reauired keys are missing from the machine_spec dictionary
-    """
-
-    required_keys = get_machine_spec('cheyenne').keys()
-    missing_keys = list(set(required_keys) - set(machine_spec.keys()))
-
-    if machine_spec.keys() != required_keys:
-        raise KeyError('Missing the following required keys: ' + ','.join(missing_keys))
-    else:
-        return machine_spec
-
 def get_git_revision_hash(the_dir):
 
     # First test if this is even a git repo. (Have to allow for this unless the wrfhydropy
@@ -104,8 +42,8 @@ class Model(object):
             self,
             source_dir: str,
             model_config: str,
-            machine_spec: [dict, str] = None,
             compiler: str = 'gfort',
+            pre_compile_cmd: str = None,
             compile_options: dict = None):
         """Instantiate a WrfHydroModel object.
         Args:
@@ -126,58 +64,64 @@ class Model(object):
         """
 
         # Instantiate all attributes and methods
-        self.source_dir = None
+        ## Attributes set by init args
+        self.source_dir = pathlib.Path(source_dir)
         """pathlib.Path: pathlib.Path object for source code directory."""
-        self.model_config = None
+
+        self.model_config = model_config
         """str: String indicating model configuration for compile options, must be one of 'NWM', 
         'Gridded', or 'Reach'."""
 
-        self.machine_spec = machine_spec
-        if type(machine_spec) == str:
-            self.machine_spec = get_machine_spec(machine_spec)
-        if machine_spec == dict:
-            self.machine_spec = check_machine_spec(machine_spec)
+        self.compiler = compiler
+        """str: The compiler chosen at compile time."""
 
-        """list: List of modules to use for model. Note these modules will be used for all 
-        subsequent system calls for model operations."""
+        self.pre_compile_cmd = pre_compile_cmd
+        """str: Command string to be executed prior to model compilation, e.g. to load modules"""
 
-        self.hydro_namelists = dict()
-        """dict: Master dictionary of all hydro.namelists stored with the source code."""
-        self.hrldas_namelists = dict()
-        """dict: Master dictionary of all namelist.hrldas stored with the source code."""
         self.compile_options = dict()
         """dict: Compile-time options. Defaults are loaded from json file stored with source 
         code."""
+
+
+        ## Attributes set by other methods
+        self.compile_dir = None
+        """pathlib.Path: pathlib.Path object pointing to the compile directory."""
+
+        self.hydro_namelists = dict()
+        """dict: Master dictionary of all hydro.namelists stored with the source code."""
+
+        self.hrldas_namelists = dict()
+        """dict: Master dictionary of all namelist.hrldas stored with the source code."""
+
+
+
         self.git_hash = None
         self.version = None
         """str: Source code version from .version file stored with the source code."""
+
         self.compile_dir = None
         """pathlib.Path: pathlib.Path object pointing to the compile directory."""
-        self.compile_dir = None
-        """pathlib.Path: pathlib.Path object pointing to the compile directory."""
-        self.compiler = None
-        """str: The compiler chosen at compile time."""
+
         self.configure_log = None
         """CompletedProcess: The subprocess object generated at configure."""
+
         self.compile_log = None
         """CompletedProcess: The subprocess object generated at compile."""
+
         self.object_id = None
         """str: A unique id to join object to compile directory."""
+
         self.table_files = list()
         """list: pathlib.Paths to *.TBL files generated at compile-time."""
+
         self.wrf_hydro_exe = None
         """pathlib.Path: pathlib.Path to wrf_hydro.exe file generated at compile-time."""
 
-        # Set attributes
-        ## Setup directory paths
-        self.source_dir = pathlib.Path(source_dir).absolute()
 
+        # Set attributes
         ## Get code version
         with self.source_dir.joinpath('.version').open() as f:
             self.version = f.read()
-
-        ## Get model config
-        self.model_config = model_config
 
         ## Load master namelists
         self.hydro_namelists = \
@@ -191,11 +135,12 @@ class Model(object):
         ## Load compile options
         compile_json = json.load(self.source_dir.joinpath('compile_options.json').open())
         self.compile_options = compile_json[self.version][self.model_config]
+        if compile_options is not None:
+            self.compile_options.update(compile_options)
 
         # Add compiler and compile options as attributes and update if needed
         self.compiler = compiler
-        if compile_options is not None:
-            self.compile_options.update(compile_options)
+
 
     def get_githash(self) -> str:
         """Get the git hash if source_dir is a git repository
@@ -220,11 +165,8 @@ class Model(object):
         self.compile_dir = pathlib.Path(compile_dir)
 
         # check compile directory.
-        if self.compile_dir.is_dir():
-            raise IsADirectoryError(str(self.compile_dir.absolute()) + ' directory already exists')
-
-        # MAke compile directory
-        self.compile_dir.mkdir(parents=True)
+        if not self.compile_dir.is_dir():
+            raise IsADirectoryError(str(self.compile_dir.absolute()) + ' directory does not exist')
 
         # Remove run directory if it exists in the source_dir
         source_compile_dir = self.source_dir.joinpath('Run')
@@ -242,9 +184,8 @@ class Model(object):
         # Compile
         # Create compile command for machine spec
         compile_cmd = '/bin/bash -c "'
-        if self.machine_spec is not None:
-            modules = ' '.join(self.machine_spec['modules'][self.compiler])
-            compile_cmd += 'module purge; module load ' + modules + '; '
+        if self.pre_compile_cmd is not None:
+            compile_cmd += self.pre_compile_cmd + '; '
         compile_cmd += './configure ' + self.compiler + '; '
         compile_cmd += './compile_offline_NoahMP.sh '
         compile_cmd += str(compile_options_file.absolute())
@@ -272,13 +213,13 @@ class Model(object):
             # Copy files to the specified simulation directory if its not the same as the
             # source code directory
             for file in self.source_dir.joinpath('Run').glob('*.TBL'):
-                shutil.copyfile(file, str(self.compile_dir.joinpath(file.name)))
+                shutil.copyfile(str(file), str(self.compile_dir.joinpath(file.name)))
 
             shutil.copyfile(str(self.source_dir.joinpath('Run').joinpath('wrf_hydro.exe')),
                             str(self.compile_dir.joinpath('wrf_hydro.exe')))
 
             # Remove old files
-            shutil.rmtree(self.source_dir.joinpath('Run'))
+            shutil.rmtree(str(self.source_dir.joinpath('Run')))
 
             # Open permissions on copied compiled files
             subprocess.run(['chmod', '-R', '755', str(self.compile_dir)])

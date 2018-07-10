@@ -10,7 +10,7 @@ import pickle
 import os
 import copy
 
-from .fileutilities import check_file_exist_colon
+from .ioutils import _check_file_exist_colon
 
 class Job(object):
     def __init__(
@@ -75,9 +75,6 @@ class Job(object):
         self._job_submission_time = None
         """str?: The time the job object was created."""
 
-        # Property attributes
-        self._sim_dir = None
-
     def add_hydro_namelist(self, namelist: dict):
         self.hydro_namelist = namelist
         if self.model_start_time is None or self.model_end_time is None:
@@ -122,12 +119,12 @@ class Job(object):
         # Check for restart files both as specified and in the run dir..
         # Alias the mutables for some brevity
         hydro_nlst = self.hydro_namelist['hydro_nlist']
-        hydro_nlst['restart_file'] = check_file_exist_colon(current_dir, hydro_nlst[
+        hydro_nlst['restart_file'] = _check_file_exist_colon(current_dir, hydro_nlst[
             'restart_file'])
         nudging_nlst = self.hydro_namelist['nudging_nlist']
         if nudging_nlst:
             nudging_nlst['nudginglastobsfile'] = \
-                check_file_exist_colon(current_dir, nudging_nlst['nudginglastobsfile'])
+                _check_file_exist_colon(current_dir, nudging_nlst['nudginglastobsfile'])
 
         # Copy namelists from job_dir to current_dir
         hydro_namelist_path = self.job_dir.joinpath('hydro.namelist')
@@ -227,8 +224,8 @@ class Job(object):
         # This is needed because the model outputs restarts with colons, and our distributed
         # domains do not have restarts with colons so that they can be easily shared across file
         # systems
-        hydro_restart_file = check_file_exist_colon(self.sim_dir,hydro_restart_basename)
-        nudging_restart_file = check_file_exist_colon(self.sim_dir,nudging_restart_basename)
+        hydro_restart_file = _check_file_exist_colon(os.getcwd(),hydro_restart_basename)
+        nudging_restart_file = _check_file_exist_colon(os.getcwd(),nudging_restart_basename)
 
         self.hydro_times['hydro_nlist']['restart_file'] = hydro_restart_file
         self.hydro_times['nudging_nlist']['nudginglastobsfile'] = nudging_restart_file
@@ -247,6 +244,12 @@ class Job(object):
         pystr += "import wrfhydropy\n"
         pystr += "import pickle\n"
         pystr += "import argparse\n"
+        pystr += "import os\n"
+        pystr += "import pathlib\n"
+
+        pystr += "# Get path of this script to set working directory\n"
+        pystr += "sim_dir = pathlib.Path(__file__)\n"
+        pystr += "os.chdir(sim_dir.parent)\n"
 
         pystr += "parser = argparse.ArgumentParser()\n"
         pystr += "parser.add_argument('--job_id',\n"
@@ -288,20 +291,8 @@ class Job(object):
         with self.job_dir.joinpath('WrfHydroJob.pkl').open(mode='wb') as f:
             pickle.dump(self, f, 2)
 
-    # properties
-    @property
-    def sim_dir(self):
-        return self._sim_dir
-    @sim_dir.setter
-    def sim_dir(self,path):
-        self._sim_dir = pathlib.Path(path)
-
     @property
     def job_dir(self):
         """Path: Path to the run directory"""
         job_dir_name = '.job_' + self.job_id
         return pathlib.Path(job_dir_name)
-
-    #@property
-    #def _rel_job_dir(self):
-    #    return self.job_dir.relative_to(self.sim_dir)

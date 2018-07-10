@@ -2,10 +2,13 @@ from .model import Model
 from .domain import Domain
 from .schedulers import Scheduler
 from .job import Job
+from .ioutils import WrfHydroStatic, WrfHydroTs, check_input_files
 
+from typing import Union
 import copy
 import os
 import pathlib
+import pickle
 
 #TODO (TJM): Add in collect method to update sim object with job statuses post run and outputs
 class Simulation(object):
@@ -33,20 +36,11 @@ class Simulation(object):
         self.output = None
         """CompletedSim: A CompletedSim object returned by the self.collect() method"""
 
-        self.sim_dir = None
-        """pathlib.Path: Simulation directory path"""
-
         self.base_hydro_namelist = {}
         """dict: base hydro namelist produced from model and domain"""
 
         self.base_hrldas_namelist = {}
         """dict: base hrldas namelist produced from model and domain"""
-
-        self.job_hydro_namelists = {}
-        """dict: hydro namelists for each job keyed by job id"""
-
-        self.job_hrldas_namelists = {}
-        """dict: hrldas namelists for each job keyed by job id"""
 
     # Public methods
     def add(self, obj: object):
@@ -62,78 +56,75 @@ class Simulation(object):
         if isinstance(obj,Job):
             self._addjob(obj)
 
-        if isinstance(obj,Machine):
-            self._addmachine(obj)
-
-    def compose(self,sim_dir: pathlib.Path, symlink_domain: bool = True):
+    def compose(self, symlink_domain: bool = True):
         """Compose simulation directories and files
         Args:
-            sim_dir: The top-level simulation directory.
             symlink_domain: Symlink the domain files rather than copy
         """
 
-        self.sim_dir = pathlib.Path(sim_dir)
-        print("Composing simulation into directory:'" + str(self.sim_dir) + "'")
-        if self.sim_dir.is_dir():
-            raise IsADirectoryError(str(self.sim_dir) + 'already exists')
-        else:
-            self.sim_dir.mkdir()
+        print("Composing simulation into directory:'" + os.getcwd() + "'")
+        #Check that the current directory is empty
+        current_dir = pathlib.Path(os.getcwd())
+        current_dir_files = list(current_dir.rglob('*'))
+        if len(current_dir_files) > 0:
+            raise FileExistsError('Unable to compose, current working directory is not empty. '
+                                  'Change working directory to an empty directory with os.chdir()')
 
-        # Run in simulation directory, but get current directory to cd back out
-        original_dir = os.getcwd()
-        os.chdir(str(self.sim_dir))
 
-        try:
-            # Compile model, also makes sim_dir directory at compile time
-            print('Compiling WRF-Hydro source code...')
-            self.model.compile(compile_dir=os.getcwd())
 
-            # Symlink in domain files
-            print('Getting domain files...')
-            self.domain.copy_files(dest_dir=os.getcwd(),symlink=symlink_domain)
+        # Symlink in domain files
+        print('Getting domain files...')
+        self.domain.copy_files(dest_dir=os.getcwd(),symlink=symlink_domain)
 
-            # Update job objects and make job directories
-            print('Making job directories...')
+        # Update job objects and make job directories
+        print('Making job directories...')
+        for job in self.jobs:
+            # Add in base namelists form model and domain if none supplied with job
+            job.add_hrldas_namelist(self.base_hrldas_namelist)
+            job.add_hydro_namelist(self.base_hydro_namelist)
+
+            job._make_job_dir()
+            job._write_namelists() # write namelists
+
+        # Validate jobs
+        print('Validating job input files')
+        self._validate_jobs()
+
+        # Add jobs to scheduler
+        if self.scheduler is not None:
+            print('Adding jobs to scheduler...')
             for job in self.jobs:
-                # update attributes
-                job.sim_dir = self.sim_dir
+                self.scheduler.add_job(job)
 
-                # Add in base namelists form model and domain if none supplied with job
-                job.add_hrldas_namelist(self.base_hrldas_namelist)
-                job.add_hydro_namelist(self.base_hydro_namelist)
+        # Compile model
+        print('Compiling WRF-Hydro source code...')
+        self.model.compile(compile_dir=os.getcwd())
 
-                job._make_job_dir()
-                job._write_namelists() # write namelists
-
-            # Add jobs to scheduler
-            if self.scheduler is not None:
-                print('Adding jobs to scheduler...')
-                for job in self.jobs:
-                    self.scheduler.add_job(job)
-
-            print('Simulation successfully composed')
-        finally:
-            os.chdir(original_dir)
+        print('Simulation successfully composed')
 
     def run(self):
+        """Run the composed simulation"""
+        current_dir = pathlib.Path(os.curdir)
 
-        # Change to simulation directory so that all runs are relative to the sim dir.
-        # This is needed so that a simulation can be run from inside the sim dir using relative
-        # paths
-        #
-        # Run in simulation directory, but get current directory to cd back out
-        original_dir = os.getcwd()
-        os.chdir(str(self.sim_dir))
+        # Save the object out to the compile directory before run
+        with current_dir.joinpath('WrfHydroSim.pkl').open(mode='wb') as f:
+            pickle.dump(self, f, 2)
 
-        try:
-            if self.scheduler is None:
+        if self.scheduler is None:
 
-                for job in self.jobs:
-                    job._run()
-            else:
-                self.scheduler.schedule()
-        finally:
-            os.chdir(original_dir)
+            for job in self.jobs:
+                job._run()
+        else:
+            self.scheduler.schedule()
+
+        # Overwrite the object after run if successfull
+        with current_dir.joinpath('WrfHydroSim.pkl').open(mode='wb') as f:
+            pickle.dump(self, f, 2)
+
+    def collect(self):
+        """Collect simulation output after a run"""
+        self.output = SimulationOutput()
+        self.output.collect(sim_dir=os.getcwd())
 
     # Private methods
     def _validate_model_domain(self, model, domain):
@@ -148,6 +139,13 @@ class Simulation(object):
                             model.version +
                             ' not compatible with domain versions ' +
                             str(list(domain.namelist_patches.keys())))
+
+    def _validate_jobs(self):
+        for job in self.jobs:
+            print(job.job_id)
+            check_input_files(hrldas_namelist=job.hrldas_namelist,
+                                  hydro_namelist=job.hydro_namelist,
+                                  sim_dir=os.getcwd())
 
     def _set_base_namelists(self):
         # Create namelists
@@ -225,16 +223,92 @@ class Simulation(object):
         job = copy.deepcopy(job)
         self.jobs.append(job)
 
-    def _addmachine(self, machine: Machine):
-        """Private method to add a Machine to a Simulation
+class SimulationOutput(object):
+    """Class containing output objects from a completed Simulation, retrieved using the
+    Simulation.collect() method"""
+    def __init__(self):
+        self.channel_rt = None
+        """WrfHydroTs: Timeseries dataset of CHRTOUT files"""
+        self.chanobs = None
+        """WrfHydroTs: Timeseries dataset of CHANOBS files"""
+        self.lakeout = None
+        """WrfHydroTs: Timeseries dataset of LAKEOUT files"""
+        self.gwout = None
+        """WrfHydroTs: Timeseries dataset of GWOUT files"""
+        self.restart_hydro = None
+        """list: List of HYDRO_RST WrfHydroStatic objects"""
+        self.restart_lsm = None
+        """list: List of RESTART WrfHydroStatic objects"""
+        self.restart_nudging = None
+        """list: List of nudgingLastObs WrfHydroStatic objects"""
+
+    def collect(self,sim_dir: Union[str,pathlib.Path]):
+        """Collect simulation output after a run
         Args:
-            machine: The Machine to add
+            sim_dir: The simulation directory
         """
 
-        machine = copy.deepcopy(machine)
-        self.machine = machine
+        current_dir = pathlib.Path(os.curdir)
 
+        # Grab outputs as WrfHydroXX classes of file paths
+        # Get channel files
+        if len(list(current_dir.glob('*CHRTOUT*'))) > 0:
+            self.channel_rt = WrfHydroTs(list(current_dir.glob('*CHRTOUT*')))
+            # Make relative to run dir
+            # for file in self.channel_rt:
+            #     file.relative_to(file.parent)
 
+        if len(list(current_dir.glob('*CHANOBS*'))) > 0:
+            self.chanobs = WrfHydroTs(list(current_dir.glob('*CHANOBS*')))
+            # Make relative to run dir
+            # for file in self.chanobs:
+            #     file.relative_to(file.parent)
 
+        # Get Lakeout files
+        if len(list(current_dir.glob('*LAKEOUT*'))) > 0:
+            self.lakeout = WrfHydroTs(list(current_dir.glob('*LAKEOUT*')))
 
+        # Get gwout files
+        if len(list(current_dir.glob('*GWOUT*'))) > 0:
+            self.gwout = WrfHydroTs(list(current_dir.glob('*GWOUT*')))
 
+        # Get restart files and sort by modified time
+        # Hydro restarts
+        self.restart_hydro = []
+        for file in current_dir.glob('HYDRO_RST*'):
+            file = WrfHydroStatic(file)
+            self.restart_hydro.append(file)
+
+        if len(self.restart_hydro) > 0:
+            self.restart_hydro = sorted(
+                self.restart_hydro,
+                key=lambda file: file.stat().st_mtime_ns
+            )
+        else:
+            self.restart_hydro = None
+
+        ### LSM Restarts
+        self.restart_lsm = []
+        for file in current_dir.glob('RESTART*'):
+            file = WrfHydroStatic(file)
+            self.restart_lsm.append(file)
+
+        if len(self.restart_lsm) > 0:
+            self.restart_lsm = sorted(
+                self.restart_lsm,
+                key=lambda file: file.stat().st_mtime_ns
+            )
+        else:
+            self.restart_lsm = None
+
+        ### Nudging restarts
+        self.restart_nudging = []
+        for file in current_dir.glob('nudgingLastObs*'):
+            file = WrfHydroStatic(file)
+            self.restart_nudging.append(file)
+
+        if len(self.restart_nudging) > 0:
+            self.restart_nudging = sorted(self.restart_nudging,
+                                          key=lambda file: file.stat().st_mtime_ns)
+        else:
+            self.restart_nudging = None

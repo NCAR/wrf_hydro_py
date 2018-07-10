@@ -1,0 +1,200 @@
+import pandas as pd
+import warnings
+import subprocess
+import io
+import f90nml
+import deepdiff
+
+from .simulation import SimulationOutput
+
+def _compare_nc_nccmp(candidate_nc: str,
+                     reference_nc: str,
+                     nccmp_options: list = ['--data','--metadata','--force','--quiet'],
+                     exclude_vars: list = None):
+
+    """Compare two netcdf files using nccmp
+    Args:
+        candidate_nc: The path for the candidate restart file
+        ref_nc: The path for the reference restart file
+        nccmp_options: List of long-form command line options passed to nccmp,
+        see http://nccmp.sourceforge.net/ for options
+        exclude_vars: A list of strings containing variables names to
+        exclude from the comparison
+    Returns:
+        Either a pandas dataframe if possible or subprocess object
+    """
+    #Try and set files to strings
+    candidate_nc = str(candidate_nc)
+    reference_nc = str(reference_nc)
+
+    # Make list to pass to subprocess
+    command_list=['nccmp']
+
+    for item in nccmp_options:
+        command_list.append(item)
+
+    command_list.append('-S')
+
+    if exclude_vars is not None:
+        # Convert exclude_vars list into a comman separated string
+        exclude_vars = ','.join(exclude_vars)
+        #append
+        command_list.append('-x ' + exclude_vars)
+
+    command_list.append(candidate_nc)
+    command_list.append(reference_nc)
+
+    #Run the subprocess to call nccmp
+    proc = subprocess.run(command_list,
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE)
+
+    #Check return code
+    if proc.returncode != 0:
+        # Get stoud into stringio object
+        output = io.StringIO()
+        output.write(proc.stdout.decode('utf-8'))
+        output.seek(0)
+
+        # Open stringio object as pandas dataframe
+        try:
+            nccmp_out = pd.read_table(output,delim_whitespace=True,header=0)
+            return nccmp_out
+        except:
+            warnings.warn('Probleming reading nccmp output to pandas dataframe,'
+                 'returning as subprocess object')
+            return proc
+
+
+def compare_ncfiles(candidate_files: list,
+                    reference_files: list,
+                    nccmp_options: list = ['--data', '--metadata', '--force', '--quiet'],
+                    exclude_vars: list = ['ACMELT','ACSNOW','SFCRUNOFF','UDRUNOFF','ACCPRCP',
+                                           'ACCECAN','ACCEDIR','ACCETRAN','qstrmvolrt']):
+    """Compare lists of netcdf restart files element-wise. Files must have common names
+    Args:
+        candidate_files: List of candidate netcdf file paths
+        reference_files: List of reference netcdf file paths
+        nccmp_options: List of long-form command line options passed to nccmp,
+        see http://nccmp.sourceforge.net/ for options
+        exclude_vars: A list of strings containing variables names to
+        exclude from the comparison
+    Returns:
+        A named list of either pandas dataframes if possible or subprocess objects
+    """
+
+    ref_dir = reference_files[0].parent
+    output_list = []
+    for file_candidate in candidate_files:
+        file_reference = ref_dir.joinpath(file_candidate.name)
+        if file_reference.is_file():
+            nccmp_out = _compare_nc_nccmp(candidate_nc=file_candidate,
+                                         reference_nc=file_reference,
+                                         nccmp_options=nccmp_options,
+                                         exclude_vars=exclude_vars)
+            output_list.append(nccmp_out)
+        else:
+            warnings.warn(str(file_candidate) + 'not found in ' + str(ref_dir))
+    return output_list
+
+###TODO JTM: Retaining for backwards compatibility until deprecated
+compare_restarts = compare_ncfiles
+
+def diff_namelist(namelist1: str, namelist2: str, **kwargs) -> dict:
+    """Diff two fortran namelist files and return a dictionary of differences.
+
+    Args:
+        namelist1: String containing path to the first namelist file.
+        namelist2: String containing path to the second namelist file.
+        **kwargs: Additional arguments passed onto deepdiff.DeepDiff method
+    Returns:
+        The differences between the two namelists
+    """
+
+    # Read namelists into dicts
+    namelist1 = f90nml.read(namelist1)
+    namelist2 = f90nml.read(namelist2)
+    # Diff the namelists
+    differences = deepdiff.DeepDiff(namelist1, namelist2, ignore_order=True, **kwargs)
+    differences_dict = dict(differences)
+    return (differences_dict)
+
+class OutputDiffs(object):
+    def __init__(self,
+                 candidate_output: SimulationOutput,
+                 reference_output: SimulationOutput,
+                 nccmp_options: list = ['--data', '--metadata', '--force', '--quiet'],
+                 exclude_vars: list = ['ACMELT', 'ACSNOW', 'SFCRUNOFF', 'UDRUNOFF', 'ACCPRCP',
+                                       'ACCECAN', 'ACCEDIR', 'ACCETRAN', 'qstrmvolrt']):
+        """Calculate Diffs between SimulationOutput objects for two WrfHydroSim objects
+        Args:
+            candidate_output: The candidate SimulationOutput object
+            reference_output: The reference SimulationOutput object
+            nccmp_options: List of long-form command line options passed to nccmp,
+            see http://nccmp.sourceforge.net/ for options
+            exclude_vars: A list of strings containing variables names to
+            exclude from the comparison
+        Returns:
+            A DomainDirectory directory object
+        """
+        # Instantiate all attributes
+        self.diff_counts = dict()
+        """dict: Counts of diffs by restart type"""
+
+        self.channel_rt = None
+        """list: List of pandas dataframes if possible or subprocess objects containing nudging
+        restart file diffs"""
+        self.chanobs = None
+        """list: List of pandas dataframes if possible or subprocess objects containing nudging
+        restart file diffs"""
+        self.lakeout = None
+        """list: List of pandas dataframes if possible or subprocess objects containing nudging
+        restart file diffs"""
+        self.gwout = None
+        """list: List of pandas dataframes if possible or subprocess objects containing nudging
+        restart file diffs"""
+        self.restart_hydro = None
+        """list: List of pandas dataframes if possible or subprocess objects containing hydro
+        restart file diffs"""
+        self.restart_lsm = None
+        """list: List of pandas dataframes if possible or subprocess objects containing lsm restart
+        file diffs"""
+        self.restart_nudging = None
+        """list: List of pandas dataframes if possible or subprocess objects containing nudging
+        restart file diffs"""
+
+        if len(candidate_output.restart_hydro) != 0 and len(reference_output.restart_hydro) != 0:
+            self.restart_hydro = compare_ncfiles(candidate_files=candidate_output.restart_hydro,
+                                         reference_files=reference_output.restart_hydro,
+                                         nccmp_options=nccmp_options,
+                                         exclude_vars=exclude_vars)
+            diff_counts = sum(1 for _ in filter(None.__ne__, self.restart_hydro))
+            self.diff_counts.update({'restart_hydro': diff_counts})
+        else:
+            warnings.warn('length of candidate_output.restart_hydro or '
+                          'reference_output.restart_hydro is 0')
+
+        if len(candidate_output.restart_lsm) != 0 and len(reference_output.restart_lsm) != 0:
+            self.restart_lsm = compare_ncfiles(candidate_files=candidate_output.restart_lsm,
+                                       reference_files=reference_output.restart_lsm,
+                                       nccmp_options=nccmp_options,
+                                       exclude_vars=exclude_vars)
+            diff_counts = sum(1 for _ in filter(None.__ne__, self.restart_lsm))
+            self.diff_counts.update({'restart_lsm': diff_counts})
+        else:
+            warnings.warn('length of candidate_sim.restart_lsm or reference_sim.restart_lsm is 0')
+
+        if candidate_output.restart_nudging is not None or \
+                        reference_output.restart_nudging is not None:
+            if len(candidate_output.restart_nudging) != 0 and \
+                            len(reference_output.restart_nudging) != 0:
+                self.restart_nudging = compare_ncfiles(
+                    candidate_files=candidate_output.restart_nudging,
+                    reference_files=reference_output.restart_nudging,
+                    nccmp_options=nccmp_options,
+                    exclude_vars=exclude_vars)
+                diff_counts = sum(1 for _ in filter(None.__ne__, self.restart_nudging))
+                self.diff_counts.update({'restart_nudging': diff_counts})
+            else:
+                warnings.warn('length of candidate_sim.restart_nudging or '
+                              'reference_sim.restart_nudging is 0')

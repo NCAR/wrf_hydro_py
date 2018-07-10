@@ -2,7 +2,7 @@ from .model import Model
 from .domain import Domain
 from .schedulers import Scheduler
 from .job import Job
-from .fileutilities import WrfHydroStatic, WrfHydroTs
+from .ioutils import WrfHydroStatic, WrfHydroTs, check_input_files
 
 from typing import Union
 import copy
@@ -42,12 +42,6 @@ class Simulation(object):
         self.base_hrldas_namelist = {}
         """dict: base hrldas namelist produced from model and domain"""
 
-        self.job_hydro_namelists = {}
-        """dict: hydro namelists for each job keyed by job id"""
-
-        self.job_hrldas_namelists = {}
-        """dict: hrldas namelists for each job keyed by job id"""
-
     # Public methods
     def add(self, obj: object):
         if isinstance(obj, Model):
@@ -76,9 +70,7 @@ class Simulation(object):
             raise FileExistsError('Unable to compose, current working directory is not empty. '
                                   'Change working directory to an empty directory with os.chdir()')
 
-        # Compile model
-        print('Compiling WRF-Hydro source code...')
-        self.model.compile(compile_dir=os.getcwd())
+
 
         # Symlink in domain files
         print('Getting domain files...')
@@ -94,11 +86,19 @@ class Simulation(object):
             job._make_job_dir()
             job._write_namelists() # write namelists
 
+        # Validate jobs
+        print('Validating job input files')
+        self._validate_jobs()
+
         # Add jobs to scheduler
         if self.scheduler is not None:
             print('Adding jobs to scheduler...')
             for job in self.jobs:
                 self.scheduler.add_job(job)
+
+        # Compile model
+        print('Compiling WRF-Hydro source code...')
+        self.model.compile(compile_dir=os.getcwd())
 
         print('Simulation successfully composed')
 
@@ -139,6 +139,13 @@ class Simulation(object):
                             model.version +
                             ' not compatible with domain versions ' +
                             str(list(domain.namelist_patches.keys())))
+
+    def _validate_jobs(self):
+        for job in self.jobs:
+            print(job.job_id)
+            check_input_files(hrldas_namelist=job.hrldas_namelist,
+                                  hydro_namelist=job.hydro_namelist,
+                                  sim_dir=os.getcwd())
 
     def _set_base_namelists(self):
         # Create namelists
@@ -215,7 +222,6 @@ class Simulation(object):
         """
         job = copy.deepcopy(job)
         self.jobs.append(job)
-
 
 class SimulationOutput(object):
     """Class containing output objects from a completed Simulation, retrieved using the

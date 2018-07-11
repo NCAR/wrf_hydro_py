@@ -4,26 +4,18 @@ wrfhydropy.core package
 Submodules
 ----------
 
-wrfhydropy.core.dartclasses module
-----------------------------------
+wrfhydropy.core.domain module
+-----------------------------
 
-.. automodule:: wrfhydropy.core.dartclasses
+.. automodule:: wrfhydropy.core.domain
     :members:
     :undoc-members:
     :show-inheritance:
 
-wrfhydropy.core.ensemble module
--------------------------------
+wrfhydropy.core.ioutils module
+------------------------------
 
-.. automodule:: wrfhydropy.core.ensemble
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-wrfhydropy.core.ensemble\_tools module
---------------------------------------
-
-.. automodule:: wrfhydropy.core.ensemble_tools
+.. automodule:: wrfhydropy.core.ioutils
     :members:
     :undoc-members:
     :show-inheritance:
@@ -36,26 +28,34 @@ wrfhydropy.core.job module
     :undoc-members:
     :show-inheritance:
 
-wrfhydropy.core.job\_tools module
+wrfhydropy.core.model module
+----------------------------
+
+.. automodule:: wrfhydropy.core.model
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+wrfhydropy.core.outputdiffs module
+----------------------------------
+
+.. automodule:: wrfhydropy.core.outputdiffs
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+wrfhydropy.core.schedulers module
 ---------------------------------
 
-.. automodule:: wrfhydropy.core.job_tools
+.. automodule:: wrfhydropy.core.schedulers
     :members:
     :undoc-members:
     :show-inheritance:
 
-wrfhydropy.core.utilities module
---------------------------------
+wrfhydropy.core.simulation module
+---------------------------------
 
-.. automodule:: wrfhydropy.core.utilities
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-wrfhydropy.core.wrfhydroclasses module
---------------------------------------
-
-.. automodule:: wrfhydropy.core.wrfhydroclasses
+.. automodule:: wrfhydropy.core.simulation
     :members:
     :undoc-members:
     :show-inheritance:

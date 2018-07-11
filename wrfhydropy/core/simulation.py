@@ -10,7 +10,6 @@ import os
 import pathlib
 import pickle
 
-#TODO (TJM): Add in collect method to update sim object with job statuses post run and outputs
 class Simulation(object):
     """Class for a WRF-Hydro Simulation object. The Simulation object is used to orchestrate a
     WRF-Hydro simulation by accessing methods of Model, Domain, and Job objects. Optionally,

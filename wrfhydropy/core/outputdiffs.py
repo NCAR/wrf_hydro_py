@@ -97,9 +97,6 @@ def compare_ncfiles(candidate_files: list,
             warnings.warn(str(file_candidate) + 'not found in ' + str(ref_dir))
     return output_list
 
-###TODO JTM: Retaining for backwards compatibility until deprecated
-compare_restarts = compare_ncfiles
-
 def diff_namelist(namelist1: str, namelist2: str, **kwargs) -> dict:
     """Diff two fortran namelist files and return a dictionary of differences.
 
@@ -163,38 +160,16 @@ class OutputDiffs(object):
         """list: List of pandas dataframes if possible or subprocess objects containing nudging
         restart file diffs"""
 
-        if len(candidate_output.restart_hydro) != 0 and len(reference_output.restart_hydro) != 0:
-            self.restart_hydro = compare_ncfiles(candidate_files=candidate_output.restart_hydro,
-                                         reference_files=reference_output.restart_hydro,
-                                         nccmp_options=nccmp_options,
-                                         exclude_vars=exclude_vars)
-            diff_counts = sum(1 for _ in filter(None.__ne__, self.restart_hydro))
-            self.diff_counts.update({'restart_hydro': diff_counts})
-        else:
-            warnings.warn('length of candidate_output.restart_hydro or '
-                          'reference_output.restart_hydro is 0')
-
-        if len(candidate_output.restart_lsm) != 0 and len(reference_output.restart_lsm) != 0:
-            self.restart_lsm = compare_ncfiles(candidate_files=candidate_output.restart_lsm,
-                                       reference_files=reference_output.restart_lsm,
-                                       nccmp_options=nccmp_options,
-                                       exclude_vars=exclude_vars)
-            diff_counts = sum(1 for _ in filter(None.__ne__, self.restart_lsm))
-            self.diff_counts.update({'restart_lsm': diff_counts})
-        else:
-            warnings.warn('length of candidate_sim.restart_lsm or reference_sim.restart_lsm is 0')
-
-        if candidate_output.restart_nudging is not None or \
-                        reference_output.restart_nudging is not None:
-            if len(candidate_output.restart_nudging) != 0 and \
-                            len(reference_output.restart_nudging) != 0:
-                self.restart_nudging = compare_ncfiles(
-                    candidate_files=candidate_output.restart_nudging,
-                    reference_files=reference_output.restart_nudging,
-                    nccmp_options=nccmp_options,
-                    exclude_vars=exclude_vars)
-                diff_counts = sum(1 for _ in filter(None.__ne__, self.restart_nudging))
-                self.diff_counts.update({'restart_nudging': diff_counts})
-            else:
-                warnings.warn('length of candidate_sim.restart_nudging or '
-                              'reference_sim.restart_nudging is 0')
+        # Create list of attributes to diff
+        atts_list = ['channel_rt','chanobs','lakeout','gwout','restart_hydro','restart_lsm',
+                     'restart_nudging']
+        for att in atts_list:
+            candidate_att = candidate_output.__getattribute__(att)
+            reference_att = reference_output.__getattribute__(att)
+            if candidate_att is not None and reference_att is not None:
+                self.restart_hydro = compare_ncfiles(candidate_files=candidate_att,
+                                             reference_files=reference_att,
+                                             nccmp_options=nccmp_options,
+                                             exclude_vars=exclude_vars)
+                diff_counts = sum(1 for _ in filter(None.__ne__, self.restart_hydro))
+                self.diff_counts.update({att: diff_counts})

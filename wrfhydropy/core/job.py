@@ -13,6 +13,9 @@ import copy
 from .ioutils import _check_file_exist_colon
 
 class Job(object):
+    """A Job represents run-time specific information for a given WRF-Hydro run. A Simulation
+    consists of one or more jobs. For example, adding multiple Jobs can be used to split a
+    Simulation into multiple runs to limit the wall-clock duration of each individual run."""
     def __init__(
             self,
             job_id: str,
@@ -21,6 +24,17 @@ class Job(object):
             exe_cmd: str = None,
             entry_cmd: str = None,
             exit_cmd: str = None):
+        """Instatiate a Job object.
+        Args:
+            job_id: A string identify the job
+            model_start_time: The model start time to use for the WRF-Hydro model run.
+            model_end_time: The model end time to use for the WRF-Hydro model run
+            exe_cmd: The system-specific command to execute WRF-Hydro, for example 'mpirun -np
+            36./wrf_hydro.exe'
+            entry_cmd: A command to run prior to executing WRF-Hydro, such as loading modules or
+            libraries.
+            exit_cmd: A command to run after completion of the job.
+        """
 
         # Attributes set at instantiation through arguments
         self._exe_cmd = exe_cmd
@@ -76,6 +90,10 @@ class Job(object):
         """str?: The time the job object was created."""
 
     def add_hydro_namelist(self, namelist: dict):
+        """Add a hydro_namelist dictionary to the job object
+        Args:
+            namelist: The namelist dictionary to add
+        """
         self.hydro_namelist = namelist
         if self.model_start_time is None or self.model_end_time is None:
             warnings.warn('model start or end time was not specified in job, start end times will \
@@ -88,6 +106,10 @@ class Job(object):
 
 
     def add_hrldas_namelist(self, namelist: dict):
+        """Add a hrldas_namelist dictionary to the job object
+        Args:
+            namelist: The namelist dictionary to add
+        """
         self.hrldas_namelist = namelist
         if self.model_start_time is None or self.model_end_time is None:
             warnings.warn('model start or end time was not specified in job, start end times will \
@@ -96,15 +118,21 @@ class Job(object):
         self._set_hrldas_times()
         self.hrldas_namelist['noahlsm_offline'].update(self.hrldas_times['noahlsm_offline'])
 
-    def clone(self, N):
+    def clone(self, N) -> list:
+        """Clone a job object N-times using deepcopy.
+        Args:
+            N: The number of time to clone the Job
+        Returns:
+            A list of Job objects
+        """
         clones = []
         for ii in range(N):
             clones.append(copy.deepcopy(self))
         return(clones)
 
     def _run(self):
-        """Run the job
-        """
+        """Private method to run a job"""
+
         # Create curent dir path to use for all operations. Needed so that everything can be run
         # relative to the simulation directory
 
@@ -176,12 +204,12 @@ class Job(object):
         current_dir.joinpath('namelist.hrldas').unlink()
 
     def _write_namelists(self):
-        """Write namelist dicts to FORTRAN namelist files
-        """
+        """Private method to write namelist dicts to FORTRAN namelist files"""
         f90nml.write(self.hydro_namelist, str(self.job_dir.joinpath('hydro.namelist')))
         f90nml.write(self.hrldas_namelist, str(self.job_dir.joinpath('namelist.hrldas')))
 
     def _set_hrldas_times(self):
+        """Private method to set model run times in the hrldas namelist"""
         # Duration
         self.hrldas_times['noahlsm_offline']['kday'] = None
         self.hrldas_times['noahlsm_offline']['khour'] = None
@@ -211,6 +239,8 @@ class Job(object):
         self.hrldas_times['noahlsm_offline']['restart_filename_requested'] = lsm_restart_file
 
     def _set_hydro_times(self):
+        """Private method to set model run times in the hydro namelist"""
+
         hydro_restart_dirname = '.'  # os.path.dirname(hydro_nlst['restart_file'])
         # Format - 2011-08-26_00_00 - minutes
         hydro_restart_basename = 'HYDRO_RST.' + \
@@ -231,12 +261,16 @@ class Job(object):
         self.hydro_times['nudging_nlist']['nudginglastobsfile'] = nudging_restart_file
 
     def _make_job_dir(self):
+        """Private method to make the job directory"""
         if self.job_dir.is_dir():
             raise IsADirectoryError(str(self.job_dir) + 'already exists')
         else:
             self.job_dir.mkdir()
 
     def _write_run_script(self):
+        """Private method to write a python script to run the job. This is used primarily for
+        compatibility with job schedulers on HPC systems"""
+
         self._pickle()
 
         pystr = ""
@@ -269,6 +303,7 @@ class Job(object):
             f.write(pystr)
 
     def _solve_model_start_end_times(self):
+        """Private method ot get the model start and end times from the namelist"""
         noah_namelist = self.hrldas_namelist['noahlsm_offline']
         # model_start_time
         start_noah_keys = {'year': 'start_year', 'month': 'start_month',

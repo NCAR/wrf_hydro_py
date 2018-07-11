@@ -9,8 +9,7 @@ class Scheduler(ABC):
         super().__init__()
 
     @abstractmethod
-    def add_job(self,
-                job: Job):
+    def add_job(self, job: Job):
         pass
 
     @abstractmethod
@@ -18,63 +17,29 @@ class Scheduler(ABC):
         pass
 
 class PBSCheyenne(Scheduler):
-    """A PBS scheduler Job object.
-
-    Initialize either with all the parameters, or with 'qsubstr' a PBS submit script as a string.
-    If 'qsubstr' is given, all other arguments are ignored and set using Job.read().
-
-    Variables
-        On cheyenne, PBS attributes are described in `man qsub` and `man pbs_resources`.
-        See also: https://www2.cisl.ucar.edu/resources/computational-systems/cheyenne/running-jobs/submitting-jobs-pbs
-        A dictionary can be constructed in advance from specification files by the function
-        get_sched_args_from_specs().
-
-    Var Name    default            example         Notes
-      PBS usage on Chyenne
-    -------------------------------------------------------------------------------------------
-    name                           "my_job"
-      -N
-    account                        "NRAL0017"
-      -A
-    email_when                     "a","abe"       "a"bort, "b"efore, "e"nd
-      -m
-    email_who   "${USER}@ucar.edu" "johndoe@ucar.edu"
-      -M
-    queue       "regular"           "regular"
-      -q
-    walltime    "12:00"             "10:00:00"      Seconds coerced. Appropriate run times are best.
-      -l walltime=
-    afterok                         "12345:6789"   Begin after successful completion of job1:job2:etc.
-      -W depends=afterok:
-
-    array_size  -J              None               16             integer
-    grab_env    -V              None               True           logical
-
-    Sepcify: nproc, nnodes, nproc + nnodes, nproc + ppn,  nnodes + ppn
-    nproc                                          500             Number of procs
-    nodes                                          4               Number of nodes
-    ppn                        Default:            24              Number of procs/node
-                               machine_spec_file.cores_per_node
-
-    modules
-
-    -*-*-*-*-*-*-*-  FOLLOWING NOT TESTED ON CHEYENNE  -*-*-*-*-*-*-*-
-
-    pmem        -l pmem=                          "2GB"           Default is no restriction.
-    exetime     -a                                "1100"          Not tested
-    """
-
+    """A Scheduler object compatible with PBS on the NCAR Cheyenne system."""
     def __init__(
             self,
             account: str,
             email_who: str = None,
+            email_when: str = 'abe',
             nproc: int = 36,
             nnodes: int = 2,
             ppn: int = None,
-            email_when: str = 'abe',
             queue: str = 'regular',
             walltime: str = "12:00:00"):
-
+        """Initialize an PBSCheyenne object.
+        Args:
+            account: The account string
+            email_who: Email address for PBS notifications
+            email_when: PBS email frequency options. Options include 'a' for on abort,
+            'b' for before each job, and 'e' for after each job.
+            nproc: Number of processors to request
+            nnodes: Number of nodes to request
+            ppn: Number of processors per node
+            queue: The queue to use, options are 'regular', 'priority', and 'shared'
+            walltime: The wall clock time in HH:MM:SS format, max time is 12:00:00
+        """
 
         # Declare attributes.
         ## property construction
@@ -96,9 +61,11 @@ class PBSCheyenne(Scheduler):
                                'walltime':walltime}
 
     def add_job(self,job: Job):
+        """Add a job to the scheduler"""
         self.jobs.append(job)
 
     def schedule(self):
+        """Schedule jobs that have been added to the scheduler"""
         import subprocess
         import shlex
         import pathlib
@@ -146,7 +113,7 @@ class PBSCheyenne(Scheduler):
                        cwd=str(current_dir))
 
     def _write_job_pbs(self):
-        """ Write bash PBS and python scripts for submitting each job """
+        """Private method to write bash PBS scripts for submitting each job """
         for job in self.jobs:
 
             # Write PBS script
@@ -202,6 +169,8 @@ class PBSCheyenne(Scheduler):
             job._write_run_script()
 
     def _solve_nodes_cores(self):
+        """Private method to solve the number of nodes and cores if not all three specified"""
+
         import math
 
         if not self._nproc and self._nnodes and self._ppn:

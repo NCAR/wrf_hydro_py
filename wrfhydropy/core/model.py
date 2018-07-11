@@ -141,16 +141,6 @@ class Model(object):
         # Add compiler and compile options as attributes and update if needed
         self.compiler = compiler
 
-
-    def get_githash(self) -> str:
-        """Get the git hash if source_dir is a git repository
-
-        Returns:
-            git hash string
-
-        """
-        return get_git_revision_hash(self.source_dir)
-
     def compile(
             self,
             compile_dir: pathlib.Path) -> str:
@@ -270,3 +260,10 @@ class Model(object):
             to_file.symlink_to(from_file)
         else:
             shutil.copy(str(from_file), str(to_file))
+
+    def _get_githash(self) -> str:
+        """Private method to get the git hash if source_dir is a git repository
+        Returns:
+            git hash string
+        """
+        return get_git_revision_hash(self.source_dir)

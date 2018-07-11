@@ -10,11 +10,10 @@ def open_nwmdataset(paths: list,
                     chunks: dict=None,
                     forecast: bool = True) -> xr.Dataset:
     """Open a multi-file wrf-hydro output dataset
-
     Args:
         paths: List ,iterable, or generator of file paths to wrf-hydro netcdf output files
         chunks: chunks argument passed on to xarray DataFrame.chunk() method
-        forecast: If forecast the nreference time dimensions is retained, if not then
+        forecast: If forecast the reference time dimension is retained, if not then
         reference_time dimension is set to a dummy value (1970-01-01) to ease concatenation
         and analysis
     Returns:
@@ -59,6 +58,7 @@ def open_nwmdataset(paths: list,
     return nwm_dataset
 
 class WrfHydroTs(list):
+    """WRF-Hydro netcdf timeseries data class"""
     def open(self, chunks: dict = None):
         """Open a WrfHydroTs object
         Args:
@@ -71,6 +71,7 @@ class WrfHydroTs(list):
 
 
 class WrfHydroStatic(pathlib.PosixPath):
+    """WRF-Hydro static data class"""
     def open(self):
         """Open a WrfHydroStatic object
         Args:
@@ -80,13 +81,18 @@ class WrfHydroStatic(pathlib.PosixPath):
         """
         return xr.open_dataset(self)
 
-def _check_file_exist_colon(run_dir, file_str):
-    """Takes a file WITH A COLON (not without)."""
+def _check_file_exist_colon(dirpath: str, file_str: str):
+    """Private method to check if a filename containing a colon exists, accounting for renaming
+    to an underscore that is done by some systems.
+    Args:
+        dirpath: Path to directory containing files
+        file_str: Name of file containing colons to search
+    """
     if type(file_str) is not str:
         file_str = str(file_str)
     file_colon = pathlib.Path(file_str)
     file_no_colon = pathlib.Path(file_str.replace(':','_'))
-    run_dir = pathlib.Path(run_dir)
+    run_dir = pathlib.Path(dirpath)
 
     if (run_dir / file_colon).exists():
         return './' + str(file_colon)
@@ -101,13 +107,14 @@ def _touch(filename, mode=0o666, dir_fd=None, **kwargs):
         os.utime(f.fileno() if os.utime in os.supports_fd else filename,
                  dir_fd=None if os.supports_fd else dir_fd, **kwargs)
 
-def check_input_files(hydro_namelist: dict,
-                          hrldas_namelist: dict,
-                          sim_dir):
-
-    # A run object, check it's next (first pending) job for all the dependencies.
-    # This is after this jobs namelists are established.
-    # Properties of the setup_obj identify some of the required input files.
+def check_input_files(hydro_namelist: dict, hrldas_namelist: dict, sim_dir: str):
+    """Given hydro and hrldas namelists and a directory, check that all files listed in the
+    namelist exist in the specified directory.
+    Args:
+        hydro_namelist: A wrfhydropy hydro_namelist dictionary
+        file_str: A wrfhydropy hrldas_namelist dictionary
+        sim_dir: The path to the directory containing input files.
+    """
 
     def visit_is_file(path, key, value):
         if value is None:
@@ -174,9 +181,5 @@ def check_input_files(hydro_namelist: dict,
 
     check_nlst(hrldas_namelist, hrldas_file_dict)
     check_nlst(hydro_namelist, hydro_file_dict)
-
-    #Check the parameter table files: do the ones in the model match the ones in the
-    #rundir?
-    #Will this be by construction?
 
     return None

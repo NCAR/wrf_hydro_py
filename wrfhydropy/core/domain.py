@@ -8,7 +8,7 @@ from .ioutils import \
     WrfHydroTs
 
 class Domain(object):
-    """Class for a WRF-Hydro domain, which consitutes all domain-specific files needed for a
+    """Class for a WRF-Hydro domain, which constitutes all domain-specific files needed for a
     setup.
     """
 
@@ -97,7 +97,7 @@ class Domain(object):
         self.forcing_data = WrfHydroTs(self.forcing_dir.glob('*'))
 
     def copy_files(self,dest_dir: str,symlink: bool=True):
-        """Copy domain files to new directory
+        """Copy domain files to a new directory
         Args:
             dir: The destination directory for domain files
             symlink: Symlink domain files instead of copy

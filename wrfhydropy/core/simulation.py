@@ -10,15 +10,14 @@ import os
 import pathlib
 import pickle
 
-#TODO (TJM): Add in collect method to update sim object with job statuses post run and outputs
 class Simulation(object):
-    """Class for a WRF-Hydro setup object, which is comprised of a WrfHydroModel and a
-    WrfHydroDomain.
+    """Class for a WRF-Hydro Simulation object. The Simulation object is used to orchestrate a
+    WRF-Hydro simulation by accessing methods of Model, Domain, and Job objects. Optionally,
+    a scheduler can also be added.
     """
 
     def __init__(self):
-        """Instantiates a WrfHydroSetup object
-        """
+        """Instantiates a WrfHydroSetup object"""
 
         # Public attributes
         self.model = None
@@ -44,6 +43,7 @@ class Simulation(object):
 
     # Public methods
     def add(self, obj: object):
+        """Add an approparite object to a Simulation, such as a Model, Domain, Job, or Scheduler"""
         if isinstance(obj, Model):
             self._addmodel(obj)
 
@@ -55,6 +55,8 @@ class Simulation(object):
 
         if isinstance(obj,Job):
             self._addjob(obj)
+        else:
+            raise TypeError('obj is not of a type expected for a Simulation')
 
     def compose(self, symlink_domain: bool = True):
         """Compose simulation directories and files
@@ -128,7 +130,7 @@ class Simulation(object):
 
     # Private methods
     def _validate_model_domain(self, model, domain):
-        # Validate that the domain and model are compatible
+        """Private method to validate that a model and a domain are compatible"""
         if model.model_config != domain.domain_config:
             raise TypeError('Model configuration ' +
                             model.model_config +
@@ -141,6 +143,7 @@ class Simulation(object):
                             str(list(domain.namelist_patches.keys())))
 
     def _validate_jobs(self):
+        """Private method to check that all files are present for each job"""
         for job in self.jobs:
             print(job.job_id)
             check_input_files(hrldas_namelist=job.hrldas_namelist,
@@ -148,6 +151,9 @@ class Simulation(object):
                                   sim_dir=os.getcwd())
 
     def _set_base_namelists(self):
+        """Private method to create the base namelists which are added to each Job. The Job then
+        modifies the namelist times"""
+
         # Create namelists
         hydro_namelist = self.model.hydro_namelists
         hrldas_namelist = self.model.hrldas_namelists

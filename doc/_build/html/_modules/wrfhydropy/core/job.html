@@ -149,423 +149,148 @@
            <div itemprop="articleBody">
             
   <h1>Source code for wrfhydropy.core.job</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">datetime</span>
+<span></span><span class="kn">import</span> <span class="nn">pathlib</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">f90nml</span>
-<span class="kn">import</span> <span class="nn">math</span>
-<span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">import</span> <span class="nn">pathlib</span>
-<span class="kn">import</span> <span class="nn">shlex</span>
-<span class="kn">import</span> <span class="nn">socket</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
 <span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">shlex</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">copy</span>
 
-<span class="kn">from</span> <span class="nn">.job_tools</span> <span class="k">import</span> \
-    <span class="n">touch</span><span class="p">,</span> <span class="n">submit_scheduler</span><span class="p">,</span> <span class="n">PBSError</span><span class="p">,</span> \
-    <span class="n">get_sched_name</span><span class="p">,</span> <span class="n">get_machine</span><span class="p">,</span> <span class="n">get_user</span><span class="p">,</span> <span class="n">seconds</span><span class="p">,</span> \
-    <span class="n">core_dir</span><span class="p">,</span> <span class="n">default_job_spec</span><span class="p">,</span> \
-    <span class="n">compose_scheduled_python_script</span><span class="p">,</span> \
-    <span class="n">compose_scheduled_bash_script</span><span class="p">,</span>\
-    <span class="n">check_file_exist_colon</span><span class="p">,</span> \
-    <span class="n">check_job_input_files</span>
+<span class="kn">from</span> <span class="nn">.ioutils</span> <span class="k">import</span> <span class="n">_check_file_exist_colon</span>
 
-<span class="kn">from</span> <span class="nn">.job_tools</span> <span class="k">import</span> <span class="n">release</span> <span class="k">as</span> <span class="n">jt_release</span>
-
-
-<div class="viewcode-block" id="Scheduler"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Scheduler">[docs]</a><span class="k">class</span> <span class="nc">Scheduler</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;A PBS/torque or slurm scheduler Job object.</span>
-
-<span class="sd">    Initialize either with all the parameters, or with &#39;qsubstr&#39; a PBS submit script as a string.</span>
-<span class="sd">    If &#39;qsubstr&#39; is given, all other arguments are ignored and set using Job.read().</span>
-
-<span class="sd">    Variables </span>
-<span class="sd">        On cheyenne, PBS attributes are described in `man qsub` and `man pbs_resources`.</span>
-<span class="sd">        See also: https://www2.cisl.ucar.edu/resources/computational-systems/cheyenne/running-jobs/submitting-jobs-pbs</span>
-<span class="sd">        A dictionary can be constructed in advance from specification files by the function</span>
-<span class="sd">        get_sched_args_from_specs().</span>
-
-<span class="sd">    Var Name    default            example         Notes</span>
-<span class="sd">      PBS usage on Chyenne</span>
-<span class="sd">    -------------------------------------------------------------------------------------------</span>
-<span class="sd">    name                           &quot;my_job&quot;            </span>
-<span class="sd">      -N</span>
-<span class="sd">    account                        &quot;NRAL0017&quot;</span>
-<span class="sd">      -A</span>
-<span class="sd">    email_when                     &quot;a&quot;,&quot;abe&quot;       &quot;a&quot;bort, &quot;b&quot;efore, &quot;e&quot;nd</span>
-<span class="sd">      -m</span>
-<span class="sd">    email_who   &quot;${USER}@ucar.edu&quot; &quot;johndoe@ucar.edu&quot;</span>
-<span class="sd">      -M</span>
-<span class="sd">    queue       &quot;regular&quot;           &quot;regular&quot;</span>
-<span class="sd">      -q</span>
-<span class="sd">    walltime    &quot;12:00&quot;             &quot;10:00:00&quot;      Seconds coerced. Appropriate run times are best.</span>
-<span class="sd">      -l walltime=</span>
-<span class="sd">    afterok                         &quot;12345:6789&quot;   Begin after successful completion of job1:job2:etc.</span>
-<span class="sd">      -W depends=afterok:</span>
-
-<span class="sd">    array_size  -J              None               16             integer</span>
-<span class="sd">    grab_env    -V              None               True           logical</span>
-
-<span class="sd">    Sepcify: nproc, nnodes, nproc + nnodes, nproc + ppn,  nnodes + ppn</span>
-<span class="sd">    nproc                                          500             Number of procs</span>
-<span class="sd">    nodes                                          4               Number of nodes</span>
-<span class="sd">    ppn                        Default:            24              Number of procs/node</span>
-<span class="sd">                               machine_spec_file.cores_per_node</span>
-
-<span class="sd">    modules</span>
-
-<span class="sd">    -*-*-*-*-*-*-*-  FOLLOWING NOT TESTED ON CHEYENNE  -*-*-*-*-*-*-*-</span>
-
-<span class="sd">    pmem        -l pmem=                          &quot;2GB&quot;           Default is no restriction.</span>
-<span class="sd">    exetime     -a                                &quot;1100&quot;          Not tested</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">job_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">account</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">nproc</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">nnodes</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">ppn</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">email_when</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;a&quot;</span><span class="p">,</span>
-        <span class="n">email_who</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;$</span><span class="si">{USER}</span><span class="s2">@ucar.edu&quot;</span><span class="p">,</span>
-        <span class="n">queue</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;regular&#39;</span><span class="p">,</span>
-        <span class="n">walltime</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;12:00&quot;</span><span class="p">,</span>
-        <span class="n">wait_for_complete</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="n">monitor_freq_s</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">afterok</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">array_size</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">pmem</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">grab_env</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-        <span class="n">exetime</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">job_date_id</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span>
-    <span class="p">):</span>
-
-        <span class="c1"># Declare attributes.</span>
-        <span class="c1"># Required</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">job_name</span>   <span class="o">=</span> <span class="n">job_name</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">account</span>    <span class="o">=</span> <span class="n">account</span>
-
-        <span class="c1"># Defaults in arglist</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">email_when</span> <span class="o">=</span> <span class="n">email_when</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">queue</span>      <span class="o">=</span> <span class="n">queue</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">afterok</span> <span class="o">=</span> <span class="n">afterok</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">array_size</span> <span class="o">=</span> <span class="n">array_size</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">grab_env</span>   <span class="o">=</span> <span class="n">grab_env</span>
-        <span class="c1"># TODO JLM: Should probably stash the grabbed argument in this case.</span>
-        <span class="c1"># TODO JLM: is there a better variable name than grab_env?</span>
-
-        <span class="c1"># Automagically set from environment</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">sched_name</span> <span class="o">=</span> <span class="n">get_sched_name</span><span class="p">()</span>
-        <span class="c1"># TODO(JLM): remove this testing comment/hack below when not testing it.</span>
-        <span class="c1">#self.sched_version = int(re.split(&quot;[\+\ \.]&quot;, get_version())[2])</span>
-
-        <span class="c1"># Extra Coercion </span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">email_who</span>  <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expandvars</span><span class="p">(</span><span class="n">email_who</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">walltime</span>   <span class="o">=</span> <span class="s1">&#39;:&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">walltime</span><span class="o">+</span><span class="s1">&#39;:00&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">])</span>
-
-        <span class="c1"># Construction</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span>      <span class="o">=</span> <span class="n">nproc</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_nnodes</span>     <span class="o">=</span> <span class="n">nnodes</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_ppn</span>        <span class="o">=</span> <span class="n">ppn</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">_job_date_id</span> <span class="o">=</span> <span class="n">job_date_id</span>
-        
-        <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_complete</span> <span class="o">=</span> <span class="n">wait_for_complete</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">monitor_freq_s</span> <span class="o">=</span> <span class="n">monitor_freq_s</span>
-        
-        <span class="c1"># Set attributes.</span>
-
-        <span class="c1"># Try to get a default scheduler?</span>
-        
-        <span class="c1"># Check for required inputs</span>
-        <span class="c1"># TODO(JLM): Deal with setting ppn from machine_spec_file.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">solve_nodes_cores</span><span class="p">()</span>
-
-        <span class="c1"># Extra Coercion </span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">email_who</span>  <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expandvars</span><span class="p">(</span><span class="n">email_who</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">walltime</span>   <span class="o">=</span> <span class="s1">&#39;:&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">walltime</span><span class="o">+</span><span class="s1">&#39;:00&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">])</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">nproc_last_node</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nproc</span> <span class="o">-</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nnodes</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">ppn</span><span class="p">))</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">ppn</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">nproc_last_node</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">nproc_last_node</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ppn</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;nproc - (nnodes * ppn) = </span><span class="si">{0}</span><span class="s1"> &gt;= ppn&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nproc_last_node</span><span class="p">))</span>
-
-        <span class="c1"># Currently unsupported.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">pmem</span> <span class="o">=</span> <span class="n">pmem</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">exetime</span> <span class="o">=</span> <span class="n">exetime</span>
-
-        <span class="c1"># TODO(JLM): the term job here is a bit at odds with where I&#39;m putting the attributes</span>
-        <span class="c1"># sched_id (this requires some refactoring with job_tools)? job_script seems ok, however. </span>
-        <span class="c1"># sched_job_id is set at submission</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">sched_job_id</span> <span class="o">=</span> <span class="kc">None</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">job_script</span> <span class="o">=</span> <span class="kc">None</span>
-        
-        <span class="c1"># PBS has a silly stream buffer that 1) has a limit, 2) cant be seen until the job ends.</span>
-        <span class="c1"># Separate and standardize the stdout/stderr of the exe_cmd and the scheduler.</span>
-
-        <span class="c1"># The path to the model stdout&amp;stderr</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_stdout_exe</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{run_dir}</span><span class="s2">/</span><span class="si">{job_date_id}</span><span class="s2">.</span><span class="si">{sched_job_id}</span><span class="s2">.stdout&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_stderr_exe</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{run_dir}</span><span class="s2">/</span><span class="si">{job_date_id}</span><span class="s2">.</span><span class="si">{sched_job_id}</span><span class="s2">.stderr&quot;</span>
-
-        <span class="c1"># Tracejob file which holds performance information</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_tracejob_file</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{run_dir}</span><span class="s2">/</span><span class="si">{job_date_id}</span><span class="s2">.</span><span class="si">{sched_job_id}</span><span class="s2">.&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">sched_name</span> <span class="o">+</span> <span class="s2">&quot;.tracejob&quot;</span>
-
-        <span class="c1"># Dot files for the pbs stdout&amp;stderr files, both temp and final.</span>
-        <span class="c1"># The initial path to the PBS stdout&amp;stderr, during the job</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_stdout_pbs_tmp</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{run_dir}</span><span class="s2">/.</span><span class="si">{job_date_id}</span><span class="s2">.&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">sched_name</span> <span class="o">+</span> <span class="s2">&quot;.stdout&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_stderr_pbs_tmp</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{run_dir}</span><span class="s2">/.</span><span class="si">{job_date_id}</span><span class="s2">.&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">sched_name</span> <span class="o">+</span> <span class="s2">&quot;.stderr&quot;</span>
-        <span class="c1"># The eventual path to the &quot; + self.sched_name + &quot; stdout&amp;stderr, after the job</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_stdout_pbs</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{run_dir}</span><span class="s2">/.</span><span class="si">{job_date_id}</span><span class="s2">.</span><span class="si">{sched_job_id}</span><span class="s2">.&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">sched_name</span> <span class="o">+</span> <span class="s2">&quot;.stdout&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_stderr_pbs</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{run_dir}</span><span class="s2">/.</span><span class="si">{job_date_id}</span><span class="s2">.</span><span class="si">{sched_job_id}</span><span class="s2">.&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">sched_name</span> <span class="o">+</span> <span class="s2">&quot;.stderr&quot;</span>
-
-
-        <span class="c1"># A three state variable. If &quot;None&quot; then script() can be called.</span>
-        <span class="c1"># bool(None) is False so</span>
-        <span class="c1"># None = submitted = True while not_submitted = False</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">not_submitted</span> <span class="o">=</span> <span class="kc">True</span>
-
-        <span class="c1"># A status that depends on job being submitted and the .job_not_complete file</span>
-        <span class="c1"># not existing being missing.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_sched_job_complete</span> <span class="o">=</span> <span class="kc">False</span>
-
-
-<div class="viewcode-block" id="Scheduler.solve_nodes_cores"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Scheduler.solve_nodes_cores">[docs]</a>    <span class="k">def</span> <span class="nf">solve_nodes_cores</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">if</span> <span class="kc">None</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nnodes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ppn</span><span class="p">]:</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Not currently checking consistency of nproc, nnodes, ppn.&quot;</span><span class="p">)</span>
-            <span class="k">return</span>
-
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span>  <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nnodes</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ppn</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span>  <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nnodes</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ppn</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nnodes</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ppn</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_nnodes</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ppn</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ppn</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nnodes</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_ppn</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nnodes</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="kc">None</span> <span class="ow">in</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nnodes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ppn</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Not enough information to solve all of nproc, nnodes, ppn.&quot;</span><span class="p">)</span></div>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">nproc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">solve_nodes_cores</span><span class="p">()</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span>
-    <span class="nd">@nproc</span><span class="o">.</span><span class="n">setter</span>
-    <span class="k">def</span> <span class="nf">nproc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span> <span class="o">=</span> <span class="n">value</span>
-    
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">nnodes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">solve_nodes_cores</span><span class="p">()</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nnodes</span>
-    <span class="nd">@nnodes</span><span class="o">.</span><span class="n">setter</span>
-    <span class="k">def</span> <span class="nf">nnodes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_nnodes</span> <span class="o">=</span> <span class="n">value</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">ppn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">solve_nodes_cores</span><span class="p">()</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ppn</span>
-    <span class="nd">@ppn</span><span class="o">.</span><span class="n">setter</span>
-    <span class="k">def</span> <span class="nf">ppn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_ppn</span> <span class="o">=</span> <span class="n">value</span></div>
-
-
-<div class="viewcode-block" id="Job"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job">[docs]</a><span class="k">class</span> <span class="nc">Job</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span> 
+<div class="viewcode-block" id="Job"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job">[docs]</a><span class="k">class</span> <span class="nc">Job</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A Job represents run-time specific information for a given WRF-Hydro run. A Simulation</span>
+<span class="sd">    consists of one or more jobs. For example, adding multiple Jobs can be used to split a</span>
+<span class="sd">    Simulation into multiple runs to limit the wall-clock duration of each individual run.&quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
             <span class="bp">self</span><span class="p">,</span>
-            <span class="n">nproc</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-            <span class="n">exe_cmd</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">modules</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">scheduler</span><span class="p">:</span> <span class="n">Scheduler</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-            <span class="n">model_start_time</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">model_end_time</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">model_restart</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="p">):</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">exe_cmd</span> <span class="o">=</span> <span class="n">exe_cmd</span>
-        <span class="sd">&quot;&quot;&quot;str: The command to be executed. Python {}.format() evaluation available but</span>
-<span class="sd">        limited. Taken from the machine_spec.yaml file if not specified.&quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span> <span class="o">=</span> <span class="n">nproc</span>
-        <span class="sd">&quot;&quot;&quot;int: Optional, the number of processors to use. If also supplied in the scheduler</span>
-<span class="sd">        then there will be ab error.&quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">machine</span> <span class="o">=</span> <span class="n">get_machine</span><span class="p">()</span>
-        <span class="sd">&quot;&quot;&quot;str: The name of the machine being used.&quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">modules</span> <span class="o">=</span> <span class="n">modules</span>
-        <span class="sd">&quot;&quot;&quot;str: The modules to be loaded prior to execution. Taken from machine_spec.yaml </span>
-<span class="sd">        if not present.&quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span> <span class="o">=</span> <span class="n">scheduler</span>
-        <span class="sd">&quot;&quot;&quot;Scheduler: Optional, scheduler object for the job.&quot;&quot;&quot;</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">model_start_time</span> <span class="o">=</span> <span class="n">model_start_time</span>
-        <span class="sd">&quot;&quot;&quot;str?: The model time at the start of the execution.&quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">model_end_time</span> <span class="o">=</span> <span class="n">model_end_time</span>
-        <span class="sd">&quot;&quot;&quot;str?: The model time at the end of the execution.&quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">model_restart</span> <span class="o">=</span> <span class="n">model_restart</span>
-        <span class="sd">&quot;&quot;&quot;bool: Look for restart files at modelstart_time?&quot;&quot;&quot;</span>
-
-        <span class="c1"># These are only outputs/atts of the object.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">namelist_hrldas</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="sd">&quot;&quot;&quot;dict: the HRLDAS namelist used for this job.&quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">hydro_namelist</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="sd">&quot;&quot;&quot;dict: the hydro namelist used for this job.&quot;&quot;&quot;</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">namelist_hrldas_file</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="sd">&quot;&quot;&quot;dict: the file containing the HRLDAS namelist used for this job.&quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">hydro_namelist_file</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="sd">&quot;&quot;&quot;dict: the file containing the hydro namelist used for this job.&quot;&quot;&quot;</span>
-
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">job_status</span> <span class="o">=</span> <span class="s2">&quot;created&quot;</span>
-        <span class="sd">&quot;&quot;&quot;str: The status of the job object: created/submitted/running/complete.&quot;&quot;&quot;</span>
-
-        <span class="c1"># #################################</span>
-        <span class="c1"># Attributes solved from the environment at run time or later (not now).</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="sd">&quot;&quot;&quot;str: Determine who the user is.&quot;&quot;&quot;</span>
-
-        <span class="c1"># TODO(JLM): this is admittedly a bit dodgy because sensitive info</span>
-        <span class="c1"># might be in the environment (github authtoken?)</span>
-        <span class="c1"># Are there parts of the env we must have?</span>
-        <span class="c1"># self.environment = None</span>
-        
-        <span class="bp">self</span><span class="o">.</span><span class="n">job_date_id</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="sd">&quot;&quot;&quot;str: The job date identifier at &#39;submission&#39; time.&quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">job_start_time</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="sd">&quot;&quot;&quot;str?: The time at the start of the execution.&quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">job_end_time</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="sd">&quot;&quot;&quot;str?: The time at the end of the execution.&quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">job_submission_time</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="sd">&quot;&quot;&quot;str?: The time the job object was created.&quot;&quot;&quot;</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">exit_status</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="sd">&quot;&quot;&quot;int: The exit value of the model execution.&quot;&quot;&quot;</span>
-
-        <span class="sd">&quot;&quot;&quot;pathlib.PosixPath: The tracejob/performance/profiling file.&quot;&quot;&quot;</span>
-
-        <span class="sd">&quot;&quot;&quot;pathlib.PosixPath: The standard out file.&quot;&quot;&quot;</span>
-
-        <span class="sd">&quot;&quot;&quot;pathlib.PosixPath: The standard error file.&quot;&quot;&quot;</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">diag_files</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="sd">&quot;&quot;&quot;pathlib.PosixPath: The diag files for the job.&quot;&quot;&quot;</span>
-
-        <span class="c1"># #################################</span>
-        <span class="c1"># Setting better defaults.</span>
-
-        <span class="c1"># If there is no scheduler on the machine. Do not allow a scheduler object.</span>
-        <span class="k">if</span> <span class="n">get_sched_name</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># Allow coercion from a dict to a scheduler object.</span>
-            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span> <span class="o">=</span> <span class="n">Scheduler</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">)</span>
-            
-        <span class="c1"># ###################################</span>
-        <span class="c1"># Deal with the potential conflict between the job ncores and the scheduler ncores.</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">:</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">nproc</span><span class="p">:</span>
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">nproc</span> <span class="o">!=</span> <span class="n">nproc</span><span class="p">:</span>
-                    <span class="n">error_msg</span>  <span class="o">=</span> <span class="s2">&quot;The number of cores passed to the job does not match the &quot;</span>
-                    <span class="n">error_msg</span> <span class="o">+=</span> <span class="s2">&quot;number of cores specified in the job&#39;s scheduler.&quot;</span>
-                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">error_msg</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">nproc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nproc</span>
-
-        <span class="c1"># TODO(JLM): Maybe this should be done first and overwritten?</span>
-        <span class="c1"># TODO(JLM): For missing job/scheduler properties, attempt to get defaults.</span>
-        <span class="c1"># These are in a file in the package dir. Where?</span>
-        <span class="c1"># A method (used by  django) about specifying the root dir of the project.</span>
-        <span class="c1"># https://stackoverflow.com/questions/25389095/python-get-path-of-root-project-structure</span>
-        <span class="c1">#self.build_default_job(self)</span>
-        <span class="n">default_job</span> <span class="o">=</span> <span class="n">default_job_spec</span><span class="p">(</span><span class="n">machine</span><span class="o">=</span><span class="n">get_machine</span><span class="p">())</span>
-        <span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="n">default_job</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-            <span class="k">if</span> <span class="n">ii</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">default_job</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Using docker default for missing Job argument &#39;</span> <span class="o">+</span> <span class="n">ii</span><span class="p">)</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span> <span class="o">=</span> <span class="n">default_job</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">nproc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">nproc</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">nproc</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span>
-    <span class="nd">@nproc</span><span class="o">.</span><span class="n">setter</span>
-    <span class="k">def</span> <span class="nf">nproc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span> <span class="o">=</span> <span class="n">value</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">nproc</span> <span class="o">=</span> <span class="n">value</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">nproc</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nproc</span>
-
-
-<div class="viewcode-block" id="Job.schedule"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job.schedule">[docs]</a>    <span class="k">def</span> <span class="nf">schedule</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">run_dir</span><span class="p">,</span>
-        <span class="n">hold</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">object</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Scheulde a run of the wrf_hydro simulation</span>
+            <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">model_start_time</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">datetime64</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">model_end_time</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">datetime64</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">exe_cmd</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">entry_cmd</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">exit_cmd</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Instatiate a Job object.</span>
 <span class="sd">        Args:</span>
-<span class="sd">            self: A Self object</span>
+<span class="sd">            job_id: A string identify the job</span>
+<span class="sd">            model_start_time: The model start time to use for the WRF-Hydro model run.</span>
+<span class="sd">            model_end_time: The model end time to use for the WRF-Hydro model run</span>
+<span class="sd">            exe_cmd: The system-specific command to execute WRF-Hydro, for example &#39;mpirun -np</span>
+<span class="sd">            36./wrf_hydro.exe&#39;</span>
+<span class="sd">            entry_cmd: A command to run prior to executing WRF-Hydro, such as loading modules or</span>
+<span class="sd">            libraries.</span>
+<span class="sd">            exit_cmd: A command to run after completion of the job.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="c1"># Deal with the shared queue here, since it affects both scripts.</span>
-        <span class="k">if</span> <span class="n">get_machine</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;cheyenne&#39;</span> <span class="ow">and</span> \
-           <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">nnodes</span><span class="o">-</span><span class="mi">1</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> \
-           <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">nproc_last_node</span> <span class="o">&lt;=</span> <span class="mi">18</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">queue</span> <span class="o">=</span> <span class="s1">&#39;share&#39;</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Less than 18 procesors requested, using the &#39;share&#39; queue.&quot;</span><span class="p">)</span>
-            <span class="n">find</span><span class="o">=</span><span class="s1">&#39;mpiexec_mpt&#39;</span>
-            <span class="n">repl</span><span class="o">=</span><span class="s1">&#39;mpirun </span><span class="si">{hostname}</span><span class="s1"> -np &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nproc</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">exe_cmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">exe_cmd</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">find</span><span class="p">,</span> <span class="n">repl</span><span class="p">)</span>
+        <span class="c1"># Attributes set at instantiation through arguments</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_exe_cmd</span> <span class="o">=</span> <span class="n">exe_cmd</span>
+        <span class="sd">&quot;&quot;&quot;str: The job-specfific command to be executed. If None command is taken from machine </span>
+<span class="sd">        class&quot;&quot;&quot;</span>
 
-        <span class="c1"># Write python to be executed by the bash script given to the scheduler.</span>
-        <span class="c1"># Execute the model from python script and the python script from the bash script:</span>
-        <span class="c1"># swap their execution commands.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_entry_cmd</span> <span class="o">=</span> <span class="n">entry_cmd</span>
+        <span class="sd">&quot;&quot;&quot;str: A command line command to execute before the exe_cmd&quot;&quot;&quot;</span>
 
-        <span class="n">model_exe_cmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">exe_cmd</span>
-        <span class="n">py_script_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">run_dir</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_date_id</span> <span class="o">+</span> <span class="s2">&quot;.wrfhydropy.py&quot;</span><span class="p">))</span>
-        <span class="n">py_run_cmd</span> <span class="o">=</span> <span class="s2">&quot;python &quot;</span> <span class="o">+</span> <span class="n">py_script_name</span> <span class="o">+</span> \
-                     <span class="s2">&quot; --sched_job_id $sched_job_id --job_date_id $job_date_id&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_exit_cmd</span> <span class="o">=</span> <span class="n">exit_cmd</span>
+        <span class="sd">&quot;&quot;&quot;str: A command line command to execute after the exe_cmd&quot;&quot;&quot;</span>
 
-        <span class="c1"># This needs to happen before composing the scripts.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">not_submitted</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_id</span> <span class="o">=</span> <span class="n">job_id</span>
+        <span class="sd">&quot;&quot;&quot;str: The job id.&quot;&quot;&quot;</span>
 
-        <span class="c1"># The python script</span>
-        <span class="n">selfstr</span> <span class="o">=</span> <span class="n">compose_scheduled_python_script</span><span class="p">(</span><span class="n">py_run_cmd</span><span class="p">,</span> <span class="n">model_exe_cmd</span><span class="p">)</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">py_script_name</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">myfile</span><span class="p">:</span>
-            <span class="n">myfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">selfstr</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model_start_time</span> <span class="o">=</span> <span class="n">model_start_time</span>
+        <span class="sd">&quot;&quot;&quot;np.datetime64: The model time at the start of the execution.&quot;&quot;&quot;</span>
 
-        <span class="c1"># The bash submission script which calls the python script.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">exe_cmd</span> <span class="o">=</span> <span class="n">py_run_cmd</span>
-        <span class="n">filename</span> <span class="o">=</span> <span class="n">run_dir</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_date_id</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">sched_name</span> <span class="o">+</span> <span class="s1">&#39;.job&#39;</span><span class="p">)</span>
-        <span class="n">jobstr</span> <span class="o">=</span> <span class="n">compose_scheduled_bash_script</span><span class="p">(</span><span class="n">run_dir</span><span class="o">=</span><span class="n">run_dir</span><span class="p">,</span> <span class="n">job</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">myfile</span><span class="p">:</span>
-            <span class="n">myfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">jobstr</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model_end_time</span> <span class="o">=</span> <span class="n">model_end_time</span>
+        <span class="sd">&quot;&quot;&quot;np.datetime64: The model time at the end of the execution.&quot;&quot;&quot;</span>
 
-        <span class="k">try</span><span class="p">:</span>
+        <span class="c1"># Attributes set by class methods</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hrldas_times</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">:</span>
+                                 <span class="p">{</span><span class="s1">&#39;kday&#39;</span><span class="p">:</span><span class="kc">None</span><span class="p">,</span>
+                                  <span class="s1">&#39;khour&#39;</span><span class="p">:</span><span class="kc">None</span><span class="p">,</span>
+                                  <span class="s1">&#39;start_year&#39;</span><span class="p">:</span><span class="kc">None</span><span class="p">,</span>
+                                  <span class="s1">&#39;start_month&#39;</span><span class="p">:</span><span class="kc">None</span><span class="p">,</span>
+                                  <span class="s1">&#39;start_day&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                                  <span class="s1">&#39;start_hour&#39;</span><span class="p">:</span><span class="kc">None</span><span class="p">,</span>
+                                  <span class="s1">&#39;start_min&#39;</span><span class="p">:</span><span class="kc">None</span><span class="p">,</span>
+                                  <span class="s1">&#39;restart_filename_requested&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+                             <span class="p">}</span>
+        <span class="sd">&quot;&quot;&quot;dict: the HRLDAS namelist used for this job.&quot;&quot;&quot;</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">sched_job_id</span> <span class="o">=</span> <span class="n">submit_scheduler</span><span class="p">(</span><span class="n">substr</span><span class="o">=</span><span class="nb">bytearray</span><span class="p">(</span><span class="n">jobstr</span><span class="p">,</span> <span class="s1">&#39;utf-8&#39;</span><span class="p">),</span>
-                                                           <span class="n">sched_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">sched_name</span><span class="p">,</span>
-                                                           <span class="n">hold</span><span class="o">=</span><span class="n">hold</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hydro_times</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;hydro_nlist&#39;</span><span class="p">:</span>
+                                <span class="p">{</span><span class="s1">&#39;restart_file&#39;</span><span class="p">:</span><span class="kc">None</span><span class="p">},</span>
+                            <span class="s1">&#39;nudging_nlist&#39;</span><span class="p">:</span>
+                                <span class="p">{</span><span class="s1">&#39;nudginglastobsfile&#39;</span><span class="p">:</span><span class="kc">None</span><span class="p">}</span>
+                            <span class="p">}</span>
+        <span class="sd">&quot;&quot;&quot;dict: the hydro namelist used for this job.&quot;&quot;&quot;</span>
 
-        <span class="k">except</span> <span class="n">PBSError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">not_submitted</span> <span class="o">=</span> <span class="kc">True</span>
-            <span class="k">raise</span> <span class="n">e</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exit_status</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="sd">&quot;&quot;&quot;int: The exit status of the model job parsed from WRF-Hydro diag files&quot;&quot;&quot;</span>
 
-        <span class="c1"># TODO(JLM): should make this a helper method</span>
-        <span class="n">touch</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">run_dir</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;/.job_not_complete&#39;</span><span class="p">)</span></div>
+        <span class="c1"># Attributes set by Scheduler class if job is used in scheduler</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_job_start_time</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="sd">&quot;&quot;&quot;str?: The time at the start of the execution.&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_job_end_time</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="sd">&quot;&quot;&quot;str?: The time at the end of the execution.&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_job_submission_time</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="sd">&quot;&quot;&quot;str?: The time the job object was created.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Job.add_hydro_namelist"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job.add_hydro_namelist">[docs]</a>    <span class="k">def</span> <span class="nf">add_hydro_namelist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">namelist</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Add a hydro_namelist dictionary to the job object</span>
+<span class="sd">        Args:</span>
+<span class="sd">            namelist: The namelist dictionary to add</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hydro_namelist</span> <span class="o">=</span> <span class="n">namelist</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_start_time</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_end_time</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;model start or end time was not specified in job, start end times will </span><span class="se">\</span>
+<span class="s1">            be used from supplied namelist&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model_start_time</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_end_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_solve_model_start_end_times</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_hydro_times</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hydro_namelist</span><span class="p">[</span><span class="s1">&#39;hydro_nlist&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hydro_times</span><span class="p">[</span><span class="s1">&#39;hydro_nlist&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hydro_namelist</span><span class="p">[</span><span class="s1">&#39;nudging_nlist&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hydro_times</span><span class="p">[</span><span class="s1">&#39;nudging_nlist&#39;</span><span class="p">])</span></div>
 
 
-<div class="viewcode-block" id="Job.release"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job.release">[docs]</a>    <span class="k">def</span> <span class="nf">release</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span><span class="p">(</span><span class="n">jt_release</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">))</span></div>
+<div class="viewcode-block" id="Job.add_hrldas_namelist"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job.add_hrldas_namelist">[docs]</a>    <span class="k">def</span> <span class="nf">add_hrldas_namelist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">namelist</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Add a hrldas_namelist dictionary to the job object</span>
+<span class="sd">        Args:</span>
+<span class="sd">            namelist: The namelist dictionary to add</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hrldas_namelist</span> <span class="o">=</span> <span class="n">namelist</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_start_time</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_end_time</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;model start or end time was not specified in job, start end times will </span><span class="se">\</span>
+<span class="s1">            be used from supplied namelist&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model_start_time</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_end_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_solve_model_start_end_times</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_hrldas_times</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hrldas_namelist</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">])</span></div>
 
+<div class="viewcode-block" id="Job.clone"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job.clone">[docs]</a>    <span class="k">def</span> <span class="nf">clone</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Clone a job object N-times using deepcopy.</span>
+<span class="sd">        Args:</span>
+<span class="sd">            N: The number of time to clone the Job</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            A list of Job objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">clones</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">):</span>
+            <span class="n">clones</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+        <span class="k">return</span><span class="p">(</span><span class="n">clones</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Job.run"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">run_dir</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Private method to run a job&quot;&quot;&quot;</span>
 
-        <span class="c1"># TODO(JLM): does the job[&#39;mode&#39;] need checked at this point?</span>
+        <span class="c1"># Create curent dir path to use for all operations. Needed so that everything can be run</span>
+        <span class="c1"># relative to the simulation directory</span>
 
-        <span class="c1"># Create the namelists for the job and link to the generic namelists names.</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Running job &#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_date_id</span> <span class="o">+</span> <span class="s1">&#39;: &#39;</span><span class="p">)</span>
+        <span class="n">current_dir</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">curdir</span><span class="p">)</span>
+
+        <span class="c1"># Print some basic info about the run</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Running job &#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_id</span> <span class="o">+</span> <span class="s1">&#39;: &#39;</span><span class="p">)</span>
         <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;    Wall start time: &#39;</span> <span class="o">+</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">))</span>
         <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;    Model start time: &#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_start_time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M&#39;</span><span class="p">))</span>
         <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;    Model end time: &#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_end_time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M&#39;</span><span class="p">))</span>
@@ -573,205 +298,190 @@
         <span class="c1"># Check for restart files both as specified and in the run dir..</span>
         <span class="c1"># Alias the mutables for some brevity</span>
         <span class="n">hydro_nlst</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hydro_namelist</span><span class="p">[</span><span class="s1">&#39;hydro_nlist&#39;</span><span class="p">]</span>
-        <span class="n">hydro_nlst</span><span class="p">[</span><span class="s1">&#39;restart_file&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">check_file_exist_colon</span><span class="p">(</span><span class="n">run_dir</span><span class="p">,</span> <span class="n">hydro_nlst</span><span class="p">[</span><span class="s1">&#39;restart_file&#39;</span><span class="p">])</span>
+        <span class="n">hydro_nlst</span><span class="p">[</span><span class="s1">&#39;restart_file&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_check_file_exist_colon</span><span class="p">(</span><span class="n">current_dir</span><span class="p">,</span> <span class="n">hydro_nlst</span><span class="p">[</span>
+            <span class="s1">&#39;restart_file&#39;</span><span class="p">])</span>
         <span class="n">nudging_nlst</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hydro_namelist</span><span class="p">[</span><span class="s1">&#39;nudging_nlist&#39;</span><span class="p">]</span>
         <span class="k">if</span> <span class="n">nudging_nlst</span><span class="p">:</span>
             <span class="n">nudging_nlst</span><span class="p">[</span><span class="s1">&#39;nudginglastobsfile&#39;</span><span class="p">]</span> <span class="o">=</span> \
-                <span class="n">check_file_exist_colon</span><span class="p">(</span><span class="n">run_dir</span><span class="p">,</span> <span class="n">nudging_nlst</span><span class="p">[</span><span class="s1">&#39;nudginglastobsfile&#39;</span><span class="p">])</span>
+                <span class="n">_check_file_exist_colon</span><span class="p">(</span><span class="n">current_dir</span><span class="p">,</span> <span class="n">nudging_nlst</span><span class="p">[</span><span class="s1">&#39;nudginglastobsfile&#39;</span><span class="p">])</span>
 
-        <span class="n">check_job_input_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">run_dir</span><span class="p">)</span>
+        <span class="c1"># Copy namelists from job_dir to current_dir</span>
+        <span class="n">hydro_namelist_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;hydro.namelist&#39;</span><span class="p">)</span>
+        <span class="n">hrldas_namelist_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;namelist.hrldas&#39;</span><span class="p">)</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">hydro_namelist_path</span><span class="p">),</span><span class="nb">str</span><span class="p">(</span><span class="n">current_dir</span><span class="p">))</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">hrldas_namelist_path</span><span class="p">),</span><span class="nb">str</span><span class="p">(</span><span class="n">current_dir</span><span class="p">))</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">write_namelists</span><span class="p">(</span><span class="n">run_dir</span><span class="p">)</span>
+        <span class="c1"># These dont have the sched_job_id that the scheduled job output files have.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stderr_file</span> <span class="o">=</span> <span class="n">current_dir</span> <span class="o">/</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">.stderr&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stdout_file</span> <span class="o">=</span> <span class="n">current_dir</span> <span class="o">/</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">.stdout&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">:</span>
+        <span class="c1"># Fromulate bash command string</span>
+        <span class="n">cmd_string</span> <span class="o">=</span> <span class="s1">&#39;/bin/bash -c &quot;&#39;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_entry_cmd</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">cmd_string</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_entry_cmd</span> <span class="o">+</span> <span class="s1">&#39;;&#39;</span>
 
-            <span class="c1"># This is for when the submitted script calls the run method.</span>
-            <span class="c1"># Note that this exe_cmd is for a python script which executes and optionally</span>
-            <span class="c1"># waits for the model (it&#39;s NOT direct execution of the model).</span>
-            <span class="c1"># TODO(JLM): Not sure why hostname: is in the following.</span>
-            <span class="c1">#            This may be deprecated 5/18/2018</span>
-            <span class="c1">#exe_cmd = self.exe_cmd.format(**{&#39;hostname&#39;: socket.gethostname()}) + &quot; 2&gt; {0} 1&gt; {1}&quot;</span>
-            <span class="n">exe_cmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">exe_cmd</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="s1">&#39;nproc&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">nproc</span><span class="p">})</span>
-            <span class="n">exe_cmd</span> <span class="o">+=</span> <span class="s2">&quot; 2&gt; </span><span class="si">{0}</span><span class="s2"> 1&gt; </span><span class="si">{1}</span><span class="s2">&quot;</span>
-            <span class="n">exe_cmd</span> <span class="o">=</span> <span class="n">exe_cmd</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stderr_exe</span><span class="p">(</span><span class="n">run_dir</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">stdout_exe</span><span class="p">(</span><span class="n">run_dir</span><span class="p">))</span>
-            <span class="n">exe_cmd</span> <span class="o">=</span> <span class="n">shlex</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">exe_cmd</span><span class="p">)</span>
-            <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">exe_cmd</span><span class="p">,</span> <span class="n">cwd</span><span class="o">=</span><span class="n">run_dir</span><span class="p">)</span>
+        <span class="n">cmd_string</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_exe_cmd</span> <span class="o">+</span> <span class="s1">&#39;;&#39;</span>
 
-        <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_exit_cmd</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">cmd_string</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_exit_cmd</span>
 
-            <span class="c1"># These dont have the sched_job_id that the scheduled job output files have.</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">stderr_file</span> <span class="o">=</span> <span class="n">run_dir</span> <span class="o">/</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">.stderr&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_date_id</span><span class="p">))</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">stdout_file</span> <span class="o">=</span> <span class="n">run_dir</span> <span class="o">/</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">.stdout&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_date_id</span><span class="p">))</span>
+        <span class="n">cmd_string</span> <span class="o">+=</span> <span class="s1">&#39;&quot;&#39;</span>
 
-            <span class="c1"># source the modules before execution.</span>
-            <span class="n">exe_cmd</span> <span class="o">=</span> <span class="s1">&#39;/bin/bash -c &quot;&#39;</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">modules</span><span class="p">:</span>
-                <span class="n">exe_cmd</span> <span class="o">+=</span> <span class="s2">&quot;module purge &amp;&amp; module load &quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">modules</span> <span class="o">+</span> <span class="s2">&quot; &amp;&amp; &quot;</span>
-            <span class="n">exe_cmd</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">exe_cmd</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="s1">&#39;nproc&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">nproc</span><span class="p">})</span>
-            <span class="n">exe_cmd</span> <span class="o">+=</span> <span class="s2">&quot; 2&gt; </span><span class="si">{0}</span><span class="s2"> 1&gt; </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stderr_file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">stdout_file</span><span class="p">)</span>
-            <span class="n">exe_cmd</span> <span class="o">+=</span> <span class="s1">&#39;&quot;&#39;</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">exe_cmd</span> <span class="o">=</span> <span class="n">exe_cmd</span>
+        <span class="c1"># Set start time of job execution</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_start_time</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">())</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">job_status</span><span class="o">=</span><span class="s1">&#39;running&#39;</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">job_start_time</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">())</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">run_log</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-                <span class="n">shlex</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">exe_cmd</span><span class="p">),</span>
-                <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
-                <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
-                <span class="n">cwd</span><span class="o">=</span><span class="n">run_dir</span>
-            <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">job_end_time</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">())</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">job_status</span><span class="o">=</span><span class="s1">&#39;completed&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_proc_log</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">shlex</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">cmd_string</span><span class="p">),</span>
+                                        <span class="n">cwd</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">current_dir</span><span class="p">),</span>
+                                        <span class="n">stderr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stderr_file</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;w&#39;</span><span class="p">),</span>
+                                        <span class="n">stdout</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stdout_file</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;w&#39;</span><span class="p">))</span>
 
-        <span class="c1"># TODO(JLM): The following be made a method which checks the run.</span>
-        <span class="c1">#            The following should not be run if the scheduler is not waiting.</span>
-        <span class="c1">#            Put this in collect_run?</span>
-        <span class="k">try</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_end_time</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">())</span>
 
-            <span class="c1"># Get diag files</span>
-            <span class="c1"># TODO(JLM): diag_files should be scrapped orrenamed to no conflict between jobs.</span>
-            <span class="n">run_dir_posix</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">PosixPath</span><span class="p">(</span><span class="n">run_dir</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">diag_files</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">run_dir_posix</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;diag_hydro.*&#39;</span><span class="p">))</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">stdout_file</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">run_dir_posix</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_date_id</span><span class="o">+</span><span class="s1">&#39;.*stdout&#39;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">stderr_file</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">run_dir_posix</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_date_id</span><span class="o">+</span><span class="s1">&#39;.*stderr&#39;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">tracejob_file</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">run_dir_posix</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_date_id</span><span class="o">+</span><span class="s1">&#39;.*tracejob&#39;</span><span class="p">))</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tracejob_file</span><span class="p">):</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">tracejob_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tracejob_file</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">tracejob_file</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="c1"># String match diag files for successfull run</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exit_status</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">with</span> <span class="n">current_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;diag_hydro.00000&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">open</span><span class="p">()</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">diag_file</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+            <span class="k">if</span> <span class="s1">&#39;The model finished successfully.......&#39;</span> <span class="ow">in</span> <span class="n">diag_file</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">exit_status</span> <span class="o">=</span> <span class="mi">0</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">exit_status</span> <span class="o">=</span> <span class="mi">1</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">job_status</span><span class="o">=</span><span class="s1">&#39;completed failure&#39;</span>
-            <span class="c1"># String match diag files for successfull run</span>
-            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">run_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;diag_hydro.00000&#39;</span><span class="p">))</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-                <span class="n">diag_file</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
-                <span class="k">if</span> <span class="s1">&#39;The model finished successfully.......&#39;</span> <span class="ow">in</span> <span class="n">diag_file</span><span class="p">:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">exit_status</span> <span class="o">=</span> <span class="mi">0</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">job_status</span><span class="o">=</span><span class="s1">&#39;completed success&#39;</span>
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Could not parse diag files&#39;</span><span class="p">)</span> 
-            <span class="nb">print</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>    </div>
+        <span class="c1"># cleanup job-specific run files</span>
+        <span class="n">diag_files</span> <span class="o">=</span> <span class="n">current_dir</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;*diag*&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">diag_files</span><span class="p">:</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">file</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="p">))</span>
 
+        <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stdout_file</span><span class="p">),</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="p">))</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stderr_file</span><span class="p">),</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="p">))</span>
+        <span class="n">current_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;hydro.namelist&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
+        <span class="n">current_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;namelist.hrldas&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
 
-<div class="viewcode-block" id="Job.write_namelists"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job.write_namelists">[docs]</a>    <span class="k">def</span> <span class="nf">write_namelists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">run_dir</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_write_namelists</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Private method to write namelist dicts to FORTRAN namelist files&quot;&quot;&quot;</span>
+        <span class="n">f90nml</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hydro_namelist</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;hydro.namelist&#39;</span><span class="p">)))</span>
+        <span class="n">f90nml</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hrldas_namelist</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;namelist.hrldas&#39;</span><span class="p">)))</span>
 
-        <span class="c1"># TODO(JLM): make the setup namelists @properties without setter (protect them)</span>
-        <span class="c1"># write hydro.namelist for the job</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">hydro_namelist_file</span> <span class="o">=</span>  <span class="n">run_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_date_id</span> <span class="o">+</span> <span class="s1">&#39;.hydro.namelist&#39;</span><span class="p">)</span>
-        <span class="n">f90nml</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hydro_namelist</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">hydro_namelist_file</span><span class="p">)</span>
-        <span class="n">nlst_file</span> <span class="o">=</span> <span class="n">run_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;hydro.namelist&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">nlst_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-            <span class="n">nlst_file</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
-        <span class="n">nlst_file</span><span class="o">.</span><span class="n">symlink_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hydro_namelist_file</span><span class="p">)</span>
-
-        <span class="c1"># write namelist.hrldas</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">namelist_hrldas_file</span> <span class="o">=</span> <span class="n">run_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_date_id</span> <span class="o">+</span> <span class="s1">&#39;.namelist.hrldas&#39;</span><span class="p">)</span>
-        <span class="n">f90nml</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">namelist_hrldas</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">namelist_hrldas_file</span><span class="p">)</span>
-        <span class="n">nlst_file</span> <span class="o">=</span> <span class="n">run_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;namelist.hrldas&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">nlst_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-            <span class="n">nlst_file</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
-        <span class="n">nlst_file</span><span class="o">.</span><span class="n">symlink_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">namelist_hrldas_file</span><span class="p">)</span></div>
-
-
-    <span class="c1">#######################################################</span>
-    <span class="c1"># These can probably be made properties that may set on job or job.scheduler.</span>
-<div class="viewcode-block" id="Job.stdout_exe"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job.stdout_exe">[docs]</a>    <span class="k">def</span> <span class="nf">stdout_exe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">run_dir</span><span class="p">):</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">eval_std_file_vars</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">_stdout_exe</span><span class="p">,</span> <span class="n">run_dir</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="kc">None</span></div>
-<div class="viewcode-block" id="Job.stderr_exe"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job.stderr_exe">[docs]</a>    <span class="k">def</span> <span class="nf">stderr_exe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">run_dir</span><span class="p">):</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">eval_std_file_vars</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">_stderr_exe</span><span class="p">,</span> <span class="n">run_dir</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="kc">None</span></div>
-<div class="viewcode-block" id="Job.tracejob_file"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job.tracejob_file">[docs]</a>    <span class="k">def</span> <span class="nf">tracejob_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">run_dir</span><span class="p">):</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">eval_std_file_vars</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">_tracejob_file</span><span class="p">,</span> <span class="n">run_dir</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="kc">None</span></div>
-<div class="viewcode-block" id="Job.stdout_pbs"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job.stdout_pbs">[docs]</a>    <span class="k">def</span> <span class="nf">stdout_pbs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">run_dir</span><span class="p">):</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">eval_std_file_vars</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">_stdout_pbs</span><span class="p">,</span> <span class="n">run_dir</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="kc">None</span></div>
-<div class="viewcode-block" id="Job.stderr_pbs"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job.stderr_pbs">[docs]</a>    <span class="k">def</span> <span class="nf">stderr_pbs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">run_dir</span><span class="p">):</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">eval_std_file_vars</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">_stderr_pbs</span><span class="p">,</span> <span class="n">run_dir</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="kc">None</span></div>
-<div class="viewcode-block" id="Job.stdout_pbs_tmp"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job.stdout_pbs_tmp">[docs]</a>    <span class="k">def</span> <span class="nf">stdout_pbs_tmp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">run_dir</span><span class="p">):</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">eval_std_file_vars</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">_stdout_pbs_tmp</span><span class="p">,</span> <span class="n">run_dir</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="kc">None</span></div>
-<div class="viewcode-block" id="Job.stderr_pbs_tmp"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job.stderr_pbs_tmp">[docs]</a>    <span class="k">def</span> <span class="nf">stderr_pbs_tmp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">run_dir</span><span class="p">):</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">eval_std_file_vars</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">_stderr_pbs_tmp</span><span class="p">,</span> <span class="n">run_dir</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="kc">None</span></div>
-
-<div class="viewcode-block" id="Job.eval_std_file_vars"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job.eval_std_file_vars">[docs]</a>    <span class="k">def</span> <span class="nf">eval_std_file_vars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">the_str</span><span class="p">,</span> <span class="n">run_dir</span><span class="p">):</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">not_submitted</span><span class="p">:</span>
-            <span class="k">return</span><span class="p">(</span><span class="n">the_str</span><span class="p">)</span>
-        <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;run_dir&#39;</span><span class="p">:</span> <span class="n">run_dir</span><span class="p">,</span>
-                <span class="s1">&#39;job_date_id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_date_id</span><span class="p">,</span>
-                <span class="s1">&#39;sched_job_id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">sched_job_id</span><span class="p">}</span>
-        <span class="k">if</span> <span class="nb">dict</span><span class="p">[</span><span class="s1">&#39;sched_job_id&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="s1">&#39;sched_job_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;$</span><span class="si">{sched_job_id}</span><span class="s1">&#39;</span>
-        <span class="k">return</span><span class="p">(</span><span class="n">the_str</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">**</span><span class="nb">dict</span><span class="p">))</span></div>
-
-
-<div class="viewcode-block" id="Job.apply_model_start_end_job_namelists"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job.apply_model_start_end_job_namelists">[docs]</a>    <span class="k">def</span> <span class="nf">apply_model_start_end_job_namelists</span><span class="p">(</span>
-        <span class="bp">self</span>
-    <span class="p">):</span>
-
-        <span class="c1"># Refs</span>
-        <span class="n">noah_nlst</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">namelist_hrldas</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">]</span>
-        <span class="n">hydro_nlst</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hydro_namelist</span><span class="p">[</span><span class="s1">&#39;hydro_nlist&#39;</span><span class="p">]</span>
-
+    <span class="k">def</span> <span class="nf">_set_hrldas_times</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Private method to set model run times in the hrldas namelist&quot;&quot;&quot;</span>
         <span class="c1"># Duration</span>
-        <span class="n">noah_nlst</span><span class="p">[</span><span class="s1">&#39;kday&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="n">noah_nlst</span><span class="p">[</span><span class="s1">&#39;khour&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">][</span><span class="s1">&#39;kday&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">][</span><span class="s1">&#39;khour&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">duration</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_end_time</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_start_time</span>
         <span class="k">if</span> <span class="n">duration</span><span class="o">.</span><span class="n">seconds</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">noah_nlst</span><span class="p">[</span><span class="s1">&#39;kday&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">duration</span><span class="o">.</span><span class="n">days</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">][</span><span class="s1">&#39;kday&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">duration</span><span class="o">.</span><span class="n">days</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;khour&#39;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">noah_nlst</span><span class="p">[</span><span class="s1">&#39;khour&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">duration</span><span class="o">.</span><span class="n">days</span><span class="o">*</span><span class="mi">60</span> <span class="o">+</span> <span class="n">duration</span><span class="o">.</span><span class="n">seconds</span><span class="o">/</span><span class="mi">3600</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">][</span><span class="s1">&#39;khour&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">duration</span><span class="o">.</span><span class="n">days</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">+</span> <span class="n">duration</span><span class="o">.</span><span class="n">seconds</span> <span class="o">/</span> <span class="mi">3600</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;kday&#39;</span><span class="p">)</span>
 
         <span class="c1"># Start</span>
-        <span class="n">noah_nlst</span><span class="p">[</span><span class="s1">&#39;start_year&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_start_time</span><span class="o">.</span><span class="n">year</span><span class="p">)</span>
-        <span class="n">noah_nlst</span><span class="p">[</span><span class="s1">&#39;start_month&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_start_time</span><span class="o">.</span><span class="n">month</span><span class="p">)</span>
-        <span class="n">noah_nlst</span><span class="p">[</span><span class="s1">&#39;start_day&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_start_time</span><span class="o">.</span><span class="n">day</span><span class="p">)</span>
-        <span class="n">noah_nlst</span><span class="p">[</span><span class="s1">&#39;start_hour&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_start_time</span><span class="o">.</span><span class="n">hour</span><span class="p">)</span>
-        <span class="n">noah_nlst</span><span class="p">[</span><span class="s1">&#39;start_min&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_start_time</span><span class="o">.</span><span class="n">minute</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">][</span><span class="s1">&#39;start_year&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_start_time</span><span class="o">.</span><span class="n">year</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">][</span><span class="s1">&#39;start_month&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_start_time</span><span class="o">.</span><span class="n">month</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">][</span><span class="s1">&#39;start_day&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_start_time</span><span class="o">.</span><span class="n">day</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">][</span><span class="s1">&#39;start_hour&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_start_time</span><span class="o">.</span><span class="n">hour</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">][</span><span class="s1">&#39;start_min&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_start_time</span><span class="o">.</span><span class="n">minute</span><span class="p">)</span>
 
-        <span class="c1"># Restart</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_restart</span><span class="p">:</span>
-            <span class="n">restart_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_start_time</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># Though it will be commented, make it obvious.</span>
-            <span class="n">restart_time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="mi">9999</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">9</span><span class="p">)</span>
+        <span class="n">lsm_restart_dirname</span> <span class="o">=</span> <span class="s1">&#39;.&#39;</span>  <span class="c1"># os.path.dirname(noah_nlst[&#39;restart_filename_requested&#39;])</span>
 
-        <span class="n">lsm_restart_dirname</span> <span class="o">=</span> <span class="s1">&#39;.&#39;</span> <span class="c1">#os.path.dirname(noah_nlst[&#39;restart_filename_requested&#39;])</span>
-        <span class="n">hydro_restart_dirname</span> <span class="o">=</span> <span class="s1">&#39;.&#39;</span> <span class="c1">#os.path.dirname(hydro_nlst[&#39;restart_file&#39;])</span>
-
-        <span class="c1">#2011082600 - no minutes</span>
+        <span class="c1"># Format - 2011082600 - no minutes</span>
         <span class="n">lsm_restart_basename</span> <span class="o">=</span> <span class="s1">&#39;RESTART.&#39;</span> <span class="o">+</span> \
                                <span class="bp">self</span><span class="o">.</span><span class="n">model_start_time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y%m</span><span class="si">%d</span><span class="s1">%H&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;_DOMAIN1&#39;</span>
-        <span class="c1">#2011-08-26_00_00 - minutes</span>
+
+        <span class="n">lsm_restart_file</span> <span class="o">=</span> <span class="n">lsm_restart_dirname</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">lsm_restart_basename</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">][</span><span class="s1">&#39;restart_filename_requested&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lsm_restart_file</span>
+
+    <span class="k">def</span> <span class="nf">_set_hydro_times</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Private method to set model run times in the hydro namelist&quot;&quot;&quot;</span>
+
+        <span class="n">hydro_restart_dirname</span> <span class="o">=</span> <span class="s1">&#39;.&#39;</span>  <span class="c1"># os.path.dirname(hydro_nlst[&#39;restart_file&#39;])</span>
+        <span class="c1"># Format - 2011-08-26_00_00 - minutes</span>
         <span class="n">hydro_restart_basename</span> <span class="o">=</span> <span class="s1">&#39;HYDRO_RST.&#39;</span> <span class="o">+</span> \
                                  <span class="bp">self</span><span class="o">.</span><span class="n">model_start_time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">_%H:%M&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;_DOMAIN1&#39;</span>
 
-        <span class="n">lsm_restart_file</span> <span class="o">=</span> <span class="n">lsm_restart_dirname</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">lsm_restart_basename</span>
-        <span class="n">hydro_restart_file</span> <span class="o">=</span> <span class="n">hydro_restart_dirname</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">hydro_restart_basename</span>
+        <span class="c1"># Format - 2011-08-26_00_00 - seconds</span>
+        <span class="n">nudging_restart_basename</span> <span class="o">=</span> <span class="s1">&#39;nudgingLastObs.&#39;</span> <span class="o">+</span> \
+                                 <span class="bp">self</span><span class="o">.</span><span class="n">model_start_time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">_%H:%M:%S&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.nc&#39;</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_restart</span><span class="p">:</span>
-            <span class="n">lsm_restart_file</span> <span class="o">=</span> <span class="s1">&#39;!!! &#39;</span> <span class="o">+</span> <span class="n">lsm_restart_file</span>
-            <span class="n">hydro_restart_file</span> <span class="o">=</span> <span class="s1">&#39;!!! &#39;</span> <span class="o">+</span> <span class="n">hydro_restart_file</span>
+        <span class="c1"># Use convenience function to return name of file with or without colons in name</span>
+        <span class="c1"># This is needed because the model outputs restarts with colons, and our distributed</span>
+        <span class="c1"># domains do not have restarts with colons so that they can be easily shared across file</span>
+        <span class="c1"># systems</span>
+        <span class="n">hydro_restart_file</span> <span class="o">=</span> <span class="n">_check_file_exist_colon</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">(),</span><span class="n">hydro_restart_basename</span><span class="p">)</span>
+        <span class="n">nudging_restart_file</span> <span class="o">=</span> <span class="n">_check_file_exist_colon</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">(),</span><span class="n">nudging_restart_basename</span><span class="p">)</span>
 
-        <span class="n">noah_nlst</span><span class="p">[</span><span class="s1">&#39;restart_filename_requested&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lsm_restart_file</span>
-        <span class="n">hydro_nlst</span><span class="p">[</span><span class="s1">&#39;restart_file&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">hydro_restart_file</span></div></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hydro_times</span><span class="p">[</span><span class="s1">&#39;hydro_nlist&#39;</span><span class="p">][</span><span class="s1">&#39;restart_file&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">hydro_restart_file</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hydro_times</span><span class="p">[</span><span class="s1">&#39;nudging_nlist&#39;</span><span class="p">][</span><span class="s1">&#39;nudginglastobsfile&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">nudging_restart_file</span>
 
+    <span class="k">def</span> <span class="nf">_make_job_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Private method to make the job directory&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">IsADirectoryError</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;already exists&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_write_run_script</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Private method to write a python script to run the job. This is used primarily for</span>
+<span class="sd">        compatibility with job schedulers on HPC systems&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pickle</span><span class="p">()</span>
+
+        <span class="n">pystr</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;# import modules</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;import wrfhydropy</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;import pickle</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;import argparse</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;import os</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;import pathlib</span><span class="se">\n</span><span class="s2">&quot;</span>
+
+        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;# Get path of this script to set working directory</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;sim_dir = pathlib.Path(__file__)</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;os.chdir(sim_dir.parent)</span><span class="se">\n</span><span class="s2">&quot;</span>
+
+        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;parser = argparse.ArgumentParser()</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;parser.add_argument(&#39;--job_id&#39;,</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;                    help=&#39;The numeric part of the scheduler job ID.&#39;)</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;args = parser.parse_args()</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+
+        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;#load job object</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;job_dir = &#39;.job_&#39; + args.job_id + &#39;/WrfHydroJob.pkl&#39;</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;job = pickle.load(open(job_dir,mode=&#39;rb&#39;))</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;#Run the job</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;job._run()</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;job._pickle()</span><span class="se">\n</span><span class="s2">&quot;</span>
+
+        <span class="n">pystr_file</span> <span class="o">=</span> <span class="s1">&#39;run_job.py&#39;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">pystr_file</span><span class="p">,</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">pystr</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_solve_model_start_end_times</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Private method ot get the model start and end times from the namelist&quot;&quot;&quot;</span>
+        <span class="n">noah_namelist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hrldas_namelist</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">]</span>
+        <span class="c1"># model_start_time</span>
+        <span class="n">start_noah_keys</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;year&#39;</span><span class="p">:</span> <span class="s1">&#39;start_year&#39;</span><span class="p">,</span> <span class="s1">&#39;month&#39;</span><span class="p">:</span> <span class="s1">&#39;start_month&#39;</span><span class="p">,</span>
+                           <span class="s1">&#39;day&#39;</span><span class="p">:</span> <span class="s1">&#39;start_day&#39;</span><span class="p">,</span> <span class="s1">&#39;hour&#39;</span><span class="p">:</span> <span class="s1">&#39;start_hour&#39;</span><span class="p">,</span> <span class="s1">&#39;minute&#39;</span><span class="p">:</span> <span class="s1">&#39;start_min&#39;</span><span class="p">}</span>
+        <span class="n">start_noah_times</span> <span class="o">=</span> <span class="p">{</span><span class="n">kk</span><span class="p">:</span> <span class="n">noah_namelist</span><span class="p">[</span><span class="n">vv</span><span class="p">]</span> <span class="k">for</span> <span class="p">(</span><span class="n">kk</span><span class="p">,</span> <span class="n">vv</span><span class="p">)</span> <span class="ow">in</span> <span class="n">start_noah_keys</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="n">model_start_time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="o">**</span><span class="n">start_noah_times</span><span class="p">)</span>
+
+        <span class="c1"># model_end_time</span>
+        <span class="k">if</span> <span class="s1">&#39;khour&#39;</span> <span class="ow">in</span> <span class="n">noah_namelist</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">duration</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;hours&#39;</span><span class="p">:</span> <span class="n">noah_namelist</span><span class="p">[</span><span class="s1">&#39;khour&#39;</span><span class="p">]}</span>
+        <span class="k">elif</span> <span class="s1">&#39;kday&#39;</span> <span class="ow">in</span> <span class="n">noah_namelist</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">duration</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;days&#39;</span><span class="p">:</span> <span class="n">noah_namelist</span><span class="p">[</span><span class="s1">&#39;kday&#39;</span><span class="p">]}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Neither KDAY nor KHOUR in namelist.hrldas.&quot;</span><span class="p">)</span>
+        <span class="n">model_end_time</span> <span class="o">=</span> <span class="n">model_start_time</span> <span class="o">+</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="o">**</span><span class="n">duration</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">model_start_time</span><span class="p">,</span> <span class="n">model_end_time</span>
+
+    <span class="k">def</span> <span class="nf">_pickle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;WrfHydroJob.pkl&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">job_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Path: Path to the run directory&quot;&quot;&quot;</span>
+        <span class="n">job_dir_name</span> <span class="o">=</span> <span class="s1">&#39;.job_&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_id</span>
+        <span class="k">return</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">job_dir_name</span><span class="p">)</span></div>
 </pre></div>
 
            </div>

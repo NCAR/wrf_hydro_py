@@ -46,14 +46,11 @@ class Simulation(object):
         """Add an approparite object to a Simulation, such as a Model, Domain, Job, or Scheduler"""
         if isinstance(obj, Model):
             self._addmodel(obj)
-
-        if isinstance(obj, Domain):
+        elif isinstance(obj, Domain):
             self._adddomain(obj)
-
-        if issubclass(type(obj),Scheduler):
+        elif issubclass(type(obj),Scheduler):
             self._addscheduler(obj)
-
-        if isinstance(obj,Job):
+        elif isinstance(obj,Job):
             self._addjob(obj)
         else:
             raise TypeError('obj is not of a type expected for a Simulation')
@@ -144,11 +141,19 @@ class Simulation(object):
 
     def _validate_jobs(self):
         """Private method to check that all files are present for each job"""
+        counter = 0
         for job in self.jobs:
+            counter += 1
             print(job.job_id)
+            if counter == 0:
+                ignore_restarts = False
+            else:
+                ignore_restarts = True
+
             check_input_files(hrldas_namelist=job.hrldas_namelist,
-                                  hydro_namelist=job.hydro_namelist,
-                                  sim_dir=os.getcwd())
+                              hydro_namelist=job.hydro_namelist,
+                              sim_dir=os.getcwd(),
+                              ignore_restarts=ignore_restarts)
 
     def _set_base_namelists(self):
         """Private method to create the base namelists which are added to each Job. The Job then

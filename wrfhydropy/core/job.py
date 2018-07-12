@@ -9,6 +9,9 @@ import warnings
 import pickle
 import os
 import copy
+import pandas as pd
+
+from typing import Union
 
 from .ioutils import _check_file_exist_colon
 
@@ -19,16 +22,18 @@ class Job(object):
     def __init__(
             self,
             job_id: str,
-            model_start_time: np.datetime64 = None,
-            model_end_time: np.datetime64 = None,
+            model_start_time: Union[str,pd.datetime] = None,
+            model_end_time: Union[str,pd.datetime] = None,
             exe_cmd: str = None,
             entry_cmd: str = None,
             exit_cmd: str = None):
         """Instatiate a Job object.
         Args:
             job_id: A string identify the job
-            model_start_time: The model start time to use for the WRF-Hydro model run.
-            model_end_time: The model end time to use for the WRF-Hydro model run
+            model_start_time: The model start time to use for the WRF-Hydro model run. Can be
+            a pandas.to_datetime compatible string or a pandas datetime object.
+            model_end_time: The model end time to use for the WRF-Hydro model run. Can be
+            a pandas.to_datetime compatible string or a pandas datetime object.
             exe_cmd: The system-specific command to execute WRF-Hydro, for example 'mpirun -np
             36./wrf_hydro.exe'
             entry_cmd: A command to run prior to executing WRF-Hydro, such as loading modules or
@@ -50,10 +55,10 @@ class Job(object):
         self.job_id = job_id
         """str: The job id."""
 
-        self.model_start_time = model_start_time
+        self.model_start_time = pd.to_datetime(model_start_time)
         """np.datetime64: The model time at the start of the execution."""
 
-        self.model_end_time = model_end_time
+        self.model_end_time = pd.to_datetime(model_end_time)
         """np.datetime64: The model time at the end of the execution."""
 
         # Attributes set by class methods
@@ -218,7 +223,7 @@ class Job(object):
             self.hrldas_times['noahlsm_offline']['kday'] = int(duration.days)
             self.hrldas_times['noahlsm_offline'].pop('khour')
         else:
-            self.hrldas_times['noahlsm_offline']['khour'] = int(duration.days * 60 + duration.seconds / 3600)
+            self.hrldas_times['noahlsm_offline']['khour'] =int(duration.days * 60 + duration.seconds / 3600)
             self.hrldas_times['noahlsm_offline'].pop('kday')
 
         # Start
@@ -283,7 +288,7 @@ class Job(object):
 
         pystr += "# Get path of this script to set working directory\n"
         pystr += "sim_dir = pathlib.Path(__file__)\n"
-        pystr += "os.chdir(sim_dir.parent)\n"
+        pystr += "os.chdir(str(sim_dir.parent))\n"
 
         pystr += "parser = argparse.ArgumentParser()\n"
         pystr += "parser.add_argument('--job_id',\n"

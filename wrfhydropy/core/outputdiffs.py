@@ -148,7 +148,7 @@ def _compare_nc_nccmp(candidate_nc: str,
         # Convert exclude_vars list into a comman separated string
         exclude_vars = ','.join(exclude_vars)
         #append
-        command_list.append('-x ' + exclude_vars)
+        command_list = command_list + ['-x'] + [exclude_vars]
 
     command_list.append(candidate_nc)
     command_list.append(reference_nc)

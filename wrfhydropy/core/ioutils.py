@@ -107,13 +107,17 @@ def _touch(filename, mode=0o666, dir_fd=None, **kwargs):
         os.utime(f.fileno() if os.utime in os.supports_fd else filename,
                  dir_fd=None if os.supports_fd else dir_fd, **kwargs)
 
-def check_input_files(hydro_namelist: dict, hrldas_namelist: dict, sim_dir: str):
+def check_input_files(hydro_namelist: dict,
+                      hrldas_namelist: dict,
+                      sim_dir: str,
+                      ignore_restarts: bool = False):
     """Given hydro and hrldas namelists and a directory, check that all files listed in the
     namelist exist in the specified directory.
     Args:
         hydro_namelist: A wrfhydropy hydro_namelist dictionary
         file_str: A wrfhydropy hrldas_namelist dictionary
         sim_dir: The path to the directory containing input files.
+        ignore_restarts: Ignore restart files.
     """
 
     def visit_is_file(path, key, value):
@@ -158,8 +162,12 @@ def check_input_files(hydro_namelist: dict, hrldas_namelist: dict, sim_dir: str)
         hydro_exempt_list = hydro_exempt_list + ['udmap_file']
 
     if hrldas_namelist['wrf_hydro_offline']['forc_typ'] in [9,10]:
-        hydro_exempt_list = hydro_exempt_list + ['restart_filename_requested']
+        hrldas_exempt_list = hrldas_exempt_list + ['restart_filename_requested']
 
+    if ignore_restarts:
+        hydro_exempt_list = hydro_exempt_list + ['restart_file']
+        hydro_exempt_list = hydro_exempt_list + ['nudginglastobsfile']
+        hrldas_exempt_list = hrldas_exempt_list + ['restart_filename_requested']
 
     def check_nlst(nlst, file_dict):
 
@@ -172,8 +180,6 @@ def check_input_files(hydro_namelist: dict, hrldas_namelist: dict, sim_dir: str)
                           str(iterutils.get_path(nlst, (path))[key]) + ' does not exist'
                 if key not in [*hrldas_exempt_list, *hydro_exempt_list]:
                     raise ValueError(message)
-                else:
-                    warnings.warn(message)
             return False
 
         iterutils.remap(file_dict, visit=visit_missing_file)

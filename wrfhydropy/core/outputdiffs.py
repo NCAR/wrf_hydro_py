@@ -11,8 +11,10 @@ def diff_namelist(namelist1: str, namelist2: str, **kwargs) -> dict:
     """Diff two fortran namelist files and return a dictionary of differences.
 
     Args:
-        namelist1: String containing path to the first namelist file.
-        namelist2: String containing path to the second namelist file.
+        old_namelist: String containing path to the first namelist file, referred to as 'old' in
+        outputs.
+        new_namelist: String containing path to the second namelist file, referred to as 'new' in
+        outputs.
         **kwargs: Additional arguments passed onto deepdiff.DeepDiff method
     Returns:
         The differences between the two namelists

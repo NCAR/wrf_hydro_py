@@ -126,15 +126,15 @@ class Model(object):
         ## Load master namelists
         self.hydro_namelists = \
             json.load(self.source_dir.joinpath('hydro_namelists.json').open())
-        self.hydro_namelists = self.hydro_namelists[self.version][self.model_config]
+        self.hydro_namelists = self.hydro_namelists[self.model_config]
 
         self.hrldas_namelists = \
             json.load(self.source_dir.joinpath('hrldas_namelists.json').open())
-        self.hrldas_namelists = self.hrldas_namelists[self.version][self.model_config]
+        self.hrldas_namelists = self.hrldas_namelists[self.model_config]
 
         ## Load compile options
         compile_json = json.load(self.source_dir.joinpath('compile_options.json').open())
-        self.compile_options = compile_json[self.version][self.model_config]
+        self.compile_options = compile_json[self.model_config]
         if compile_options is not None:
             self.compile_options.update(compile_options)
 

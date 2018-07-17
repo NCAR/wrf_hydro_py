@@ -1,5 +1,4 @@
 import pathlib
-import numpy as np
 import f90nml
 import datetime
 import shutil

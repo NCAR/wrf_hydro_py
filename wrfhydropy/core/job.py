@@ -12,6 +12,7 @@ import pandas as pd
 
 from typing import Union
 
+from .namelist import Namelist
 from .ioutils import _check_file_exist_colon
 
 class Job(object):
@@ -93,7 +94,7 @@ class Job(object):
         self._job_submission_time = None
         """str?: The time the job object was created."""
 
-    def add_hydro_namelist(self, namelist: dict):
+    def add_hydro_namelist(self, namelist: Namelist):
         """Add a hydro_namelist dictionary to the job object
         Args:
             namelist: The namelist dictionary to add
@@ -105,9 +106,7 @@ class Job(object):
             self.model_start_time, self.model_end_time = self._solve_model_start_end_times()
 
         self._set_hydro_times()
-        self.hydro_namelist['hydro_nlist'].update(self.hydro_times['hydro_nlist'])
-        self.hydro_namelist['nudging_nlist'].update(self.hydro_times['nudging_nlist'])
-
+        self.hydro_namelist.patch(self.hydro_times['hydro_nlist'])
 
     def add_hrldas_namelist(self, namelist: dict):
         """Add a hrldas_namelist dictionary to the job object
@@ -120,7 +119,8 @@ class Job(object):
             be used from supplied namelist')
             self.model_start_time, self.model_end_time = self._solve_model_start_end_times()
         self._set_hrldas_times()
-        self.hrldas_namelist['noahlsm_offline'].update(self.hrldas_times['noahlsm_offline'])
+
+        self.hrldas_namelist.patch(self.hrldas_times)
 
     def clone(self, N) -> list:
         """Clone a job object N-times using deepcopy.
@@ -209,8 +209,8 @@ class Job(object):
 
     def _write_namelists(self):
         """Private method to write namelist dicts to FORTRAN namelist files"""
-        f90nml.write(self.hydro_namelist, str(self.job_dir.joinpath('hydro.namelist')))
-        f90nml.write(self.hrldas_namelist, str(self.job_dir.joinpath('namelist.hrldas')))
+        self.hydro_namelist.write(str(self.job_dir.joinpath('hydro.namelist')))
+        self.hrldas_namelist.write(str(self.job_dir.joinpath('namelist.hrldas')))
 
     def _set_hrldas_times(self):
         """Private method to set model run times in the hrldas namelist"""
@@ -312,7 +312,7 @@ class Job(object):
         # model_start_time
         start_noah_keys = {'year': 'start_year', 'month': 'start_month',
                            'day': 'start_day', 'hour': 'start_hour', 'minute': 'start_min'}
-        start_noah_times = {kk: noah_namelist[vv] for (kk, vv) in start_noah_keys.items()}
+        start_noah_times = {key: noah_namelist[value] for (key, value) in start_noah_keys.items()}
         model_start_time = datetime.datetime(**start_noah_times)
 
         # model_end_time

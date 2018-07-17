@@ -163,23 +163,8 @@ class Simulation(object):
         hydro_namelist = self.model.hydro_namelists
         hrldas_namelist = self.model.hrldas_namelists
 
-        ## Update namelists with namelist patches
-        hydro_namelist['hydro_nlist'].update(self.domain.namelist_patches
-                                             ['hydro_namelist']
-                                             ['hydro_nlist'])
-
-        hydro_namelist['nudging_nlist'].update(self.domain.namelist_patches
-                                               ['hydro_namelist']
-                                               ['nudging_nlist'])
-
-        hrldas_namelist['noahlsm_offline'].update(self.domain.namelist_patches
-                                                  ['namelist_hrldas']
-                                                  ['noahlsm_offline'])
-        hrldas_namelist['wrf_hydro_offline'].update(self.domain.namelist_patches
-                                                    ['namelist_hrldas']
-                                                    ['wrf_hydro_offline'])
-        self.base_hydro_namelist = hydro_namelist
-        self.base_hrldas_namelist = hrldas_namelist
+        self.base_hydro_namelist = hydro_namelist.patch(self.domain.hydro_namelist_patches)
+        self.base_hrldas_namelist = hrldas_namelist.patch(self.domain.hrldas_namelist_patches)
 
     def _addmodel(self, model: Model):
         """Private method to add a Model to a Simulation

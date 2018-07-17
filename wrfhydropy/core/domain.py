@@ -1,11 +1,12 @@
 import pathlib
-import json
 import re
 import shutil
 
 from .ioutils import \
     WrfHydroStatic, \
     WrfHydroTs
+
+from .namelist import JSONNamelist, Namelist
 
 class Domain(object):
     """Class for a WRF-Hydro domain, which constitutes all domain-specific files needed for a
@@ -16,7 +17,8 @@ class Domain(object):
                  domain_top_dir: str,
                  domain_config: str,
                  model_version: str,
-                 namelist_patch_file: str = 'namelist_patches.json'
+                 hydro_namelist_patch_file: str = 'hydro_namelist_patches.json',
+                 hrldas_namelist_patch_file: str = 'hrldas_namelist_patches.json'
                  ):
         """Instantiate a Domain object
         Args:
@@ -24,9 +26,10 @@ class Domain(object):
             domain_config: The domain configuration to use, options are 'NWM',
                 'Gridded', or 'Reach'
             model_version: The WRF-Hydro model version
-            namelist_patch_file: Filename of json file containing namelist patches
-        Returns:
-            A WrfHydroDomain directory object
+            hydro_namelist_patch_file: Filename of json file containing namelist patches for
+            hydro namelist
+            hrldas_namelist_patch_file: Filename of json file containing namelist patches for
+            hrldas namelist
         """
 
         ###Instantiate arguments to object
@@ -34,18 +37,25 @@ class Domain(object):
         self.domain_top_dir = pathlib.Path(domain_top_dir).absolute()
         """pathlib.Path: pathlib.Paths to *.TBL files generated at compile-time."""
 
-        self.namelist_patch_file = self.domain_top_dir.joinpath(namelist_patch_file)
-        """pathlib.Path: pathlib.Path to the namelist_patches json file."""
-
-        # Load namelist patches
-        self.namelist_patches = json.load(self.namelist_patch_file.open(mode='r'))
-        """dict: Domain-specific namelist settings."""
-
         self.model_version = model_version
         """str: Specified source-code version for which the domain is to be used."""
 
         self.domain_config = domain_config
-        """str: Specified configuration for which the domain is to be used, e.g. 'NWM'"""
+        """str: Specified configuration for which the domain is to be used, e.g. 'NWM_ana'"""
+
+        # Load namelist patches
+        hydro_namelist_patch_file = self.domain_top_dir.joinpath(hydro_namelist_patch_file)
+        hrldas_namelist_patch_file = self.domain_top_dir.joinpath(hrldas_namelist_patch_file)
+
+        self.hydro_namelist_patches = JSONNamelist(str(hydro_namelist_patch_file))
+        """Namelist: Domain-specific hydro namelist settings."""
+        self.hydro_namelist_patches = self.hydro_namelist_patches.get_config(self.domain_config)
+
+        self.hrldas_namelist_patches = JSONNamelist(str(hrldas_namelist_patch_file))
+        """Namelist: Domain-specific hrldas namelist settings."""
+        self.hrldas_namelist_patches = self.hrldas_namelist_patches.get_config(self.domain_config)
+
+
         self.hydro_files = list()
         """list: Files specified in hydro_nlist section of the domain namelist patches"""
         self.nudging_files = list()
@@ -54,10 +64,8 @@ class Domain(object):
         """list: Files specified in noahlsm_offline section of the domain namelist patches"""
         ###
 
-        self.namelist_patches = self.namelist_patches[self.model_version][self.domain_config]
-
         # Create file paths from hydro namelist
-        domain_hydro_nlist = self.namelist_patches['hydro_namelist']['hydro_nlist']
+        domain_hydro_nlist = self.hydro_namelist_patches['hydro_nlist']
 
         for key, value in domain_hydro_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
@@ -68,7 +76,7 @@ class Domain(object):
                     self.hydro_files.append(file_path)
 
         # Create file paths from nudging namelist
-        domain_nudging_nlist = self.namelist_patches['hydro_namelist']['nudging_nlist']
+        domain_nudging_nlist = self.hydro_namelist_patches['nudging_nlist']
 
         for key, value in domain_nudging_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
@@ -80,7 +88,7 @@ class Domain(object):
 
         # Create symlinks from lsm namelist
         domain_lsm_nlist = \
-            self.namelist_patches['namelist_hrldas']["noahlsm_offline"]
+            self.hrldas_namelist_patches["noahlsm_offline"]
 
         for key, value in domain_lsm_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))

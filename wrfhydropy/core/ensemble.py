@@ -282,9 +282,9 @@ class WrfHydroEnsembleRun(object):
                     if jj.scheduler.afterok is not None and jj.scheduler.afterok != last_job_id:
                         raise ValueError("The job's dependency/afterok conflicts with reality.")
                     jj.scheduler.afterok = last_job_id
-                else: 
-                    if jj.scheduler.afterok is not None:
-                        raise ValueError("The job's dependency/afterok conflicts with reality.")
+                #else: 
+                #    if jj.scheduler.afterok is not None:
+                #        raise ValueError("The job's dependency/afterok conflicts with reality.")
 
 
             # Set submission-time job variables here.
@@ -306,8 +306,14 @@ class WrfHydroEnsembleRun(object):
         self.pickle()
 
 
-    def run_jobs(self):
+    def run_jobs(
+        self,
+        hold: bool=False
+    ):
 
+        hold_all = hold
+        del hold
+        
         # make sure all jobs are either scheduled or interactive?
         
         if self.job_active is not None:
@@ -347,7 +353,12 @@ class WrfHydroEnsembleRun(object):
 
             self.job_active = self.jobs_pending.pop(0)
             self.pickle()
-            self.members[-1].jobs_pending[0].release()
+
+            if not hold_all:
+                self.members[-1].jobs_pending[0].release() # This prints the jobid
+            else:
+                print(self.members[-1].jobs_pending[0].scheduler.sched_job_id)
+
             self.destruct()
             return run_dir
 
@@ -377,12 +388,15 @@ class WrfHydroEnsembleRun(object):
         self
     ):
         """Collect a completed job array. """
+
         def n_jobs_not_complete(run_dir):
             the_cmd = '/bin/bash -c "ls member_*/.job_not_complete 2> /dev/null | wc -l"'
-            return subprocess.run(shlex.split(the_cmd), cwd=run_dir).returncode
+            stdout = subprocess.run(shlex.split(the_cmd), cwd=run_dir, stdout=subprocess.PIPE).stdout
+            ret = int(stdout.splitlines()[0].decode("utf-8"))
+            return ret
 
         while n_jobs_not_complete(self.run_dir) != 0:
-            time.sleep(6)
+            _ = time.sleep(6)
 
         if self.job_active:
             self.jobs_completed.append(self.job_active)

@@ -270,7 +270,8 @@ class HydroDartRun(object):
         job_entry_cmd: str=None,
         job_exit_cmd: str=None,
         afterok: str=None,
-        afterany: str=None
+        afterany: str=None,
+        hold: bool=False
     ):
 
         # Setup job and scheduler.
@@ -287,12 +288,16 @@ class HydroDartRun(object):
             # TODO(JLM): add the entry and exit to the job
 
             # Create a dummy scheduler
+            # This could be done with **{config['run_experiment']['wrf_hydro_ens_advance']['job_name']}
             the_sched = Scheduler(
                 job_name=self.config['run_experiment']['wrf_hydro_ens_advance']['job_name'],
                 account=self.config['run_experiment']['wrf_hydro_ens_advance']['account'],
                 nproc=self.config['run_experiment']['wrf_hydro_ens_advance']['nproc'],
                 nnodes=self.config['run_experiment']['wrf_hydro_ens_advance']['nnodes'],
                 walltime=self.config['run_experiment']['wrf_hydro_ens_advance']['walltime'],
+                queue=self.config['run_experiment']['wrf_hydro_ens_advance']['queue'],
+                email_who=self.config['run_experiment']['wrf_hydro_ens_advance']['email_who'],
+                email_when=self.config['run_experiment']['wrf_hydro_ens_advance']['email_when'],
                 afterok=afterok
             )
             # TODO(JLM): add afterany
@@ -314,7 +319,7 @@ class HydroDartRun(object):
         the_job.model_end_time = model_end_time
 
         ens_run.add_jobs(the_job)
-        ens_run.run_jobs()
+        ens_run.run_jobs(hold=hold)
 
         self.pickle()
 

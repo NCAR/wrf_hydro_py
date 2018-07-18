@@ -59,9 +59,13 @@ def get_machine():
     if re.match('cheyenne', hostname):
         machine='cheyenne'
     else:
-        machine='docker'
-        if not in_docker():
-            warnings.warn('This machine is not recognized, using docker defaults.')
+        # Need logic for geyser?
+        if pathlib.PosixPath('/glade/').exists():
+            machine = 'cheyenne'
+        else:
+            machine='docker'
+            if not in_docker():
+                warnings.warn('This machine is not recognized, using docker defaults.')
     return machine
 
 
@@ -469,7 +473,7 @@ def submit_scheduler(substr, sched_name, hold=False):
             print("PBS Submission error.\n" + stdout.decode('utf-8') + "\n")
             raise PBSError(0, 'PBS Submission error.')
         else:
-            jobid = stdout.decode('utf-8').split(".")[0]
+            jobid = stdout.decode('utf-8') #.split(".")[0]
             return jobid
 
     elif sched_name == 'slurm':
@@ -919,7 +923,7 @@ def compose_scheduled_bash_script(
                 jobstr += "#PBS -W depend=afterok:{0}\n".format(cheyenne_afterok)
             else: 
                 jobstr += "#PBS -W depend=afterok:{0}\n".format(job.scheduler.afterok)
-                
+
         if job.scheduler.array_size:
             jobstr += "#PBS -J 1-{0}\n".format(job.scheduler.array_size)
         if job.scheduler.exetime:
@@ -952,6 +956,7 @@ def compose_scheduled_bash_script(
         jobstr += "echo jobname: $jobname\n"
         jobstr += "echo PBS_JOBID: $PBS_JOBID\n"
         jobstr += "echo sched_job_id: $sched_job_id\n"
+        jobstr += 'echo "HOSTNAME: "`hostname`\n'
         
         jobstr += "job_date_id={0}\n".format(job.job_date_id)
         jobstr += "echo job_date_id: $job_date_id\n"

@@ -206,6 +206,7 @@ class DartSetup(object):
             build_objs = [
                 'preprocess',
                 'create_fixed_network_seq',
+                'create_identity_streamflow_obs',
                 'create_obs_sequence',
                 'model_mod_check',
                 'obs_diag',

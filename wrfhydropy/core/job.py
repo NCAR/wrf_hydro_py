@@ -176,7 +176,7 @@ class Job(object):
         # Pipe outputs to file using shell. This is required because of large stdout and stderr
         # on large domains overflows either the python or os buffer
         cmd_string += self._exe_cmd
-        cmd_string += (" 2> " + str(self.stderr_file) + "1>" + str(self.stdout_file))
+        cmd_string += (" 2> " + str(self.stderr_file) + " 1>" + str(self.stdout_file))
         cmd_string += ';'
 
         if self._exit_cmd is not None:

@@ -8,6 +8,8 @@ import warnings
 import os
 import shlex
 
+from .namelist import JSONNamelist
+
 def get_git_revision_hash(the_dir):
 
     # First test if this is even a git repo. (Have to allow for this unless the wrfhydropy
@@ -45,7 +47,7 @@ class Model(object):
             compiler: str = 'gfort',
             pre_compile_cmd: str = None,
             compile_options: dict = None):
-        """Instantiate a WrfHydroModel object.
+        """Instantiate a Model object.
         Args:
             source_dir: Directory containing the source code, e.g.
                'wrf_hydro_nwm/trunk/NDHMS'.
@@ -58,9 +60,6 @@ class Model(object):
             compiler: The compiler to use, must be one of 'pgi','gfort',
                 'ifort', or 'luna'.
             compile_options: Changes to default compile-time options.
-
-        Returns:
-            A WrfHydroModel object.
         """
 
         # Instantiate all attributes and methods
@@ -69,8 +68,7 @@ class Model(object):
         """pathlib.Path: pathlib.Path object for source code directory."""
 
         self.model_config = model_config
-        """str: String indicating model configuration for compile options, must be one of 'NWM', 
-        'Gridded', or 'Reach'."""
+        """str: Specified configuration for which the model is to be used, e.g. 'NWM_ana'"""
 
         self.compiler = compiler
         """str: The compiler chosen at compile time."""
@@ -82,18 +80,19 @@ class Model(object):
         """dict: Compile-time options. Defaults are loaded from json file stored with source 
         code."""
 
+        ## Load master namelists
+        self.hydro_namelists = JSONNamelist(str(self.source_dir.joinpath('hydro_namelists.json')))
+        """Namelist: Hydro namelist for specified model config"""
+        self.hydro_namelists = self.hydro_namelists.get_config(self.model_config)
+
+        self.hrldas_namelists = JSONNamelist(str(self.source_dir.joinpath('hrldas_namelists.json')))
+        """Namelist: HRLDAS namelist for specified model config"""
+        self.hrldas_namelists = self.hrldas_namelists.get_config(self.model_config)
+
 
         ## Attributes set by other methods
         self.compile_dir = None
         """pathlib.Path: pathlib.Path object pointing to the compile directory."""
-
-        self.hydro_namelists = dict()
-        """dict: Master dictionary of all hydro.namelists stored with the source code."""
-
-        self.hrldas_namelists = dict()
-        """dict: Master dictionary of all namelist.hrldas stored with the source code."""
-
-
 
         self.git_hash = None
         self.version = None
@@ -123,18 +122,14 @@ class Model(object):
         with self.source_dir.joinpath('.version').open() as f:
             self.version = f.read()
 
-        ## Load master namelists
-        self.hydro_namelists = \
-            json.load(self.source_dir.joinpath('hydro_namelists.json').open())
-        self.hydro_namelists = self.hydro_namelists[self.version][self.model_config]
-
-        self.hrldas_namelists = \
-            json.load(self.source_dir.joinpath('hrldas_namelists.json').open())
-        self.hrldas_namelists = self.hrldas_namelists[self.version][self.model_config]
-
         ## Load compile options
         compile_json = json.load(self.source_dir.joinpath('compile_options.json').open())
-        self.compile_options = compile_json[self.version][self.model_config]
+        if 'NWM' in self.model_config:
+            compile_config = 'NWM'
+        else:
+            compile_config = self.model_config
+
+        self.compile_options = compile_json[compile_config]
         if compile_options is not None:
             self.compile_options.update(compile_options)
 

@@ -46,14 +46,11 @@ class Simulation(object):
         """Add an approparite object to a Simulation, such as a Model, Domain, Job, or Scheduler"""
         if isinstance(obj, Model):
             self._addmodel(obj)
-
-        if isinstance(obj, Domain):
+        elif isinstance(obj, Domain):
             self._adddomain(obj)
-
-        if issubclass(type(obj),Scheduler):
+        elif issubclass(type(obj),Scheduler):
             self._addscheduler(obj)
-
-        if isinstance(obj,Job):
+        elif isinstance(obj,Job):
             self._addjob(obj)
         else:
             raise TypeError('obj is not of a type expected for a Simulation')
@@ -144,11 +141,19 @@ class Simulation(object):
 
     def _validate_jobs(self):
         """Private method to check that all files are present for each job"""
+        counter = 0
         for job in self.jobs:
+            counter += 1
             print(job.job_id)
+            if counter == 0:
+                ignore_restarts = False
+            else:
+                ignore_restarts = True
+
             check_input_files(hrldas_namelist=job.hrldas_namelist,
-                                  hydro_namelist=job.hydro_namelist,
-                                  sim_dir=os.getcwd())
+                              hydro_namelist=job.hydro_namelist,
+                              sim_dir=os.getcwd(),
+                              ignore_restarts=ignore_restarts)
 
     def _set_base_namelists(self):
         """Private method to create the base namelists which are added to each Job. The Job then
@@ -158,23 +163,8 @@ class Simulation(object):
         hydro_namelist = self.model.hydro_namelists
         hrldas_namelist = self.model.hrldas_namelists
 
-        ## Update namelists with namelist patches
-        hydro_namelist['hydro_nlist'].update(self.domain.namelist_patches
-                                             ['hydro_namelist']
-                                             ['hydro_nlist'])
-
-        hydro_namelist['nudging_nlist'].update(self.domain.namelist_patches
-                                               ['hydro_namelist']
-                                               ['nudging_nlist'])
-
-        hrldas_namelist['noahlsm_offline'].update(self.domain.namelist_patches
-                                                  ['namelist_hrldas']
-                                                  ['noahlsm_offline'])
-        hrldas_namelist['wrf_hydro_offline'].update(self.domain.namelist_patches
-                                                    ['namelist_hrldas']
-                                                    ['wrf_hydro_offline'])
-        self.base_hydro_namelist = hydro_namelist
-        self.base_hrldas_namelist = hrldas_namelist
+        self.base_hydro_namelist = hydro_namelist.patch(self.domain.hydro_namelist_patches)
+        self.base_hrldas_namelist = hrldas_namelist.patch(self.domain.hrldas_namelist_patches)
 
     def _addmodel(self, model: Model):
         """Private method to add a Model to a Simulation

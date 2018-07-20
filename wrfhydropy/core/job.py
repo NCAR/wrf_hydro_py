@@ -1,5 +1,4 @@
 import pathlib
-import numpy as np
 import f90nml
 import datetime
 import shutil
@@ -9,7 +8,11 @@ import warnings
 import pickle
 import os
 import copy
+import pandas as pd
 
+from typing import Union
+
+from .namelist import Namelist
 from .ioutils import _check_file_exist_colon
 
 class Job(object):
@@ -19,16 +22,18 @@ class Job(object):
     def __init__(
             self,
             job_id: str,
-            model_start_time: np.datetime64 = None,
-            model_end_time: np.datetime64 = None,
+            model_start_time: Union[str,pd.datetime] = None,
+            model_end_time: Union[str,pd.datetime] = None,
             exe_cmd: str = None,
             entry_cmd: str = None,
             exit_cmd: str = None):
         """Instatiate a Job object.
         Args:
             job_id: A string identify the job
-            model_start_time: The model start time to use for the WRF-Hydro model run.
-            model_end_time: The model end time to use for the WRF-Hydro model run
+            model_start_time: The model start time to use for the WRF-Hydro model run. Can be
+            a pandas.to_datetime compatible string or a pandas datetime object.
+            model_end_time: The model end time to use for the WRF-Hydro model run. Can be
+            a pandas.to_datetime compatible string or a pandas datetime object.
             exe_cmd: The system-specific command to execute WRF-Hydro, for example 'mpirun -np
             36./wrf_hydro.exe'
             entry_cmd: A command to run prior to executing WRF-Hydro, such as loading modules or
@@ -50,10 +55,10 @@ class Job(object):
         self.job_id = job_id
         """str: The job id."""
 
-        self.model_start_time = model_start_time
+        self.model_start_time = pd.to_datetime(model_start_time)
         """np.datetime64: The model time at the start of the execution."""
 
-        self.model_end_time = model_end_time
+        self.model_end_time = pd.to_datetime(model_end_time)
         """np.datetime64: The model time at the end of the execution."""
 
         # Attributes set by class methods
@@ -89,7 +94,7 @@ class Job(object):
         self._job_submission_time = None
         """str?: The time the job object was created."""
 
-    def add_hydro_namelist(self, namelist: dict):
+    def add_hydro_namelist(self, namelist: Namelist):
         """Add a hydro_namelist dictionary to the job object
         Args:
             namelist: The namelist dictionary to add
@@ -101,9 +106,7 @@ class Job(object):
             self.model_start_time, self.model_end_time = self._solve_model_start_end_times()
 
         self._set_hydro_times()
-        self.hydro_namelist['hydro_nlist'].update(self.hydro_times['hydro_nlist'])
-        self.hydro_namelist['nudging_nlist'].update(self.hydro_times['nudging_nlist'])
-
+        self.hydro_namelist.patch(self.hydro_times['hydro_nlist'])
 
     def add_hrldas_namelist(self, namelist: dict):
         """Add a hrldas_namelist dictionary to the job object
@@ -116,7 +119,8 @@ class Job(object):
             be used from supplied namelist')
             self.model_start_time, self.model_end_time = self._solve_model_start_end_times()
         self._set_hrldas_times()
-        self.hrldas_namelist['noahlsm_offline'].update(self.hrldas_times['noahlsm_offline'])
+
+        self.hrldas_namelist.patch(self.hrldas_times)
 
     def clone(self, N) -> list:
         """Clone a job object N-times using deepcopy.
@@ -169,7 +173,11 @@ class Job(object):
         if self._entry_cmd is not None:
             cmd_string += self._entry_cmd + ';'
 
-        cmd_string += self._exe_cmd + ';'
+        # Pipe outputs to file using shell. This is required because of large stdout and stderr
+        # on large domains overflows either the python or os buffer
+        cmd_string += self._exe_cmd
+        cmd_string += (" 2> " + str(self.stderr_file) + "1>" + str(self.stdout_file))
+        cmd_string += ';'
 
         if self._exit_cmd is not None:
             cmd_string += self._exit_cmd
@@ -179,10 +187,15 @@ class Job(object):
         # Set start time of job execution
         self.job_start_time = str(datetime.datetime.now())
 
-        self._proc_log = subprocess.run(shlex.split(cmd_string),
-                                        cwd=str(current_dir),
-                                        stderr = self.stderr_file.open(mode='w'),
-                                        stdout = self.stdout_file.open(mode='w'))
+        self._proc_log = subprocess.run(cmd_string,
+                                        shell = True,
+                                        cwd=str(current_dir))
+
+        # self._proc_log = subprocess.run(shlex.split(cmd_string),
+        #                                 shell = True,
+        #                                 cwd=str(current_dir),
+        #                                 stderr = self.stderr_file.open(mode='w'),
+        #                                 stdout = self.stdout_file.open(mode='w'))
 
         self.job_end_time = str(datetime.datetime.now())
 
@@ -205,8 +218,8 @@ class Job(object):
 
     def _write_namelists(self):
         """Private method to write namelist dicts to FORTRAN namelist files"""
-        f90nml.write(self.hydro_namelist, str(self.job_dir.joinpath('hydro.namelist')))
-        f90nml.write(self.hrldas_namelist, str(self.job_dir.joinpath('namelist.hrldas')))
+        self.hydro_namelist.write(str(self.job_dir.joinpath('hydro.namelist')))
+        self.hrldas_namelist.write(str(self.job_dir.joinpath('namelist.hrldas')))
 
     def _set_hrldas_times(self):
         """Private method to set model run times in the hrldas namelist"""
@@ -218,7 +231,7 @@ class Job(object):
             self.hrldas_times['noahlsm_offline']['kday'] = int(duration.days)
             self.hrldas_times['noahlsm_offline'].pop('khour')
         else:
-            self.hrldas_times['noahlsm_offline']['khour'] = int(duration.days * 60 + duration.seconds / 3600)
+            self.hrldas_times['noahlsm_offline']['khour'] =int(duration.days * 60 + duration.seconds / 3600)
             self.hrldas_times['noahlsm_offline'].pop('kday')
 
         # Start
@@ -283,7 +296,7 @@ class Job(object):
 
         pystr += "# Get path of this script to set working directory\n"
         pystr += "sim_dir = pathlib.Path(__file__)\n"
-        pystr += "os.chdir(sim_dir.parent)\n"
+        pystr += "os.chdir(str(sim_dir.parent))\n"
 
         pystr += "parser = argparse.ArgumentParser()\n"
         pystr += "parser.add_argument('--job_id',\n"
@@ -308,7 +321,7 @@ class Job(object):
         # model_start_time
         start_noah_keys = {'year': 'start_year', 'month': 'start_month',
                            'day': 'start_day', 'hour': 'start_hour', 'minute': 'start_min'}
-        start_noah_times = {kk: noah_namelist[vv] for (kk, vv) in start_noah_keys.items()}
+        start_noah_times = {key: noah_namelist[value] for (key, value) in start_noah_keys.items()}
         model_start_time = datetime.datetime(**start_noah_times)
 
         # model_end_time

@@ -7,7 +7,6 @@ Subpackages
 .. toctree::
 
     wrfhydropy.core
-    wrfhydropy.tests
 
 Module contents
 ---------------

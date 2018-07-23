@@ -107,7 +107,7 @@ class Job(object):
             self.model_start_time, self.model_end_time = self._solve_model_start_end_times()
 
         self._set_hydro_times()
-        self.hydro_namelist.patch(self.hydro_times['hydro_nlist'])
+        self.hydro_namelist = self.hydro_namelist.patch(self.hydro_times)
 
     def add_hrldas_namelist(self, namelist: dict):
         """Add a hrldas_namelist dictionary to the job object
@@ -121,7 +121,7 @@ class Job(object):
             self.model_start_time, self.model_end_time = self._solve_model_start_end_times()
         self._set_hrldas_times()
 
-        self.hrldas_namelist.patch(self.hrldas_times)
+        self.hrldas_namelist = self.hrldas_namelist.patch(self.hrldas_times)
 
     def clone(self, N) -> list:
         """Clone a job object N-times using deepcopy.

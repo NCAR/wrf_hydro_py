@@ -192,12 +192,6 @@ class Job(object):
                                         shell = True,
                                         cwd=str(current_dir))
 
-        # self._proc_log = subprocess.run(shlex.split(cmd_string),
-        #                                 shell = True,
-        #                                 cwd=str(current_dir),
-        #                                 stderr = self.stderr_file.open(mode='w'),
-        #                                 stdout = self.stdout_file.open(mode='w'))
-
         self.job_end_time = str(datetime.datetime.now())
 
         # String match diag files for successfull run
@@ -306,7 +300,7 @@ class Job(object):
         pystr += "\n"
 
         pystr += "#load job object\n"
-        pystr += "job_dir = '.job_' + args.job_id + '/WrfHydroJob.pkl'\n"
+        pystr += "job_dir = 'job_' + args.job_id + '/WrfHydroJob.pkl'\n"
         pystr += "job = pickle.load(open(job_dir,mode='rb'))\n"
         pystr += "#Run the job\n"
         pystr += "job._run()\n"
@@ -343,5 +337,5 @@ class Job(object):
     @property
     def job_dir(self):
         """Path: Path to the run directory"""
-        job_dir_name = '.job_' + self.job_id
+        job_dir_name = 'job_' + self.job_id
         return pathlib.Path(job_dir_name)

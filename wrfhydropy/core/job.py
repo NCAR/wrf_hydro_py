@@ -107,7 +107,7 @@ class Job(object):
             self.model_start_time, self.model_end_time = self._solve_model_start_end_times()
 
         self._set_hydro_times()
-        self.hydro_namelist.patch(self.hydro_times['hydro_nlist'])
+        self.hydro_namelist = self.hydro_namelist.patch(self.hydro_times)
 
     def add_hrldas_namelist(self, namelist: dict):
         """Add a hrldas_namelist dictionary to the job object
@@ -121,7 +121,7 @@ class Job(object):
             self.model_start_time, self.model_end_time = self._solve_model_start_end_times()
         self._set_hrldas_times()
 
-        self.hrldas_namelist.patch(self.hrldas_times)
+        self.hrldas_namelist = self.hrldas_namelist.patch(self.hrldas_times)
 
     def clone(self, N) -> list:
         """Clone a job object N-times using deepcopy.
@@ -191,12 +191,6 @@ class Job(object):
         self._proc_log = subprocess.run(cmd_string,
                                         shell = True,
                                         cwd=str(current_dir))
-
-        # self._proc_log = subprocess.run(shlex.split(cmd_string),
-        #                                 shell = True,
-        #                                 cwd=str(current_dir),
-        #                                 stderr = self.stderr_file.open(mode='w'),
-        #                                 stdout = self.stdout_file.open(mode='w'))
 
         self.job_end_time = str(datetime.datetime.now())
 
@@ -306,7 +300,7 @@ class Job(object):
         pystr += "\n"
 
         pystr += "#load job object\n"
-        pystr += "job_dir = '.job_' + args.job_id + '/WrfHydroJob.pkl'\n"
+        pystr += "job_dir = 'job_' + args.job_id + '/WrfHydroJob.pkl'\n"
         pystr += "job = pickle.load(open(job_dir,mode='rb'))\n"
         pystr += "#Run the job\n"
         pystr += "job._run()\n"
@@ -343,5 +337,5 @@ class Job(object):
     @property
     def job_dir(self):
         """Path: Path to the run directory"""
-        job_dir_name = '.job_' + self.job_id
+        job_dir_name = 'job_' + self.job_id
         return pathlib.Path(job_dir_name)

@@ -35,7 +35,8 @@ class Job(object):
             model_end_time: The model end time to use for the WRF-Hydro model run. Can be
             a pandas.to_datetime compatible string or a pandas datetime object.
             exe_cmd: The system-specific command to execute WRF-Hydro, for example 'mpirun -np
-            36./wrf_hydro.exe'
+            36 ./wrf_hydro.exe'. Can be left as None if jobs is added to a scheduler or if a
+            scheduler is used in a simulation.
             entry_cmd: A command to run prior to executing WRF-Hydro, such as loading modules or
             libraries.
             exit_cmd: A command to run after completion of the job.

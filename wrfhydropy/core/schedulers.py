@@ -1,5 +1,6 @@
 # Note: All other imports for individual schedulers should be done in the respective scheduler
 # class functions so that imports can be isolated to relevant schedulers
+import copy
 
 from abc import ABC, abstractmethod
 from .job import Job
@@ -23,9 +24,9 @@ class PBSCheyenne(Scheduler):
             account: str,
             email_who: str = None,
             email_when: str = 'abe',
-            nproc: int = 36,
-            nnodes: int = 2,
-            ppn: int = None,
+            nproc: int = 360,
+            nnodes: int = None,
+            ppn: int = 36,
             queue: str = 'regular',
             walltime: str = "12:00:00"):
         """Initialize an PBSCheyenne object.
@@ -52,6 +53,9 @@ class PBSCheyenne(Scheduler):
         self.jobs = []
         self.scheduled_jobs = []
 
+        # Setup exe cmd, will overwrite job exe cmd
+        self._exe_cmd = 'mpiexec_mpt ./wrf_hydro.exe'
+
         ## Scheduler options dict
         ## TODO: Make this more elegant than hard coding for maintenance sake
         self.scheduler_opts = {'account':account,
@@ -62,6 +66,11 @@ class PBSCheyenne(Scheduler):
 
     def add_job(self,job: Job):
         """Add a job to the scheduler"""
+        job = copy.deepcopy(job)
+
+        #Override job exe cmd with scheduler exe cmd
+        job._exe_cmd = self._exe_cmd
+
         self.jobs.append(job)
 
     def schedule(self):

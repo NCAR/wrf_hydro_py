@@ -95,9 +95,16 @@ class Simulation(object):
             for job in self.jobs:
                 self.scheduler.add_job(job)
 
-        # Compile model
-        print('Compiling WRF-Hydro source code...')
-        self.model.compile(compile_dir=os.getcwd())
+        # Compile model or copy files
+        if self.model.compile_log is not None:
+            if self.model.compile_log.returncode == 0:
+                print('Model already compiled, copying files...')
+                self.model.copy_files(os.getcwd())
+            else:
+                raise ValueError('model was previously compiled but return code is not 0')
+        else:
+            print('Compiling model...')
+            self.model.compile(compile_dir=os.getcwd())
 
         print('Simulation successfully composed')
 
@@ -133,11 +140,12 @@ class Simulation(object):
                             model.model_config +
                             ' not compatible with domain configuration ' +
                             domain.domain_config)
-        if model.version != domain.model_version:
+        if model.version != domain.compatible_version:
             raise TypeError('Model version ' +
                             model.version +
-                            ' not compatible with domain versions ' +
-                            str(list(domain.namelist_patches.keys())))
+                            ' not compatible with domain version ' +
+                            domain.compatible_version)
+
 
     def _validate_jobs(self):
         """Private method to check that all files are present for each job"""

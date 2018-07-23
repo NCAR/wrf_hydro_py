@@ -52,7 +52,8 @@ class Model(object):
             source_dir: Directory containing the source code, e.g.
                'wrf_hydro_nwm/trunk/NDHMS'.
             model_config: The configuration of the model. Used to match a model to a domain
-            configuration. Must be one of either 'NWM', 'Gridded', or 'Reach'.
+            configuration. Must be a key in both the *_namelists.json of in the source directory
+            and the *_namelist_patches.json in the domain directory.
             machine_spec: Optional dictionary of machine specification or string containing the
             name of a known machine. Known machine names include 'cheyenne'. For an
             example of a machine specification see the 'cheyenne' machine specification using
@@ -67,8 +68,8 @@ class Model(object):
         self.source_dir = pathlib.Path(source_dir)
         """pathlib.Path: pathlib.Path object for source code directory."""
 
-        self.model_config = model_config
-        """str: Specified configuration for which the model is to be used, e.g. 'NWM_ana'"""
+        self.model_config = model_config.lower()
+        """str: Specified configuration for which the model is to be used, e.g. 'nwm_ana'"""
 
         self.compiler = compiler
         """str: The compiler chosen at compile time."""
@@ -124,8 +125,8 @@ class Model(object):
 
         ## Load compile options
         compile_json = json.load(self.source_dir.joinpath('compile_options.json').open())
-        if 'NWM' in self.model_config:
-            compile_config = 'NWM'
+        if 'nwm' in self.model_config:
+            compile_config = 'nwm'
         else:
             compile_config = self.model_config
 

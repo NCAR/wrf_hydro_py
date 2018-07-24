@@ -322,7 +322,8 @@ class Job(object):
 
     def _solve_model_start_end_times(self):
         """Private method ot get the model start and end times from the namelist"""
-        noah_namelist = self.hrldas_namelist['noahlsm_offline']
+        noah_namelist = self._hrldas_namelist['noahlsm_offline']
+
         # model_start_time
         start_noah_keys = {'year': 'start_year', 'month': 'start_month',
                            'day': 'start_day', 'hour': 'start_hour', 'minute': 'start_min'}
@@ -365,7 +366,7 @@ class Job(object):
         if self.model_start_time is None or self.model_end_time is None:
             warnings.warn('model start or end time was not specified in job, start end times will \
             be used from supplied namelist')
-            self.model_start_time, self.model_end_time = self._solve_model_start_end_times()
+            self._model_start_time, self._model_end_time = self._solve_model_start_end_times()
         return self._hydro_namelist.patch(self.hydro_times)
 
     @property
@@ -373,7 +374,7 @@ class Job(object):
         if self.model_start_time is None or self.model_end_time is None:
             warnings.warn('model start or end time was not specified in job, start end times will \
             be used from supplied namelist')
-            self.model_start_time, self.model_end_time = self._solve_model_start_end_times()
+            self._model_start_time, self._model_end_time = self._solve_model_start_end_times()
         return self._hrldas_namelist.patch(self.hrldas_times)
 
     @property

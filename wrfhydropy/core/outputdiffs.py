@@ -81,25 +81,25 @@ class OutputDiffs(object):
         self.diff_counts = dict()
         """dict: Counts of diffs by restart type"""
 
-        self.channel_rt = None
+        self.channel_rt = list()
         """list: List of pandas dataframes if possible or subprocess objects containing nudging
         restart file diffs"""
-        self.chanobs = None
+        self.chanobs = list()
         """list: List of pandas dataframes if possible or subprocess objects containing nudging
         restart file diffs"""
-        self.lakeout = None
+        self.lakeout = list()
         """list: List of pandas dataframes if possible or subprocess objects containing nudging
         restart file diffs"""
-        self.gwout = None
+        self.gwout = list()
         """list: List of pandas dataframes if possible or subprocess objects containing nudging
         restart file diffs"""
-        self.restart_hydro = None
+        self.restart_hydro = list()
         """list: List of pandas dataframes if possible or subprocess objects containing hydro
         restart file diffs"""
-        self.restart_lsm = None
+        self.restart_lsm = list()
         """list: List of pandas dataframes if possible or subprocess objects containing lsm restart
         file diffs"""
-        self.restart_nudging = None
+        self.restart_nudging = list()
         """list: List of pandas dataframes if possible or subprocess objects containing nudging
         restart file diffs"""
 
@@ -107,13 +107,15 @@ class OutputDiffs(object):
         atts_list = ['channel_rt','chanobs','lakeout','gwout','restart_hydro','restart_lsm',
                      'restart_nudging']
         for att in atts_list:
-            candidate_att = candidate_output.__getattribute__(att)
-            reference_att = reference_output.__getattribute__(att)
+            candidate_att = getattr(candidate_output,att)
+            reference_att = getattr(reference_output,att)
+
             if candidate_att is not None and reference_att is not None:
-                self.restart_hydro = compare_ncfiles(candidate_files=candidate_att,
+                setattr(self,att,compare_ncfiles(candidate_files=candidate_att,
                                              reference_files=reference_att,
                                              nccmp_options=nccmp_options,
                                              exclude_vars=exclude_vars)
+                        )
                 diff_counts = sum(1 for _ in filter(None.__ne__, self.restart_hydro))
                 self.diff_counts.update({att: diff_counts})
 

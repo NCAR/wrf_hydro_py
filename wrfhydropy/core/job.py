@@ -56,31 +56,52 @@ class Job(object):
         self.job_id = job_id
         """str: The job id."""
 
-        self.model_start_time = pd.to_datetime(model_start_time)
+        self._model_start_time = pd.to_datetime(model_start_time)
         """np.datetime64: The model time at the start of the execution."""
 
-        self.model_end_time = pd.to_datetime(model_end_time)
+        self._model_end_time = pd.to_datetime(model_end_time)
         """np.datetime64: The model time at the end of the execution."""
 
-        # Attributes set by class methods
-        self.hrldas_times = {'noahlsm_offline':
-                                 {'kday':None,
-                                  'khour':None,
-                                  'start_year':None,
-                                  'start_month':None,
-                                  'start_day': None,
-                                  'start_hour':None,
-                                  'start_min':None,
-                                  'restart_filename_requested': None}
-                             }
-        """dict: the HRLDAS namelist used for this job."""
+        ## property construction
+        self._hrldas_times = {'noahlsm_offline':
+                                  {'kday': None,
+                                   'khour': None,
+                                   'start_year': None,
+                                   'start_month': None,
+                                   'start_day': None,
+                                   'start_hour': None,
+                                   'start_min': None,
+                                   'restart_filename_requested': None}
+                              }
 
-        self.hydro_times = {'hydro_nlist':
-                                {'restart_file':None},
-                            'nudging_nlist':
-                                {'nudginglastobsfile':None}
-                            }
-        """dict: the hydro namelist used for this job."""
+        self._hydro_times = {'hydro_nlist':
+                                 {'restart_file': None},
+                             'nudging_nlist':
+                                 {'nudginglastobsfile': None}
+                             }
+
+        self._hydro_namelist = None
+        self._hrldas_namelist = None
+
+        # # Attributes set by class methods
+        # self.hrldas_times = {'noahlsm_offline':
+        #                          {'kday':None,
+        #                           'khour':None,
+        #                           'start_year':None,
+        #                           'start_month':None,
+        #                           'start_day': None,
+        #                           'start_hour':None,
+        #                           'start_min':None,
+        #                           'restart_filename_requested': None}
+        #                      }
+        # """dict: the HRLDAS namelist used for this job."""
+        #
+        # self.hydro_times = {'hydro_nlist':
+        #                         {'restart_file':None},
+        #                     'nudging_nlist':
+        #                         {'nudginglastobsfile':None}
+        #                     }
+        # """dict: the hydro namelist used for this job."""
 
         self.exit_status = None
         """int: The exit status of the model job parsed from WRF-Hydro diag files"""
@@ -96,32 +117,18 @@ class Job(object):
         """str?: The time the job object was created."""
 
     def add_hydro_namelist(self, namelist: Namelist):
-        """Add a hydro_namelist dictionary to the job object
+        """Add a hydro_namelist Namelist object to the job object
         Args:
-            namelist: The namelist dictionary to add
+            namelist: The Namelist to add
         """
-        self.hydro_namelist = namelist
-        if self.model_start_time is None or self.model_end_time is None:
-            warnings.warn('model start or end time was not specified in job, start end times will \
-            be used from supplied namelist')
-            self.model_start_time, self.model_end_time = self._solve_model_start_end_times()
-
-        self._set_hydro_times()
-        self.hydro_namelist = self.hydro_namelist.patch(self.hydro_times)
+        self._hydro_namelist = namelist
 
     def add_hrldas_namelist(self, namelist: dict):
-        """Add a hrldas_namelist dictionary to the job object
+        """Add a hrldas_namelist Namelist object to the job object
         Args:
             namelist: The namelist dictionary to add
         """
-        self.hrldas_namelist = namelist
-        if self.model_start_time is None or self.model_end_time is None:
-            warnings.warn('model start or end time was not specified in job, start end times will \
-            be used from supplied namelist')
-            self.model_start_time, self.model_end_time = self._solve_model_start_end_times()
-        self._set_hrldas_times()
-
-        self.hrldas_namelist = self.hrldas_namelist.patch(self.hrldas_times)
+        self._hrldas_namelist = namelist
 
     def clone(self, N) -> list:
         """Clone a job object N-times using deepcopy.
@@ -218,55 +225,58 @@ class Job(object):
 
     def _set_hrldas_times(self):
         """Private method to set model run times in the hrldas namelist"""
-        # Duration
-        self.hrldas_times['noahlsm_offline']['kday'] = None
-        self.hrldas_times['noahlsm_offline']['khour'] = None
-        duration = self.model_end_time - self.model_start_time
-        if duration.seconds == 0:
-            self.hrldas_times['noahlsm_offline']['kday'] = int(duration.days)
-            self.hrldas_times['noahlsm_offline'].pop('khour')
-        else:
-            self.hrldas_times['noahlsm_offline']['khour'] =int(duration.days * 60 + duration.seconds / 3600)
-            self.hrldas_times['noahlsm_offline'].pop('kday')
 
-        # Start
-        self.hrldas_times['noahlsm_offline']['start_year'] = int(self.model_start_time.year)
-        self.hrldas_times['noahlsm_offline']['start_month'] = int(self.model_start_time.month)
-        self.hrldas_times['noahlsm_offline']['start_day'] = int(self.model_start_time.day)
-        self.hrldas_times['noahlsm_offline']['start_hour'] = int(self.model_start_time.hour)
-        self.hrldas_times['noahlsm_offline']['start_min'] = int(self.model_start_time.minute)
+        if self._model_start_time is not None and self._model_end_time is not None:
+            # Duration
+            self._hrldas_times['noahlsm_offline']['kday'] = None
+            self._hrldas_times['noahlsm_offline']['khour'] = None
+            duration = self._model_end_time - self._model_start_time
+            if duration.seconds == 0:
+                self._hrldas_times['noahlsm_offline']['kday'] = int(duration.days)
+                self._hrldas_times['noahlsm_offline'].pop('khour')
+            else:
+                self._hrldas_times['noahlsm_offline']['khour'] =int(duration.days * 60 +
+                                                                    duration.seconds / 3600)
+                self._hrldas_times['noahlsm_offline'].pop('kday')
 
-        lsm_restart_dirname = '.'  # os.path.dirname(noah_nlst['restart_filename_requested'])
+            # Start
+            self._hrldas_times['noahlsm_offline']['start_year'] = int(self._model_start_time.year)
+            self._hrldas_times['noahlsm_offline']['start_month'] = int(self.model_start_time.month)
+            self._hrldas_times['noahlsm_offline']['start_day'] = int(self._model_start_time.day)
+            self._hrldas_times['noahlsm_offline']['start_hour'] = int(self._model_start_time.hour)
+            self._hrldas_times['noahlsm_offline']['start_min'] = int(self._model_start_time.minute)
 
-        # Format - 2011082600 - no minutes
-        lsm_restart_basename = 'RESTART.' + \
-                               self.model_start_time.strftime('%Y%m%d%H') + '_DOMAIN1'
+            lsm_restart_dirname = '.'  # os.path.dirname(noah_nlst['restart_filename_requested'])
 
-        lsm_restart_file = lsm_restart_dirname + '/' + lsm_restart_basename
+            # Format - 2011082600 - no minutes
+            lsm_restart_basename = 'RESTART.' + \
+                                   self._model_start_time.strftime('%Y%m%d%H') + '_DOMAIN1'
 
-        self.hrldas_times['noahlsm_offline']['restart_filename_requested'] = lsm_restart_file
+            lsm_restart_file = lsm_restart_dirname + '/' + lsm_restart_basename
+
+            self._hrldas_times['noahlsm_offline']['restart_filename_requested'] = lsm_restart_file
 
     def _set_hydro_times(self):
         """Private method to set model run times in the hydro namelist"""
 
-        hydro_restart_dirname = '.'  # os.path.dirname(hydro_nlst['restart_file'])
-        # Format - 2011-08-26_00_00 - minutes
-        hydro_restart_basename = 'HYDRO_RST.' + \
-                                 self.model_start_time.strftime('%Y-%m-%d_%H:%M') + '_DOMAIN1'
+        if self._model_start_time is not None:
+            # Format - 2011-08-26_00_00 - minutes
+            hydro_restart_basename = 'HYDRO_RST.' + \
+                                     self._model_start_time.strftime('%Y-%m-%d_%H:%M') + '_DOMAIN1'
 
-        # Format - 2011-08-26_00_00 - seconds
-        nudging_restart_basename = 'nudgingLastObs.' + \
-                                 self.model_start_time.strftime('%Y-%m-%d_%H:%M:%S') + '.nc'
+            # Format - 2011-08-26_00_00 - seconds
+            nudging_restart_basename = 'nudgingLastObs.' + \
+                                     self._model_start_time.strftime('%Y-%m-%d_%H:%M:%S') + '.nc'
 
-        # Use convenience function to return name of file with or without colons in name
-        # This is needed because the model outputs restarts with colons, and our distributed
-        # domains do not have restarts with colons so that they can be easily shared across file
-        # systems
-        hydro_restart_file = _check_file_exist_colon(os.getcwd(),hydro_restart_basename)
-        nudging_restart_file = _check_file_exist_colon(os.getcwd(),nudging_restart_basename)
+            # Use convenience function to return name of file with or without colons in name
+            # This is needed because the model outputs restarts with colons, and our distributed
+            # domains do not have restarts with colons so that they can be easily shared across file
+            # systems
+            #hydro_restart_file = _check_file_exist_colon(os.getcwd(),hydro_restart_basename)
+            #nudging_restart_file = _check_file_exist_colon(os.getcwd(),nudging_restart_basename)
 
-        self.hydro_times['hydro_nlist']['restart_file'] = hydro_restart_file
-        self.hydro_times['nudging_nlist']['nudginglastobsfile'] = nudging_restart_file
+            self._hydro_times['hydro_nlist']['restart_file'] = hydro_restart_basename
+            self._hydro_times['nudging_nlist']['nudginglastobsfile'] = nudging_restart_basename
 
     def _make_job_dir(self):
         """Private method to make the job directory"""
@@ -339,3 +349,48 @@ class Job(object):
         """Path: Path to the run directory"""
         job_dir_name = 'job_' + self.job_id
         return pathlib.Path(job_dir_name)
+
+    @property
+    def hrldas_times(self):
+        self._set_hrldas_times()
+        return self._hrldas_times
+
+    @property
+    def hydro_times(self):
+        self._set_hydro_times()
+        return self._hydro_times
+
+    @property
+    def hydro_namelist(self):
+        if self.model_start_time is None or self.model_end_time is None:
+            warnings.warn('model start or end time was not specified in job, start end times will \
+            be used from supplied namelist')
+            self.model_start_time, self.model_end_time = self._solve_model_start_end_times()
+        return self._hydro_namelist.patch(self.hydro_times)
+
+    @property
+    def hrldas_namelist(self):
+        if self.model_start_time is None or self.model_end_time is None:
+            warnings.warn('model start or end time was not specified in job, start end times will \
+            be used from supplied namelist')
+            self.model_start_time, self.model_end_time = self._solve_model_start_end_times()
+        return self._hrldas_namelist.patch(self.hrldas_times)
+
+    @property
+    def model_start_time(self):
+        """np.datetime64: The model time at the start of the execution."""
+        return self._model_start_time
+
+    @model_start_time.setter
+    def model_start_time(self,value):
+        self._model_start_time = pd.to_datetime(value)
+
+    @property
+    def model_end_time(self):
+        return self._model_end_time
+
+    @model_end_time.setter
+    def model_end_time(self, value):
+        """np.datetime64: The model time at the start of the execution."""
+        self._model_end_time = pd.to_datetime(value)
+

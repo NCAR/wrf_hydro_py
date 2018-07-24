@@ -124,13 +124,22 @@ class Simulation(object):
             self.scheduler.schedule()
 
         # Overwrite the object after run if successfull
-        with current_dir.joinpath('WrfHydroSim.pkl').open(mode='wb') as f:
-            pickle.dump(self, f, 2)
+        path = current_dir.joinpath('WrfHydroSim.pkl')
+        self.pickle(path)
 
     def collect(self):
         """Collect simulation output after a run"""
         self.output = SimulationOutput()
         self.output.collect(sim_dir=os.getcwd())
+
+    def pickle(self,path: str):
+        """Pickle sim object to specified file path
+        Args:
+            path: The file path for pickle
+        """
+        path = pathlib.Path(path)
+        with path.open(mode='wb') as f:
+            pickle.dump(self, f, 2)
 
     # Private methods
     def _validate_model_domain(self, model, domain):
@@ -225,6 +234,9 @@ class Simulation(object):
             scheduler: The Scheduler to add
         """
         job = copy.deepcopy(job)
+        job.add_hydro_namelist(self.base_hydro_namelist)
+        job.add_hrldas_namelist(self.base_hrldas_namelist)
+
         self.jobs.append(job)
 
 class SimulationOutput(object):
@@ -252,15 +264,12 @@ class SimulationOutput(object):
             sim_dir: The simulation directory
         """
 
-        current_dir = pathlib.Path(os.curdir)
+        current_dir = pathlib.Path(os.curdir).absolute()
 
         # Grab outputs as WrfHydroXX classes of file paths
         # Get channel files
         if len(list(current_dir.glob('*CHRTOUT*'))) > 0:
             self.channel_rt = WrfHydroTs(list(current_dir.glob('*CHRTOUT*')))
-            # Make relative to run dir
-            # for file in self.channel_rt:
-            #     file.relative_to(file.parent)
 
         if len(list(current_dir.glob('*CHANOBS*'))) > 0:
             self.chanobs = WrfHydroTs(list(current_dir.glob('*CHANOBS*')))

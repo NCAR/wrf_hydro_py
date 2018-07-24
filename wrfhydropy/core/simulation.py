@@ -55,21 +55,21 @@ class Simulation(object):
         else:
             raise TypeError('obj is not of a type expected for a Simulation')
 
-    def compose(self, symlink_domain: bool = True):
+    def compose(self, symlink_domain: bool = True, force: bool = False):
         """Compose simulation directories and files
         Args:
             symlink_domain: Symlink the domain files rather than copy
+            force: Compose into directory even if not empty. This is considered bad practice but
+            is necessary in certain circumstances.
         """
 
         print("Composing simulation into directory:'" + os.getcwd() + "'")
         #Check that the current directory is empty
         current_dir = pathlib.Path(os.getcwd())
         current_dir_files = list(current_dir.rglob('*'))
-        if len(current_dir_files) > 0:
+        if len(current_dir_files) > 0 and force is False:
             raise FileExistsError('Unable to compose, current working directory is not empty. '
                                   'Change working directory to an empty directory with os.chdir()')
-
-
 
         # Symlink in domain files
         print('Getting domain files...')

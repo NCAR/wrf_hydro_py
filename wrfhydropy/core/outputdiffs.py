@@ -116,7 +116,7 @@ class OutputDiffs(object):
                                              nccmp_options=nccmp_options,
                                              exclude_vars=exclude_vars)
                         )
-                diff_counts = sum(1 for _ in filter(None.__ne__, self.restart_hydro))
+                diff_counts = sum(1 for _ in filter(None.__ne__, getattr(self,att)))
                 self.diff_counts.update({att: diff_counts})
 
 def _compare_nc_nccmp(candidate_nc: str,

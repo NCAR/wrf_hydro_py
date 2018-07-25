@@ -153,7 +153,7 @@ class Model(object):
         # check compile directory.
         if not self.compile_dir.is_dir():
             warnings.warn(str(self.compile_dir.absolute()) + ' directory does not exist, creating')
-            compile_dir.mkdir(parents=True)
+            self.compile_dir.mkdir(parents=True)
 
         # Remove run directory if it exists in the source_dir
         source_compile_dir = self.source_dir.joinpath('Run')

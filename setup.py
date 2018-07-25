@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='wrfhydropy',
-    version='0.0.4dev1',
+    version='0.0.4dev2',
     packages=find_packages(),
     package_data={'wrfhydropy': ['core/data/*']},
     url='https://github.com/NCAR/wrf_hydro_py',
@@ -14,8 +14,7 @@ setup(
                       'xarray',
                       'datetime',
                       'pytest',
-                      'pytest-datadir-ng',
-                      'boltons'],
+                      'pytest-datadir-ng'],
     author='Joe Mills',
     author_email='jmills@ucar.edu',
     description='Crude API for the WRF-Hydro model',

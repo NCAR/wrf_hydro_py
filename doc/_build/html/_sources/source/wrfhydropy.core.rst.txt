@@ -36,6 +36,14 @@ wrfhydropy.core.model module
     :undoc-members:
     :show-inheritance:
 
+wrfhydropy.core.namelist module
+-------------------------------
+
+.. automodule:: wrfhydropy.core.namelist
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 wrfhydropy.core.outputdiffs module
 ----------------------------------
 

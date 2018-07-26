@@ -565,12 +565,21 @@ class Job(object):
 
             self.exit_status = 1
             self.job_status='completed failure'
+
             # String match diag files for successfull run
+            # This is GNU behavior
             with open(run_dir.joinpath('diag_hydro.00000')) as f:
                 diag_file = f.read()
                 if 'The model finished successfully.......' in diag_file:
                     self.exit_status = 0
                     self.job_status='completed success'
+            # This is intel behavior
+            with open(self.stdout_file) as f:
+                diag_file = f.read()
+                if 'The model finished successfully.......' in diag_file:
+                    self.exit_status = 0
+                    self.job_status='completed success'
+
 
         except Exception as e:
 

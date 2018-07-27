@@ -142,6 +142,15 @@ class Job(object):
             clones.append(copy.deepcopy(self))
         return(clones)
 
+    def pickle(self,path: str):
+        """Pickle sim object to specified file path
+        Args:
+            path: The file path for pickle
+        """
+        path = pathlib.Path(path)
+        with path.open(mode='wb') as f:
+            pickle.dump(self, f, 2)
+
     def _run(self):
         """Private method to run a job"""
 
@@ -217,6 +226,8 @@ class Job(object):
         shutil.move(str(self.stderr_file),str(self.job_dir))
         current_dir.joinpath('hydro.namelist').unlink()
         current_dir.joinpath('namelist.hrldas').unlink()
+
+        self.pickle(str(self.job_dir.joinpath('WrfHydroJob.pkl')))
 
     def _write_namelists(self):
         """Private method to write namelist dicts to FORTRAN namelist files"""

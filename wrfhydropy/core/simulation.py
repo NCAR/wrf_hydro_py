@@ -266,6 +266,9 @@ class SimulationOutput(object):
 
         current_dir = pathlib.Path(os.curdir).absolute()
 
+        # Grab job objects and update jobs list
+
+
         # Grab outputs as WrfHydroXX classes of file paths
         # Get channel files
         if len(list(current_dir.glob('*CHRTOUT*'))) > 0:

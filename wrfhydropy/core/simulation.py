@@ -129,6 +129,22 @@ class Simulation(object):
 
     def collect(self):
         """Collect simulation output after a run"""
+
+        current_dir = pathlib.Path(os.curdir).absolute()
+
+        # Overwrite sim job objects with collected objects matched on job id
+        ## Create dict of index/ids so that globbed jobs match the original list order
+        id_index = dict()
+        for index, item in enumerate(self.jobs):
+            id_index[item.job_id] = index
+
+        ## Insert collect jobs into sim job list
+        job_objs = current_dir.rglob('WrfHydroJob.pkl')
+        for job_obj in job_objs:
+            collect_job = pickle.load(open(job_obj,mode='rb'))
+            original_idx = id_index[collect_job.job_id]
+            self.jobs[original_idx] = collect_job
+
         self.output = SimulationOutput()
         self.output.collect(sim_dir=os.getcwd())
 
@@ -265,9 +281,6 @@ class SimulationOutput(object):
         """
 
         current_dir = pathlib.Path(os.curdir).absolute()
-
-        # Grab job objects and update jobs list
-
 
         # Grab outputs as WrfHydroXX classes of file paths
         # Get channel files

@@ -146,7 +146,7 @@ class Simulation(object):
             self.jobs[original_idx] = collect_job
 
         self.output = SimulationOutput()
-        self.output.collect(sim_dir=os.getcwd())
+        self.output.collect_output(sim_dir=os.getcwd())
 
     def pickle(self,path: str):
         """Pickle sim object to specified file path
@@ -274,7 +274,7 @@ class SimulationOutput(object):
         self.restart_nudging = None
         """list: List of nudgingLastObs WrfHydroStatic objects"""
 
-    def collect(self,sim_dir: Union[str,pathlib.Path]):
+    def collect_output(self,sim_dir: Union[str,pathlib.Path]):
         """Collect simulation output after a run
         Args:
             sim_dir: The simulation directory

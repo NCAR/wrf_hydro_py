@@ -10,7 +10,7 @@ class Scheduler(ABC):
         super().__init__()
 
     @abstractmethod
-    def add_job(self, job: Job):
+    def _add_job(self, job: Job):
         pass
 
     @abstractmethod
@@ -64,9 +64,8 @@ class PBSCheyenne(Scheduler):
                                'queue':queue,
                                'walltime':walltime}
 
-    def add_job(self,job: Job):
+    def _add_job(self,job: Job):
         """Add a job to the scheduler"""
-        job = copy.deepcopy(job)
 
         #Override job exe cmd with scheduler exe cmd
         job._exe_cmd = self._exe_cmd
@@ -110,7 +109,7 @@ class PBSCheyenne(Scheduler):
                 qsub_str += pbs_jids[job_num] + "=`qsub -W depend=afterok:$" + pbs_jids[
                     job_num-1] + " " + pbs_scripts[job_num] + "`;"
 
-        qsub_str += 'qrls $' + pbs_jids[0] + ";"
+        #qsub_str += 'qrls $' + pbs_jids[0] + ";"
         qsub_str += '"'
 
         # This stacks up dependent jobs in PBS in the same order as the job list

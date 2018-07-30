@@ -93,7 +93,7 @@ class Simulation(object):
         if self.scheduler is not None:
             print('Adding jobs to scheduler...')
             for job in self.jobs:
-                self.scheduler.add_job(job)
+                self.scheduler._add_job(job)
 
         # Compile model or copy files
         if self.model.compile_log is not None:

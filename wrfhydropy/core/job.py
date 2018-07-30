@@ -156,7 +156,6 @@ class Job(object):
 
         # Create curent dir path to use for all operations. Needed so that everything can be run
         # relative to the simulation directory
-        exit(255)
         current_dir = pathlib.Path(os.curdir)
 
         # Print some basic info about the run

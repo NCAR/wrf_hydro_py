@@ -227,7 +227,7 @@ class Job(object):
         current_dir.joinpath('hydro.namelist').unlink()
         current_dir.joinpath('namelist.hrldas').unlink()
 
-        self.pickle(str(self.job_dir.joinpath('WrfHydroJob_complete.pkl')))
+        self.pickle(str(self.job_dir.joinpath('WrfHydroJob_postrun.pkl')))
 
     def _write_namelists(self):
         """Private method to write namelist dicts to FORTRAN namelist files"""
@@ -300,7 +300,7 @@ class Job(object):
         """Private method to write a python script to run the job. This is used primarily for
         compatibility with job schedulers on HPC systems"""
 
-        self.pickle(str(self.job_dir.joinpath('WrfHydroJob.pkl')))
+        self.pickle(str(self.job_dir.joinpath('WrfHydroJob_prerun.pkl')))
 
         pystr = ""
         pystr += "# import modules\n"
@@ -321,8 +321,8 @@ class Job(object):
         pystr += "\n"
 
         pystr += "#load job object\n"
-        pystr += "job_dir = 'job_' + args.job_id + '/WrfHydroJob.pkl'\n"
-        pystr += "job = pickle.load(open(job_dir,mode='rb'))\n"
+        pystr += "job_file = 'job_' + args.job_id + '/WrfHydroJob_prerun.pkl'\n"
+        pystr += "job = pickle.load(open(job_file,mode='rb'))\n"
         pystr += "#Run the job\n"
         pystr += "job._run()\n"
 
@@ -352,7 +352,7 @@ class Job(object):
         return model_start_time, model_end_time
 
     def pickle(self,path: str):
-        """Pickle sim object to specified file path
+        """Pickle job object to specified file path
         Args:
             path: The file path for pickle
         """

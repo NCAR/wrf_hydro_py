@@ -227,7 +227,7 @@ class Job(object):
         current_dir.joinpath('hydro.namelist').unlink()
         current_dir.joinpath('namelist.hrldas').unlink()
 
-        self.pickle(str(self.job_dir.joinpath('WrfHydroJob.pkl')))
+        self.pickle(str(self.job_dir.joinpath('WrfHydroJob_complete.pkl')))
 
     def _write_namelists(self):
         """Private method to write namelist dicts to FORTRAN namelist files"""
@@ -325,7 +325,6 @@ class Job(object):
         pystr += "job = pickle.load(open(job_dir,mode='rb'))\n"
         pystr += "#Run the job\n"
         pystr += "job._run()\n"
-        pystr += "job.pickle(str(self.job_dir.joinpath('WrfHydroJob_complete.pkl')))\n"
 
         pystr_file = 'run_job.py'
         with open(pystr_file,mode='w') as f:

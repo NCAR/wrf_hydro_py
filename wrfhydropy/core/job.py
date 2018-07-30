@@ -300,7 +300,7 @@ class Job(object):
         """Private method to write a python script to run the job. This is used primarily for
         compatibility with job schedulers on HPC systems"""
 
-        self._pickle()
+        self.pickle(str(self.job_dir.joinpath('WrfHydroJob.pkl')))
 
         pystr = ""
         pystr += "# import modules\n"
@@ -325,7 +325,7 @@ class Job(object):
         pystr += "job = pickle.load(open(job_dir,mode='rb'))\n"
         pystr += "#Run the job\n"
         pystr += "job._run()\n"
-        pystr += "job._pickle()\n"
+        pystr += "job.pickle(str(self.job_dir.joinpath('WrfHydroJob_complete.pkl')))\n"
 
         pystr_file = 'run_job.py'
         with open(pystr_file,mode='w') as f:
@@ -352,9 +352,15 @@ class Job(object):
 
         return model_start_time, model_end_time
 
-    def _pickle(self):
-        with self.job_dir.joinpath('WrfHydroJob.pkl').open(mode='wb') as f:
+    def pickle(self,path: str):
+        """Pickle sim object to specified file path
+        Args:
+            path: The file path for pickle
+        """
+        path = pathlib.Path(path)
+        with path.open(mode='wb') as f:
             pickle.dump(self, f, 2)
+
 
     @property
     def job_dir(self):

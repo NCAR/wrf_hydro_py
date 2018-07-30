@@ -31,7 +31,6 @@ def tmp_data_dir(tmpdir_factory):
 ##################################
 # Domain object tests
 
-
 # # Make expected data
 # domain_top_dir= test_data_dir / 'domain'
 # domain_object = wrfhydropy.WrfHydroDomain(

@@ -50,7 +50,10 @@ class PBSCheyenne(Scheduler):
         self._ppn = ppn
 
         # Setup exe cmd, will overwrite job exe cmd
-        self._exe_cmd = 'mpiexec_mpt ./wrf_hydro.exe'
+        if self.scheduler_opts['queue'] == 'shared':
+            self._exe_cmd = 'mpirun -np {0} ./wrf_hydro.exe'.format(self.nproc)
+        else:
+            self._exe_cmd = 'mpiexec_mpt ./wrf_hydro.exe'
 
         ## Scheduler options dict
         ## TODO: Make this more elegant than hard coding for maintenance sake
@@ -114,6 +117,8 @@ class PBSCheyenne(Scheduler):
     def _write_job_pbs(self,jobs):
         """Private method to write bash PBS scripts for submitting each job """
         for job in jobs:
+            # Copy the job because the exe cmd is edited below
+            job = copy.deepcopy(job)
 
             # Write PBS script
             jobstr = ""
@@ -165,6 +170,8 @@ class PBSCheyenne(Scheduler):
                 f.write(jobstr)
 
             # Write the python run script for the job
+            ## Overwrite job exe cmd with scheduler exe cmd
+            job._exe_cmd = self._exe_cmd
             job._write_run_script()
 
     def _solve_nodes_cores(self):

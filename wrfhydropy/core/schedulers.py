@@ -21,8 +21,8 @@ class PBSCheyenne(Scheduler):
     """A Scheduler object compatible with PBS on the NCAR Cheyenne system."""
     def __init__(
             self,
-            entry_cmd: str,
             account: str,
+            entry_cmd: str = '',
             email_who: str = None,
             email_when: str = 'abe',
             nproc: int = 72,

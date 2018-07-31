@@ -1,6 +1,5 @@
 # Note: All other imports for individual schedulers should be done in the respective scheduler
 # class functions so that imports can be isolated to relevant schedulers
-import copy
 
 from abc import ABC, abstractmethod
 from .job import Job
@@ -18,6 +17,7 @@ class Scheduler(ABC):
         pass
 
 class PBSCheyenne(Scheduler):
+
     """A Scheduler object compatible with PBS on the NCAR Cheyenne system."""
     def __init__(
             self,
@@ -116,6 +116,12 @@ class PBSCheyenne(Scheduler):
 
     def _write_job_pbs(self,jobs):
         """Private method to write bash PBS scripts for submitting each job """
+        import copy
+        import sys
+
+        # Get the current pytohn executable to handle virtual environments in the scheduler
+        python_path = sys.executable
+
         for job in jobs:
             # Copy the job because the exe cmd is edited below
             job = copy.deepcopy(job)
@@ -163,7 +169,7 @@ class PBSCheyenne(Scheduler):
             if self.scheduler_opts['queue'] == 'share':
                 jobstr += "export MPI_USE_ARRAY=false\n"
 
-            jobstr += 'python run_job.py --job_id {0}\n'.format(job.job_id)
+            jobstr += '{0} run_job.py --job_id {1}\n'.format(python_path, job.job_id)
 
             pbs_file = job.job_dir.joinpath('job_' + job.job_id + '.pbs')
             with pbs_file.open(mode='w') as f:

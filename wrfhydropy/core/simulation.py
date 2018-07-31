@@ -139,7 +139,7 @@ class Simulation(object):
             id_index[item.job_id] = index
 
         ## Insert collect jobs into sim job list
-        job_objs = current_dir.rglob('WrfHydroJob.pkl')
+        job_objs = current_dir.rglob('WrfHydroJob_postrun.pkl')
         for job_obj in job_objs:
             collect_job = pickle.load(open(job_obj,mode='rb'))
             original_idx = id_index[collect_job.job_id]

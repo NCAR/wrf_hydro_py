@@ -141,7 +141,7 @@ class Simulation(object):
         ## Insert collect jobs into sim job list
         job_objs = current_dir.rglob('WrfHydroJob_postrun.pkl')
         for job_obj in job_objs:
-            collect_job = pickle.load(open(job_obj,mode='rb'))
+            collect_job = pickle.load(job_obj.open(mode='rb'))
             original_idx = id_index[collect_job.job_id]
             self.jobs[original_idx] = collect_job
 

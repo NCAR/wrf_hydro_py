@@ -226,12 +226,12 @@ class Job(object):
             shutil.move(str(self.stderr_file),str(self.job_dir))
             current_dir.joinpath('hydro.namelist').unlink()
             current_dir.joinpath('namelist.hrldas').unlink()
-
-            self.pickle(str(self.job_dir.joinpath('WrfHydroJob_postrun.pkl')))
         else:
             self.exit_status = 1
             self.pickle(str(self.job_dir.joinpath('WrfHydroJob_postrun.pkl')))
             raise RuntimeError('Model did not finish successfully')
+
+        self.pickle(str(self.job_dir.joinpath('WrfHydroJob_postrun.pkl')))
 
     def _write_namelists(self):
         """Private method to write namelist dicts to FORTRAN namelist files"""

@@ -22,7 +22,6 @@ class PBSCheyenne(Scheduler):
     def __init__(
             self,
             account: str,
-            entry_cmd: str = '',
             email_who: str = None,
             email_when: str = 'abe',
             nproc: int = 72,
@@ -32,8 +31,6 @@ class PBSCheyenne(Scheduler):
             walltime: str = "12:00:00"):
         """Initialize an PBSCheyenne object.
         Args:
-            entry_cmd: A shell command to execute prior to submitting the job, e.g. loading a
-            virtual environment.
             account: The account string
             email_who: Email address for PBS notifications
             email_when: PBS email frequency options. Options include 'a' for on abort,
@@ -44,8 +41,6 @@ class PBSCheyenne(Scheduler):
             queue: The queue to use, options are 'regular', 'priority', and 'shared'
             walltime: The wall clock time in HH:MM:SS format, max time is 12:00:00
         """
-
-        self.entry_cmd = entry_cmd
 
         # Declare attributes.
         ## property construction
@@ -172,7 +167,6 @@ class PBSCheyenne(Scheduler):
             if self.scheduler_opts['queue'] == 'share':
                 jobstr += "export MPI_USE_ARRAY=false\n"
 
-            jobstr +=  self.entry_cmd + "\n"
             jobstr += 'python run_job.py --job_id {0}\n'.format(job.job_id)
 
             pbs_file = job.job_dir.joinpath('job_' + job.job_id + '.pbs')

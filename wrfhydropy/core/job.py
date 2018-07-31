@@ -210,23 +210,28 @@ class Job(object):
         self.job_end_time = str(datetime.datetime.now())
 
         # String match diag files for successfull run
-        self.exit_status = 1
-        with current_dir.joinpath('diag_hydro.00000').open() as f:
-            diag_file = f.read()
-            if 'The model finished successfully.......' in diag_file:
-                self.exit_status = 0
+        diag_file = current_dir.joinpath('diag_hydro.00000')
+        if diag_file.exists():
+            with diag_file.open() as f:
+                diag_file = f.read()
+                if 'The model finished successfully.......' in diag_file:
+                    self.exit_status = 0
 
-        # cleanup job-specific run files
-        diag_files = current_dir.glob('*diag*')
-        for file in diag_files:
-            shutil.move(str(file), str(self.job_dir))
+            # cleanup job-specific run files
+            diag_files = current_dir.glob('*diag*')
+            for file in diag_files:
+                shutil.move(str(file), str(self.job_dir))
 
-        shutil.move(str(self.stdout_file),str(self.job_dir))
-        shutil.move(str(self.stderr_file),str(self.job_dir))
-        current_dir.joinpath('hydro.namelist').unlink()
-        current_dir.joinpath('namelist.hrldas').unlink()
+            shutil.move(str(self.stdout_file),str(self.job_dir))
+            shutil.move(str(self.stderr_file),str(self.job_dir))
+            current_dir.joinpath('hydro.namelist').unlink()
+            current_dir.joinpath('namelist.hrldas').unlink()
 
-        self.pickle(str(self.job_dir.joinpath('WrfHydroJob_postrun.pkl')))
+            self.pickle(str(self.job_dir.joinpath('WrfHydroJob_postrun.pkl')))
+        else:
+            self.exit_status = 1
+            self.pickle(str(self.job_dir.joinpath('WrfHydroJob_postrun.pkl')))
+            raise RuntimeError('Model did not finish successfully')
 
     def _write_namelists(self):
         """Private method to write namelist dicts to FORTRAN namelist files"""

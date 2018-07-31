@@ -21,6 +21,7 @@ class PBSCheyenne(Scheduler):
     """A Scheduler object compatible with PBS on the NCAR Cheyenne system."""
     def __init__(
             self,
+            entry_cmd: str,
             account: str,
             email_who: str = None,
             email_when: str = 'abe',
@@ -31,6 +32,8 @@ class PBSCheyenne(Scheduler):
             walltime: str = "12:00:00"):
         """Initialize an PBSCheyenne object.
         Args:
+            entry_cmd: A shell command to execute prior to submitting the job, e.g. loading a
+            virtual environment.
             account: The account string
             email_who: Email address for PBS notifications
             email_when: PBS email frequency options. Options include 'a' for on abort,
@@ -41,6 +44,8 @@ class PBSCheyenne(Scheduler):
             queue: The queue to use, options are 'regular', 'priority', and 'shared'
             walltime: The wall clock time in HH:MM:SS format, max time is 12:00:00
         """
+
+        self.entry_cmd = entry_cmd
 
         # Declare attributes.
         ## property construction
@@ -147,7 +152,7 @@ class PBSCheyenne(Scheduler):
             jobstr += "\n"
 
             jobstr += "# Not using PBS standard error and out files to capture model output\n"
-            jobstr += "# but these hidden files might catch output and errors from the scheduler.\n"
+            jobstr += "# but these files might catch output and errors from the scheduler.\n"
             jobstr += "#PBS -o {0}\n".format(job.job_dir)
             jobstr += "#PBS -e {0}\n".format(job.job_dir)
             jobstr += "\n"
@@ -167,6 +172,7 @@ class PBSCheyenne(Scheduler):
             if self.scheduler_opts['queue'] == 'share':
                 jobstr += "export MPI_USE_ARRAY=false\n"
 
+            jobstr +=  self.entry_cmd + "\n"
             jobstr += 'python run_job.py --job_id {0}\n'.format(job.job_id)
 
             pbs_file = job.job_dir.joinpath('job_' + job.job_id + '.pbs')

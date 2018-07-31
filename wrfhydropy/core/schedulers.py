@@ -9,12 +9,12 @@ class Scheduler(ABC):
     def __init__(self):
         super().__init__()
 
-    @abstractmethod
-    def _add_job(self, job: Job):
-        pass
+    # @abstractmethod
+    # def _add_job(self, job: Job):
+    #     pass
 
     @abstractmethod
-    def schedule(self):
+    def schedule(self,jobs):
         pass
 
 class PBSCheyenne(Scheduler):
@@ -49,10 +49,6 @@ class PBSCheyenne(Scheduler):
         self._nnodes = nnodes
         self._ppn = ppn
 
-        # Attribute
-        self.jobs = []
-        self.scheduled_jobs = []
-
         # Setup exe cmd, will overwrite job exe cmd
         self._exe_cmd = 'mpiexec_mpt ./wrf_hydro.exe'
 
@@ -64,16 +60,11 @@ class PBSCheyenne(Scheduler):
                                'queue':queue,
                                'walltime':walltime}
 
-    def _add_job(self,job: Job):
-        """Add a job to the scheduler"""
-
-        #Override job exe cmd with scheduler exe cmd
-        job._exe_cmd = self._exe_cmd
-
-        self.jobs.append(job)
-
-    def schedule(self):
-        """Schedule jobs that have been added to the scheduler"""
+    def schedule(self,jobs: list):
+        """Schedule one or more jobs using the scheduler scheduler
+            Args:
+                jobs: list of jobs to schedule
+        """
         import subprocess
         import shlex
         import pathlib
@@ -85,20 +76,20 @@ class PBSCheyenne(Scheduler):
         # they can't change the order, may not be an issue except for if scheduling fails
         # somewhere
 
-        self._write_job_pbs()
+        self._write_job_pbs(jobs=jobs)
 
         # Make lists to store pbs scripts and pbs job ids to get previous dependency
         pbs_jids = []
         pbs_scripts = []
 
         qsub_str = '/bin/bash -c "'
-        for job_num, option in enumerate(self.jobs):
+        for job_num, option in enumerate(jobs):
 
             # This gets the pbs script name and pbs jid for submission
             # the obs jid is stored in a list so that the previous jid can be retrieved for
             # dependency
-            job_id = self.jobs[job_num].job_id
-            pbs_scripts.append(str(self.jobs[job_num].job_dir) + '/job_' + job_id + '.pbs')
+            job_id = jobs[job_num].job_id
+            pbs_scripts.append(str(jobs[job_num].job_dir) + '/job_' + job_id + '.pbs')
             pbs_jids.append('job_' + job_id)
 
             # If first job, schedule using hold
@@ -120,9 +111,9 @@ class PBSCheyenne(Scheduler):
         subprocess.run(shlex.split('qrls $' + pbs_jids[0]),
                        cwd=str(current_dir))
 
-    def _write_job_pbs(self):
+    def _write_job_pbs(self,jobs):
         """Private method to write bash PBS scripts for submitting each job """
-        for job in self.jobs:
+        for job in jobs:
 
             # Write PBS script
             jobstr = ""

@@ -121,7 +121,7 @@ class Simulation(object):
             for job in self.jobs:
                 job._run()
         else:
-            self.scheduler.schedule()
+            self.scheduler.schedule(jobs=self.jobs)
 
         # Overwrite the object after run if successfull
         path = current_dir.joinpath('WrfHydroSim.pkl')

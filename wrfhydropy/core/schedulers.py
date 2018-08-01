@@ -8,10 +8,6 @@ class Scheduler(ABC):
     def __init__(self):
         super().__init__()
 
-    # @abstractmethod
-    # def _add_job(self, job: Job):
-    #     pass
-
     @abstractmethod
     def schedule(self,jobs):
         pass

@@ -9,7 +9,7 @@ setup(
     license='MIT',
     install_requires=['pandas',
                       'f90nml',
-                      'netcdf4',
+                      'netCDF4',
                       'deepdiff',
                       'pathlib',
                       'xarray',

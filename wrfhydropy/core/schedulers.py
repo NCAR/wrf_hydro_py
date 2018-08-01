@@ -170,6 +170,7 @@ class PBSCheyenne(Scheduler):
                 jobstr += "export MPI_USE_ARRAY=false\n"
 
             jobstr += '{0} run_job.py --job_id {1}\n'.format(python_path, job.job_id)
+            jobstr += 'exit $?\n'
 
             pbs_file = job.job_dir.joinpath('job_' + job.job_id + '.pbs')
             with pbs_file.open(mode='w') as f:

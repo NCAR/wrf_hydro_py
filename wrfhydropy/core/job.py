@@ -83,26 +83,6 @@ class Job(object):
         self._hydro_namelist = None
         self._hrldas_namelist = None
 
-        # # Attributes set by class methods
-        # self.hrldas_times = {'noahlsm_offline':
-        #                          {'kday':None,
-        #                           'khour':None,
-        #                           'start_year':None,
-        #                           'start_month':None,
-        #                           'start_day': None,
-        #                           'start_hour':None,
-        #                           'start_min':None,
-        #                           'restart_filename_requested': None}
-        #                      }
-        # """dict: the HRLDAS namelist used for this job."""
-        #
-        # self.hydro_times = {'hydro_nlist':
-        #                         {'restart_file':None},
-        #                     'nudging_nlist':
-        #                         {'nudginglastobsfile':None}
-        #                     }
-        # """dict: the hydro namelist used for this job."""
-
         self.exit_status = None
         """int: The exit status of the model job parsed from WRF-Hydro diag files"""
 

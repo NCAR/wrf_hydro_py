@@ -89,12 +89,6 @@ class Simulation(object):
         print('Validating job input files')
         self._validate_jobs()
 
-        # Add jobs to scheduler
-        if self.scheduler is not None:
-            print('Adding jobs to scheduler...')
-            for job in self.jobs:
-                self.scheduler.add_job(job)
-
         # Compile model or copy files
         if self.model.compile_log is not None:
             if self.model.compile_log.returncode == 0:
@@ -121,7 +115,7 @@ class Simulation(object):
             for job in self.jobs:
                 job._run()
         else:
-            self.scheduler.schedule()
+            self.scheduler.schedule(jobs=self.jobs)
 
         # Overwrite the object after run if successfull
         path = current_dir.joinpath('WrfHydroSim.pkl')
@@ -129,8 +123,24 @@ class Simulation(object):
 
     def collect(self):
         """Collect simulation output after a run"""
+
+        current_dir = pathlib.Path(os.curdir).absolute()
+
+        # Overwrite sim job objects with collected objects matched on job id
+        ## Create dict of index/ids so that globbed jobs match the original list order
+        id_index = dict()
+        for index, item in enumerate(self.jobs):
+            id_index[item.job_id] = index
+
+        ## Insert collect jobs into sim job list
+        job_objs = current_dir.rglob('WrfHydroJob_postrun.pkl')
+        for job_obj in job_objs:
+            collect_job = pickle.load(job_obj.open(mode='rb'))
+            original_idx = id_index[collect_job.job_id]
+            self.jobs[original_idx] = collect_job
+
         self.output = SimulationOutput()
-        self.output.collect(sim_dir=os.getcwd())
+        self.output.collect_output(sim_dir=os.getcwd())
 
     def pickle(self,path: str):
         """Pickle sim object to specified file path
@@ -258,7 +268,7 @@ class SimulationOutput(object):
         self.restart_nudging = None
         """list: List of nudgingLastObs WrfHydroStatic objects"""
 
-    def collect(self,sim_dir: Union[str,pathlib.Path]):
+    def collect_output(self,sim_dir: Union[str,pathlib.Path]):
         """Collect simulation output after a run
         Args:
             sim_dir: The simulation directory

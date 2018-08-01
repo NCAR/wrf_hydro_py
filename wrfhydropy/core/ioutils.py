@@ -3,6 +3,7 @@ import numpy as np
 import os
 import warnings
 import pathlib
+import netCDF4
 
 from boltons import iterutils
 

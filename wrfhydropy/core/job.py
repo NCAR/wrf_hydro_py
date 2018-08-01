@@ -83,26 +83,6 @@ class Job(object):
         self._hydro_namelist = None
         self._hrldas_namelist = None
 
-        # # Attributes set by class methods
-        # self.hrldas_times = {'noahlsm_offline':
-        #                          {'kday':None,
-        #                           'khour':None,
-        #                           'start_year':None,
-        #                           'start_month':None,
-        #                           'start_day': None,
-        #                           'start_hour':None,
-        #                           'start_min':None,
-        #                           'restart_filename_requested': None}
-        #                      }
-        # """dict: the HRLDAS namelist used for this job."""
-        #
-        # self.hydro_times = {'hydro_nlist':
-        #                         {'restart_file':None},
-        #                     'nudging_nlist':
-        #                         {'nudginglastobsfile':None}
-        #                     }
-        # """dict: the hydro namelist used for this job."""
-
         self.exit_status = None
         """int: The exit status of the model job parsed from WRF-Hydro diag files"""
 
@@ -142,12 +122,20 @@ class Job(object):
             clones.append(copy.deepcopy(self))
         return(clones)
 
+    def pickle(self,path: str):
+        """Pickle sim object to specified file path
+        Args:
+            path: The file path for pickle
+        """
+        path = pathlib.Path(path)
+        with path.open(mode='wb') as f:
+            pickle.dump(self, f, 2)
+
     def _run(self):
         """Private method to run a job"""
 
         # Create curent dir path to use for all operations. Needed so that everything can be run
         # relative to the simulation directory
-
         current_dir = pathlib.Path(os.curdir)
 
         # Print some basic info about the run
@@ -202,21 +190,28 @@ class Job(object):
         self.job_end_time = str(datetime.datetime.now())
 
         # String match diag files for successfull run
-        self.exit_status = 1
-        with current_dir.joinpath('diag_hydro.00000').open() as f:
-            diag_file = f.read()
-            if 'The model finished successfully.......' in diag_file:
-                self.exit_status = 0
+        diag_file = current_dir.joinpath('diag_hydro.00000')
+        if diag_file.exists():
+            with diag_file.open() as f:
+                diag_file = f.read()
+                if 'The model finished successfully.......' in diag_file:
+                    self.exit_status = 0
 
-        # cleanup job-specific run files
-        diag_files = current_dir.glob('*diag*')
-        for file in diag_files:
-            shutil.move(str(file), str(self.job_dir))
+            # cleanup job-specific run files
+            diag_files = current_dir.glob('*diag*')
+            for file in diag_files:
+                shutil.move(str(file), str(self.job_dir))
 
-        shutil.move(str(self.stdout_file),str(self.job_dir))
-        shutil.move(str(self.stderr_file),str(self.job_dir))
-        current_dir.joinpath('hydro.namelist').unlink()
-        current_dir.joinpath('namelist.hrldas').unlink()
+            shutil.move(str(self.stdout_file),str(self.job_dir))
+            shutil.move(str(self.stderr_file),str(self.job_dir))
+            current_dir.joinpath('hydro.namelist').unlink()
+            current_dir.joinpath('namelist.hrldas').unlink()
+        else:
+            self.exit_status = 1
+            self.pickle(str(self.job_dir.joinpath('WrfHydroJob_postrun.pkl')))
+            raise RuntimeError('Model did not finish successfully')
+
+        self.pickle(str(self.job_dir.joinpath('WrfHydroJob_postrun.pkl')))
 
     def _write_namelists(self):
         """Private method to write namelist dicts to FORTRAN namelist files"""
@@ -289,7 +284,7 @@ class Job(object):
         """Private method to write a python script to run the job. This is used primarily for
         compatibility with job schedulers on HPC systems"""
 
-        self._pickle()
+        self.pickle(str(self.job_dir.joinpath('WrfHydroJob_prerun.pkl')))
 
         pystr = ""
         pystr += "# import modules\n"
@@ -310,11 +305,10 @@ class Job(object):
         pystr += "\n"
 
         pystr += "#load job object\n"
-        pystr += "job_dir = 'job_' + args.job_id + '/WrfHydroJob.pkl'\n"
-        pystr += "job = pickle.load(open(job_dir,mode='rb'))\n"
+        pystr += "job_file = 'job_' + args.job_id + '/WrfHydroJob_prerun.pkl'\n"
+        pystr += "job = pickle.load(open(job_file,mode='rb'))\n"
         pystr += "#Run the job\n"
         pystr += "job._run()\n"
-        pystr += "job._pickle()\n"
 
         pystr_file = 'run_job.py'
         with open(pystr_file,mode='w') as f:
@@ -341,9 +335,15 @@ class Job(object):
 
         return model_start_time, model_end_time
 
-    def _pickle(self):
-        with self.job_dir.joinpath('WrfHydroJob.pkl').open(mode='wb') as f:
+    def pickle(self,path: str):
+        """Pickle job object to specified file path
+        Args:
+            path: The file path for pickle
+        """
+        path = pathlib.Path(path)
+        with path.open(mode='wb') as f:
             pickle.dump(self, f, 2)
+
 
     @property
     def job_dir(self):

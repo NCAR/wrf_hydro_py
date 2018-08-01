@@ -1,6 +1,5 @@
 # Note: All other imports for individual schedulers should be done in the respective scheduler
 # class functions so that imports can be isolated to relevant schedulers
-import copy
 
 from abc import ABC, abstractmethod
 from .job import Job
@@ -10,21 +9,18 @@ class Scheduler(ABC):
         super().__init__()
 
     @abstractmethod
-    def add_job(self, job: Job):
-        pass
-
-    @abstractmethod
-    def schedule(self):
+    def schedule(self,jobs):
         pass
 
 class PBSCheyenne(Scheduler):
+
     """A Scheduler object compatible with PBS on the NCAR Cheyenne system."""
     def __init__(
             self,
             account: str,
             email_who: str = None,
             email_when: str = 'abe',
-            nproc: int = 360,
+            nproc: int = 72,
             nnodes: int = None,
             ppn: int = 36,
             queue: str = 'regular',
@@ -49,13 +45,6 @@ class PBSCheyenne(Scheduler):
         self._nnodes = nnodes
         self._ppn = ppn
 
-        # Attribute
-        self.jobs = []
-        self.scheduled_jobs = []
-
-        # Setup exe cmd, will overwrite job exe cmd
-        self._exe_cmd = 'mpiexec_mpt ./wrf_hydro.exe'
-
         ## Scheduler options dict
         ## TODO: Make this more elegant than hard coding for maintenance sake
         self.scheduler_opts = {'account':account,
@@ -64,17 +53,17 @@ class PBSCheyenne(Scheduler):
                                'queue':queue,
                                'walltime':walltime}
 
-    def add_job(self,job: Job):
-        """Add a job to the scheduler"""
-        job = copy.deepcopy(job)
+        # Setup exe cmd, will overwrite job exe cmd
+        if self.scheduler_opts['queue'] == 'shared':
+            self._exe_cmd = 'mpirun -np {0} ./wrf_hydro.exe'.format(self.nproc)
+        else:
+            self._exe_cmd = 'mpiexec_mpt ./wrf_hydro.exe'
 
-        #Override job exe cmd with scheduler exe cmd
-        job._exe_cmd = self._exe_cmd
-
-        self.jobs.append(job)
-
-    def schedule(self):
-        """Schedule jobs that have been added to the scheduler"""
+    def schedule(self,jobs: list):
+        """Schedule one or more jobs using the scheduler scheduler
+            Args:
+                jobs: list of jobs to schedule
+        """
         import subprocess
         import shlex
         import pathlib
@@ -86,20 +75,20 @@ class PBSCheyenne(Scheduler):
         # they can't change the order, may not be an issue except for if scheduling fails
         # somewhere
 
-        self._write_job_pbs()
+        self._write_job_pbs(jobs=jobs)
 
         # Make lists to store pbs scripts and pbs job ids to get previous dependency
         pbs_jids = []
         pbs_scripts = []
 
         qsub_str = '/bin/bash -c "'
-        for job_num, option in enumerate(self.jobs):
+        for job_num, option in enumerate(jobs):
 
             # This gets the pbs script name and pbs jid for submission
             # the obs jid is stored in a list so that the previous jid can be retrieved for
             # dependency
-            job_id = self.jobs[job_num].job_id
-            pbs_scripts.append(str(self.jobs[job_num].job_dir) + '/job_' + job_id + '.pbs')
+            job_id = jobs[job_num].job_id
+            pbs_scripts.append(str(jobs[job_num].job_dir) + '/job_' + job_id + '.pbs')
             pbs_jids.append('job_' + job_id)
 
             # If first job, schedule using hold
@@ -121,9 +110,17 @@ class PBSCheyenne(Scheduler):
         subprocess.run(shlex.split('qrls $' + pbs_jids[0]),
                        cwd=str(current_dir))
 
-    def _write_job_pbs(self):
+    def _write_job_pbs(self,jobs):
         """Private method to write bash PBS scripts for submitting each job """
-        for job in self.jobs:
+        import copy
+        import sys
+
+        # Get the current pytohn executable to handle virtual environments in the scheduler
+        python_path = sys.executable
+
+        for job in jobs:
+            # Copy the job because the exe cmd is edited below
+            job = copy.deepcopy(job)
 
             # Write PBS script
             jobstr = ""
@@ -148,7 +145,7 @@ class PBSCheyenne(Scheduler):
             jobstr += "\n"
 
             jobstr += "# Not using PBS standard error and out files to capture model output\n"
-            jobstr += "# but these hidden files might catch output and errors from the scheduler.\n"
+            jobstr += "# but these files might catch output and errors from the scheduler.\n"
             jobstr += "#PBS -o {0}\n".format(job.job_dir)
             jobstr += "#PBS -e {0}\n".format(job.job_dir)
             jobstr += "\n"
@@ -168,13 +165,16 @@ class PBSCheyenne(Scheduler):
             if self.scheduler_opts['queue'] == 'share':
                 jobstr += "export MPI_USE_ARRAY=false\n"
 
-            jobstr += 'python run_job.py --job_id {0}\n'.format(job.job_id)
+            jobstr += '{0} run_job.py --job_id {1}\n'.format(python_path, job.job_id)
+            jobstr += 'exit $?\n'
 
             pbs_file = job.job_dir.joinpath('job_' + job.job_id + '.pbs')
             with pbs_file.open(mode='w') as f:
                 f.write(jobstr)
 
             # Write the python run script for the job
+            ## Overwrite job exe cmd with scheduler exe cmd
+            job._exe_cmd = self._exe_cmd
             job._write_run_script()
 
     def _solve_nodes_cores(self):

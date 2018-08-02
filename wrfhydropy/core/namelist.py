@@ -1,6 +1,7 @@
 import f90nml
 import json
 import copy
+import deepdiff
 
 def dict_merge(dct: dict, merge_dct: dict) -> dict:
     """ Recursive dict merge. Inspired by :meth:``dict.update()``, instead of
@@ -21,6 +22,33 @@ def dict_merge(dct: dict, merge_dct: dict) -> dict:
             dct[key] = merge_dct[key]
 
     return(dct)
+
+def diff_namelist(namelist1: str, namelist2: str, **kwargs) -> dict:
+    """Diff two fortran namelist files and return a dictionary of differences.
+
+    Args:
+        old_namelist: String containing path to the first namelist file, referred to as 'old' in
+        outputs.
+        new_namelist: String containing path to the second namelist file, referred to as 'new' in
+        outputs.
+        **kwargs: Additional arguments passed onto deepdiff.DeepDiff method
+    Returns:
+        The differences between the two namelists
+    """
+
+    # If supplied as strings try and read in from file path
+    if type(namelist1) == str:
+        namelist1 = f90nml.read(namelist1)
+        namelist1 = Namelist(json.loads(json.dumps(namelist1)))
+    if type(namelist2) == str:
+        namelist1 = f90nml.read(namelist2)
+        namelist1 = Namelist(json.loads(json.dumps(namelist2)))
+
+
+    # Diff the namelists
+    differences = deepdiff.DeepDiff(namelist1, namelist2, ignore_order=True, **kwargs)
+    differences_dict = dict(differences)
+    return (differences_dict)
 
 class JSONNamelist(object):
     """Class for a WRF-Hydro JSON namelist containing one more configurations"""

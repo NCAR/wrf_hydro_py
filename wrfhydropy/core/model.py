@@ -10,26 +10,29 @@ import shlex
 
 from .namelist import JSONNamelist
 
-def get_git_revision_hash(the_dir):
+def get_git_revision_hash(the_dir: str) -> str:
+    """Get the last git revision hash from a directory if directory is a git repository
+    Args:
+        the_dir: String for the directory path
+    Returns:
+         String with the git hash if a git repo or message if not
+    """
+
+    the_dir = pathlib.Path(the_dir)
 
     # First test if this is even a git repo. (Have to allow for this unless the wrfhydropy
     # testing brings in the wrf_hydro_code as a repo with a .git file.)
-    dir_is_repo = subprocess.call(
-        ["git", "branch"],
+    dir_is_repo = subprocess.run(["git", "branch"],
         stderr=subprocess.STDOUT,
         stdout=open(os.devnull, 'w'),
-        cwd=str(the_dir.absolute())
-    )
-    if dir_is_repo != 0:
-        warnings.warn('The source directory is NOT a git repo: ' + str(the_dir))
-        return 'not-a-repo'
+        cwd=str(the_dir.absolute()))
+    if dir_is_repo.returncode != 0:
+        return 'could_not_get_hash'
 
-    dirty = subprocess.run(
-        ['git', 'diff-index', 'HEAD'],  # --quiet seems to give the wrong result.
+    dirty = subprocess.run(['git', 'diff-index', 'HEAD'],  # --quiet seems to give the wrong result.
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        cwd=str(the_dir.absolute())
-    ).returncode
+        cwd=str(the_dir.absolute())).returncode
     the_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=str(the_dir.absolute()))
     the_hash = the_hash.decode('utf-8').split()[0]
     if dirty:
@@ -95,7 +98,9 @@ class Model(object):
         self.compile_dir = None
         """pathlib.Path: pathlib.Path object pointing to the compile directory."""
 
-        self.git_hash = None
+        self.git_hash = self._get_githash()
+        """str: The git revision hash if seld.source_dir is a git repository"""
+
         self.version = None
         """str: Source code version from .version file stored with the source code."""
 

@@ -1,26 +1,8 @@
 import f90nml
 import json
 import copy
-
-def dict_merge(dct: dict, merge_dct: dict) -> dict:
-    """ Recursive dict merge. Inspired by :meth:``dict.update()``, instead of
-    updating only top-level keys, dict_merge recurses down into dicts nested
-    to an arbitrary depth, updating keys. The ``merge_dct`` is merged into
-    ``dct``.
-    Args:
-     dct: dict onto which the merge is executed
-     merge_dct: dct merged into dct
-    Returns:
-        The merged dict
-    """
-
-    for key, value in merge_dct.items():
-        if key in dct.keys() and type(value) is dict:
-            dict_merge(dct[key], merge_dct[key])
-        else:
-            dct[key] = merge_dct[key]
-
-    return(dct)
+import deepdiff
+from typing import Union
 
 class JSONNamelist(object):
     """Class for a WRF-Hydro JSON namelist containing one more configurations"""
@@ -68,3 +50,53 @@ class Namelist(dict):
         patched_namelist = dict_merge(copy.deepcopy(self),copy.deepcopy(patch))
 
         return patched_namelist
+
+def dict_merge(dct: dict, merge_dct: dict) -> dict:
+    """ Recursive dict merge. Inspired by :meth:``dict.update()``, instead of
+    updating only top-level keys, dict_merge recurses down into dicts nested
+    to an arbitrary depth, updating keys. The ``merge_dct`` is merged into
+    ``dct``.
+    Args:
+     dct: dict onto which the merge is executed
+     merge_dct: dct merged into dct
+    Returns:
+        The merged dict
+    """
+
+    for key, value in merge_dct.items():
+        if key in dct.keys() and type(value) is dict:
+            dict_merge(dct[key], merge_dct[key])
+        else:
+            dct[key] = merge_dct[key]
+
+    return(dct)
+
+def diff_namelist(old_namelist: Union[Namelist,str], new_namelist: Union[Namelist,str], **kwargs) \
+        -> \
+        dict:
+    """Diff two Namelist objects or fortran 90 namelist files and return a dictionary of
+    differences.
+
+    Args:
+        old_namelist: String containing path to the first namelist file, referred to as 'old' in
+        outputs.
+        new_namelist: String containing path to the second namelist file, referred to as 'new' in
+        outputs.
+        **kwargs: Additional arguments passed onto deepdiff.DeepDiff method
+    Returns:
+        The differences between the two namelists
+    """
+
+    # If supplied as strings try and read in from file path
+    if type(old_namelist) == str:
+        namelist1 = f90nml.read(old_namelist)
+        namelist1 = Namelist(json.loads(json.dumps(namelist1,sort_keys=True)))
+    if type(new_namelist) == str:
+        namelist1 = f90nml.read(new_namelist)
+        namelist1 = Namelist(json.loads(json.dumps(new_namelist,sort_keys=True)))
+
+
+    # Diff the namelists
+    differences = deepdiff.DeepDiff(old_namelist, new_namelist, ignore_order=True, **kwargs)
+    differences_dict = dict(differences)
+    return (differences_dict)

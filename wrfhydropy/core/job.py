@@ -106,14 +106,14 @@ class Job(object):
         Args:
             namelist: The Namelist to add
         """
-        self._hydro_namelist = namelist
+        self._hydro_namelist = copy.deepcopy(namelist)
 
     def add_hrldas_namelist(self, namelist: dict):
         """Add a hrldas_namelist Namelist object to the job object
         Args:
             namelist: The namelist dictionary to add
         """
-        self._hrldas_namelist = namelist
+        self._hrldas_namelist = copy.deepcopy(namelist)
 
     def clone(self, N) -> list:
         """Clone a job object N-times using deepcopy.

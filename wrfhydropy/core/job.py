@@ -227,17 +227,12 @@ class Job(object):
         """Private method to set model run times in the hrldas namelist"""
 
         if self._model_start_time is not None and self._model_end_time is not None:
-            # Duration
-            self._hrldas_times['noahlsm_offline']['kday'] = None
-            self._hrldas_times['noahlsm_offline']['khour'] = None
             duration = self._model_end_time - self._model_start_time
             if duration.seconds == 0:
                 self._hrldas_times['noahlsm_offline']['kday'] = int(duration.days)
-                self._hrldas_times['noahlsm_offline'].pop('khour')
             else:
                 self._hrldas_times['noahlsm_offline']['khour'] =int(duration.days * 60 +
                                                                     duration.seconds / 3600)
-                self._hrldas_times['noahlsm_offline'].pop('kday')
 
             # Start
             self._hrldas_times['noahlsm_offline']['start_year'] = int(self._model_start_time.year)

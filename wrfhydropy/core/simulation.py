@@ -240,11 +240,14 @@ class Simulation(object):
         Args:
             scheduler: The Scheduler to add
         """
-        job = copy.deepcopy(job)
-        job.add_hydro_namelist(self.base_hydro_namelist)
-        job.add_hrldas_namelist(self.base_hrldas_namelist)
+        if self.domain is not None and self.model is not None:
+            job = copy.deepcopy(job)
+            job._add_hydro_namelist(self.base_hydro_namelist)
+            job._add_hrldas_namelist(self.base_hrldas_namelist)
 
-        self.jobs.append(job)
+            self.jobs.append(job)
+        else:
+            raise AttributeError('Can not add a job to a simulation without a model and a domain')
 
 class SimulationOutput(object):
     """Class containing output objects from a completed Simulation, retrieved using the

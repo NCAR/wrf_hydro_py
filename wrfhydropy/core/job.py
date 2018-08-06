@@ -101,14 +101,14 @@ class Job(object):
         self._job_submission_time = None
         """str?: The time the job object was created."""
 
-    def add_hydro_namelist(self, namelist: Namelist):
+    def _add_hydro_namelist(self, namelist: Namelist):
         """Add a hydro_namelist Namelist object to the job object
         Args:
             namelist: The Namelist to add
         """
         self._hydro_namelist = copy.deepcopy(namelist)
 
-    def add_hrldas_namelist(self, namelist: dict):
+    def _add_hrldas_namelist(self, namelist: dict):
         """Add a hrldas_namelist Namelist object to the job object
         Args:
             namelist: The namelist dictionary to add

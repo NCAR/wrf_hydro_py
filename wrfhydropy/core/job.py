@@ -24,6 +24,7 @@ class Job(object):
             job_id: str,
             model_start_time: Union[str,pd.datetime] = None,
             model_end_time: Union[str,pd.datetime] = None,
+            restart: bool = True,
             exe_cmd: str = None,
             entry_cmd: str = None,
             exit_cmd: str = None):
@@ -34,6 +35,7 @@ class Job(object):
             a pandas.to_datetime compatible string or a pandas datetime object.
             model_end_time: The model end time to use for the WRF-Hydro model run. Can be
             a pandas.to_datetime compatible string or a pandas datetime object.
+            restart: Job is starting from a restart file. Use False for a cold start.
             exe_cmd: The system-specific command to execute WRF-Hydro, for example 'mpirun -np
             36 ./wrf_hydro.exe'. Can be left as None if jobs is added to a scheduler or if a
             scheduler is used in a simulation.
@@ -55,6 +57,9 @@ class Job(object):
 
         self.job_id = job_id
         """str: The job id."""
+
+        self.restart = restart
+        """bool: Start model from a restart."""
 
         self._model_start_time = pd.to_datetime(model_start_time)
         """np.datetime64: The model time at the start of the execution."""
@@ -241,20 +246,21 @@ class Job(object):
             self._hrldas_times['noahlsm_offline']['start_hour'] = int(self._model_start_time.hour)
             self._hrldas_times['noahlsm_offline']['start_min'] = int(self._model_start_time.minute)
 
-            lsm_restart_dirname = '.'  # os.path.dirname(noah_nlst['restart_filename_requested'])
+            if self.restart:
+                lsm_restart_dirname = '.'  # os.path.dirname(noah_nlst['restart_filename_requested'])
 
-            # Format - 2011082600 - no minutes
-            lsm_restart_basename = 'RESTART.' + \
-                                   self._model_start_time.strftime('%Y%m%d%H') + '_DOMAIN1'
+                # Format - 2011082600 - no minutes
+                lsm_restart_basename = 'RESTART.' + \
+                                       self._model_start_time.strftime('%Y%m%d%H') + '_DOMAIN1'
 
-            lsm_restart_file = lsm_restart_dirname + '/' + lsm_restart_basename
+                lsm_restart_file = lsm_restart_dirname + '/' + lsm_restart_basename
 
-            self._hrldas_times['noahlsm_offline']['restart_filename_requested'] = lsm_restart_file
+                self._hrldas_times['noahlsm_offline']['restart_filename_requested'] = lsm_restart_file
 
     def _set_hydro_times(self):
         """Private method to set model run times in the hydro namelist"""
 
-        if self._model_start_time is not None:
+        if self._model_start_time is not None and self.restart:
             # Format - 2011-08-26_00_00 - minutes
             hydro_restart_basename = 'HYDRO_RST.' + \
                                      self._model_start_time.strftime('%Y-%m-%d_%H:%M') + '_DOMAIN1'

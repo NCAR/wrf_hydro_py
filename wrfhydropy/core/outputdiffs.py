@@ -8,27 +8,6 @@ import shlex
 
 from .simulation import SimulationOutput
 
-def diff_namelist(namelist1: str, namelist2: str, **kwargs) -> dict:
-    """Diff two fortran namelist files and return a dictionary of differences.
-
-    Args:
-        old_namelist: String containing path to the first namelist file, referred to as 'old' in
-        outputs.
-        new_namelist: String containing path to the second namelist file, referred to as 'new' in
-        outputs.
-        **kwargs: Additional arguments passed onto deepdiff.DeepDiff method
-    Returns:
-        The differences between the two namelists
-    """
-
-    # Read namelists into dicts
-    namelist1 = f90nml.read(namelist1)
-    namelist2 = f90nml.read(namelist2)
-    # Diff the namelists
-    differences = deepdiff.DeepDiff(namelist1, namelist2, ignore_order=True, **kwargs)
-    differences_dict = dict(differences)
-    return (differences_dict)
-
 def compare_ncfiles(candidate_files: list,
                     reference_files: list,
                     nccmp_options: list = ['--data', '--metadata', '--force'],

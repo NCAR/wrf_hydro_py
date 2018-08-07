@@ -1,12 +1,11 @@
 import pathlib
-import re
 import shutil
 
 from .ioutils import \
     WrfHydroStatic, \
     WrfHydroTs
+from .namelist import JSONNamelist
 
-from .namelist import JSONNamelist, Namelist
 
 class Domain(object):
     """Class for a WRF-Hydro domain, which constitutes all domain-specific files needed for a

@@ -1,12 +1,12 @@
-import pandas as pd
-import warnings
-import subprocess
 import io
-import f90nml
-import deepdiff
 import shlex
+import subprocess
+import warnings
+
+import pandas as pd
 
 from .simulation import SimulationOutput
+
 
 def compare_ncfiles(candidate_files: list,
                     reference_files: list,
@@ -43,6 +43,7 @@ def compare_ncfiles(candidate_files: list,
         else:
             warnings.warn(str(file_candidate) + 'not found in ' + str(ref_dir))
     return output_list
+
 
 class OutputDiffs(object):
     def __init__(self,
@@ -108,6 +109,7 @@ class OutputDiffs(object):
                         )
                 diff_counts = sum(1 for _ in filter(None.__ne__, getattr(self,att)))
                 self.diff_counts.update({att: diff_counts})
+
 
 def _compare_nc_nccmp(candidate_nc: str,
                       reference_nc: str,

@@ -1,8 +1,10 @@
-import f90nml
-import json
 import copy
-import deepdiff
+import json
 from typing import Union
+
+import deepdiff
+import f90nml
+
 
 def load_namelist(nml_path: str) -> dict:
     """Load a F90 namelist into a wrfhydropy.Namelist object
@@ -13,6 +15,7 @@ def load_namelist(nml_path: str) -> dict:
     """
     nml_dict = Namelist(json.loads(json.dumps(f90nml.read(nml_path), sort_keys=True)))
     return nml_dict
+
 
 class JSONNamelist(object):
     """Class for a WRF-Hydro JSON namelist containing one more configurations"""
@@ -41,6 +44,7 @@ class JSONNamelist(object):
 
         return Namelist(config_namelist)
 
+
 class Namelist(dict):
     """Class for a WRF-Hydro namelist"""
     def write(self, path: str):
@@ -61,6 +65,7 @@ class Namelist(dict):
 
         return patched_namelist
 
+
 def dict_merge(dct: dict, merge_dct: dict) -> dict:
     """ Recursive dict merge. Inspired by :meth:``dict.update()``, instead of
     updating only top-level keys, dict_merge recurses down into dicts nested
@@ -80,6 +85,7 @@ def dict_merge(dct: dict, merge_dct: dict) -> dict:
             dct[key] = merge_dct[key]
 
     return(dct)
+
 
 def diff_namelist(old_namelist: Union[Namelist,str], new_namelist: Union[Namelist,str], **kwargs) \
         -> \

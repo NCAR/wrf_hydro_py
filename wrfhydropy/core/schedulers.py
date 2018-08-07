@@ -2,7 +2,7 @@
 # class functions so that imports can be isolated to relevant schedulers
 
 from abc import ABC, abstractmethod
-from .job import Job
+
 
 class Scheduler(ABC):
     def __init__(self):
@@ -11,6 +11,7 @@ class Scheduler(ABC):
     @abstractmethod
     def schedule(self,jobs):
         pass
+
 
 class PBSCheyenne(Scheduler):
 

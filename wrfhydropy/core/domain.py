@@ -168,18 +168,23 @@ class Domain(object):
             else:
                 shutil.copy(str(from_path),str(to_path))
 
-        # Restart files are symlinked in to the run dir at run init.
         model_files = [*self.hydro_files,
                        *self.nudging_files,
                        *self.lsm_files]
         for ff in model_files:
-            if re.match('.*/RESTART/.*', str(ff)):
+            if 'RESTART' in str(ff.name):
                 to_path = dest_dir.joinpath(ff.name).absolute()
                 if symlink:
                     to_path.symlink_to(ff)
                 else:
                     shutil.copy(str(ff),str(to_path))
-            if re.match('.*/nudgingLastObs/.*', str(ff)):
+            if 'HYDRO_RST' in str(ff.name):
+                to_path = dest_dir.joinpath(ff.name).absolute()
+                if symlink:
+                    to_path.symlink_to(ff)
+                else:
+                    shutil.copy(str(ff),str(to_path))
+            if 'nudgingLastObs' in str(ff.name):
                 to_path = dest_dir.joinpath(ff.name).absolute()
                 if symlink:
                     to_path.symlink_to(ff)

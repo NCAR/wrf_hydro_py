@@ -152,7 +152,10 @@ class Domain(object):
             if to_path.parent.is_dir() is False:
                 to_path.parent.mkdir(parents=True)
             if symlink:
-                to_path.symlink_to(from_path)
+                if from_path.is_dir():
+                    to_path.symlink_to(from_path,target_is_directory=True)
+                else:
+                    to_path.symlink_to(from_path)
             else:
                 shutil.copy(str(from_path),str(to_path))
 

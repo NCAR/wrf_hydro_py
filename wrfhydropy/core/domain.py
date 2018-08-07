@@ -85,6 +85,8 @@ class Domain(object):
                     self.nudging_files.append(WrfHydroStatic(file_path))
                 else:
                     self.nudging_files.append(file_path)
+            if file_path.is_dir() is True:
+                self.nudging_files.append(file_path)
 
         # Create symlinks from lsm namelist
         domain_lsm_nlist = \

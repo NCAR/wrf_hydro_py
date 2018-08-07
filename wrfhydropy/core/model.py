@@ -1,14 +1,15 @@
-import subprocess
-import pathlib
-import shutil
 import json
+import os
+import pathlib
 import pickle
+import shlex
+import shutil
+import subprocess
 import uuid
 import warnings
-import os
-import shlex
 
 from .namelist import JSONNamelist
+
 
 def get_git_revision_hash(the_dir: str) -> str:
     """Get the last git revision hash from a directory if directory is a git repository
@@ -38,6 +39,7 @@ def get_git_revision_hash(the_dir: str) -> str:
     if dirty:
         the_hash += '--DIRTY--'
     return the_hash
+
 
 class Model(object):
     """Class for a WRF-Hydro model, which consitutes the model source code and compiled binary.

@@ -1,11 +1,10 @@
-import xarray as xr
-import numpy as np
 import os
-import warnings
 import pathlib
-import netCDF4
 
+import numpy as np
+import xarray as xr
 from boltons import iterutils
+
 
 def open_nwmdataset(paths: list,
                     chunks: dict=None,

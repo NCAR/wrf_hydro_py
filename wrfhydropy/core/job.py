@@ -1,19 +1,18 @@
-import pathlib
-import f90nml
+import copy
 import datetime
+import os
+import pathlib
+import pickle
 import shutil
 import subprocess
-import shlex
 import warnings
-import pickle
-import os
-import copy
-import pandas as pd
-
 from typing import Union
 
-from .namelist import Namelist
+import pandas as pd
+
 from .ioutils import _check_file_exist_colon
+from .namelist import Namelist
+
 
 class Job(object):
     """A Job represents run-time specific information for a given WRF-Hydro run. A Simulation
@@ -125,7 +124,7 @@ class Job(object):
         clones = []
         for ii in range(N):
             clones.append(copy.deepcopy(self))
-        return(clones)
+        return clones
 
     def pickle(self,path: str):
         """Pickle sim object to specified file path

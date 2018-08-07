@@ -1,12 +1,11 @@
 import pathlib
-import re
 import shutil
 
 from .ioutils import \
     WrfHydroStatic, \
     WrfHydroTs
+from .namelist import JSONNamelist
 
-from .namelist import JSONNamelist, Namelist
 
 class Domain(object):
     """Class for a WRF-Hydro domain, which constitutes all domain-specific files needed for a
@@ -63,6 +62,13 @@ class Domain(object):
         """list: Files specified in nudging_nlist section of the domain namelist patches"""
         self.lsm_files = list()
         """list: Files specified in noahlsm_offline section of the domain namelist patches"""
+
+        self.nudging_dir = None
+        """pathlib.Path: path to the nudging obs directory"""
+
+        self.forcing_dir = None
+        """pathlib.Path: path to the forcing directory"""
+
         ###
 
         # Create file paths from hydro namelist
@@ -86,6 +92,9 @@ class Domain(object):
                     self.nudging_files.append(WrfHydroStatic(file_path))
                 else:
                     self.nudging_files.append(file_path)
+            if file_path.is_dir() is True:
+                self.nudging_dir = file_path
+                self.nudging_files.append(WrfHydroTs(file_path.glob('*')))
 
         # Create symlinks from lsm namelist
         domain_lsm_nlist = \
@@ -143,17 +152,28 @@ class Domain(object):
                 shutil.copy(str(from_path),str(to_path))
 
         # Symlink in nudging files
+
+        # handling nudging obs files
+        from_dir = self.nudging_dir
+        to_dir = dest_dir.joinpath(from_dir.relative_to(self.domain_top_dir))
+        if symlink:
+            to_dir.symlink_to(from_dir, target_is_directory=True)
+        else:
+            shutil.copy(str(from_dir),str(to_dir))
+
         for from_path in self.nudging_files:
             # Get new file path for run directory, relative to the top-level domain directory
             # This is needed to ensure the path matches the domain namelist
-            relative_path = from_path.relative_to(self.domain_top_dir)
-            to_path = dest_dir.joinpath(relative_path)
-            if to_path.parent.is_dir() is False:
-                to_path.parent.mkdir(parents=True)
-            if symlink:
-                to_path.symlink_to(from_path)
-            else:
-                shutil.copy(str(from_path),str(to_path))
+            if type(from_path) is not WrfHydroTs:
+                relative_path = from_path.relative_to(self.domain_top_dir)
+                to_path = dest_dir.joinpath(relative_path)
+                if to_path.parent.is_dir() is False:
+                    to_path.parent.mkdir(parents=True)
+                print(from_path)
+                if symlink:
+                    to_path.symlink_to(from_path)
+                else:
+                    shutil.copy(str(from_path),str(to_path))
 
         # Symlink in lsm files
         for from_path in self.lsm_files:
@@ -172,21 +192,22 @@ class Domain(object):
                        *self.nudging_files,
                        *self.lsm_files]
         for ff in model_files:
-            if 'RESTART' in str(ff.name):
-                to_path = dest_dir.joinpath(ff.name).absolute()
-                if symlink:
-                    to_path.symlink_to(ff)
-                else:
-                    shutil.copy(str(ff),str(to_path))
-            if 'HYDRO_RST' in str(ff.name):
-                to_path = dest_dir.joinpath(ff.name).absolute()
-                if symlink:
-                    to_path.symlink_to(ff)
-                else:
-                    shutil.copy(str(ff),str(to_path))
-            if 'nudgingLastObs' in str(ff.name):
-                to_path = dest_dir.joinpath(ff.name).absolute()
-                if symlink:
-                    to_path.symlink_to(ff)
-                else:
-                    shutil.copy(str(ff),str(to_path))
+            if type(ff) is not WrfHydroTs:
+                if 'RESTART' in str(ff.name):
+                    to_path = dest_dir.joinpath(ff.name).absolute()
+                    if symlink:
+                        to_path.symlink_to(ff)
+                    else:
+                        shutil.copy(str(ff),str(to_path))
+                if 'HYDRO_RST' in str(ff.name):
+                    to_path = dest_dir.joinpath(ff.name).absolute()
+                    if symlink:
+                        to_path.symlink_to(ff)
+                    else:
+                        shutil.copy(str(ff),str(to_path))
+                if 'nudgingLastObs' in str(ff.name):
+                    to_path = dest_dir.joinpath(ff.name).absolute()
+                    if symlink:
+                        to_path.symlink_to(ff)
+                    else:
+                        shutil.copy(str(ff),str(to_path))

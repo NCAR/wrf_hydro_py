@@ -1,15 +1,16 @@
-from .model import Model
-from .domain import Domain
-from .schedulers import Scheduler
-from .job import Job
-from .ioutils import WrfHydroStatic, WrfHydroTs, check_input_files
-from .namelist import Namelist
-
-from typing import Union
 import copy
 import os
 import pathlib
 import pickle
+from typing import Union
+
+from .domain import Domain
+from .ioutils import WrfHydroStatic, WrfHydroTs, check_input_files
+from .job import Job
+from .model import Model
+from .namelist import Namelist
+from .schedulers import Scheduler
+
 
 class Simulation(object):
     """Class for a WRF-Hydro Simulation object. The Simulation object is used to orchestrate a
@@ -249,6 +250,7 @@ class Simulation(object):
         else:
             raise AttributeError('Can not add a job to a simulation without a model and a domain')
 
+
 class SimulationOutput(object):
     """Class containing output objects from a completed Simulation, retrieved using the
     Simulation.collect() method"""
@@ -310,7 +312,7 @@ class SimulationOutput(object):
         else:
             self.restart_hydro = None
 
-        ### LSM Restarts
+        # LSM Restarts
         self.restart_lsm = []
         for file in current_dir.glob('RESTART*'):
             file = WrfHydroStatic(file)
@@ -324,7 +326,7 @@ class SimulationOutput(object):
         else:
             self.restart_lsm = None
 
-        ### Nudging restarts
+        # Nudging restarts
         self.restart_nudging = []
         for file in current_dir.glob('nudgingLastObs*'):
             file = WrfHydroStatic(file)

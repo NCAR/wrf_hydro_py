@@ -1,8 +1,21 @@
-import f90nml
-import json
 import copy
-import deepdiff
+import json
 from typing import Union
+
+import deepdiff
+import f90nml
+
+
+def load_namelist(nml_path: str) -> dict:
+    """Load a F90 namelist into a wrfhydropy.Namelist object
+        Args:
+            nml_path: String containing path to F90 namelist
+        Returns:
+            dict interpretation of namelist
+    """
+    nml_dict = Namelist(json.loads(json.dumps(f90nml.read(nml_path), sort_keys=True)))
+    return nml_dict
+
 
 class JSONNamelist(object):
     """Class for a WRF-Hydro JSON namelist containing one more configurations"""
@@ -31,6 +44,7 @@ class JSONNamelist(object):
 
         return Namelist(config_namelist)
 
+
 class Namelist(dict):
     """Class for a WRF-Hydro namelist"""
     def write(self, path: str):
@@ -50,6 +64,7 @@ class Namelist(dict):
         patched_namelist = dict_merge(copy.deepcopy(self),copy.deepcopy(patch))
 
         return patched_namelist
+
 
 def dict_merge(dct: dict, merge_dct: dict) -> dict:
     """ Recursive dict merge. Inspired by :meth:``dict.update()``, instead of
@@ -71,6 +86,7 @@ def dict_merge(dct: dict, merge_dct: dict) -> dict:
 
     return(dct)
 
+
 def diff_namelist(old_namelist: Union[Namelist,str], new_namelist: Union[Namelist,str], **kwargs) \
         -> \
         dict:
@@ -89,12 +105,9 @@ def diff_namelist(old_namelist: Union[Namelist,str], new_namelist: Union[Namelis
 
     # If supplied as strings try and read in from file path
     if type(old_namelist) == str:
-        old_namelist = f90nml.read(old_namelist)
-        old_namelist = Namelist(json.loads(json.dumps(old_namelist,sort_keys=True)))
+        old_namelist = load_namelist(old_namelist)
     if type(new_namelist) == str:
-        new_namelist = f90nml.read(new_namelist)
-        new_namelist = Namelist(json.loads(json.dumps(new_namelist,sort_keys=True)))
-
+        new_namelist = load_namelist(new_namelist)
 
     # Diff the namelists
     differences = deepdiff.DeepDiff(old_namelist, new_namelist, ignore_order=True, **kwargs)

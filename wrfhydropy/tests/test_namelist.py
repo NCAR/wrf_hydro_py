@@ -1,5 +1,6 @@
 from wrfhydropy import namelist
 
+
 def test_dict_merge():
     main_dict = {'key_1':'value_1',
                  'key_2': 1,

@@ -101,19 +101,19 @@ class Job(object):
         self._job_submission_time = None
         """str?: The time the job object was created."""
 
-    def add_hydro_namelist(self, namelist: Namelist):
+    def _add_hydro_namelist(self, namelist: Namelist):
         """Add a hydro_namelist Namelist object to the job object
         Args:
             namelist: The Namelist to add
         """
-        self._hydro_namelist = namelist
+        self._hydro_namelist = copy.deepcopy(namelist)
 
-    def add_hrldas_namelist(self, namelist: dict):
+    def _add_hrldas_namelist(self, namelist: dict):
         """Add a hrldas_namelist Namelist object to the job object
         Args:
             namelist: The namelist dictionary to add
         """
-        self._hrldas_namelist = namelist
+        self._hrldas_namelist = copy.deepcopy(namelist)
 
     def clone(self, N) -> list:
         """Clone a job object N-times using deepcopy.
@@ -227,17 +227,12 @@ class Job(object):
         """Private method to set model run times in the hrldas namelist"""
 
         if self._model_start_time is not None and self._model_end_time is not None:
-            # Duration
-            self._hrldas_times['noahlsm_offline']['kday'] = None
-            self._hrldas_times['noahlsm_offline']['khour'] = None
             duration = self._model_end_time - self._model_start_time
             if duration.seconds == 0:
                 self._hrldas_times['noahlsm_offline']['kday'] = int(duration.days)
-                self._hrldas_times['noahlsm_offline'].pop('khour')
             else:
                 self._hrldas_times['noahlsm_offline']['khour'] =int(duration.days * 60 +
                                                                     duration.seconds / 3600)
-                self._hrldas_times['noahlsm_offline'].pop('kday')
 
             # Start
             self._hrldas_times['noahlsm_offline']['start_year'] = int(self._model_start_time.year)

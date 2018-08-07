@@ -3,6 +3,7 @@ from .domain import Domain
 from .schedulers import Scheduler
 from .job import Job
 from .ioutils import WrfHydroStatic, WrfHydroTs, check_input_files
+from .namelist import Namelist
 
 from typing import Union
 import copy
@@ -35,14 +36,14 @@ class Simulation(object):
         self.output = None
         """CompletedSim: A CompletedSim object returned by the self.collect() method"""
 
-        self.base_hydro_namelist = {}
+        self.base_hydro_namelist = Namelist()
         """dict: base hydro namelist produced from model and domain"""
 
-        self.base_hrldas_namelist = {}
+        self.base_hrldas_namelist = Namelist()
         """dict: base hrldas namelist produced from model and domain"""
 
     # Public methods
-    def add(self, obj: object):
+    def add(self, obj: Union[Model, Domain, Scheduler, Job]):
         """Add an approparite object to a Simulation, such as a Model, Domain, Job, or Scheduler"""
         if isinstance(obj, Model):
             self._addmodel(obj)
@@ -78,10 +79,6 @@ class Simulation(object):
         # Update job objects and make job directories
         print('Making job directories...')
         for job in self.jobs:
-            # Add in base namelists form model and domain if none supplied with job
-            job.add_hrldas_namelist(self.base_hrldas_namelist)
-            job.add_hydro_namelist(self.base_hydro_namelist)
-
             job._make_job_dir()
             job._write_namelists() # write namelists
 
@@ -119,7 +116,7 @@ class Simulation(object):
 
         # Overwrite the object after run if successfull
         path = current_dir.joinpath('WrfHydroSim.pkl')
-        self.pickle(path)
+        self.pickle(str(path))
 
     def collect(self):
         """Collect simulation output after a run"""
@@ -243,11 +240,14 @@ class Simulation(object):
         Args:
             scheduler: The Scheduler to add
         """
-        job = copy.deepcopy(job)
-        job.add_hydro_namelist(self.base_hydro_namelist)
-        job.add_hrldas_namelist(self.base_hrldas_namelist)
+        if self.domain is not None and self.model is not None:
+            job = copy.deepcopy(job)
+            job._add_hydro_namelist(self.base_hydro_namelist)
+            job._add_hrldas_namelist(self.base_hrldas_namelist)
 
-        self.jobs.append(job)
+            self.jobs.append(job)
+        else:
+            raise AttributeError('Can not add a job to a simulation without a model and a domain')
 
 class SimulationOutput(object):
     """Class containing output objects from a completed Simulation, retrieved using the

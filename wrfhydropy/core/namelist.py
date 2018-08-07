@@ -89,11 +89,11 @@ def diff_namelist(old_namelist: Union[Namelist,str], new_namelist: Union[Namelis
 
     # If supplied as strings try and read in from file path
     if type(old_namelist) == str:
-        namelist1 = f90nml.read(old_namelist)
-        namelist1 = Namelist(json.loads(json.dumps(namelist1,sort_keys=True)))
+        old_namelist = f90nml.read(old_namelist)
+        old_namelist = Namelist(json.loads(json.dumps(old_namelist,sort_keys=True)))
     if type(new_namelist) == str:
-        namelist1 = f90nml.read(new_namelist)
-        namelist1 = Namelist(json.loads(json.dumps(new_namelist,sort_keys=True)))
+        new_namelist = f90nml.read(new_namelist)
+        new_namelist = Namelist(json.loads(json.dumps(new_namelist,sort_keys=True)))
 
 
     # Diff the namelists

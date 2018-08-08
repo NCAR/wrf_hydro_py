@@ -154,12 +154,13 @@ class Domain(object):
         # Symlink in nudging files
 
         # handling nudging obs files
-        from_dir = self.nudging_dir
-        to_dir = dest_dir.joinpath(from_dir.relative_to(self.domain_top_dir))
-        if symlink:
-            to_dir.symlink_to(from_dir, target_is_directory=True)
-        else:
-            shutil.copy(str(from_dir),str(to_dir))
+        if self.nudging_dir is not None:
+            from_dir = self.nudging_dir
+            to_dir = dest_dir.joinpath(from_dir.relative_to(self.domain_top_dir))
+            if symlink:
+                to_dir.symlink_to(from_dir, target_is_directory=True)
+            else:
+                shutil.copy(str(from_dir),str(to_dir))
 
         for from_path in self.nudging_files:
             # Get new file path for run directory, relative to the top-level domain directory

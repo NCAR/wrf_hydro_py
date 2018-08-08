@@ -15,7 +15,7 @@ setup(
                       'xarray',
                       'datetime',
                       'pytest',
-                      'pytest-datadir-ng',
+                      'pytest-html',
                       'boltons'],
     author='Joe Mills',
     author_email='jmills@ucar.edu',

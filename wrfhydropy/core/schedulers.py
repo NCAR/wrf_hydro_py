@@ -21,7 +21,7 @@ class PBSCheyenne(Scheduler):
             account: str,
             email_who: str = None,
             email_when: str = 'abe',
-            nproc: int = 72,
+            nproc: int = 216,
             nnodes: int = None,
             ppn: int = 36,
             queue: str = 'regular',

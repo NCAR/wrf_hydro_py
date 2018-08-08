@@ -22,8 +22,8 @@ class PBSCheyenne(Scheduler):
             email_who: str = None,
             email_when: str = 'abe',
             nproc: int = 216,
-            nnodes: int = None,
-            ppn: int = 36,
+            nnodes: int = 6,
+            ppn: int = None,
             queue: str = 'regular',
             walltime: str = "12:00:00"):
         """Initialize an PBSCheyenne object.

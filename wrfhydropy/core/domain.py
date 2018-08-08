@@ -92,7 +92,7 @@ class Domain(object):
                     self.nudging_files.append(WrfHydroStatic(file_path))
                 else:
                     self.nudging_files.append(file_path)
-            if file_path.is_dir() is True:
+            if key == ['timeslicepath']:
                 self.nudging_dir = file_path
                 self.nudging_files.append(WrfHydroTs(file_path.glob('*')))
 

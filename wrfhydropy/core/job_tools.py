@@ -979,7 +979,7 @@ def compose_scheduled_bash_script(
         jobstr += "\n"
 
         exestr  = "{0} ".format(job.exe_cmd)
-        exestr += "2> {0} 1> {1}".format(job.stderr_exe(run_dir), job.stdout_exe(run_dir))
+        exestr += "2>> {0} 1>> {1}".format(job.stderr_exe(run_dir), job.stdout_exe(run_dir))
         jobstr += "echo \"" + exestr + "\"\n"
         jobstr += exestr + "\n"
         jobstr += "\n"

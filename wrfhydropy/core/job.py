@@ -469,7 +469,7 @@ class Job(object):
             # waits for the model (it's NOT direct execution of the model).
             # TODO(JLM): Not sure why hostname: is in the following.
             #            This may be deprecated 5/18/2018
-            #exe_cmd = self.exe_cmd.format(**{'hostname': socket.gethostname()}) + " 2> {0} 1> {1}"
+            #exe_cmd = self.exe_cmd.format(**{'hostname': socket.gethostname()}) + " 2>> {0} 1>> {1}"
             std_base = "{0}.{1}".format(
                 self.job_date_id,
                 self.scheduler.sched_job_id
@@ -583,7 +583,7 @@ class Job(object):
 
         except Exception as e:
 
-            #raise ValueError('Could not parse diag files, run_dir:' + str(run_dir) )
+            raise ValueError('Could not parse diag files, run_dir:' + str(run_dir) )
             print(e)    
 
 

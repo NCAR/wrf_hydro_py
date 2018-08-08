@@ -35,7 +35,7 @@ class PBSCheyenne(Scheduler):
             nproc: Number of processors to request
             nnodes: Number of nodes to request
             ppn: Number of processors per node
-            queue: The queue to use, options are 'regular', 'priority', and 'shared'
+            queue: The queue to use, options are 'regular', 'premium', and 'shared'
             walltime: The wall clock time in HH:MM:SS format, max time is 12:00:00
         """
 

@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='wrfhydropy',
-    version='0.0.8.dev1',
+    version='0.0.8.dev2',
     packages=find_packages(),
     package_data={'wrfhydropy': ['core/data/*']},
     url='https://github.com/NCAR/wrf_hydro_py',
@@ -16,6 +16,7 @@ setup(
                       'datetime',
                       'pytest',
                       'pytest-html',
+                      'pytest-datadir-ng',
                       'boltons'],
     author='Joe Mills',
     author_email='jmills@ucar.edu',

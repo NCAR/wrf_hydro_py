@@ -361,5 +361,9 @@ class SimulationOutput(object):
                     df_list.append(na_check_result)
 
         # Combine all dfs into one
-        pd.concat(df_list)
+        if len(df_list) > 0:
+            return pd.concat(df_list)
+        else:
+            return None
+
 

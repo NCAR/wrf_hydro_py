@@ -103,6 +103,8 @@ class PBSCheyenne(Scheduler):
         qsub_str += 'qrls $' + pbs_jids[0] + ";"
         qsub_str += '"'
 
+        # Just for debugging purposes
+        print(qsub_str)
         # This stacks up dependent jobs in PBS in the same order as the job list
         subprocess.run(shlex.split(qsub_str),
                        cwd=str(current_dir))

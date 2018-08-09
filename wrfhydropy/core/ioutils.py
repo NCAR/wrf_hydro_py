@@ -1,5 +1,6 @@
 import os
 import pathlib
+from typing import Union
 
 import numpy as np
 import xarray as xr
@@ -69,6 +70,10 @@ class WrfHydroTs(list):
         """
         return open_nwmdataset(self, chunks=chunks)
 
+    def check_nas(self):
+        """Return dictionary of counts of NA values for each data variable summed across files"""
+        nc_dataset = self.open()
+        return check_file_nas(nc_dataset)
 
 class WrfHydroStatic(pathlib.PosixPath):
     """WRF-Hydro static data class"""
@@ -80,6 +85,10 @@ class WrfHydroStatic(pathlib.PosixPath):
             An xarray dataset object.
         """
         return xr.open_dataset(self)
+
+    def check_nas(self):
+        """Return dictionary of counts of NA values for each data variable"""
+        return check_file_nas(self)
 
 def _check_file_exist_colon(dirpath: str, file_str: str):
     """Private method to check if a filename containing a colon exists, accounting for renaming
@@ -189,3 +198,40 @@ def check_input_files(hydro_namelist: dict,
     check_nlst(hydro_namelist, hydro_file_dict)
 
     return None
+
+def check_file_nas(dataset_path: Union[str,pathlib.Path]) -> str:
+    """Opens the specified netcdf file and checks all data variables for NA values. NA assigned
+    according to xarray __FillVal parsing. See xarray.Dataset documentation
+    Args:
+        dataset_path: The path to the netcdf dataset file
+    Returns: string summary of nas if present
+    """
+
+    # Set filepath to strings
+    dataset_path = str(dataset_path)
+
+    # Make string to pass to subprocess, this compares the file against itself
+    # nans will not equal each other so will report nans as fails
+    command_str = 'nccmp --data --metadata -N ' + dataset_path + ' ' + dataset_path
+
+    #Run the subprocess to call nccmp
+    proc = subprocess.run(shlex.split(command_str),
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE)
+
+    #Check return code
+    if proc.returncode != 0:
+        # Get stoud into stringio object
+        output = io.StringIO()
+        output.write(proc.stdout.decode('utf-8'))
+        output.seek(0)
+
+        # Open stringio object as pandas dataframe
+        try:
+            nccmp_out = pd.read_table(output,delim_whitespace=True,header=0)
+            return nccmp_out
+        except:
+            warnings.warn('Problem reading nccmp output to pandas dataframe,'
+                          'returning as subprocess object')
+            return proc
+

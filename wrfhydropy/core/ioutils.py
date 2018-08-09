@@ -1,8 +1,13 @@
+import io
 import os
 import pathlib
+import shlex
+import subprocess
+import warnings
 from typing import Union
 
 import numpy as np
+import pandas as pd
 import xarray as xr
 from boltons import iterutils
 
@@ -212,7 +217,7 @@ def check_file_nas(dataset_path: Union[str,pathlib.Path]) -> str:
 
     # Make string to pass to subprocess, this compares the file against itself
     # nans will not equal each other so will report nans as fails
-    command_str = 'nccmp --data --metadata -N ' + dataset_path + ' ' + dataset_path
+    command_str = 'nccmp --data --metadata --force ' + dataset_path + ' ' + dataset_path
 
     #Run the subprocess to call nccmp
     proc = subprocess.run(shlex.split(command_str),
@@ -223,15 +228,16 @@ def check_file_nas(dataset_path: Union[str,pathlib.Path]) -> str:
     if proc.returncode != 0:
         # Get stoud into stringio object
         output = io.StringIO()
-        output.write(proc.stdout.decode('utf-8'))
+        output.write(proc.stderr.decode('utf-8'))
         output.seek(0)
 
         # Open stringio object as pandas dataframe
         try:
-            nccmp_out = pd.read_table(output,delim_whitespace=True,header=0)
+            nccmp_out = pd.read_table(output,delimiter=':',header=None)
             return nccmp_out
         except:
             warnings.warn('Problem reading nccmp output to pandas dataframe,'
                           'returning as subprocess object')
-            return proc
+            return proc.stderr
+
 

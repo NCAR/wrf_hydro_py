@@ -352,11 +352,11 @@ class SimulationOutput(object):
         # Loop over attributes
         for att in data_atts:
             #Loop over files in each attribute
-            for file in getattr(self,att):
-                na_check_result = check_file_nas(file)
-                if na_check_result is not None:
-                    na_check_result['file'] = str(file)
-                    df_list.append(na_check_result)
+            file = getattr(self,att)[-1]
+            na_check_result = check_file_nas(file)
+            if na_check_result is not None:
+                na_check_result['file'] = str(file)
+                df_list.append(na_check_result)
 
         # Combine all dfs into one
         pd.concat(df_list)

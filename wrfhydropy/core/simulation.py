@@ -352,13 +352,13 @@ class SimulationOutput(object):
         # Loop over attributes
         for att in data_atts:
             #Loop over files in each attribute
-            file_list = getattr(self,att)
-            if file_list is not None:
-                file = file_list[-1]
-            na_check_result = check_file_nas(file)
-            if na_check_result is not None:
-                na_check_result['file'] = str(file)
-                df_list.append(na_check_result)
+            att_obj = getattr(self,att)
+            if type(att_obj) is list or type(att_obj) is WrfHydroTs:
+                file = att_obj[-1]
+                na_check_result = check_file_nas(file)
+                if na_check_result is not None:
+                    na_check_result['file'] = str(file)
+                    df_list.append(na_check_result)
 
         # Combine all dfs into one
         pd.concat(df_list)

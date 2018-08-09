@@ -352,7 +352,9 @@ class SimulationOutput(object):
         # Loop over attributes
         for att in data_atts:
             #Loop over files in each attribute
-            file = getattr(self,att)[-1]
+            file_list = getattr(self,att)
+            if file_list is not None:
+                file = file_list[-1]
             na_check_result = check_file_nas(file)
             if na_check_result is not None:
                 na_check_result['file'] = str(file)

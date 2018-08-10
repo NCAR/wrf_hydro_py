@@ -193,23 +193,40 @@ class Job(object):
 
         self.job_end_time = str(datetime.datetime.now())
 
-        # String match diag files for successfull run
+        # String match diag files or stdout for successfull run if running on gfort or intel
+        # Gfort outputs it to diag, intel outputs it to stdout
         diag_file = current_dir.joinpath('diag_hydro.00000')
         if diag_file.exists():
+            #Check diag files first
             with diag_file.open() as f:
                 diag_file = f.read()
                 if 'The model finished successfully.......' in diag_file:
-                    self.exit_status = 0
+                    diag_exit_status = 0
+                else:
+                    diag_exit_status = 1
 
-            # cleanup job-specific run files
-            diag_files = current_dir.glob('*diag*')
-            for file in diag_files:
-                shutil.move(str(file), str(self.job_dir))
+            # Check stdout files second
+            with self.stdout_file.open() as f:
+                stdout_file = f.read()
+                if 'The model finished successfully.......' in stdout_file:
+                    stdout_exit_status = 0
+                else:
+                    stdout_exit_status = 1
 
-            shutil.move(str(self.stdout_file),str(self.job_dir))
-            shutil.move(str(self.stderr_file),str(self.job_dir))
-            current_dir.joinpath('hydro.namelist').unlink()
-            current_dir.joinpath('namelist.hrldas').unlink()
+            if diag_exit_status == 0 or stdout_exit_status == 0:
+                self.exit_status = 0
+
+                # cleanup job-specific run files
+                diag_files = current_dir.glob('*diag*')
+                for file in diag_files:
+                    shutil.move(str(file), str(self.job_dir))
+
+                shutil.move(str(self.stdout_file),str(self.job_dir))
+                shutil.move(str(self.stderr_file),str(self.job_dir))
+                current_dir.joinpath('hydro.namelist').unlink()
+                current_dir.joinpath('namelist.hrldas').unlink()
+            else:
+                self.exit_status = 1
         else:
             self.exit_status = 1
             self.pickle(str(self.job_dir.joinpath('WrfHydroJob_postrun.pkl')))

@@ -21,9 +21,9 @@ class PBSCheyenne(Scheduler):
             account: str,
             email_who: str = None,
             email_when: str = 'abe',
-            nproc: int = 72,
-            nnodes: int = None,
-            ppn: int = 36,
+            nproc: int = 216,
+            nnodes: int = 6,
+            ppn: int = None,
             queue: str = 'regular',
             walltime: str = "12:00:00"):
         """Initialize an PBSCheyenne object.
@@ -35,7 +35,7 @@ class PBSCheyenne(Scheduler):
             nproc: Number of processors to request
             nnodes: Number of nodes to request
             ppn: Number of processors per node
-            queue: The queue to use, options are 'regular', 'priority', and 'shared'
+            queue: The queue to use, options are 'regular', 'premium', and 'shared'
             walltime: The wall clock time in HH:MM:SS format, max time is 12:00:00
         """
 
@@ -103,6 +103,8 @@ class PBSCheyenne(Scheduler):
         qsub_str += 'qrls $' + pbs_jids[0] + ";"
         qsub_str += '"'
 
+        # Just for debugging purposes
+        print(qsub_str)
         # This stacks up dependent jobs in PBS in the same order as the job list
         subprocess.run(shlex.split(qsub_str),
                        cwd=str(current_dir))

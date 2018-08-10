@@ -4,8 +4,10 @@ import pathlib
 import pickle
 from typing import Union
 
+import pandas as pd
+
 from .domain import Domain
-from .ioutils import WrfHydroStatic, WrfHydroTs, check_input_files
+from .ioutils import WrfHydroStatic, WrfHydroTs, check_input_files, check_file_nas
 from .job import Job
 from .model import Model
 from .namelist import Namelist
@@ -337,3 +339,31 @@ class SimulationOutput(object):
                                           key=lambda file: file.stat().st_mtime_ns)
         else:
             self.restart_nudging = None
+
+    def check_output_nas(self):
+        """Check all outputs for NA values"""
+
+        # Get all the public attributes, which are the only atts of interest
+        data_atts = [att for att in dir(self) if not att.startswith('_')]
+
+        # Create a list to hold pandas dataframes
+        df_list = []
+
+        # Loop over attributes
+        for att in data_atts:
+            #Loop over files in each attribute
+            att_obj = getattr(self,att)
+            if type(att_obj) is list or type(att_obj) is WrfHydroTs:
+                file = att_obj[-1]
+                na_check_result = check_file_nas(file)
+                if na_check_result is not None:
+                    na_check_result['file'] = str(file)
+                    df_list.append(na_check_result)
+
+        # Combine all dfs into one
+        if len(df_list) > 0:
+            return pd.concat(df_list)
+        else:
+            return None
+
+

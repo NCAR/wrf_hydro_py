@@ -15,6 +15,7 @@ class Domain(object):
     def __init__(self,
                  domain_top_dir: str,
                  domain_config: str,
+                 compatible_version: str = None,
                  hydro_namelist_patch_file: str = 'hydro_namelist_patches.json',
                  hrldas_namelist_patch_file: str = 'hrldas_namelist_patches.json'
                  ):
@@ -23,6 +24,8 @@ class Domain(object):
             domain_top_dir: Parent directory containing all domain directories and files.
             domain_config: The domain configuration to use, options are 'NWM',
                 'Gridded', or 'Reach'
+            compatible_version: String indicating the compatible model version, required if no
+            .version file included in domain_top_dir.
             hydro_namelist_patch_file: Filename of json file containing namelist patches for
             hydro namelist
             hrldas_namelist_patch_file: Filename of json file containing namelist patches for
@@ -34,14 +37,21 @@ class Domain(object):
         self.domain_top_dir = pathlib.Path(domain_top_dir).absolute()
         """pathlib.Path: pathlib.Paths to *.TBL files generated at compile-time."""
 
-        self._compatible_version = None
-        """str: Source-code version for which the domain is to be used."""
-
         self.domain_config = domain_config.lower()
         """str: Specified configuration for which the domain is to be used, e.g. 'NWM_ana'"""
 
-        with self.domain_top_dir.joinpath('.version').open() as f:
-            self.compatible_version = f.read()
+        self._compatible_version = compatible_version
+        """str: Source-code version for which the domain is to be used."""
+
+        # Check .version file if compatible_version not specified
+        if self._compatible_version is None:
+            try:
+                with self.domain_top_dir.joinpath('.version').open() as f:
+                    self.compatible_version = f.read()
+            except:
+                raise FileNotFoundError('file .version not found in directory ' +
+                                        self.domain_top_dir + ' and compatible_version not '
+                                                              'specified')
 
         # Load namelist patches
         hydro_namelist_patch_file = self.domain_top_dir.joinpath(hydro_namelist_patch_file)
@@ -96,7 +106,7 @@ class Domain(object):
                 self.nudging_dir = file_path
                 self.nudging_files.append(WrfHydroTs(file_path.glob('*')))
 
-        # Create symlinks from lsm namelist
+        # Create file paths from lsm namelist
         domain_lsm_nlist = \
             self.hrldas_namelist_patches["noahlsm_offline"]
 
@@ -135,7 +145,7 @@ class Domain(object):
         if symlink:
             to_dir.symlink_to(from_dir, target_is_directory=True)
         else:
-            shutil.copy(str(from_dir),str(to_dir))
+            shutil.copytree(str(from_dir),str(to_dir))
 
         # create DOMAIN directory and symlink in files
         # Symlink in hydro_files

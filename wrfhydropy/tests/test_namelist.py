@@ -43,7 +43,7 @@ def test_namelist_write_read(tmpdir):
     assert write_nml == read_nl, 'written namelist does not match read namelist'
 
 
-def test_diff_namelist():
+def test_namelist_diff():
     main_nl_altered = copy.deepcopy(main_nl)
     del main_nl_altered['key_1']
     main_nl_altered['sub_dict2']['subdict2_key1'] = 'altered_key1'
@@ -60,7 +60,7 @@ def test_diff_namelist():
                         }
 
 
-def test_dict_merge():
+def test_namelist_dictmerge():
     patched_dict = namelist.dict_merge(main_dict,patch_dict)
     assert patched_dict == {'key_1': 'value_1',
                           'key_2': 'patched_value',
@@ -69,7 +69,7 @@ def test_dict_merge():
                           'sub_dict2': {'subdict2_key1': 1}
                           }
 
-def test_json_namelist(tmpdir):
+def test_namelist_jsonnamelist(tmpdir):
     file_path = tmpdir + '/test_json.json'
 
 

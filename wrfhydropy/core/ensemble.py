@@ -2,12 +2,14 @@ import ast
 from boltons.iterutils import remap, get_path
 import copy
 import datetime
+import multiprocessing
 import pathlib
 import pickle
 import shlex
 import subprocess
 import time
 import uuid
+
 
 from .wrfhydroclasses import WrfHydroRun
 from .ensemble_tools import DeepDiffEq, dictify, get_sub_objs
@@ -25,6 +27,10 @@ def copy_member(
         return(copy.deepcopy(member))
     else:
         return(member)
+
+
+def run_parallel_jobs(mm):
+    return mm.run_jobs()
 
 
 # ########################
@@ -286,7 +292,6 @@ class WrfHydroEnsembleRun(object):
                 #    if jj.scheduler.afterok is not None:
                 #        raise ValueError("The job's dependency/afterok conflicts with reality.")
 
-
             # Set submission-time job variables here.
             jj.user = get_user()
             job_submission_time = datetime.datetime.now()
@@ -295,7 +300,8 @@ class WrfHydroEnsembleRun(object):
                                           bool(self.job_active) +
                                           len(self.jobs_pending))
             # alternative" '{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=job_submission_time)
-            jj.scheduler.array_size = len(self.members)
+            if jj.scheduler:
+                jj.scheduler.array_size = len(self.members)
 
             for mm in self.members:
                 mm.add_jobs(jj)
@@ -308,14 +314,15 @@ class WrfHydroEnsembleRun(object):
 
     def run_jobs(
         self,
-        hold: bool=False
+        hold: bool=False,
+        n_mem_simultaneous: int=1    
     ):
 
         hold_all = hold
         del hold
         
         # make sure all jobs are either scheduled or interactive?
-        
+                
         if self.job_active is not None:
             raise ValueError("There is an active ensemble run.")
 
@@ -364,10 +371,17 @@ class WrfHydroEnsembleRun(object):
 
         else:
 
+            # Make an attribute of this.
+            self.n_mem_simultaneous = n_mem_simultaneous
+            
             for jj in range(0, len(self.jobs_pending)):
 
                 self.job_active = self.jobs_pending.pop(0)
-                self.job_active.run(self.run_dir)
+
+                # This is a parallel a for loop over all members 
+                pool = multiprocessing.Pool(n_mem_simultaneous)
+                _ = pool.map(run_parallel_jobs, (mm for mm in self.members))
+                    
                 self.jobs_completed.append(self.job_active)
                 self.job_active = None
                 self.collect_output()

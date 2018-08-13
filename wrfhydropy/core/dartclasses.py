@@ -1,6 +1,7 @@
 import copy
 from datetime import datetime, timedelta
 import f90nml
+import math
 import os
 import pathlib
 import pickle
@@ -186,17 +187,26 @@ class HydroDartRun(object):
 
             # Create a dummy scheduler
             # This could be done with **{config['run_experiment']['wrf_hydro_ens_advance']['job_name']}
-            the_sched = Scheduler(
-                job_name=self.config['run_experiment']['wrf_hydro_ens_advance']['job_name'],
-                account=self.config['run_experiment']['wrf_hydro_ens_advance']['account'],
-                nproc=self.config['run_experiment']['wrf_hydro_ens_advance']['nproc'],
-                nnodes=self.config['run_experiment']['wrf_hydro_ens_advance']['nnodes'],
-                walltime=self.config['run_experiment']['wrf_hydro_ens_advance']['walltime'],
-                queue=self.config['run_experiment']['wrf_hydro_ens_advance']['queue'],
-                email_who=self.config['run_experiment']['wrf_hydro_ens_advance']['email_who'],
-                email_when=self.config['run_experiment']['wrf_hydro_ens_advance']['email_when'],
-                afterok=afterok
-            )
+            if self.config['run_experiment']['wrf_hydro_ens_advance']['with_filter']:
+                the_sched = None
+                ppn_max = self.config['run_experiment']['dart']['scheduler']['ppn_max']
+                nproc_model = \
+                    self.config['run_experiment']['wrf_hydro_ens_advance']['nproc']
+                # Leave a processor for the OS.
+                n_mem_simul = math.floor((int(ppn_max) - 1) / int(nproc_model))
+            else:
+                the_sched = Scheduler(
+                    job_name=self.config['run_experiment']['wrf_hydro_ens_advance']['job_name'],
+                    account=self.config['run_experiment']['wrf_hydro_ens_advance']['account'],
+                    nproc=self.config['run_experiment']['wrf_hydro_ens_advance']['nproc'],
+                    nnodes=self.config['run_experiment']['wrf_hydro_ens_advance']['nnodes'],
+                    walltime=self.config['run_experiment']['wrf_hydro_ens_advance']['walltime'],
+                    queue=self.config['run_experiment']['wrf_hydro_ens_advance']['queue'],
+                    email_who=self.config['run_experiment']['wrf_hydro_ens_advance']['email_who'],
+                    email_when=self.config['run_experiment']['wrf_hydro_ens_advance']['email_when'],
+                    afterok=afterok
+                )
+
             # TODO(JLM): add afterany
 
         the_job.scheduler = the_sched
@@ -216,7 +226,10 @@ class HydroDartRun(object):
         the_job.model_end_time = model_end_time
 
         ens_run.add_jobs(the_job)
-        ens_run.run_jobs(hold=hold)
+        ens_run.run_jobs(
+            hold=hold,
+            n_mem_simultaneous=n_mem_simul
+        )
 
         self.pickle()
 

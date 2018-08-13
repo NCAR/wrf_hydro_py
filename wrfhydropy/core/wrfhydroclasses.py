@@ -675,6 +675,8 @@ class WrfHydroRun(object):
                 self.collect_output()
                 self.pickle()
 
+        return True
+
 
     def collect_output(self):
 

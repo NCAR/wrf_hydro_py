@@ -2,6 +2,7 @@ import copy
 import os
 import pathlib
 import pickle
+import warnings
 from typing import Union
 
 import pandas as pd
@@ -159,10 +160,15 @@ class Simulation(object):
                             model.model_config +
                             ' not compatible with domain configuration ' +
                             domain.domain_config)
-        if model.version != domain.compatible_version:
+        if model.version[0:2] != domain.compatible_version[0:2]:
             raise TypeError('Model version ' +
                             model.version +
                             ' not compatible with domain version ' +
+                            domain.compatible_version)
+        elif model.version != domain.compatible_version:
+            warnings.warn('Model minor versions ' +
+                            model.version +
+                            ' do not match domain minor versions ' +
                             domain.compatible_version)
 
 

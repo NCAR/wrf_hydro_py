@@ -31,3 +31,15 @@ def ds_2d():
     return ds_2d
 
 
+@pytest.fixture(scope="session")
+def ds_timeseries():
+    # Create a dummy dataset
+    vals_ts = np.random.randn(3,3)
+    time = pd.to_datetime(['1984-10-14 00:00:00','1984-10-14 01:00:00','1984-10-14 02:00:00'])
+    location = ['loc1', 'loc2', 'loc3']
+
+    ds_ts = xr.Dataset({'var1': (('location','Time'), vals_ts)},
+                    {'Time': time,
+                     'location': location})
+
+    return ds_ts

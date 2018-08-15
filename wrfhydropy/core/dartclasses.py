@@ -13,7 +13,9 @@ import warnings
 
 from .utilities import \
     get_git_revision_hash, \
-    get_ens_last_restart_datetime
+    get_ens_last_restart_datetime, \
+    get_ens_file_last_restart_datetime
+
 
 from .job import Job, Scheduler
 
@@ -194,6 +196,7 @@ class HydroDartRun(object):
                     self.config['run_experiment']['wrf_hydro_ens_advance']['nproc']
                 # Leave a processor for the OS.
                 n_mem_simul = math.floor((int(ppn_max) - 1) / int(nproc_model))
+                print("n_mem_simul: ", n_mem_simul)
             else:
                 the_sched = Scheduler(
                     job_name=self.config['run_experiment']['wrf_hydro_ens_advance']['job_name'],

@@ -53,7 +53,7 @@ class OutputDataDiffs(object):
     def __init__(self,
                  candidate_output: SimulationOutput,
                  reference_output: SimulationOutput,
-                 nccmp_options: list = ['--data', '--metadata', '--force'],
+                 nccmp_options: list = ['--data', '--force'],
                  exclude_vars: list = ['ACMELT', 'ACSNOW', 'SFCRUNOFF', 'UDRUNOFF', 'ACCPRCP',
                                        'ACCECAN', 'ACCEDIR', 'ACCETRAN', 'qstrmvolrt',
                                        'reference_time'],
@@ -237,7 +237,7 @@ def _compare_nc_nccmp(candidate_nc: str,
         # Convert exclude_vars list into a comman separated string
         exclude_atts = ','.join(exclude_atts)
         #append
-        command_str += '--Attributes=' + exclude_atts + ' '
+        command_str += '--Attribute=' + exclude_atts + ' '
 
     command_str += candidate_nc + ' '
     command_str += reference_nc

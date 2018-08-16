@@ -50,7 +50,7 @@ class Domain(object):
                     self.compatible_version = f.read()
             except:
                 raise FileNotFoundError('file .version not found in directory ' +
-                                        self.domain_top_dir + ' and compatible_version not '
+                                        str(self.domain_top_dir) + ' and compatible_version not '
                                                               'specified')
 
         # Load namelist patches

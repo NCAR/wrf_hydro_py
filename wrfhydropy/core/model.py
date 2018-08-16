@@ -231,7 +231,11 @@ class Model(object):
 
             print('Model successfully compiled into ' + str(self.compile_dir.absolute()))
         else:
-            raise ValueError('Model did not successfully compile.')
+            # Save the object out to the compile directory
+            with self.compile_dir.joinpath('WrfHydroModel.pkl').open(mode='wb') as f:
+                pickle.dump(self, f, 2)
+            raise ValueError('Model did not successfully compile.' +
+                             self.compile_log.stderr.decode('utf-8'))
 
     def copy_files(self, dest_dir: str, symlink: bool = True):
         """Copy domain files to new directory

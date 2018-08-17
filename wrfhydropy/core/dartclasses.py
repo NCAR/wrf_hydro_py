@@ -216,10 +216,11 @@ class HydroDartRun(object):
 
         ens_run = pickle.load(open(self.wrf_hydro_ens_run_pkl, 'rb'))
         # TODO (JLM): this is in place of the "sweeper" job or part of the submit script.
-        ens_run.collect_ensemble_runs()
+        ens_run.collect_ensemble_runs(n_mem_simultaneous=n_mem_simul)
 
         if model_start_time is None:
-            model_start_time = get_ens_last_restart_datetime(ens_run)
+            #model_start_time = get_ens_last_restart_datetime(ens_run)
+            model_start_time = get_ens_file_last_restart_datetime(self.run_dir)
         if model_end_time is None:
             model_end_time = \
                 model_start_time + \

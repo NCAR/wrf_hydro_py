@@ -29,9 +29,18 @@ def copy_member(
         return(member)
 
 
-def run_parallel_jobs(mm):
+def parallel_run_jobs(mm):
     return mm.run_jobs()
 
+
+def parallel_collect_jobs(mm):
+    return mm.collect_output()
+
+
+def parallel_collectpickled_runs(mm):
+    mm = mm.unpickle()
+    return mm
+    
 
 # ########################
 # Classes for constructing and running a wrf_hydro simulation
@@ -315,7 +324,7 @@ class WrfHydroEnsembleRun(object):
     def run_jobs(
         self,
         hold: bool=False,
-        n_mem_simultaneous: int=1    
+        n_mem_simultaneous: int=1
     ):
 
         hold_all = hold
@@ -378,13 +387,17 @@ class WrfHydroEnsembleRun(object):
 
                 self.job_active = self.jobs_pending.pop(0)
 
-                # This is a parallel a for loop over all members 
+                # This is a parallel a for loop over all members
+                print("n_mem_simultaneous: ", n_mem_simultaneous, flush=True)
+                
                 pool = multiprocessing.Pool(n_mem_simultaneous)
-                _ = pool.map(run_parallel_jobs, (mm for mm in self.members))
+                _ = pool.map(parallel_run_jobs, (mm for mm in self.members))
                     
                 self.jobs_completed.append(self.job_active)
                 self.job_active = None
-                self.collect_output()
+                
+                _ = pool.map(parallel_collect_jobs, (mm for mm in self.members))
+                #self.collect_output()
                 self.pickle()
 
 
@@ -393,13 +406,14 @@ class WrfHydroEnsembleRun(object):
         "import sys \n"
         "import wrfhydropy \n"
         "ens_run = pickle.load(open('WrfHydroEnsembleRun.pkl', 'rb')) \n",
-        "ens_run.collect_ensemble_runs() \n"
+        "ens_run.collect_ensemble_runs(35) \n"
         "sys.exit()"
     )[0]
 
 
     def collect_ensemble_runs(
-        self
+        self,
+        n_mem_simultaneous: int=1
     ):
         """Collect a completed job array. """
 
@@ -410,15 +424,19 @@ class WrfHydroEnsembleRun(object):
             return ret
 
         while n_jobs_not_complete(self.run_dir) != 0:
-            _ = time.sleep(6)
+            _ = time.sleep(.1)
 
         if self.job_active:
             self.jobs_completed.append(self.job_active)
             self.job_active = None
 
-        for ii, _ in enumerate(self.members):
-            self.members[ii] = self.members[ii].unpickle()
-
+        #print('collect:',n_mem_simultaneous)
+        # Fairly minor difference between the speed with 80 members... 
+        pool = multiprocessing.Pool(n_mem_simultaneous)
+        self.members = pool.map(parallel_collectpickled_runs, (mm for mm in self.members))
+        #for ii, _ in enumerate(self.members):
+        #    self.members[ii] = self.members[ii].unpickle()
+        
         self.collect_output()
         self.pickle()
 

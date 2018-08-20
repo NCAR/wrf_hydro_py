@@ -5,7 +5,7 @@ notifications:
 python:
     - "3.6"
 before_install:
-    - sudo add-apt-repository ppa:remik-ziemlinski/nccmp -y; sudo apt-get update
+    - sudo add-apt-repository ppa:remik-ziemlinski/nccmp -y --allow-unauthenticated; sudo apt-get update
     - sudo apt-get install nccmp
     - pip install pytest pytest-cov
     - pip install coveralls

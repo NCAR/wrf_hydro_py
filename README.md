@@ -20,8 +20,6 @@ Failure to adhere to contributing standards may result in your Pull Request bein
 * All other guidance follows [Google style guide](https://google.github.io/styleguide/pyguide.html)
 ### Testing
 All new functions or classes must be accompanied by additional unit/integration tests in the `wrf_hydro_py/wrfhydropy/tests` directory.
-If tests require complex or large data objects, those objects need to be created and placed in the `wrf_hydro_py/wrfhydropy/tests/data` directory.
-Additionally, test data should be able to reproduced using the test script. See [test_WrfHydroClasses.py](https://github.com/NCAR/wrf_hydro_py/blob/master/wrfhydropy/tests/test_WrfHydroClasses.py) for an example.
 
 ## Documentation
 Documentation will be forthcoming once the API becomes more stable.

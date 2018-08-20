@@ -121,6 +121,7 @@ def _touch(filename, mode=0o666, dir_fd=None, **kwargs):
         os.utime(f.fileno() if os.utime in os.supports_fd else filename,
                  dir_fd=None if os.supports_fd else dir_fd, **kwargs)
 
+# TODO Refactor this to be a generic and not need both hydro and hrldas namelist to do a check
 def check_input_files(hydro_namelist: dict,
                       hrldas_namelist: dict,
                       sim_dir: str,
@@ -129,6 +130,7 @@ def check_input_files(hydro_namelist: dict,
     namelist exist in the specified directory.
     Args:
         hydro_namelist: A wrfhydropy hydro_namelist dictionary
+        hrldas_namelist: A wrfhydropy hydro_namelist dictionary
         file_str: A wrfhydropy hrldas_namelist dictionary
         sim_dir: The path to the directory containing input files.
         ignore_restarts: Ignore restart files.
@@ -239,5 +241,3 @@ def check_file_nas(dataset_path: Union[str,pathlib.Path]) -> str:
             warnings.warn('Problem reading nccmp output to pandas dataframe,'
                           'returning as subprocess object')
             return proc.stderr
-
-

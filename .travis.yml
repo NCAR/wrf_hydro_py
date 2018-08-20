@@ -1,20 +1,10 @@
-sudo: required
-language: bash
-
-services:
-  - docker
-
+language: python
+python:
+    - "3.6"
 before_install:
-  - sudo chmod -R 777 $TRAVIS_BUILD_DIR
-  - docker pull wrfhydro/dev:conda
-  
+    - pip install pytest pytest-cov
+    - pip install coveralls
 script:
-  - travis_wait 30; docker run -v $TRAVIS_BUILD_DIR:/home/docker/wrf_hydro_py wrfhydro/dev:conda bash -c "pip uninstall -y wrfhydropy; cd /home/docker/wrf_hydro_py; python setup.py install; cd /home/docker/wrf_hydro_py/wrfhydropy/tests; pytest -v"
-
-#deploy:
-#  provider: pypi
-#  user: "jmills-ncar"
-#  password:
-#    secure: "ujHwMacR5lrsotqZ8zPznkQQIhd2jPR7iwpUvt53OLYWn5pnHopZiXHB1HqBO7xMEKTgk9DGItT8AJ6PJQpr+6kZ0wJHAzjxtPAxb+/Fi7b7764fmk9+WuxgmsTi2s6c3tdr1dHh9tcdfTVypbTJA7a+MWAirkMSvWp3vuIFJTtjSyAarSMxHKMf1ILytv98ngxGNoWeOMENt6zERWg1loTB7El+d04tFFT0EMz9DRYaKkY1lv69dk+pkDR1KrsDLhmvemhGMkQqBPl3qrLgLi02wkpS4D+ZYuxhr97DbjmxWGJKFlkPQ2L83Yd0dDjaA7syF0vYy1X+OgjsnnmV7yI/Kn0C2KDAWOE0VNtryw9YsO7/KH2BDkPdMNbwj9PBjsE4BIV//EdGd9RRPEeYOWSVeuWBvkyQlPxrV7y7Ln4KCYv7QxXG0pHBedjTjww0JNxACiBIlvVRdc2z0m8LDebgMtdgRQKoRC1qz3mfc//+SMdLdAjk1ssxTJpN7M02K7thTpDczk65By08VzGh0/EsffcaRayk+40rhVvqcPcJjRmuiglgTa1rKA2hWbMKAmu7taj3tvQZGI9Cv2oo55HUlPPQsSXltRYfk0JiBv/ce8Hx4GWggEQ5plYEPg+F+th5dvVqlN+bHoNvmnspdFV7LYz5f+O87ruuirDFnXw="
-#  on:
-#    tags: true
+    - pytest -v --cov
+after_success:
+    - coveralls

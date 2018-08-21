@@ -24,16 +24,16 @@ def get_git_revision_hash(the_dir: str) -> str:
     # First test if this is even a git repo. (Have to allow for this unless the wrfhydropy
     # testing brings in the wrf_hydro_code as a repo with a .git file.)
     dir_is_repo = subprocess.run(["git", "branch"],
-        stderr=subprocess.STDOUT,
-        stdout=open(os.devnull, 'w'),
-        cwd=str(the_dir.absolute()))
+                                 stderr=subprocess.STDOUT,
+                                 stdout=open(os.devnull, 'w'),
+                                 cwd=str(the_dir.absolute()))
     if dir_is_repo.returncode != 0:
         return 'could_not_get_hash'
 
     dirty = subprocess.run(['git', 'diff-index', 'HEAD'],  # --quiet seems to give the wrong result.
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        cwd=str(the_dir.absolute())).returncode
+                           stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE,
+                           cwd=str(the_dir.absolute())).returncode
     the_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=str(the_dir.absolute()))
     the_hash = the_hash.decode('utf-8').split()[0]
     if dirty:
@@ -45,13 +45,12 @@ class Model(object):
     """Class for a WRF-Hydro model, which consitutes the model source code and compiled binary.
     """
 
-    def __init__(
-            self,
-            source_dir: str,
-            model_config: str,
-            compiler: str = 'gfort',
-            pre_compile_cmd: str = None,
-            compile_options: dict = None):
+    def __init__(self,
+                 source_dir: str,
+                 model_config: str,
+                 compiler: str = 'gfort',
+                 pre_compile_cmd: str = None,
+                 compile_options: dict = None):
         """Instantiate a Model object.
         Args:
             source_dir: Directory containing the source code, e.g.
@@ -144,9 +143,8 @@ class Model(object):
         # Add compiler and compile options as attributes and update if needed
         self.compiler = compiler
 
-    def compile(
-            self,
-            compile_dir: pathlib.Path) -> str:
+    def compile(self,
+                compile_dir: pathlib.Path) -> str:
         """Compiles WRF-Hydro using specified compiler and compile options.
         Args:
             compile_dir: A non-existant directory to use for compilation.

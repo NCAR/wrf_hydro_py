@@ -1,5 +1,6 @@
 import json
 import pathlib
+import subprocess
 
 import numpy as np
 import pandas as pd
@@ -136,3 +137,74 @@ def domain_dir(tmpdir, ds_1d):
     json.dump(hydro_namelist,domain_top_dir_path.joinpath('hydro_namelist_patches.json').open('w'))
 
     return domain_top_dir_path
+
+@pytest.fixture()
+def model_dir(tmpdir):
+    model_dir_path = pathlib.Path(tmpdir).joinpath('wrf_hydro_nwm_public/trunk/NDHMS')
+    model_dir_path.mkdir(parents=True)
+
+    # Make namelist patch files
+    hrldas_namelist = {
+        "base": {
+            "noahlsm_offline": {
+                "btr_option": 1,
+                "canopy_stomatal_resistance_option": 1,
+            },
+            "wrf_hydro_offline": {
+                "forc_typ": "NULL_specified_in_domain.json"
+            }
+        },
+        "nwm_ana": {
+            "noahlsm_offline": {},
+            "wrf_hydro_offline": {}
+        }
+    }
+
+    hydro_namelist = {
+        "base": {
+            "hydro_nlist": {
+                "channel_option": 2,
+                "chanobs_domain": 0,
+                "chanrtswcrt": 1,
+                "chrtout_domain": 1,
+            },
+            "nudging_nlist": {
+                "maxagepairsbiaspersist": 3,
+                "minnumpairsbiaspersist": 1,
+            }
+        },
+
+        "nwm_ana": {
+            "hydro_nlist": {},
+            "nudging_nlist": {}
+        }
+    }
+
+    json.dump(hrldas_namelist,model_dir_path.joinpath('hrldas_namelists.json').open('w'))
+    json.dump(hydro_namelist,model_dir_path.joinpath('hydro_namelists.json').open('w'))
+
+    compile_options = {
+        "nwm": {
+            "WRF_HYDRO": 1,
+            "HYDRO_D": 0,
+            "SPATIAL_SOIL": 1,
+            "WRF_HYDRO_RAPID": 0,
+            "WRFIO_NCD_LARGE_FILE_SUPPORT": 1,
+            "NCEP_WCOSS": 0,
+            "WRF_HYDRO_NUDGING": 1
+        }
+    }
+    json.dump(compile_options,model_dir_path.joinpath('compile_options.json').open('w'))
+
+    with model_dir_path.joinpath('.version').open('w') as f:
+        f.write('v5.1.0')
+
+    with model_dir_path.joinpath('configure').open('w') as f:
+        f.write('#dummy configure')
+
+    with model_dir_path.joinpath('./compile_offline_NoahMP.sh').open('w') as f:
+        f.write('#dummy compile')
+
+    subprocess.run(['chmod', '-R', '755', str(model_dir_path)])
+
+    return(model_dir_path)

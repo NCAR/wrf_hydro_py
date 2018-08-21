@@ -211,7 +211,7 @@ class Simulation(object):
             self._validate_model_domain(model, self.domain)
 
             # Add in model
-            self.model = copy.deepcopy(model)
+            self.model = model
 
             # Setup base namelists
             self._set_base_namelists()

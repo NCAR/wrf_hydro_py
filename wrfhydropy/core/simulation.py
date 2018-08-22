@@ -282,38 +282,41 @@ class SimulationOutput(object):
         self.restart_nudging = None
         """list: List of nudgingLastObs WrfHydroStatic objects"""
 
-    def collect_output(self,sim_dir: Union[str,pathlib.Path]):
+    def collect_output(self,sim_dir: Union[str,pathlib.Path] = None):
         """Collect simulation output after a run
         Args:
-            sim_dir: The simulation directory
+            sim_dir: The simulation directory to collect
         """
 
-        current_dir = pathlib.Path(os.curdir).absolute()
+        if sim_dir is None:
+            sim_dir = pathlib.Path(os.curdir).absolute()
+        else:
+            sim_dir = pathlib.Path(sim_dir).absolute()
 
         # Grab outputs as WrfHydroXX classes of file paths
         # Get channel files
-        if len(list(current_dir.glob('*CHRTOUT*'))) > 0:
-            self.channel_rt = WrfHydroTs(list(current_dir.glob('*CHRTOUT*')))
+        if len(list(sim_dir.glob('*CHRTOUT*'))) > 0:
+            self.channel_rt = WrfHydroTs(list(sim_dir.glob('*CHRTOUT*')))
             self.channel_rt = sort_files_by_time(self.channel_rt)
 
-        if len(list(current_dir.glob('*CHANOBS*'))) > 0:
-            self.chanobs = WrfHydroTs(list(current_dir.glob('*CHANOBS*')))
+        if len(list(sim_dir.glob('*CHANOBS*'))) > 0:
+            self.chanobs = WrfHydroTs(list(sim_dir.glob('*CHANOBS*')))
             self.chanobs = sort_files_by_time(self.chanobs)
 
         # Get Lakeout files
-        if len(list(current_dir.glob('*LAKEOUT*'))) > 0:
-            self.lakeout = WrfHydroTs(list(current_dir.glob('*LAKEOUT*')))
+        if len(list(sim_dir.glob('*LAKEOUT*'))) > 0:
+            self.lakeout = WrfHydroTs(list(sim_dir.glob('*LAKEOUT*')))
             self.lakeout = sort_files_by_time(self.lakeout)
 
         # Get gwout files
-        if len(list(current_dir.glob('*GWOUT*'))) > 0:
-            self.gwout = WrfHydroTs(list(current_dir.glob('*GWOUT*')))
+        if len(list(sim_dir.glob('*GWOUT*'))) > 0:
+            self.gwout = WrfHydroTs(list(sim_dir.glob('*GWOUT*')))
             self.gwout = sort_files_by_time(self.gwout)
 
         # Get restart files and sort by modified time
         # Hydro restarts
         self.restart_hydro = []
-        for file in current_dir.glob('HYDRO_RST*'):
+        for file in sim_dir.glob('HYDRO_RST*'):
             file = WrfHydroStatic(file)
             self.restart_hydro.append(file)
 
@@ -324,7 +327,7 @@ class SimulationOutput(object):
 
         # LSM Restarts
         self.restart_lsm = []
-        for file in current_dir.glob('RESTART*'):
+        for file in sim_dir.glob('RESTART*'):
             file = WrfHydroStatic(file)
             self.restart_lsm.append(file)
 
@@ -335,7 +338,7 @@ class SimulationOutput(object):
 
         # Nudging restarts
         self.restart_nudging = []
-        for file in current_dir.glob('nudgingLastObs*'):
+        for file in sim_dir.glob('nudgingLastObs*'):
             file = WrfHydroStatic(file)
             self.restart_nudging.append(file)
 

@@ -59,13 +59,13 @@ def test_model_compile(model_dir,tmpdir):
 
     assert model.compile_log.returncode == 0
 
-def test_model_copyfiles(model_dir, tmpdir):
+def test_model_copyfiles(model_dir, tmpdir, compile_dir):
 
     model = Model(source_dir=model_dir,
                   model_config='nwm_ana')
 
-    compile_dir = pathlib.Path(tmpdir).joinpath('compile_dir_compile')
-    compile_dir.mkdir(parents=True)
+    # compile_dir = pathlib.Path(tmpdir).joinpath('compile_dir_compile')
+    # compile_dir.mkdir(parents=True)
     copy_dir = pathlib.Path(tmpdir).joinpath('compile_dir_copy')
     copy_dir.mkdir(parents=True)
 

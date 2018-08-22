@@ -18,7 +18,7 @@ def ds_1d():
     location = ['loc1', 'loc2', 'loc3']
 
     ds_1d = xr.Dataset({'var1': (('location'), vals_1d)},
-                    {'Time': time, 'location': location})
+                       {'Time': time, 'location': location})
 
     return ds_1d
 
@@ -31,7 +31,7 @@ def ds_2d():
     time = pd.to_datetime('1984-10-14')
 
     ds_2d = xr.Dataset({'var1': (('x','y'), vals_2d)},
-                    {'Time': time, 'x': x,'y':y})
+                       {'Time': time, 'x': x,'y':y})
 
     return ds_2d
 
@@ -44,8 +44,8 @@ def ds_timeseries():
     location = ['loc1', 'loc2', 'loc3']
 
     ds_ts = xr.Dataset({'var1': (('location','Time'), vals_ts)},
-                    {'Time': time,
-                     'location': location})
+                       {'Time': time,
+                        'location': location})
 
     return ds_ts
 
@@ -213,3 +213,48 @@ def model_dir(tmpdir):
 
     return model_dir_path
 
+
+@pytest.fixture()
+def compile_dir(tmpdir):
+    compile_dir = pathlib.Path(tmpdir).joinpath('compile_dir')
+    compile_dir.mkdir(parents=True)
+
+    # Set table files and exe file attributes
+    table_files = [compile_dir.joinpath('file1.tbl'),compile_dir.joinpath('file2.tbl')]
+    wrf_hydro_exe = compile_dir.joinpath('wrf_hydro.exe')
+
+    # Make fake run directory with files that would have been produced at compile
+    with wrf_hydro_exe.open('w') as f:
+        f.write('#dummy exe file')
+
+    for file in table_files:
+        with file.open('w') as f:
+            f.write('#dummy table file')
+
+    return compile_dir
+
+
+@pytest.fixture()
+def sim_output(tmpdir, ds_2d):
+
+    tmpdir = pathlib.Path(tmpdir)
+    sim_out_dir = tmpdir.joinpath('sim_out')
+
+    sim_out_dir.mkdir(parents=True)
+
+    # Make a list of DOMAIN filenames to create
+    file_names = ['CHRTOUT_TEST',
+                  'CHANOBS_TEST',
+                  'LAKEOUT_TEST',
+                  'GWOUT_TEST',
+                  'HYDRO_RST_TEST',
+                  'RESTART_TEST',
+                  'nudgingLastObs_TEST']
+
+    for counter in range(3):
+        for file in file_names:
+            filename = file + '_' + str(counter)
+            file_path = sim_out_dir.joinpath(filename)
+            ds_2d.to_netcdf(str(file_path))
+
+    return sim_out_dir

@@ -241,3 +241,16 @@ def check_file_nas(dataset_path: Union[str,pathlib.Path]) -> str:
             warnings.warn('Problem reading nccmp output to pandas dataframe,'
                           'returning as subprocess object')
             return proc.stderr
+
+def sort_files_by_time(file_list: list):
+    """Given a list of file paths, sort list by file modified time
+    Args:
+        file_list: The list of file paths to sort
+    Returns: A list of file paths sorted by file modified time
+    """
+    file_list_sorted = sorted(
+        file_list,
+        key=lambda file: file.stat().st_mtime_ns
+    )
+
+    return file_list_sorted

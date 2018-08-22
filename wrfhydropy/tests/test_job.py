@@ -7,7 +7,7 @@ from wrfhydropy.core.job import Job
 from wrfhydropy.core.namelist import Namelist
 
 
-def job():
+def test_job_init():
     job = Job(job_id='test_job_1',
               model_start_time='1984-10-14',
               model_end_time='2017-01-04',
@@ -183,6 +183,7 @@ def test_job_run_coldstart(tmpdir):
 
     job._make_job_dir()
     job._write_namelists()
+    job._write_run_script()
 
     try:
         job._run()
@@ -193,11 +194,11 @@ def test_job_run_coldstart(tmpdir):
     assert job._proc_log.returncode == 0
 
     actual_files = list(job.job_dir.glob('*'))
-    expected_files = [pathlib.Path('job_test_job_1/WrfHydroJob_postrun.pkl'),
+    expected_files = [pathlib.Path('job_test_job_1/WrfHydroJob_prerun.pkl'),
+                      pathlib.Path('job_test_job_1/WrfHydroJob_postrun.pkl'),
                       pathlib.Path('job_test_job_1/hydro.namelist'),
                       pathlib.Path('job_test_job_1/namelist.hrldas')]
 
     for file in actual_files:
         assert file in expected_files
-
 

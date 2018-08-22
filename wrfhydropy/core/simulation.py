@@ -8,7 +8,11 @@ from typing import Union
 import pandas as pd
 
 from .domain import Domain
-from .ioutils import WrfHydroStatic, WrfHydroTs, check_input_files, check_file_nas
+from .ioutils import WrfHydroStatic, \
+    WrfHydroTs, \
+    check_input_files, \
+    check_file_nas, \
+    sort_files_by_time
 from .job import Job
 from .model import Model
 from .namelist import Namelist
@@ -278,71 +282,68 @@ class SimulationOutput(object):
         self.restart_nudging = None
         """list: List of nudgingLastObs WrfHydroStatic objects"""
 
-    def collect_output(self,sim_dir: Union[str,pathlib.Path]):
+    def collect_output(self,sim_dir: Union[str,pathlib.Path] = None):
         """Collect simulation output after a run
         Args:
-            sim_dir: The simulation directory
+            sim_dir: The simulation directory to collect
         """
 
-        current_dir = pathlib.Path(os.curdir).absolute()
+        if sim_dir is None:
+            sim_dir = pathlib.Path(os.curdir).absolute()
+        else:
+            sim_dir = pathlib.Path(sim_dir).absolute()
 
         # Grab outputs as WrfHydroXX classes of file paths
         # Get channel files
-        if len(list(current_dir.glob('*CHRTOUT*'))) > 0:
-            self.channel_rt = WrfHydroTs(list(current_dir.glob('*CHRTOUT*')))
+        if len(list(sim_dir.glob('*CHRTOUT*'))) > 0:
+            self.channel_rt = WrfHydroTs(list(sim_dir.glob('*CHRTOUT*')))
+            self.channel_rt = sort_files_by_time(self.channel_rt)
 
-        if len(list(current_dir.glob('*CHANOBS*'))) > 0:
-            self.chanobs = WrfHydroTs(list(current_dir.glob('*CHANOBS*')))
-            # Make relative to run dir
-            # for file in self.chanobs:
-            #     file.relative_to(file.parent)
+        if len(list(sim_dir.glob('*CHANOBS*'))) > 0:
+            self.chanobs = WrfHydroTs(list(sim_dir.glob('*CHANOBS*')))
+            self.chanobs = sort_files_by_time(self.chanobs)
 
         # Get Lakeout files
-        if len(list(current_dir.glob('*LAKEOUT*'))) > 0:
-            self.lakeout = WrfHydroTs(list(current_dir.glob('*LAKEOUT*')))
+        if len(list(sim_dir.glob('*LAKEOUT*'))) > 0:
+            self.lakeout = WrfHydroTs(list(sim_dir.glob('*LAKEOUT*')))
+            self.lakeout = sort_files_by_time(self.lakeout)
 
         # Get gwout files
-        if len(list(current_dir.glob('*GWOUT*'))) > 0:
-            self.gwout = WrfHydroTs(list(current_dir.glob('*GWOUT*')))
+        if len(list(sim_dir.glob('*GWOUT*'))) > 0:
+            self.gwout = WrfHydroTs(list(sim_dir.glob('*GWOUT*')))
+            self.gwout = sort_files_by_time(self.gwout)
 
         # Get restart files and sort by modified time
         # Hydro restarts
         self.restart_hydro = []
-        for file in current_dir.glob('HYDRO_RST*'):
+        for file in sim_dir.glob('HYDRO_RST*'):
             file = WrfHydroStatic(file)
             self.restart_hydro.append(file)
 
         if len(self.restart_hydro) > 0:
-            self.restart_hydro = sorted(
-                self.restart_hydro,
-                key=lambda file: file.stat().st_mtime_ns
-            )
+            self.restart_hydro = sort_files_by_time(self.restart_hydro)
         else:
             self.restart_hydro = None
 
         # LSM Restarts
         self.restart_lsm = []
-        for file in current_dir.glob('RESTART*'):
+        for file in sim_dir.glob('RESTART*'):
             file = WrfHydroStatic(file)
             self.restart_lsm.append(file)
 
         if len(self.restart_lsm) > 0:
-            self.restart_lsm = sorted(
-                self.restart_lsm,
-                key=lambda file: file.stat().st_mtime_ns
-            )
+            self.restart_lsm = sort_files_by_time(self.restart_lsm)
         else:
             self.restart_lsm = None
 
         # Nudging restarts
         self.restart_nudging = []
-        for file in current_dir.glob('nudgingLastObs*'):
+        for file in sim_dir.glob('nudgingLastObs*'):
             file = WrfHydroStatic(file)
             self.restart_nudging.append(file)
 
         if len(self.restart_nudging) > 0:
-            self.restart_nudging = sorted(self.restart_nudging,
-                                          key=lambda file: file.stat().st_mtime_ns)
+            self.restart_nudging = sort_files_by_time(self.restart_nudging)
         else:
             self.restart_nudging = None
 

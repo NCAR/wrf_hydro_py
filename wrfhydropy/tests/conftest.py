@@ -7,6 +7,8 @@ import pandas as pd
 import pytest
 import xarray as xr
 
+from wrfhydropy.core.schedulers import PBSCheyenne
+
 
 @pytest.fixture()
 def ds_1d():
@@ -46,6 +48,7 @@ def ds_timeseries():
                      'location': location})
 
     return ds_ts
+
 
 @pytest.fixture()
 def domain_dir(tmpdir, ds_1d):
@@ -138,6 +141,7 @@ def domain_dir(tmpdir, ds_1d):
 
     return domain_top_dir_path
 
+
 @pytest.fixture()
 def model_dir(tmpdir):
     model_dir_path = pathlib.Path(tmpdir).joinpath('wrf_hydro_nwm_public/trunk/NDHMS')
@@ -207,4 +211,5 @@ def model_dir(tmpdir):
 
     subprocess.run(['chmod', '-R', '755', str(model_dir_path)])
 
-    return(model_dir_path)
+    return model_dir_path
+

@@ -183,6 +183,7 @@ def test_job_run_coldstart(tmpdir):
 
     job._make_job_dir()
     job._write_namelists()
+    job._write_run_script()
 
     try:
         job._run()
@@ -193,7 +194,8 @@ def test_job_run_coldstart(tmpdir):
     assert job._proc_log.returncode == 0
 
     actual_files = list(job.job_dir.glob('*'))
-    expected_files = [pathlib.Path('job_test_job_1/WrfHydroJob_postrun.pkl'),
+    expected_files = [pathlib.Path('job_test_job_1/WrfHydroJob_prerun.pkl'),
+                      pathlib.Path('job_test_job_1/WrfHydroJob_postrun.pkl'),
                       pathlib.Path('job_test_job_1/hydro.namelist'),
                       pathlib.Path('job_test_job_1/namelist.hrldas')]
 

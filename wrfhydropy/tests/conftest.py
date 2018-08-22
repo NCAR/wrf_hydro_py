@@ -1,13 +1,12 @@
 import json
 import pathlib
 import subprocess
+import warnings
 
 import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
-
-from wrfhydropy.core.schedulers import PBSCheyenne
 
 
 @pytest.fixture()
@@ -19,19 +18,33 @@ def ds_1d():
 
     ds_1d = xr.Dataset({'var1': (('location'), vals_1d)},
                        {'Time': time, 'location': location})
+    ds_1d.var1.encoding['_FillValue'] = False
 
     return ds_1d
 
+@pytest.fixture()
+def ds_1d_has_nans():
+    # Create a dummy dataset
+    vals_1d = np.random.randn(3)
+    time = pd.to_datetime('1984-10-14')
+    location = ['loc1', 'loc2', 'loc3']
+
+    ds_1d = xr.Dataset({'var1': (('location'), vals_1d)},
+                       {'Time': time, 'location': location})
+
+    return ds_1d
 
 @pytest.fixture()
 def ds_2d():
     x = [10,11,12]
     y = [101,102,103]
     vals_2d = np.random.randn(3,3)
+
     time = pd.to_datetime('1984-10-14')
 
     ds_2d = xr.Dataset({'var1': (('x','y'), vals_2d)},
                        {'Time': time, 'x': x,'y':y})
+    ds_2d.var1.encoding['_FillValue'] = False
 
     return ds_2d
 
@@ -235,7 +248,7 @@ def compile_dir(tmpdir):
 
 
 @pytest.fixture()
-def sim_output(tmpdir, ds_2d):
+def sim_output(tmpdir, ds_1d, ds_1d_has_nans, ds_2d):
 
     tmpdir = pathlib.Path(tmpdir)
     sim_out_dir = tmpdir.joinpath('sim_out')
@@ -246,7 +259,6 @@ def sim_output(tmpdir, ds_2d):
     file_names = ['CHRTOUT_TEST',
                   'CHANOBS_TEST',
                   'LAKEOUT_TEST',
-                  'GWOUT_TEST',
                   'HYDRO_RST_TEST',
                   'RESTART_TEST',
                   'nudgingLastObs_TEST']
@@ -256,5 +268,10 @@ def sim_output(tmpdir, ds_2d):
             filename = file + '_' + str(counter)
             file_path = sim_out_dir.joinpath(filename)
             ds_2d.to_netcdf(str(file_path))
+
+    for counter in range(3):
+        filename = 'GWOUT_' + str(counter)
+        file_path = sim_out_dir.joinpath(filename)
+        ds_1d_has_nans.to_netcdf(str(file_path))
 
     return sim_out_dir

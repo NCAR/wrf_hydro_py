@@ -1,6 +1,5 @@
 import os
 import pathlib
-import warnings
 
 import pytest
 
@@ -93,6 +92,7 @@ def test_simulation_compose(model,domain,job,capfd,tmpdir,domain_dir):
 
     compose_dir = pathlib.Path(tmpdir).joinpath('sim_compose')
     os.mkdir(str(compose_dir))
+
     os.chdir(str(compose_dir))
 
     try:
@@ -136,6 +136,7 @@ def test_simulation_run_no_scheduler(model,domain,job,capfd):
 
 
 def test_simulation_collect(sim_output):
+
     os.chdir(sim_output)
 
     sim=Simulation()

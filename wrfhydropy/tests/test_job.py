@@ -202,4 +202,3 @@ def test_job_run_coldstart(tmpdir):
     for file in actual_files:
         assert file in expected_files
 
-

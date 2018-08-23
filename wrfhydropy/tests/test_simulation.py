@@ -8,7 +8,7 @@ from wrfhydropy.core.job import Job
 from wrfhydropy.core.model import Model
 from wrfhydropy.core.schedulers import PBSCheyenne
 from wrfhydropy.core.simulation import Simulation, SimulationOutput
-
+from wrfhydropy.core.ioutils import WrfHydroTs
 
 @pytest.fixture()
 def model(model_dir):
@@ -143,6 +143,7 @@ def test_simulation_collect(sim_output):
     sim.collect()
 
     assert sim.output is not None
+    assert type(sim.output.channel_rt) is WrfHydroTs
 
 
 def test_simulation_output_checknans(sim_output):

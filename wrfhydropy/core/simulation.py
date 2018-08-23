@@ -296,22 +296,22 @@ class SimulationOutput(object):
         # Grab outputs as WrfHydroXX classes of file paths
         # Get channel files
         if len(list(sim_dir.glob('*CHRTOUT*'))) > 0:
-            self.channel_rt = WrfHydroTs(list(sim_dir.glob('*CHRTOUT*')))
-            self.channel_rt = sort_files_by_time(self.channel_rt)
+            self.channel_rt = sort_files_by_time(list(sim_dir.glob('*CHRTOUT*')))
+            self.channel_rt = WrfHydroTs(self.channel_rt)
 
         if len(list(sim_dir.glob('*CHANOBS*'))) > 0:
-            self.chanobs = WrfHydroTs(list(sim_dir.glob('*CHANOBS*')))
-            self.chanobs = sort_files_by_time(self.chanobs)
+            self.chanobs = sort_files_by_time(list(sim_dir.glob('*CHANOBS*')))
+            self.chanobs = WrfHydroTs(self.chanobs)
 
         # Get Lakeout files
         if len(list(sim_dir.glob('*LAKEOUT*'))) > 0:
-            self.lakeout = WrfHydroTs(list(sim_dir.glob('*LAKEOUT*')))
-            self.lakeout = sort_files_by_time(self.lakeout)
+            self.lakeout = sort_files_by_time(list(sim_dir.glob('*LAKEOUT*')))
+            self.lakeout = WrfHydroTs(self.lakeout)
 
         # Get gwout files
         if len(list(sim_dir.glob('*GWOUT*'))) > 0:
-            self.gwout = WrfHydroTs(list(sim_dir.glob('*GWOUT*')))
-            self.gwout = sort_files_by_time(self.gwout)
+            self.gwout = sort_files_by_time(list(sim_dir.glob('*GWOUT*')))
+            self.gwout = WrfHydroTs(self.gwout)
 
         # Get restart files and sort by modified time
         # Hydro restarts

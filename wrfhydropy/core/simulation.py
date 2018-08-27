@@ -77,7 +77,7 @@ class Simulation(object):
         current_dir = pathlib.Path(os.getcwd())
         current_dir_files = list(current_dir.rglob('*'))
         if len(current_dir_files) > 0 and force is False:
-            raise FileExistsError('Unable to compose, current working directory is not empty. '
+            raise FileExistsError('Unable to compose, current working directory is not empty and force is False. '
                                   'Change working directory to an empty directory with os.chdir()')
 
         # Symlink in domain files

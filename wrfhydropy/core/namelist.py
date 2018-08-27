@@ -47,12 +47,12 @@ class JSONNamelist(object):
 
 class Namelist(dict):
     """Class for a WRF-Hydro namelist"""
+
     def write(self, path: str):
         """Write a namelist to file as a fortran-compatible namelist
         Args:
             path: The file path
         """
-
         f90nml.write(self,str(path))
 
     def patch(self,patch: dict):
@@ -60,9 +60,7 @@ class Namelist(dict):
         Args:
             patch: A Namelist or dict object containing the patches
         """
-
         patched_namelist = dict_merge(copy.deepcopy(self),copy.deepcopy(patch))
-
         return patched_namelist
 
 

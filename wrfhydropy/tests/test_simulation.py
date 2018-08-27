@@ -10,6 +10,7 @@ from wrfhydropy.core.schedulers import PBSCheyenne
 from wrfhydropy.core.simulation import Simulation, SimulationOutput
 from wrfhydropy.core.ioutils import WrfHydroTs
 
+
 @pytest.fixture()
 def model(model_dir):
     model = Model(source_dir=model_dir,
@@ -24,6 +25,7 @@ def domain(domain_dir):
                     compatible_version='v5.1.0')
     return domain
 
+
 @pytest.fixture()
 def job():
     job = Job(job_id='test_job_1',
@@ -34,6 +36,7 @@ def job():
               entry_cmd='bogus entry cmd',
               exit_cmd='bogus exit cmd')
     return job
+
 
 @pytest.fixture()
 def scheduler():
@@ -46,6 +49,7 @@ def scheduler():
                             queue='regular',
                             walltime="12:00:00")
     return scheduler
+
 
 def test_simulation_add_model_domain(model,domain):
     sim = Simulation()
@@ -75,6 +79,7 @@ def test_simulation_add_model_domain(model,domain):
                                 'indir': './FORCING'},
             'wrf_hydro_offline': {'forc_typ': 1}}
 
+
 def test_simulation_add_job(model,domain,job):
     sim = Simulation()
     with pytest.raises(Exception) as e_info:
@@ -83,6 +88,7 @@ def test_simulation_add_job(model,domain,job):
     sim.add(model)
     sim.add(domain)
     sim.add(job)
+
 
 def test_simulation_compose(model,domain,job,capfd,tmpdir,domain_dir):
     sim = Simulation()
@@ -119,7 +125,6 @@ def test_simulation_compose(model,domain,job,capfd,tmpdir,domain_dir):
     assert out[-19:] == 'Compiling model...\n'
 
 
-
 def test_simulation_run_no_scheduler(model,domain,job,capfd):
     sim = Simulation()
     sim.add(model)
@@ -154,4 +159,3 @@ def test_simulation_output_checknans(sim_output):
         assert getattr(output,att) is not None
 
     assert output.check_output_nas() is not None
-

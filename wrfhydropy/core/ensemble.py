@@ -4,6 +4,7 @@ import copy
 #import datetime
 #import multiprocessing
 import pathlib
+from typing import Union
 #import pickle
 #import shlex
 #import subprocess
@@ -12,32 +13,31 @@ import pathlib
 
 from .ensemble_tools import DeepDiffEq, dictify, get_sub_objs
 
+from .job import Job
+from .schedulers import Scheduler
+from .simulation import Simulation
+
 #from .job_tools import solve_model_start_end_times
 
-def copy_member(
-    member,
-    do_copy: bool
-):
-    if do_copy:
-        return(copy.deepcopy(member))
-    else:
-        return(member)
-
-
-# ########################
 # Classes for constructing and running a wrf_hydro simulation
 class EnsembleSimulation(object):
     """ TODO
     """
-    
-    def __init__(
-        self,
-        members: list
-    ):
+
+    def __init__(self):
         """ TODO """
-        self.__members = []
-        self.members = members
+
+        self.members = []
+        """list: a list of simulations which are the members of the ensemble."""
+
         self.__diffs_dict = {}
+        """dict: a dictionary containing the differences across all the members attributes."""
+
+        self.jobs = []
+        """list: a list containing Job objects"""
+
+        self.scheduler = None
+        """Scheduler: A scheduler object to use for each Job in self.jobs"""
 
     def __len__(self):
         return(len(self.members))
@@ -54,34 +54,74 @@ class EnsembleSimulation(object):
     # 3) member_dir
     # 4) forcing_source_dir
 
-    @property
-    def members(self):
-        return(self.__members)
-
-    @members.setter
-    def members(
+    def add(
         self,
-        new_members: list,
-        copy_members: bool=True
+        obj: Union[list, Scheduler, Job]
     ):
+        """Add an approparite object to an EnsembleSimulation, such as a Simulation, Job, or 
+        Scheduler"""
+        if isinstance(obj, list) or isinstance(obj, Simulation):
+            self._addsimulation(obj)
+        elif issubclass(type(obj), Scheduler):
+            self._addscheduler(obj)
+        elif isinstance(obj, Job):
+            self._addjob(obj)
+        else:
+            raise TypeError('obj is not of a type expected for a EnsembleSimulation')
 
-        if(type(new_members) is not list):
-            new_members = [new_members]
+    def _addscheduler(self, scheduler: Scheduler):
+        """Private method to add a Scheduler to a Simulation
+        Args:
+            scheduler: The Scheduler to add
+        """
+        self.scheduler = copy.deepcopy(scheduler)
 
-        for nn in new_members:
-            self.__members.append(copy_member(nn, copy_members))
-            # If copying an existing ensemble member, nuke the metadata
+    def _addjob(self, job: Job):
+        """Private method to add a job to a Simulation
+        Args:
+            scheduler: The Scheduler to add
+        """
+        if self.domain is not None and self.model is not None:
+            job = copy.deepcopy(job)
+            job._add_hydro_namelist(self.base_hydro_namelist)
+            job._add_hrldas_namelist(self.base_hrldas_namelist)
+
+            self.jobs.append(job)
+        else:
+            raise AttributeError('Can not add a job to a simulation without a model and a domain')
+
+    def _addsimulation(
+        self,
+        sims: Union[list, Simulation]
+    ):
+        """Private method to add a Model to a Simulation
+        Args:
+            model: The Model to add
+        """
+
+        if(type(sims) is Simulation):
+            sims = [copy.deepcopy(sims)]
+
+        for nn in sims:
+
+            if type(nn) is not Simulation:
+                raise valueError("A non-simulation object can not be "
+                                 "added to the ensemble members")
+
+            self.members.append(copy.deepcopy(nn))
+
+            # If copying an existing ensemble member, nuke the following metadatas
+            nuke_metadata = ['number', 'jobs', 'scheduler']
             # number is the detector for all ensemble metadata.
-            if hasattr(nn, 'number'):
-                delattr(self.__members[len(self.__members)-1], 'number')
+            for metadatum in nuke_metadata:
+                if hasattr(nn, metadatum):
+                    delattr(self.members[len(self.members)-1], metadatum)
 
         # Put refs to these properties in the ensemble objects
-        for mm in range(len(self.__members)):
-            if not hasattr(self.__members[mm], 'number'):
-                self.__members[mm].number = "%03d" % (mm,)
-                self.__members[mm].description = ''
-                self.__members[mm].run_dir = 'member_' + self.__members[mm].number
-                self.__members[mm].forcing_source_dir = ''
+        for mm in range(len(self.members)):
+            if not hasattr(self.members[mm], 'number'):
+                self.members[mm].number = "%03d" % (mm,)
+                self.members[mm].run_dir = 'member_' + self.members[mm].number
 
     # A quick way to setup a basic ensemble from a single sim.
     def replicate_member(
@@ -90,11 +130,12 @@ class EnsembleSimulation(object):
         copy_members: bool=True
     ):
         if self.N > 1:
-            print('WTF mate?')
+            raise ValueError('The ensemble must only have one member to replicate.')
         else:
-            self.members = [ self.members[0] for nn in range(N-1) ]
+            for nn in range(1,N):
+                self.add(self.members[0])
 
-
+    # -------------------------------------------------------
     # The diffs_dict attribute has getter (@property) and setter methods.
     # The get method summarizes all differences across all the attributes of the
     #   members list attribute and (should) only report member attributes when there
@@ -111,14 +152,14 @@ class EnsembleSimulation(object):
 
         mem_0_ref_dict = dictify(self.members[0])
 
-        all_diff_keys=set({})
-        for ii in range(1,len(self)):
+        all_diff_keys = set({})
+        for ii in range(1, len(self)):
             mem_ii_ref_dict = dictify(self.members[ii])
             diff = DeepDiffEq(mem_0_ref_dict, mem_ii_ref_dict, eq_types={pathlib.PosixPath})
 
             unexpected_diffs = set(diff.keys()) - set(['values_changed'])
             if len(unexpected_diffs):
-                unexpected_diffs1 = { uu: diff0[uu] for uu in list(unexpected_diffs) }
+                unexpected_diffs1 = {uu: diff[uu] for uu in list(unexpected_diffs)}
                 raise ValueError(
                     'Unexpected attribute differences between ensemble members:',
                     unexpected_diffs1
@@ -137,7 +178,6 @@ class EnsembleSimulation(object):
             self.__diffs_dict[dd] = [get_path(dictify(mm), dd) for mm in self.members]
 
         return(self.__diffs_dict)
-
 
     def set_diffs_dict(
         self,
@@ -159,7 +199,6 @@ class EnsembleSimulation(object):
 
             def visit(path, key, value):
                 superpath = path + (key,)
-                #print(superpath) #
 
                 if superpath != att_tuple[0:len(superpath)]:
                     return True
@@ -178,7 +217,6 @@ class EnsembleSimulation(object):
 
         for ii in range(len(self)):
             new_value = values[ii]
-            #print(new_value)
             update_obj_dict(self.members[ii], att_tuple)
 
 

@@ -68,25 +68,57 @@ def scheduler():
     return scheduler
 
 
-def test_ensemble_init_replicate(simulation):
-    sim=simulation
-    ens1 = EnsembleSimulation([sim])
-    ens2 = EnsembleSimulation(sim)
+def test_ensemble_init():
+    ens = EnsembleSimulation()
+    assert type(ens) is EnsembleSimulation
+    # Not sure why this dosent vectorize well.
+    atts = ['members', '_EnsembleSimulation__diffs_dict', 'jobs', 'scheduler']
+    for kk in ens.__dict__.keys():
+        assert kk in atts
+
+
+def test_ensemble_add(simulation, job, scheduler):
+    sim = simulation
+    ens1 = EnsembleSimulation()
+    ens2 = EnsembleSimulation()
+    ens1.add([sim])
+    ens2.add(sim)
     assert deepdiff.DeepDiff(ens1, ens2) == {}
 
-    ens1.replicate_member(4)
-    ens3 = EnsembleSimulation([sim, sim, sim, sim])
-    assert deepdiff.DeepDiff(ens1, ens3) == {}
+    # add a sim with job and make sure it is deleted.
+    sim.add(job)
+    sim.add(scheduler)
+    ens1 = EnsembleSimulation()
+    ens1.add(sim)
+    assert 'jobs' not in ens1.members[0].__dict__.keys()
+    assert 'scheduler' not in ens1.members[0].__dict__.keys()
 
+
+def test_ensemble_replicate(simulation):
+    sim = simulation
+    ens1 = EnsembleSimulation()
+    ens2 = EnsembleSimulation()
+    ens1.add(sim)
+    ens1.replicate_member(4)
+    ens2.add([sim, sim, sim, sim])
+    assert deepdiff.DeepDiff(ens1, ens2) == {}
+
+
+def test_ensemble_length(simulation):    
+    sim = simulation
+    ens1 = EnsembleSimulation()
+    ens1.add(simulation)
+    ens1.replicate_member(4)
     assert len(ens1) == 4
     assert ens1.N == 4
     # How to assert an error?
     # assert ens1.replicate_member(4) == "WTF mate?"
 
-
+    
 def test_get_diff_dicts(simulation):
-    sim=simulation
-    ens = EnsembleSimulation([sim, sim, sim, sim])
+    sim = simulation
+    ens = EnsembleSimulation()
+    ens.add([sim, sim, sim, sim])
     answer = {
         'number': ['000', '001', '002', '003'],
         'run_dir': ['member_000', 'member_001', 'member_002', 'member_003']
@@ -95,8 +127,9 @@ def test_get_diff_dicts(simulation):
 
 
 def test_set_diff_dicts(simulation):
-    sim=simulation
-    ens = EnsembleSimulation([sim, sim, sim, sim, sim])
+    sim = simulation
+    ens = EnsembleSimulation()
+    ens.add([sim, sim, sim, sim, sim])
     ens.set_diffs_dict(('base_hrldas_namelist', 'noahlsm_offline', 'indir'), 
                        ['./FOO' if mm == 2 else './FORCING' for mm in range(len(ens))])
     answer = {

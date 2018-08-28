@@ -4,7 +4,7 @@ import os
 
 def test_outputdiffs_compare_ncfiles(sim_output):
 
-    chrtout = list(sim_output.glob('*CHRTOUT*'))
+    chrtout = list(sim_output.glob('*CHRTOUT_DOMAIN1*'))
     gwout = list(sim_output.glob('*GWOUT*'))
 
     assert compare_ncfiles(chrtout,chrtout) == [None,None,None]
@@ -17,9 +17,10 @@ def test_outputdiffs_outputdatadiffs(sim_output):
     output.collect_output(sim_dir=sim_output)
 
     output_diffs = OutputDataDiffs(output,output)
-
-    assert output_diffs.diff_counts == {'channel_rt': 0, 'chanobs': 0, 'lakeout': 0, 'gwout': 0,
-                                     'restart_hydro': 0, 'restart_lsm': 0, 'restart_nudging': 0}
+    print(output_diffs.diff_counts)
+    assert output_diffs.diff_counts == {'channel_rt': 0, 'channel_rt_grid': 0, 'chanobs': 0,
+                                        'lakeout': 0, 'gwout': 0, 'restart_hydro': 0,
+                                        'restart_lsm': 0, 'restart_nudging': 0}
 
 
 def test_outputdiffs_outputmetadatadiffs(sim_output):

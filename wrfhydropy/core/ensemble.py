@@ -30,7 +30,7 @@ class EnsembleSimulation(object):
         self.members = []
         """list: a list of simulations which are the members of the ensemble."""
 
-        self.__diffs_dict = {}
+        self.__member_diffs = {}
         """dict: a dictionary containing the differences across all the members attributes."""
 
         self.jobs = []
@@ -79,16 +79,15 @@ class EnsembleSimulation(object):
     def _addjob(self, job: Job):
         """Private method to add a job to a Simulation
         Args:
-            scheduler: The Scheduler to add
+            job: The job to add
         """
-        if self.domain is not None and self.model is not None:
-            job = copy.deepcopy(job)
-            job._add_hydro_namelist(self.base_hydro_namelist)
-            job._add_hrldas_namelist(self.base_hrldas_namelist)
+        job = copy.deepcopy(job)
+        # Postpone the following until compose and do it on the
+        # individual members.
+        # job._add_hydro_namelist(self.base_hydro_namelist)
+        # job._add_hrldas_namelist(self.base_hrldas_namelist)
+        self.jobs.append(job)
 
-            self.jobs.append(job)
-        else:
-            raise AttributeError('Can not add a job to a simulation without a model and a domain')
 
     def _addsimulation(
         self,
@@ -136,7 +135,7 @@ class EnsembleSimulation(object):
                 self.add(self.members[0])
 
     # -------------------------------------------------------
-    # The diffs_dict attribute has getter (@property) and setter methods.
+    # The member_diffs attribute has getter (@property) and setter methods.
     # The get method summarizes all differences across all the attributes of the
     #   members list attribute and (should) only report member attributes when there
     #   is at least one difference between members.
@@ -144,7 +143,7 @@ class EnsembleSimulation(object):
     #   member attributes across the ensemble.
 
     @property
-    def diffs_dict(self):
+    def member_diffs(self):
 
         if len(self) == 1:
             print('Ensemble is of lenght 1, no differences.')
@@ -173,13 +172,13 @@ class EnsembleSimulation(object):
         diff_tuples = [ss.replace(']', ')') for ss in list(diff_tuples)]
         diff_tuples = [ast.literal_eval(ss) for ss in list(diff_tuples)]
 
-        self.__diffs_dict = {}
+        self.__member_diffs = {}
         for dd in diff_tuples:
-            self.__diffs_dict[dd] = [get_path(dictify(mm), dd) for mm in self.members]
+            self.__member_diffs[dd] = [get_path(dictify(mm), dd) for mm in self.members]
 
-        return(self.__diffs_dict)
+        return(self.__member_diffs)
 
-    def set_diffs_dict(
+    def set_member_diffs(
         self,
         att_tuple: tuple,
         values: list

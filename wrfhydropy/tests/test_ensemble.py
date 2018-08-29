@@ -73,7 +73,7 @@ def test_ensemble_init():
     ens = EnsembleSimulation()
     assert type(ens) is EnsembleSimulation
     # Not sure why this dosent vectorize well.
-    atts = ['members', '_EnsembleSimulation__member_diffs', 'jobs', 'scheduler']
+    atts = ['members', '_EnsembleSimulation__member_diffs', 'jobs', 'scheduler', 'ncores']
     for kk in ens.__dict__.keys():
         assert kk in atts
 
@@ -91,8 +91,8 @@ def test_ensemble_addsimulation(simulation, job, scheduler):
     sim.add(scheduler)
     ens1 = EnsembleSimulation()
     ens1.add(sim)
-    assert 'jobs' not in ens1.members[0].__dict__.keys()
-    assert 'scheduler' not in ens1.members[0].__dict__.keys()
+    assert all([len(mm.jobs) == 0 for mm in ens1.members])
+    assert all([mm.scheduler is None for mm in ens1.members])
 
 
 def test_ensemble_addjob(simulation, job):

@@ -2,7 +2,7 @@ import ast
 from boltons.iterutils import remap, get_path
 import copy
 #import datetime
-#import multiprocessing
+import multiprocessing
 import pathlib
 from typing import Union
 #import pickle
@@ -19,12 +19,24 @@ from .simulation import Simulation
 
 #from .job_tools import solve_model_start_end_times
 
+
+def parallel_compose_addjobs(arg_dict):
+    for jj in arg_dict['jobs']:
+        arg_dict['member'].add(jj)
+    return arg_dict['member']
+
+def parallel_compose_addscheduler(member, scheduler):
+    member.add(scheduler)
+
 # Classes for constructing and running a wrf_hydro simulation
 class EnsembleSimulation(object):
     """ TODO
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        ncores: int=1
+    ):
         """ TODO """
 
         self.members = []
@@ -39,6 +51,9 @@ class EnsembleSimulation(object):
         self.scheduler = None
         """Scheduler: A scheduler object to use for each Job in self.jobs"""
 
+        self.ncores = ncores
+        """ncores: integer number of cores for running parallelizable methods."""
+        
     def __len__(self):
         return(len(self.members))
 
@@ -50,15 +65,16 @@ class EnsembleSimulation(object):
     # Metadata to store with the "member" simulations, conceptually this
     # data belongs to the members:
     # 1) member number
-    # 2) description
-    # 3) member_dir
-    # 4) forcing_source_dir
+    # 2) member_dir
+    # # Removed these two until it's obvious we need them
+    # # 3) description
+    # # 4) forcing_source_dir
 
     def add(
         self,
         obj: Union[list, Scheduler, Job]
     ):
-        """Add an approparite object to an EnsembleSimulation, such as a Simulation, Job, or 
+        """Add an approparite object to an EnsembleSimulation, such as a Simulation, Job, or
         Scheduler"""
         if isinstance(obj, list) or isinstance(obj, Simulation):
             self._addsimulation(obj)
@@ -88,7 +104,6 @@ class EnsembleSimulation(object):
         # job._add_hrldas_namelist(self.base_hrldas_namelist)
         self.jobs.append(job)
 
-
     def _addsimulation(
         self,
         sims: Union[list, Simulation]
@@ -101,20 +116,23 @@ class EnsembleSimulation(object):
         if(type(sims) is Simulation):
             sims = [copy.deepcopy(sims)]
 
-        for nn in sims:
+        for mm in sims:
 
-            if type(nn) is not Simulation:
-                raise valueError("A non-simulation object can not be "
+            if type(mm) is not Simulation:
+                raise ValueError("A non-simulation object can not be "
                                  "added to the ensemble members")
 
-            self.members.append(copy.deepcopy(nn))
+            # If copying an existing ensemble member, delete "number",
+            # the detector for all ensemble metadata.
+            mm_copy = copy.deepcopy(mm)
+            if hasattr(mm, 'number'):
+                    delattr(mm_copy, 'number')
 
-            # If copying an existing ensemble member, nuke the following metadatas
-            nuke_metadata = ['number', 'jobs', 'scheduler']
-            # number is the detector for all ensemble metadata.
-            for metadatum in nuke_metadata:
-                if hasattr(nn, metadatum):
-                    delattr(self.members[len(self.members)-1], metadatum)
+            # Ensure that the jobs and scheduler are empty and None
+            mm_copy.jobs = []
+            mm_copy.scheduler = None
+
+            self.members.append(mm_copy)
 
         # Put refs to these properties in the ensemble objects
         for mm in range(len(self.members)):
@@ -131,7 +149,7 @@ class EnsembleSimulation(object):
         if self.N > 1:
             raise ValueError('The ensemble must only have one member to replicate.')
         else:
-            for nn in range(1,N):
+            for nn in range(1, N):
                 self.add(self.members[0])
 
     # -------------------------------------------------------
@@ -146,11 +164,12 @@ class EnsembleSimulation(object):
     def member_diffs(self):
 
         if len(self) == 1:
-            print('Ensemble is of lenght 1, no differences.')
+            print('Ensemble is of length 1, no differences.')
             return {}
 
         mem_0_ref_dict = dictify(self.members[0])
 
+        # TODO(JLM): Could this be parallelized?
         all_diff_keys = set({})
         for ii in range(1, len(self)):
             mem_ii_ref_dict = dictify(self.members[ii])
@@ -167,6 +186,8 @@ class EnsembleSimulation(object):
             diff_keys = list(diff['values_changed'].keys())
             all_diff_keys = all_diff_keys | set([ss.replace('root', '') for ss in diff_keys])
 
+        # TODO(JLM): What is this doing? Comment.
+        # Without digging in, i think it is translating hierarchical dict entries to tuples.
         diff_tuples = [ss.replace('][', ',') for ss in list(all_diff_keys)]
         diff_tuples = [ss.replace('[', '(') for ss in list(diff_tuples)]
         diff_tuples = [ss.replace(']', ')') for ss in list(diff_tuples)]
@@ -214,270 +235,35 @@ class EnsembleSimulation(object):
                     update_obj_dict(obj.__dict__[ss], att_tuple)
                 att_tuple = att_tuple_0
 
-        for ii in range(len(self)):
-            new_value = values[ii]
-            update_obj_dict(self.members[ii], att_tuple)
+        # TODO(JLM): This can be parallelized.
+        for mm in range(len(self)):
+            new_value = values[mm]
+            update_obj_dict(self.members[mm], att_tuple)
+
+    def compose(
+        self,
+        symlink_domain: bool=True,
+        force: bool = False,
+        rm_members_from_memory: bool = True
+    ):
+        """Ensemble compose simulation directories and files
+        Args:
+            symlink_domain: Symlink the domain files rather than copy
+            force: Compose into directory even if not empty. This is considered bad practice but
+            is necessary in certain circumstances.
+            rm_members_from_memory: Most applications will remove the members from the 
+            ensemble object upon compose. Testing and other reasons may keep them around.
+        """
+
+        # Set the pool for the following parallelizable operations
+        pool = multiprocessing.Pool(self.ncores)
+        # 1) Set the ensemble jobs on the members before composing (this is a loop over the jobs).
+        self.members = pool.map(
+            parallel_compose_addjobs,
+            ({'member': mm, 'jobs': self.jobs} for mm in self.members)
+        )
+
+        # 2) Set the ensemble scheduler (not a loop)
+        # 3) Ensemble compose
 
 
-# class WrfHydroEnsembleRun(object):
-#     def __init__(
-#         self,
-#         ens_setup: WrfHydroEnsembleSetup,
-#         run_dir: str,
-#         rm_existing_run_dir = False,
-#         mode: str='r',
-#         jobs: list=None
-#     ):
-
-#         self.ens_setup = copy.deepcopy(ens_setup)
-#         """WrfHydroSetup: The WrfHydroSetup object used for the run"""
-
-#         # TODO(JLM): check all the setup members have to have rundirs with same path as run_dir
-#         self.run_dir = pathlib.PosixPath(run_dir)
-#         """pathlib.PosixPath: The location of where the jobs will be executed."""
-
-#         self.jobs_completed = []
-#         """Job: A list of previously executed jobs for this run."""
-#         self.jobs_pending = []
-#         """Job: A list of jobs *scheduled* to be executed for this run
-#             with prior job dependence."""
-#         self.job_active = None
-#         """Job: The job currently executing."""
-#         self.object_id = None
-#         """str: A unique id to join object to run directory."""
-#         self.members = []
-#         """List: ensemble of Run Objects."""
-
-#         # #################################
-
-#         # Make run_dir directory if it does not exist.
-#         if self.run_dir.is_dir() and not rm_existing_run_dir:
-#             raise ValueError("Run directory already exists and rm_existing_run_dir is False.")
-
-#         if self.run_dir.exists():
-#             shutil.rmtree(str(self.run_dir))
-#             self.run_dir.mkdir(parents=True)
-
-#         # This sets up the runs. Writes WrfHydroRun.pkl objects to each dir.
-#         for mm in self.ens_setup.members:
-#             self.members.append(WrfHydroRun(
-#                 mm,
-#                 run_dir = mm.run_dir,
-#                 deepcopy_setup=False
-#             )
-#         )
-
-#         if jobs:
-#             self.add_jobs(jobs)
-#         else:
-#             self.collect_output()
-#             self.pickle()
-
-
-#     def add_jobs(
-#         self,
-#         jobs: list
-#     ):
-#         """Add an Ensemble Run Job (array)."""
-
-#         # Dont tamper with the passed object, let it remain a template in the calling level.
-#         jobs = copy.deepcopy(jobs)
-
-#         if type(jobs) is not list:
-#             jobs = [jobs]
-
-#         for jj in jobs:
-
-#             # Attempt to add the job
-#             if jj.scheduler:
-
-#                 # A scheduled job can be appended to the jobs.pending list if
-#                 # 1) there are no active or pending jobs
-#                 # 2) if it is (made) dependent on the last active or pending job.
-
-#                 # Get the job id of the last active or pending job.
-#                 last_job_id = None
-#                 if self.job_active:
-#                     last_job_id = self.job_active.sched_job_id
-#                 if len(self.jobs_pending):
-#                     last_job_id = self.jobs_pending[-1].scheduler.sched_job_id
-
-#                 # Check the dependency on a previous job
-#                 if last_job_id is not None:
-#                     if jj.scheduler.afterok is not None and jj.scheduler.afterok != last_job_id:
-#                         raise ValueError("The job's dependency/afterok conflicts with reality.")
-#                     jj.scheduler.afterok = last_job_id
-#                 #else: 
-#                 #    if jj.scheduler.afterok is not None:
-#                 #        raise ValueError("The job's dependency/afterok conflicts with reality.")
-
-#             # Set submission-time job variables here.
-#             jj.user = get_user()
-#             job_submission_time = datetime.datetime.now()
-#             jj.job_submission_time = str(job_submission_time)
-#             jj.job_date_id = 'job_' + str(len(self.jobs_completed) +
-#                                           bool(self.job_active) +
-#                                           len(self.jobs_pending))
-#             # alternative" '{date:%Y-%m-%d-%H-%M-%S-%f}'.format(date=job_submission_time)
-#             if jj.scheduler:
-#                 jj.scheduler.array_size = len(self.members)
-
-#             for mm in self.members:
-#                 mm.add_jobs(jj)
-
-#             self.jobs_pending.append(jj)
-
-#         self.collect_output()
-#         self.pickle()
-
-
-#     def run_jobs(
-#         self,
-#         hold: bool=False,
-#         n_mem_simultaneous: int=1
-#     ):
-
-#         hold_all = hold
-#         del hold
-        
-#         # make sure all jobs are either scheduled or interactive?
-                
-#         if self.job_active is not None:
-#             raise ValueError("There is an active ensemble run.")
-
-#         if self.jobs_pending[0].scheduler:
-
-#             run_dir = self.run_dir
-
-#             # submit the jobs_pending.
-#             job_afterok = None
-#             hold = True
-
-#             # For each the job arrays,
-#             for ii, _ in enumerate(self.jobs_pending):
-
-#                 #  For all the members,
-#                 for mm in self.members:
-
-#                     # Set the dependence into all the members jobs,
-#                     jj = mm.jobs_pending[ii]
-#                     jj.scheduler.afterok = job_afterok
-
-#                     # Write everything except the submission script,
-#                     # (Job has is_job_array == TRUE)
-#                     jj.schedule(mm.run_dir, hold=hold)
-
-
-#                 # Submit the array job for all the members, using the last member [-1] to do so.
-#                 job_afterok = jj.schedule(self.run_dir, hold=hold, submit_array=True)
-#                 # Keep that info in the object.
-#                 self.jobs_pending[ii].sched_job_id = job_afterok
-#                 # This is the "sweeper" job for job arrays.
-#                 #job_afterok = self.jobs_pending[ii].collect_job_array(str_to_collect_ensemble)
-#                 # Only hold the first job array
-#                 hold = False
-
-#             self.job_active = self.jobs_pending.pop(0)
-#             self.pickle()
-
-#             if not hold_all:
-#                 self.members[-1].jobs_pending[0].release() # This prints the jobid
-#             else:
-#                 print(self.members[-1].jobs_pending[0].scheduler.sched_job_id)
-
-#             self.destruct()
-#             return run_dir
-
-#         else:
-
-#             # Make an attribute of this.
-#             self.n_mem_simultaneous = n_mem_simultaneous
-            
-#             for jj in range(0, len(self.jobs_pending)):
-
-#                 self.job_active = self.jobs_pending.pop(0)
-
-#                 # This is a parallel a for loop over all members
-#                 print("n_mem_simultaneous: ", n_mem_simultaneous, flush=True)
-                
-#                 pool = multiprocessing.Pool(n_mem_simultaneous)
-#                 _ = pool.map(parallel_run_jobs, (mm for mm in self.members))
-                    
-#                 self.jobs_completed.append(self.job_active)
-#                 self.job_active = None
-                
-#                 _ = pool.map(parallel_collect_jobs, (mm for mm in self.members))
-#                 #self.collect_output()
-#                 self.pickle()
-
-
-#     str_to_collect_ensemble = (
-#         "import pickle \n"
-#         "import sys \n"
-#         "import wrfhydropy \n"
-#         "ens_run = pickle.load(open('WrfHydroEnsembleRun.pkl', 'rb')) \n",
-#         "ens_run.collect_ensemble_runs(35) \n"
-#         "sys.exit()"
-#     )[0]
-
-
-#     def collect_ensemble_runs(
-#         self,
-#         n_mem_simultaneous: int=1
-#     ):
-#         """Collect a completed job array. """
-
-#         def n_jobs_not_complete(run_dir):
-#             the_cmd = '/bin/bash -c "ls member_*/.job_not_complete 2> /dev/null | wc -l"'
-#             stdout = subprocess.run(shlex.split(the_cmd), cwd=run_dir, stdout=subprocess.PIPE).stdout
-#             ret = int(stdout.splitlines()[0].decode("utf-8"))
-#             return ret
-
-#         while n_jobs_not_complete(self.run_dir) != 0:
-#             _ = time.sleep(.1)
-
-#         if self.job_active:
-#             self.jobs_completed.append(self.job_active)
-#             self.job_active = None
-
-#         #print('collect:',n_mem_simultaneous)
-#         # Fairly minor difference between the speed with 80 members... 
-#         pool = multiprocessing.Pool(n_mem_simultaneous)
-#         self.members = pool.map(parallel_collectpickled_runs, (mm for mm in self.members))
-#         #for ii, _ in enumerate(self.members):
-#         #    self.members[ii] = self.members[ii].unpickle()
-        
-#         self.collect_output()
-#         self.pickle()
-
-
-#     def collect_output(self):
-#         for mm in self.members:
-#             mm.collect_output()
-
-
-#     def pickle(self):
-#         """Pickle the Run object into its run directory. Collect output first."""
-
-#         # create a UID for the run and save in file
-#         self.object_id = str(uuid.uuid4())
-#         with open(self.run_dir.joinpath('.uid'), 'w') as f:
-#             f.write(self.object_id)
-
-#         # Save object to run directory
-#         # Save the object out to the compile directory
-#         with open(self.run_dir.joinpath('WrfHydroEnsembleRun.pkl'), 'wb') as f:
-#             pickle.dump(self, f, 2)
-
-
-#     def unpickle(self):
-#         """ Load run object from run directory after a scheduler job. """
-#         with open(self.run_dir.joinpath('WrfHydroEnsembleRun.pkl'), 'rb') as f:
-#             return(pickle.load(f))
-
-
-#     def destruct(self):
-#         """ Pickle first. This gets rid of everything but the methods."""
-#         self.pickle()
-#         print("Jobs have been submitted to  the scheduler: This run object will now self destruct.")
-#         self.__dict__ = {}

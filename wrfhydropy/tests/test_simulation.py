@@ -80,7 +80,7 @@ def test_simulation_add_model_domain(model,domain):
             'wrf_hydro_offline': {'forc_typ': 1}}
 
 
-def test_simulation_add_job(model,domain,job):
+def test_simulation_add_job(model, domain, job):
     sim = Simulation()
     with pytest.raises(Exception) as e_info:
         sim.add(job)
@@ -90,7 +90,7 @@ def test_simulation_add_job(model,domain,job):
     sim.add(job)
 
 
-def test_simulation_compose(model,domain,job,capfd,tmpdir,domain_dir):
+def test_simulation_compose(model, domain, job, capfd, tmpdir, domain_dir):
     sim = Simulation()
     sim.add(model)
     sim.add(domain)

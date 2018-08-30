@@ -25,8 +25,10 @@ def parallel_compose_addjobs(arg_dict):
         arg_dict['member'].add(jj)
     return arg_dict['member']
 
-def parallel_compose_addscheduler(member, scheduler):
-    member.add(scheduler)
+def parallel_compose_addscheduler(arg_dict):
+    arg_dict['member'].add(arg_dict['scheduler'])
+    return arg_dict['member']
+
 
 # Classes for constructing and running a wrf_hydro simulation
 class EnsembleSimulation(object):
@@ -257,6 +259,7 @@ class EnsembleSimulation(object):
 
         # Set the pool for the following parallelizable operations
         pool = multiprocessing.Pool(self.ncores)
+        
         # 1) Set the ensemble jobs on the members before composing (this is a loop over the jobs).
         self.members = pool.map(
             parallel_compose_addjobs,
@@ -264,6 +267,11 @@ class EnsembleSimulation(object):
         )
 
         # 2) Set the ensemble scheduler (not a loop)
+        self.members = pool.map(
+            parallel_compose_addscheduler,
+            ({'member': mm, 'scheduler': self.scheduler} for mm in self.members)
+        )
+
         # 3) Ensemble compose
 
 

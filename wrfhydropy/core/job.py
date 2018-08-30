@@ -396,7 +396,7 @@ class Job(object):
 
     @property
     def model_start_time(self):
-        """np.datetime64: The model time at the start of the execution."""
+        """datetime: The model time at the start of the execution."""
         return self._model_start_time
 
     @model_start_time.setter
@@ -405,6 +405,7 @@ class Job(object):
 
     @property
     def model_end_time(self):
+        """datetime: The model time at the end of the execution."""
         return self._model_end_time
 
     @model_end_time.setter

@@ -2,7 +2,7 @@ import copy
 import deepdiff
 import os
 import pathlib
-
+import pandas
 import pytest
 
 from wrfhydropy.core.domain import Domain
@@ -161,3 +161,58 @@ def test_set_diff_dicts(simulation):
         'run_dir': ['member_000', 'member_001', 'member_002', 'member_003', 'member_004']
     }
     assert ens.member_diffs == answer
+
+
+def test_addjob(simulation, job):
+    ens1 = EnsembleSimulation()
+    ens1.add(job)
+    assert deepdiff.DeepDiff(ens1.jobs[0], job) == {}
+
+    job.job_id = 'a_different_id'
+    ens1.add(job)
+    assert deepdiff.DeepDiff(ens1.jobs[1], job) == {}
+
+
+def test_addscheduler(simulation, scheduler):
+    ens1 = EnsembleSimulation()
+    ens1.add(scheduler)
+    assert deepdiff.DeepDiff(ens1.scheduler, scheduler) == {}
+
+    scheduler.queue = 'no-queue'
+    ens1.add(scheduler)
+    assert deepdiff.DeepDiff(ens1.scheduler, scheduler) == {}
+
+
+def test_parallel_compose_addjobs(simulation, job, scheduler):
+    ens = EnsembleSimulation()
+    ens.add([simulation, simulation, simulation])
+    ens.add(job)
+    answer = {
+        '_exe_cmd': 'bogus exe cmd', '_entry_cmd': 'bogus entry cmd',
+        '_exit_cmd': 'bogus exit cmd', 'job_id': 'test_job_1', 'restart': False,
+        '_model_start_time': pandas.Timestamp('1984-10-14 00:00:00'),
+        '_model_end_time': pandas.Timestamp('2017-01-04 00:00:00'),
+        '_hrldas_times': {
+            'noahlsm_offline': {
+                'kday': None, 'khour': None, 'start_year': None,
+                'start_month': None, 'start_day': None,
+                'start_hour': None, 'start_min': None,
+                'restart_filename_requested': None}
+            },
+        '_hydro_times': {
+            'hydro_nlist': {'restart_file': None},
+            'nudging_nlist': {'nudginglastobsfile': None}
+        },
+        '_hydro_namelist': None, '_hrldas_namelist': None,
+        'exit_status': None, '_job_start_time': None, '_job_end_time': None,
+        '_job_submission_time': None
+    }
+    assert ens.jobs[0].__dict__ == answer
+
+    
+def test_parallel_compose_addscheduler(simulation, scheduler):
+    ens = EnsembleSimulation()
+    ens.add([simulation, simulation, simulation])
+    ens.add(scheduler)
+    assert deepdiff.DeepDiff(ens.scheduler, scheduler) == {}
+

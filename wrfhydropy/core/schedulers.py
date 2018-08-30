@@ -40,14 +40,14 @@ class PBSCheyenne(Scheduler):
         """
 
         # Declare attributes.
-        ## property construction
+        # property construction
         self._sim_dir = None
         self._nproc = nproc
         self._nnodes = nnodes
         self._ppn = ppn
 
-        ## Scheduler options dict
-        ## TODO: Make this more elegant than hard coding for maintenance sake
+        # Scheduler options dict
+        # TODO: Make this more elegant than hard coding for maintenance sake
         self.scheduler_opts = {'account':account,
                                'email_when':email_when,
                                'email_who':email_who,
@@ -176,7 +176,7 @@ class PBSCheyenne(Scheduler):
                 f.write(jobstr)
 
             # Write the python run script for the job
-            ## Overwrite job exe cmd with scheduler exe cmd
+            # Overwrite job exe cmd with scheduler exe cmd
             job._exe_cmd = self._exe_cmd
             job._write_run_script()
 

@@ -302,6 +302,8 @@ class SimulationOutput(object):
     def __init__(self):
         self.channel_rt = None
         """WrfHydroTs: Timeseries dataset of CHRTOUT files"""
+        self.channel_rt_grid = None
+        """WrfHydroTs: Timeseries dataset of CHRTOUT gridded files"""
         self.chanobs = None
         """WrfHydroTs: Timeseries dataset of CHANOBS files"""
         self.lakeout = None
@@ -328,9 +330,13 @@ class SimulationOutput(object):
 
         # Grab outputs as WrfHydroXX classes of file paths
         # Get channel files
-        if len(list(sim_dir.glob('*CHRTOUT*'))) > 0:
-            self.channel_rt = sort_files_by_time(list(sim_dir.glob('*CHRTOUT*')))
+        if len(list(sim_dir.glob('*CHRTOUT_DOMAIN1*'))) > 0:
+            self.channel_rt = sort_files_by_time(list(sim_dir.glob('*CHRTOUT_DOMAIN1*')))
             self.channel_rt = WrfHydroTs(self.channel_rt)
+
+        if len(list(sim_dir.glob('*CHRTOUT_GRID1*'))) > 0:
+            self.channel_rt_grid = sort_files_by_time(list(sim_dir.glob('*CHRTOUT_GRID1*')))
+            self.channel_rt_grid = WrfHydroTs(self.channel_rt_grid)
 
         if len(list(sim_dir.glob('*CHANOBS*'))) > 0:
             self.chanobs = sort_files_by_time(list(sim_dir.glob('*CHANOBS*')))

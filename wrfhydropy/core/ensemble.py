@@ -1,19 +1,13 @@
 import ast
 from boltons.iterutils import remap, get_path
 import copy
-#import datetime
 import multiprocessing
 import pathlib
 from typing import Union
 import os
-#import pickle
-#import shlex
-#import subprocess
-#import time
-#import uuid
+import pickle
 
 from .ensemble_tools import DeepDiffEq, dictify, get_sub_objs
-
 from .job import Job
 from .schedulers import Scheduler
 from .simulation import Simulation
@@ -28,6 +22,7 @@ def parallel_compose_addjobs(arg_dict):
 
 
 def parallel_compose_addscheduler(arg_dict):
+
     arg_dict['member'].add(arg_dict['scheduler'])
     return arg_dict['member']
 
@@ -37,7 +32,29 @@ def parallel_compose(arg_dict):
     os.mkdir(str(arg_dict['member'].run_dir))
     os.chdir(str(arg_dict['member'].run_dir))
     arg_dict['member'].compose()
+
+    # Experimental stuff to speed up the pickling/unpickling of the individual runs.
+    # Would be good to move this stuff to a Simulation pickle method option.
+    # arg_dict['member'].model = pickle_sub_obj(arg_dict['member'].model, 'WrfHydroModel.pkl')
+    # arg_dict['member'].domain = pickle_sub_obj(arg_dict['member'].domain, 'WrfHydroDomain.pkl')
+    # arg_dict['member'].output = pickle_sub_obj(arg_dict['member'].output, 'WrfHydroOutput.pkl')
+
+    del arg_dict['member'].model
+    del arg_dict['member'].domain
+    del arg_dict['member'].output
+
+    arg_dict['member'].pickle('WrfHydroSim.pkl')
     return arg_dict['member']
+
+
+def parallel_run(arg_dict):
+    if type(arg_dict['member']) is str:
+        os.chdir(str(pathlib.Path(arg_dict['ens_dir']) / arg_dict['member']))
+    else:
+        os.chdir(str(pathlib.Path(arg_dict['ens_dir']) / arg_dict['member'].run_dir))
+    mem_pkl = pickle.load(open("WrfHydroSim.pkl", "rb"))
+    mem_pkl.run()
+    return mem_pkl.jobs[0].exit_status
 
 
 # Classes for constructing and running a wrf_hydro simulation
@@ -65,7 +82,7 @@ class EnsembleSimulation(object):
 
         self.ncores = ncores
         """ncores: integer number of cores for running parallelizable methods."""
-        
+
     def __len__(self):
         return(len(self.members))
 
@@ -273,35 +290,80 @@ class EnsembleSimulation(object):
 
         if len(self) < 1:
             raise ValueError("There are no member simulations to compose.")
-        
+
         # Set the pool for the following parallelizable operations
         pool = multiprocessing.Pool(self.ncores)
 
-        # 1) Set the ensemble jobs on the members before composing (this is a loop over the jobs).
+        # Set the ensemble jobs on the members before composing (this is a loop over the jobs).
         self.members = pool.map(
             parallel_compose_addjobs,
             ({'member': mm, 'jobs': self.jobs} for mm in self.members)
         )
 
-        # 2) Set the ensemble scheduler (not a loop)
-        self.members = pool.map(
-            parallel_compose_addscheduler,
-            ({'member': mm, 'scheduler': self.scheduler} for mm in self.members)
-        )
+        # Set the ensemble scheduler (not a loop)
+        if self.scheduler is not None:
+            self.members = pool.map(
+                parallel_compose_addscheduler,
+                ({'member': mm, 'scheduler': self.scheduler} for mm in self.members)
+            )
 
-        # 3) Ensemble compose
-        current_dir = pathlib.Path(os.getcwd())
-        current_dir_files = list(current_dir.rglob('*'))
-        if len(current_dir_files) > 0 and force is False:
-            raise FileExistsError('Unable to compose, current working directory is not empty and '
-                                  'force is False. '
-                                  'Change working directory to an empty directory with os.chdir()')
-        ens_dir = current_dir
+        # Ensemble compose
+        ens_dir = pathlib.Path(os.getcwd())
+        ens_dir_files = list(ens_dir.rglob('*'))
+        if len(ens_dir_files) > 0 and force is False:
+            raise FileExistsError(
+                'Unable to compose ensemble, current working directory is not empty and force '
+                'is False. \nChange working directory to an empty directory with os.chdir()'
+            )
 
-        self.members = pool.map(
-            parallel_compose,
-            ({'member': mm, 'ens_dir': ens_dir} for mm in self.members)
-        )
-        # Keep the following for debugging: Run it without pool.map
-        # self.members = [parallel_compose({'member': mm, 'ens_dir': ens_dir})
-        #                 for mm in self.members]
+        if self.ncores > 1:
+            self.members = pool.map(
+                parallel_compose,
+                ({'member': mm, 'ens_dir': ens_dir} for mm in self.members)
+            )
+        else:
+            # Keep the following for debugging: Run it without pool.map
+            self.members = [parallel_compose({'member': mm, 'ens_dir': ens_dir})
+                            for mm in self.members]
+
+        # Return to the ensemble dir.
+        os.chdir(ens_dir)
+
+        # After successful compose, delete the members from memory and replace with
+        # their relative dirs, if requested
+        if rm_members_from_memory:
+            run_dirs = [mm.run_dir for mm in self.members]
+            self.members = run_dirs
+
+    def run(
+        self,
+        n_concurrent: int=1
+    ):
+
+        ens_dir = os.getcwd()
+
+        if n_concurrent > 1:
+            pool = multiprocessing.Pool(n_concurrent)
+            exit_codes = pool.map(
+                parallel_run,
+                ({'member': mm, 'ens_dir': ens_dir} for mm in self.members)
+            )
+        else:
+            # Keep the following for debugging: Run it without pool.map
+            exit_codes = [
+                parallel_run({'member': mm, 'ens_dir': ens_dir}) for mm in self.members
+            ]
+
+        # Return to the ensemble dir.
+        os.chdir(ens_dir)
+
+        return all(exit_codes == 0)
+
+    def pickle(self, path: str):
+        """Pickle ensemble sim object to specified file path
+        Args:
+            path: The file path for pickle
+        """
+        path = pathlib.Path(path)
+        with path.open(mode='wb') as f:
+            pickle.dump(self, f, 2)

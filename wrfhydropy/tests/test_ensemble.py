@@ -5,6 +5,7 @@ import pathlib
 import pandas
 import pytest
 import subprocess
+import timeit
 
 from wrfhydropy.core.domain import Domain
 from wrfhydropy.core.job import Job
@@ -12,7 +13,6 @@ from wrfhydropy.core.model import Model
 from wrfhydropy.core.schedulers import PBSCheyenne
 from wrfhydropy.core.simulation import Simulation
 from wrfhydropy.core.ensemble import EnsembleSimulation
-from wrfhydropy.core.ioutils import WrfHydroTs
 
 
 @pytest.fixture()
@@ -91,7 +91,8 @@ def test_ensemble_init():
     ens = EnsembleSimulation()
     assert type(ens) is EnsembleSimulation
     # Not sure why this dosent vectorize well.
-    atts = ['members', '_EnsembleSimulation__member_diffs', 'jobs', 'scheduler', 'ncores']
+    atts = ['members', '_EnsembleSimulation__member_diffs', 'jobs',
+            'scheduler', 'ncores', 'ens_dir']
     for kk in ens.__dict__.keys():
         assert kk in atts
 
@@ -218,11 +219,25 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
 
     ens.add([sim, sim])
 
+    # Make a copy where we keep the members in memory for checking.
+    ens_check_members = copy.deepcopy(ens)
+
     compose_dir = pathlib.Path(tmpdir).joinpath('ensemble_compose')
     os.mkdir(str(compose_dir))
     os.chdir(str(compose_dir))
-
     ens.compose()
+
+    # TODO(JLM): test the run here
+    # ens_run_success = ens.run()
+    # assert ens_run_success
+
+    ens.pickle(str(pathlib.Path(tmpdir) / 'ensemble_compose/WrfHydroEnsSim.pkl'))
+
+    # The ensemble-in-memory version for checking the members.
+    compose_dir = pathlib.Path(tmpdir).joinpath('ensemble_compose_check_members')
+    os.mkdir(str(compose_dir))
+    os.chdir(str(compose_dir))
+    ens_check_members.compose(rm_members_from_memory=False)
 
     # The job gets heavily modified on compose.
     answer = {
@@ -288,11 +303,99 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         'restart': False
     }
 
-    # This fails, 
-    # deepdiff.DeepDiff(answer, ens.members[0].jobs[0].__dict__)
-    # Iterate on keys to "declass"
-    for kk in ens.members[0].jobs[0].__dict__.keys():
-        assert ens.members[0].jobs[0].__dict__[kk] == answer[kk]
+    # For the ensemble where the compse retains the members...
 
+    # This fails:
+    # deepdiff.DeepDiff(answer, ens.members[0].jobs[0].__dict__)
+    # Instead, iterate on keys to "declass":
+    for kk in ens_check_members.members[0].jobs[0].__dict__.keys():
+        assert ens_check_members.members[0].jobs[0].__dict__[kk] == answer[kk]
     # Check the scheduler too
-    assert ens.members[0].scheduler.__dict__ == scheduler.__dict__
+    assert ens_check_members.members[0].scheduler.__dict__ == scheduler.__dict__
+
+    # For the ensemble where the compse removes the members...
+
+    # Check that the members are all now simply pathlib objects
+    assert all([type(mm) is str for mm in ens.members])
+
+    # The tmpdir gets nuked after the test... ?
+    # Test the member pickle size in terms of load speed.
+    # Note that the deletion of the model, domain, and output objects are
+    # done for the members regardless of not removing the members
+    # from memory (currently).
+    os.chdir(str(pathlib.Path(tmpdir) / 'ensemble_compose/member_000'))
+    time_taken = timeit.timeit(
+        setup='import pickle',
+        stmt='pickle.load(open("WrfHydroSim.pkl","rb"))',
+        number=10000
+    )
+    # If your system is busy, this could take longer... and spuriously fail the test.
+    assert time_taken < .6
+
+    # Test the ensemble pickle size in terms of load speed.
+    os.chdir(str(pathlib.Path(tmpdir) / 'ensemble_compose/'))
+    time_taken = timeit.timeit(
+        setup='import pickle',
+        stmt='pickle.load(open("WrfHydroEnsSim.pkl","rb"))',
+        number=10000
+    )
+    # If your system is busy, this could take longer...
+    assert time_taken < .6
+
+
+def test_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
+    sim = simulation_compiled
+    ens = EnsembleSimulation()
+    ens.add(job)
+    ens.add([sim, sim])
+
+    # Serial test
+    ens_serial = copy.deepcopy(ens)
+    ens_dir = pathlib.Path(tmpdir).joinpath('ens_serial_run')
+    os.chdir(tmpdir)
+    os.mkdir(str(ens_dir))
+    os.chdir(str(ens_dir))
+    ens_serial.compose()
+    try:
+        ens_serial.run()
+        out, err = capfd.readouterr()
+    except:
+        out, err = capfd.readouterr()
+        pass
+    assert err == '/bin/bash: bogus: command not found\n/bin/bash: bogus: command not found\n'
+
+    # Parallel test
+    ens_parallel = copy.deepcopy(ens)
+    ens_dir = pathlib.Path(tmpdir).joinpath('ens_parallel_run')
+    os.chdir(tmpdir)
+    os.mkdir(str(ens_dir))
+    os.chdir(str(ens_dir))
+    ens_parallel.compose()
+    try:
+        ens_run_succcess = ens_parallel.run(n_concurrent=2)
+    except:
+        pass
+
+    os.chdir(ens_dir)
+    for mm in ens_parallel.members:
+        with open(pathlib.Path(mm) / 'test_job_1.stderr') as f:
+            error_msg = f.read()
+            assert error_msg == '/bin/bash: bogus: command not found\n'
+
+    # Parallel test with ensemble in memory
+    ens_parallel = copy.deepcopy(ens)
+    ens_dir = pathlib.Path(tmpdir).joinpath('ens_parallel_run_ens_in_memory')
+    os.chdir(tmpdir)
+    os.mkdir(str(ens_dir))
+    os.chdir(str(ens_dir))
+    ens_parallel.compose(rm_members_from_memory=False)
+    try:
+        ens_run_succcess = ens_parallel.run(n_concurrent=2)
+    except:
+        pass
+
+    os.chdir(ens_dir)
+    for mm in ens_parallel.members:
+        with open(pathlib.Path(mm.run_dir) / 'test_job_1.stderr') as f:
+            error_msg = f.read()
+            assert error_msg == '/bin/bash: bogus: command not found\n'

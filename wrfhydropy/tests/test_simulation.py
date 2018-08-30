@@ -51,33 +51,33 @@ def scheduler():
     return scheduler
 
 
-def test_simulation_add_model_domain(model,domain):
+def test_simulation_add_model_domain(model, domain):
     sim = Simulation()
     sim.add(model)
     sim.add(domain)
 
     assert sim.base_hydro_namelist == \
-           {'hydro_nlist': {'channel_option': 2,
-                            'chanobs_domain': 0,
-                            'chanrtswcrt': 1,
-                            'chrtout_domain': 1,
-                            'geo_static_flnm': './NWM/DOMAIN/geo_em.d01.nc',
-                            'restart_file': './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
-                            'aggfactrt': 4,
-                            'udmp_opt': 1},
-            'nudging_nlist': {'maxagepairsbiaspersist': 3,
-                              'minnumpairsbiaspersist': 1,
-                              'nudginglastobsfile':
-                                  './NWM/RESTART/nudgingLastObs.2011-08-26_00:00:00.nc'}}
+        {'hydro_nlist': {'channel_option': 2,
+                         'chanobs_domain': 0,
+                         'chanrtswcrt': 1,
+                         'chrtout_domain': 1,
+                         'geo_static_flnm': './NWM/DOMAIN/geo_em.d01.nc',
+                         'restart_file': './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
+                         'aggfactrt': 4,
+                         'udmp_opt': 1},
+         'nudging_nlist': {'maxagepairsbiaspersist': 3,
+                           'minnumpairsbiaspersist': 1,
+                           'nudginglastobsfile':
+                           './NWM/RESTART/nudgingLastObs.2011-08-26_00:00:00.nc'}}
 
     assert sim.base_hrldas_namelist == \
-           {'noahlsm_offline': {'btr_option': 1,
-                                'canopy_stomatal_resistance_option': 1,
-                                'hrldas_setup_file': './NWM/DOMAIN/wrfinput_d01.nc',
-                                'restart_filename_requested':
-                                    './NWM/RESTART/RESTART.2011082600_DOMAIN1',
-                                'indir': './FORCING'},
-            'wrf_hydro_offline': {'forc_typ': 1}}
+        {'noahlsm_offline': {'btr_option': 1,
+                             'canopy_stomatal_resistance_option': 1,
+                             'hrldas_setup_file': './NWM/DOMAIN/wrfinput_d01.nc',
+                             'restart_filename_requested':
+                             './NWM/RESTART/RESTART.2011082600_DOMAIN1',
+                             'indir': './FORCING'},
+         'wrf_hydro_offline': {'forc_typ': 1}}
 
 
 def test_simulation_add_job(model, domain, job):
@@ -114,7 +114,7 @@ def test_simulation_compose(model, domain, job, capfd, tmpdir, domain_dir):
         actual_files.append(file.name)
 
     domain_files = domain.domain_top_dir.rglob('*')
-    expected_files = ['namelist.hrldas','hydro.namelist','job_test_job_1','.uid','NWM']
+    expected_files = ['namelist.hrldas', 'hydro.namelist', 'job_test_job_1', '.uid', 'NWM']
 
     for file in domain_files:
         expected_files.append(file.name)
@@ -125,7 +125,7 @@ def test_simulation_compose(model, domain, job, capfd, tmpdir, domain_dir):
     assert out[-19:] == 'Compiling model...\n'
 
 
-def test_simulation_run_no_scheduler(model,domain,job,capfd):
+def test_simulation_run_no_scheduler(model, domain, job, capfd):
     sim = Simulation()
     sim.add(model)
     sim.add(domain)
@@ -144,7 +144,7 @@ def test_simulation_collect(sim_output):
 
     os.chdir(sim_output)
 
-    sim=Simulation()
+    sim = Simulation()
     sim.collect()
 
     assert sim.output is not None
@@ -156,6 +156,6 @@ def test_simulation_output_checknans(sim_output):
     output.collect_output(sim_dir=sim_output)
     public_atts = [att for att in dir(output) if not att.startswith('__')]
     for att in public_atts:
-        assert getattr(output,att) is not None
+        assert getattr(output, att) is not None
 
     assert output.check_output_nas() is not None

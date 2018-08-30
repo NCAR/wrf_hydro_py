@@ -297,10 +297,11 @@ class EnsembleSimulation(object):
                                   'force is False. '
                                   'Change working directory to an empty directory with os.chdir()')
         ens_dir = current_dir
+
         self.members = pool.map(
             parallel_compose,
             ({'member': mm, 'ens_dir': ens_dir} for mm in self.members)
         )
-#        parallel_compose({'member': self.members[0], 'ens_dir': ens_dir})
-
-        return True
+        # Keep the following for debugging: Run it without pool.map
+        # self.members = [parallel_compose({'member': mm, 'ens_dir': ens_dir})
+        #                 for mm in self.members]

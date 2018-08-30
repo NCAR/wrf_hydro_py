@@ -5,6 +5,7 @@ import copy
 import multiprocessing
 import pathlib
 from typing import Union
+import os
 #import pickle
 #import shlex
 #import subprocess
@@ -25,8 +26,17 @@ def parallel_compose_addjobs(arg_dict):
         arg_dict['member'].add(jj)
     return arg_dict['member']
 
+
 def parallel_compose_addscheduler(arg_dict):
     arg_dict['member'].add(arg_dict['scheduler'])
+    return arg_dict['member']
+
+
+def parallel_compose(arg_dict):
+    os.chdir(str(arg_dict['ens_dir']))
+    os.mkdir(str(arg_dict['member'].run_dir))
+    os.chdir(str(arg_dict['member'].run_dir))
+    arg_dict['member'].compose()
     return arg_dict['member']
 
 
@@ -123,6 +133,10 @@ class EnsembleSimulation(object):
             if type(mm) is not Simulation:
                 raise ValueError("A non-simulation object can not be "
                                  "added to the ensemble members")
+
+            if mm.model.compile_log is None:
+                raise ValueError("Only simulations with compiled model objects "
+                                 "can be added to an ensemble simulation.")
 
             # If copying an existing ensemble member, delete "number",
             # the detector for all ensemble metadata.
@@ -257,9 +271,12 @@ class EnsembleSimulation(object):
             ensemble object upon compose. Testing and other reasons may keep them around.
         """
 
+        if len(self) < 1:
+            raise ValueError("There are no member simulations to compose.")
+        
         # Set the pool for the following parallelizable operations
         pool = multiprocessing.Pool(self.ncores)
-        
+
         # 1) Set the ensemble jobs on the members before composing (this is a loop over the jobs).
         self.members = pool.map(
             parallel_compose_addjobs,
@@ -273,5 +290,17 @@ class EnsembleSimulation(object):
         )
 
         # 3) Ensemble compose
+        current_dir = pathlib.Path(os.getcwd())
+        current_dir_files = list(current_dir.rglob('*'))
+        if len(current_dir_files) > 0 and force is False:
+            raise FileExistsError('Unable to compose, current working directory is not empty and '
+                                  'force is False. '
+                                  'Change working directory to an empty directory with os.chdir()')
+        ens_dir = current_dir
+        self.members = pool.map(
+            parallel_compose,
+            ({'member': mm, 'ens_dir': ens_dir} for mm in self.members)
+        )
+#        parallel_compose({'member': self.members[0], 'ens_dir': ens_dir})
 
-
+        return True

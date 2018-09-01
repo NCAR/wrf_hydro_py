@@ -259,7 +259,6 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         '_hrldas_times': {
             'noahlsm_offline': {
                 'kday': 11770,
-                'khour': None,
                 'restart_filename_requested': None,
                 'start_day': 14,
                 'start_hour': 0,
@@ -330,7 +329,8 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         number=10000
     )
     # If your system is busy, this could take longer... and spuriously fail the test.
-    assert time_taken < .6
+    # Notes(JLM): OSX spinning disk is < .5, cheyenne scratch is < .8
+    assert time_taken < .8
 
     # Test the ensemble pickle size in terms of load speed.
     os.chdir(str(pathlib.Path(tmpdir) / 'ensemble_compose/'))
@@ -340,6 +340,7 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         number=10000
     )
     # If your system is busy, this could take longer...
+    # Notes(JLM): .6 seems to work on OSX spinning disk and chyenne scratch.
     assert time_taken < .6
 
 

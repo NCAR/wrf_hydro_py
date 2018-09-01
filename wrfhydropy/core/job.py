@@ -236,8 +236,8 @@ class Job(object):
 
     def _write_namelists(self):
         """Private method to write namelist dicts to FORTRAN namelist files"""
-        self.hydro_namelist.write(str(self.job_dir.joinpath('hydro.namelist')))
         self.hrldas_namelist.write(str(self.job_dir.joinpath('namelist.hrldas')))
+        self.hydro_namelist.write(str(self.job_dir.joinpath('hydro.namelist')))
 
     def _set_hrldas_times(self):
         """Private method to set model run times in the hrldas namelist"""
@@ -246,9 +246,13 @@ class Job(object):
             duration = self._model_end_time - self._model_start_time
             if duration.seconds == 0:
                 self._hrldas_times['noahlsm_offline']['kday'] = int(duration.days)
+                if 'khour' in self._hrldas_times['noahlsm_offline'].keys():
+                    self._hrldas_times['noahlsm_offline'].pop('khour')
             else:
                 self._hrldas_times['noahlsm_offline']['khour'] =int(duration.days * 60 +
                                                                     duration.seconds / 3600)
+                if 'kday' in self._hrldas_times['noahlsm_offline'].keys():
+                    self._hrldas_times['noahlsm_offline'].pop('kday')
 
             # Start
             self._hrldas_times['noahlsm_offline']['start_year'] = int(self._model_start_time.year)

@@ -7,7 +7,7 @@ from typing import Union
 import os
 import pickle
 
-from .ensemble_tools import DeepDiffEq, dictify, get_sub_objs
+from .ensemble_tools import DeepDiffEq, dictify, get_sub_objs, mute
 from .job import Job
 from .schedulers import Scheduler
 from .simulation import Simulation
@@ -292,7 +292,7 @@ class EnsembleSimulation(object):
             raise ValueError("There are no member simulations to compose.")
 
         # Set the pool for the following parallelizable operations
-        pool = multiprocessing.Pool(self.ncores)
+        pool = multiprocessing.Pool(self.ncores, initializer=mute)
 
         # Set the ensemble jobs on the members before composing (this is a loop over the jobs).
         self.members = pool.map(
@@ -332,9 +332,12 @@ class EnsembleSimulation(object):
         # After successful compose, delete the members from memory and replace with
         # their relative dirs, if requested
         if rm_members_from_memory:
-            run_dirs = [mm.run_dir for mm in self.members]
-            self.members = run_dirs
+            self.rm_members()
 
+    def rm_members(self):
+        run_dirs = [mm.run_dir for mm in self.members]
+        self.members = run_dirs
+        
     def run(
         self,
         n_concurrent: int=1
@@ -343,7 +346,7 @@ class EnsembleSimulation(object):
         ens_dir = os.getcwd()
 
         if n_concurrent > 1:
-            pool = multiprocessing.Pool(n_concurrent)
+            pool = multiprocessing.Pool(n_concurrent, initializer=mute)
             exit_codes = pool.map(
                 parallel_run,
                 ({'member': mm, 'ens_dir': ens_dir} for mm in self.members)
@@ -357,7 +360,7 @@ class EnsembleSimulation(object):
         # Return to the ensemble dir.
         os.chdir(ens_dir)
 
-        return all(exit_codes == 0)
+        return all([ee == 0 for ee in exit_codes])
 
     def pickle(self, path: str):
         """Pickle ensemble sim object to specified file path

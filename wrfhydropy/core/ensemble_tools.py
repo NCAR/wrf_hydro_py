@@ -1,7 +1,10 @@
 from boltons.iterutils import remap
 import copy
+import datetime
 from deepdiff.diff import DeepDiff
-
+import os
+import pathlib
+import sys
 
 def is_sub_obj(obj):
     """Test if an object is has a __dict__ (may not be the best definition of an object, 
@@ -82,3 +85,25 @@ class DeepDiffEq(DeepDiff):
         super(DeepDiffEq, self)._DeepDiff__diff_obj(level, parents_ids=frozenset({}),
                                            is_namedtuple=False)
 
+
+def get_ens_file_last_restart_datetime(run_dir):
+    run_dir = pathlib.Path(run_dir)
+    mem_dirs = sorted(run_dir.glob("member_*"))
+    hydro_last = [sorted(mm.glob('HYDRO_RST.*'))[-1].name for mm in mem_dirs]
+    if not all([hydro_last[0] == hh for hh in hydro_last]):
+        raise ValueError("Not all ensemble members at the same time (HYDRO_RST files).")
+    if len(sorted(mem_dirs[0].glob('RESTART.*'))):
+        lsm_last = [sorted(mm.glob('RESTART.*'))[-1] for mm in mem_dirs]
+        if not all([lsm_last[0] == ll for ll in lsm_last]):
+            raise ValueError("Not all ensemble members at the same time (RESTART files).")
+
+    ens_time = datetime.datetime.strptime(
+        str(hydro_last[0]).split('_RST.')[-1],
+        '%Y-%m-%d_%H:%M_DOMAIN1'
+    )
+    return ens_time
+
+
+def mute():
+    sys.stdout = open(os.devnull, 'w')
+    sys.stderr = open(os.devnull, 'w')    

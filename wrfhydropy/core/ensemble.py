@@ -212,8 +212,10 @@ class EnsembleSimulation(object):
 
         # TODO(JLM): Could this be parallelized?
         all_diff_keys = set({})
-        for ii in range(1, len(self)):
-            mem_ii_ref_dict = dictify(self.members[ii])
+        for imem, mem in enumerate(self.members):
+            if imem == 0:
+                continue
+            mem_ii_ref_dict = dictify(mem)
             diff = DeepDiffEq(mem_0_ref_dict, mem_ii_ref_dict, eq_types={pathlib.PosixPath})
 
             unexpected_diffs = set(diff.keys()) - set(['values_changed'])

@@ -256,7 +256,8 @@ def sim_output(tmpdir, ds_1d, ds_1d_has_nans, ds_2d):
     sim_out_dir.mkdir(parents=True)
 
     # Make a list of DOMAIN filenames to create
-    file_names = ['CHRTOUT_TEST',
+    file_names = ['CHRTOUT_DOMAIN1_TEST',
+                  'CHRTOUT_GRID1_TEST'
                   'CHANOBS_TEST',
                   'LAKEOUT_TEST',
                   'HYDRO_RST_TEST',

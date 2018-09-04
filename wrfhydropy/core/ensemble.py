@@ -175,10 +175,10 @@ class EnsembleSimulation(object):
             self.members.append(mm_copy)
 
         # Put refs to these properties in the ensemble objects
-        for mm in range(len(self.members)):
-            if not hasattr(self.members[mm], 'number'):
-                self.members[mm].number = "%03d" % (mm,)
-                self.members[mm].run_dir = 'member_' + self.members[mm].number
+        for imem, mem in enumerate(self.members):
+            if not hasattr(mem, 'number'):
+                mem.number = "%03d" % (imem,)
+                mem.run_dir = 'member_' + mem.number
 
     # A quick way to setup a basic ensemble from a single sim.
     def replicate_member(
@@ -277,9 +277,9 @@ class EnsembleSimulation(object):
                 att_tuple = att_tuple_0
 
         # TODO(JLM): This can be parallelized.
-        for mm in range(len(self)):
-            new_value = values[mm]
-            update_obj_dict(self.members[mm], att_tuple)
+        for imem, mem in enumerate(self.members):
+            new_value = values[imem]
+            update_obj_dict(mem, att_tuple)
 
     def compose(
         self,

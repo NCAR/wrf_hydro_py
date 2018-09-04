@@ -158,6 +158,7 @@ class Simulation(object):
             pickle.dump(self, f, 2)
 
     def pickle_sub_obj(
+        self,
         sub_obj,
         path
     ):
@@ -173,9 +174,9 @@ class Simulation(object):
             pickle.dump(sub_obj, f, 2)
         return path
 
-    def restore_obj(
+    def restore_sub_obj(
         self,
-        attr_name: str
+        attr_name: pathlib.Path
     ):
         """
         Method to reduce *composed* simulation pickle sizes for performance applications. This
@@ -185,10 +186,11 @@ class Simulation(object):
         Usage: 
             sim.model = sim.restore_obj('model')
         """
-        the_attr = getattr(self, attr_name)
-        if not isinstance(the_attr, pathlib.Path):
-            raise ValueError("Can only restore attributes which are pathlib.Path objects.")
-        setattr(self, attr_name, pickle.load(open(the_attr, "rb")))
+        #the_attr = getattr(self, attr_name)
+        #if not isinstance(the_attr, pathlib.Path):
+        #    raise ValueError("Can only restore attributes which are pathlib.Path objects.")
+        #setattr(self, attr_name, pickle.load(open(the_attr, "rb")))
+        return pickle.load(attr_name.open(mode="rb"))
 
     # Private methods
     def _validate_model_domain(self, model, domain):

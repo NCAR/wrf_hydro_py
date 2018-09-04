@@ -12,22 +12,22 @@ from .job import Job
 from .schedulers import Scheduler
 from .simulation import Simulation
 
-#from .job_tools import solve_model_start_end_times
-
 
 def parallel_compose_addjobs(arg_dict):
+    """Parallelizable function to add jobs to EnsembleSimuation."""
     for jj in arg_dict['jobs']:
         arg_dict['member'].add(jj)
     return arg_dict['member']
 
 
 def parallel_compose_addscheduler(arg_dict):
-
+    """Parallelizable function to add a scheduler to EnsembleSimuation."""
     arg_dict['member'].add(arg_dict['scheduler'])
     return arg_dict['member']
 
 
 def parallel_compose(arg_dict):
+    """Parallelizable function to compose an EnsembleSimuation."""
     os.chdir(str(arg_dict['ens_dir']))
     os.mkdir(str(arg_dict['member'].run_dir))
     os.chdir(str(arg_dict['member'].run_dir))
@@ -48,6 +48,7 @@ def parallel_compose(arg_dict):
 
 
 def parallel_run(arg_dict):
+    """Parallelizable function to run an EnsembleSimuation."""
     if type(arg_dict['member']) is str:
         os.chdir(str(pathlib.Path(arg_dict['ens_dir']) / arg_dict['member']))
     else:
@@ -59,14 +60,17 @@ def parallel_run(arg_dict):
 
 # Classes for constructing and running a wrf_hydro simulation
 class EnsembleSimulation(object):
-    """ TODO
+    """Class for a WRF-Hydro EnsembleSimulation object. The Ensemble Simulation object is used to
+    orchestrate a set of 'N' WRF-Hydro simulations. It requires members with pre-compiled models
+    and there are set and get methods across the ensemble (member_diffs & set_member_diffs). Jobs
+    and scheduler set on the EnsembleSimulation object are set on all the members.
     """
 
     def __init__(
         self,
         ncores: int=1
     ):
-        """ TODO """
+        """ Instantiates an EnsembleSimulation object. """
 
         self.members = []
         """list: a list of simulations which are the members of the ensemble."""
@@ -104,7 +108,10 @@ class EnsembleSimulation(object):
         obj: Union[list, Scheduler, Job]
     ):
         """Add an approparite object to an EnsembleSimulation, such as a Simulation, Job, or
-        Scheduler"""
+        Scheduler.
+        Args:
+            obj: the object to add.
+        """
         if isinstance(obj, list) or isinstance(obj, Simulation):
             self._addsimulation(obj)
         elif issubclass(type(obj), Scheduler):
@@ -115,14 +122,14 @@ class EnsembleSimulation(object):
             raise TypeError('obj is not of a type expected for a EnsembleSimulation')
 
     def _addscheduler(self, scheduler: Scheduler):
-        """Private method to add a Scheduler to a Simulation
+        """Private method to add a Scheduler to an EnsembleSimulation
         Args:
             scheduler: The Scheduler to add
         """
         self.scheduler = copy.deepcopy(scheduler)
 
     def _addjob(self, job: Job):
-        """Private method to add a job to a Simulation
+        """Private method to add a job to an EnsembleSimulation
         Args:
             job: The job to add
         """
@@ -137,7 +144,7 @@ class EnsembleSimulation(object):
         self,
         sims: Union[list, Simulation]
     ):
-        """Private method to add a Model to a Simulation
+        """Private method to add a Simulation to an EnsembleSimulation
         Args:
             model: The Model to add
         """
@@ -195,6 +202,7 @@ class EnsembleSimulation(object):
 
     @property
     def member_diffs(self):
+        """Get method for ensemble member differences. Only differences are reported."""
 
         if len(self) == 1:
             print('Ensemble is of length 1, no differences.')
@@ -219,8 +227,7 @@ class EnsembleSimulation(object):
             diff_keys = list(diff['values_changed'].keys())
             all_diff_keys = all_diff_keys | set([ss.replace('root', '') for ss in diff_keys])
 
-        # TODO(JLM): What is this doing? Comment.
-        # Without digging in, i think it is translating hierarchical dict entries to tuples.
+        # This translates hierarchical dict entries to tuples.
         diff_tuples = [ss.replace('][', ',') for ss in list(all_diff_keys)]
         diff_tuples = [ss.replace('[', '(') for ss in list(diff_tuples)]
         diff_tuples = [ss.replace(']', ')') for ss in list(diff_tuples)]
@@ -237,7 +244,8 @@ class EnsembleSimulation(object):
         att_tuple: tuple,
         values: list
     ):
-
+        """Set method for ensemble member differences. (Currently fails silently when
+        requested fields are not found.)"""
         if type(values) is not list:
             values = [values]
 
@@ -284,7 +292,7 @@ class EnsembleSimulation(object):
             symlink_domain: Symlink the domain files rather than copy
             force: Compose into directory even if not empty. This is considered bad practice but
             is necessary in certain circumstances.
-            rm_members_from_memory: Most applications will remove the members from the 
+            rm_members_from_memory: Most applications will remove the members from the
             ensemble object upon compose. Testing and other reasons may keep them around.
         """
 
@@ -335,14 +343,15 @@ class EnsembleSimulation(object):
             self.rm_members()
 
     def rm_members(self):
+        """Remove members from memory, replace with their paths."""
         run_dirs = [mm.run_dir for mm in self.members]
         self.members = run_dirs
-        
+
     def run(
         self,
         n_concurrent: int=1
     ):
-
+        """Run the ensemble of simulations."""
         ens_dir = os.getcwd()
 
         if n_concurrent > 1:

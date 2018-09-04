@@ -26,7 +26,7 @@ class Simulation(object):
     """
 
     def __init__(self):
-        """Instantiates a WrfHydroSetup object"""
+        """Instantiates a Simulation object"""
 
         # Public attributes
         self.model = None

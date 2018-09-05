@@ -94,6 +94,9 @@ class OutputDataDiffs(object):
         self.channel_rt = list()
         """list: List of pandas dataframes if possible or subprocess objects containing nudging
         restart file diffs"""
+        self.channel_rt_grid = list()
+        """list: List of pandas dataframes if possible or subprocess objects containing nudging
+        restart file diffs"""
         self.chanobs = list()
         """list: List of pandas dataframes if possible or subprocess objects containing nudging
         restart file diffs"""
@@ -114,8 +117,8 @@ class OutputDataDiffs(object):
         restart file diffs"""
 
         # Create list of attributes to diff
-        atts_list = ['channel_rt','chanobs','lakeout','gwout','restart_hydro','restart_lsm',
-                     'restart_nudging']
+        atts_list = ['channel_rt', 'channel_rt_grid', 'chanobs', 'lakeout', 'gwout',
+                     'restart_hydro', 'restart_lsm', 'restart_nudging']
         for att in atts_list:
             candidate_att = getattr(candidate_output,att)
             reference_att = getattr(reference_output,att)

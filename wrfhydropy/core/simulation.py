@@ -57,9 +57,9 @@ class Simulation(object):
             self._addmodel(obj)
         elif isinstance(obj, Domain):
             self._adddomain(obj)
-        elif issubclass(type(obj),Scheduler):
+        elif issubclass(type(obj), Scheduler):
             self._addscheduler(obj)
-        elif isinstance(obj,Job):
+        elif isinstance(obj, Job):
             self._addjob(obj)
         else:
             raise TypeError('obj is not of a type expected for a Simulation')
@@ -73,7 +73,7 @@ class Simulation(object):
         """
 
         print("Composing simulation into directory:'" + os.getcwd() + "'")
-        #Check that the current directory is empty
+        # Check that the current directory is empty
         current_dir = pathlib.Path(os.getcwd())
         current_dir_files = list(current_dir.rglob('*'))
         if len(current_dir_files) > 0 and force is False:
@@ -83,13 +83,13 @@ class Simulation(object):
 
         # Symlink in domain files
         print('Getting domain files...')
-        self.domain.copy_files(dest_dir=os.getcwd(),symlink=symlink_domain)
+        self.domain.copy_files(dest_dir=os.getcwd(), symlink=symlink_domain)
 
         # Update job objects and make job directories
         print('Making job directories...')
         for job in self.jobs:
             job._make_job_dir()
-            job._write_namelists() # write namelists
+            job._write_namelists()  # write namelists
 
         # Validate jobs
         print('Validating job input files')
@@ -133,12 +133,12 @@ class Simulation(object):
         current_dir = pathlib.Path(os.curdir).absolute()
 
         # Overwrite sim job objects with collected objects matched on job id
-        ## Create dict of index/ids so that globbed jobs match the original list order
+        # Create dict of index/ids so that globbed jobs match the original list order
         id_index = dict()
         for index, item in enumerate(self.jobs):
             id_index[item.job_id] = index
 
-        ## Insert collect jobs into sim job list
+        # Insert collect jobs into sim job list
         job_objs = current_dir.rglob('WrfHydroJob_postrun.pkl')
         for job_obj in job_objs:
             collect_job = pickle.load(job_obj.open(mode='rb'))
@@ -148,7 +148,7 @@ class Simulation(object):
         self.output = SimulationOutput()
         self.output.collect_output(sim_dir=os.getcwd())
 
-    def pickle(self,path: str):
+    def pickle(self, path: str):
         """Pickle sim object to specified file path
         Args:
             path: The file path for pickle
@@ -156,6 +156,39 @@ class Simulation(object):
         path = pathlib.Path(path)
         with path.open(mode='wb') as f:
             pickle.dump(self, f, 2)
+
+    def pickle_sub_obj(
+        sub_obj,
+        path
+    ):
+        """
+        Method to reduce *composed* simulation pickle sizes for performance applications. This
+        method replaces a simulation sub-object (model, domain, or output)  with it's relative
+        pathlib.Path. The inverse, to bring that object back from its path is restore_obj().
+        Usage example: 
+            sim.model = sim.pickle_sub_obj(sim.model, 'WrfHydroModel.pkl')
+        """
+        path = pathlib.Path(path)
+        with path.open(mode='wb') as f:
+            pickle.dump(sub_obj, f, 2)
+        return path
+
+    def restore_obj(
+        self,
+        attr_name: str
+    ):
+        """
+        Method to reduce *composed* simulation pickle sizes for performance applications. This
+        method restores a simulation sub-object (model, domain, or output) from it's relative
+        pathlib.Path, which replaces the object in the simulation. The inverse, that pickles the
+        subobject is pickle_sub_obj().
+        Usage: 
+            sim.model = sim.restore_obj('model')
+        """
+        the_attr = getattr(self, attr_name)
+        if not isinstance(the_attr, pathlib.Path):
+            raise ValueError("Can only restore attributes which are pathlib.Path objects.")
+        setattr(self, attr_name, pickle.load(open(the_attr, "rb")))
 
     # Private methods
     def _validate_model_domain(self, model, domain):
@@ -172,10 +205,9 @@ class Simulation(object):
                             domain.compatible_version)
         elif model.version != domain.compatible_version:
             warnings.warn('Model minor versions ' +
-                            model.version +
-                            ' do not match domain minor versions ' +
-                            domain.compatible_version)
-
+                          model.version +
+                          ' do not match domain minor versions ' +
+                          domain.compatible_version)
 
     def _validate_jobs(self):
         """Private method to check that all files are present for each job"""
@@ -270,6 +302,8 @@ class SimulationOutput(object):
     def __init__(self):
         self.channel_rt = None
         """WrfHydroTs: Timeseries dataset of CHRTOUT files"""
+        self.channel_rt_grid = None
+        """WrfHydroTs: Timeseries dataset of CHRTOUT gridded files"""
         self.chanobs = None
         """WrfHydroTs: Timeseries dataset of CHANOBS files"""
         self.lakeout = None
@@ -283,7 +317,7 @@ class SimulationOutput(object):
         self.restart_nudging = None
         """list: List of nudgingLastObs WrfHydroStatic objects"""
 
-    def collect_output(self,sim_dir: Union[str,pathlib.Path] = None):
+    def collect_output(self, sim_dir: Union[str, pathlib.Path] = None):
         """Collect simulation output after a run
         Args:
             sim_dir: The simulation directory to collect
@@ -296,9 +330,13 @@ class SimulationOutput(object):
 
         # Grab outputs as WrfHydroXX classes of file paths
         # Get channel files
-        if len(list(sim_dir.glob('*CHRTOUT*'))) > 0:
-            self.channel_rt = sort_files_by_time(list(sim_dir.glob('*CHRTOUT*')))
+        if len(list(sim_dir.glob('*CHRTOUT_DOMAIN1*'))) > 0:
+            self.channel_rt = sort_files_by_time(list(sim_dir.glob('*CHRTOUT_DOMAIN1*')))
             self.channel_rt = WrfHydroTs(self.channel_rt)
+
+        if len(list(sim_dir.glob('*CHRTOUT_GRID1*'))) > 0:
+            self.channel_rt_grid = sort_files_by_time(list(sim_dir.glob('*CHRTOUT_GRID1*')))
+            self.channel_rt_grid = WrfHydroTs(self.channel_rt_grid)
 
         if len(list(sim_dir.glob('*CHANOBS*'))) > 0:
             self.chanobs = sort_files_by_time(list(sim_dir.glob('*CHANOBS*')))
@@ -359,8 +397,8 @@ class SimulationOutput(object):
 
         # Loop over attributes
         for att in data_atts:
-            #Loop over files in each attribute
-            att_obj = getattr(self,att)
+            # Loop over files in each attribute
+            att_obj = getattr(self, att)
             if type(att_obj) is list or type(att_obj) is WrfHydroTs:
                 file = att_obj[-1]
                 na_check_result = check_file_nas(file)
@@ -373,5 +411,3 @@ class SimulationOutput(object):
             return pd.concat(df_list)
         else:
             return None
-
-

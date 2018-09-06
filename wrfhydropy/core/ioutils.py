@@ -122,10 +122,13 @@ def _touch(filename, mode=0o666, dir_fd=None, **kwargs):
                  dir_fd=None if os.supports_fd else dir_fd, **kwargs)
 
 # TODO Refactor this to be a generic and not need both hydro and hrldas namelist to do a check
-def check_input_files(hydro_namelist: dict,
-                      hrldas_namelist: dict,
-                      sim_dir: str,
-                      ignore_restarts: bool = False):
+def check_input_files(
+    hydro_namelist: dict,
+    hrldas_namelist: dict,
+    sim_dir: str,
+    ignore_restarts: bool=False,
+    check_nlst_warn: bool=False
+):
     """Given hydro and hrldas namelists and a directory, check that all files listed in the
     namelist exist in the specified directory.
     Args:
@@ -185,7 +188,11 @@ def check_input_files(hydro_namelist: dict,
         hydro_exempt_list = hydro_exempt_list + ['nudginglastobsfile']
         hrldas_exempt_list = hrldas_exempt_list + ['restart_filename_requested']
 
-    def check_nlst(nlst, file_dict):
+    def check_nlst(
+        nlst,
+        file_dict,
+        warn: bool=False
+    ):
 
         # Scan the dicts for FALSE exempting certain ones for certain configs.
         def visit_missing_file(path, key, value):
@@ -195,14 +202,17 @@ def check_input_files(hydro_namelist: dict,
                 message = 'The namelist file ' + key + ' = ' + \
                           str(iterutils.get_path(nlst, (path))[key]) + ' does not exist'
                 if key not in [*hrldas_exempt_list, *hydro_exempt_list]:
-                    raise ValueError(message)
+                    if warn:
+                        warnings.warn(message)
+                    else:
+                        raise ValueError(message)
             return False
 
         iterutils.remap(file_dict, visit=visit_missing_file)
         return None
 
-    check_nlst(hrldas_namelist, hrldas_file_dict)
-    check_nlst(hydro_namelist, hydro_file_dict)
+    check_nlst(hrldas_namelist, hrldas_file_dict, warn=check_nlst_warn)
+    check_nlst(hydro_namelist, hydro_file_dict, warn=check_nlst_warn)
 
     return None
 

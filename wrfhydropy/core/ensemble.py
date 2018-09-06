@@ -31,7 +31,7 @@ def parallel_compose(arg_dict):
     os.chdir(str(arg_dict['ens_dir']))
     os.mkdir(str(arg_dict['member'].run_dir))
     os.chdir(str(arg_dict['member'].run_dir))
-    arg_dict['member'].compose()
+    arg_dict['member'].compose(**arg_dict['args'])
 
     # Experimental stuff to speed up the pickling/unpickling of the individual runs.
     # Would be good to move this stuff to a Simulation pickle method option.
@@ -276,8 +276,9 @@ class EnsembleSimulation(object):
     def compose(
         self,
         symlink_domain: bool=True,
-        force: bool = False,
-        rm_members_from_memory: bool = True
+        force: bool=False,
+        check_nlst_warn: bool=False,
+        rm_members_from_memory: bool=True
     ):
         """Ensemble compose simulation directories and files
         Args:
@@ -319,12 +320,28 @@ class EnsembleSimulation(object):
         if self.ncores > 1:
             self.members = pool.map(
                 parallel_compose,
-                ({'member': mm, 'ens_dir': ens_dir} for mm in self.members)
+                ({
+                    'member': mm,
+                    'ens_dir': ens_dir,
+                    'args': {
+                        'symlink_domain': symlink_domain,
+                        'force': force,
+                        'check_nlst_warn': check_nlst_warn
+                    }
+                } for mm in self.members)
             )
         else:
             # Keep the following for debugging: Run it without pool.map
-            self.members = [parallel_compose({'member': mm, 'ens_dir': ens_dir})
-                            for mm in self.members]
+            self.members = [
+                parallel_compose(
+                    {'member': mm,
+                     'ens_dir': ens_dir,
+                     'args': {
+                         'symlink_domain': symlink_domain,
+                         'force': force,
+                         'check_nlst_warn': check_nlst_warn
+                     }
+                    }) for mm in self.members]
 
         # Return to the ensemble dir.
         os.chdir(ens_dir)

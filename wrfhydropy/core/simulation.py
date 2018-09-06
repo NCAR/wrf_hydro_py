@@ -64,7 +64,12 @@ class Simulation(object):
         else:
             raise TypeError('obj is not of a type expected for a Simulation')
 
-    def compose(self, symlink_domain: bool = True, force: bool = False):
+    def compose(
+        self,
+        symlink_domain: bool=True,
+        force: bool=False,
+        check_nlst_warn: bool=False
+    ):
         """Compose simulation directories and files
         Args:
             symlink_domain: Symlink the domain files rather than copy
@@ -93,7 +98,7 @@ class Simulation(object):
 
         # Validate jobs
         print('Validating job input files')
-        self._validate_jobs()
+        self._validate_jobs(check_nlst_warn=check_nlst_warn)
 
         # Compile model or copy files
         if self.model.compile_log is not None:
@@ -209,7 +214,10 @@ class Simulation(object):
                           ' do not match domain minor versions ' +
                           domain.compatible_version)
 
-    def _validate_jobs(self):
+    def _validate_jobs(
+        self,
+        check_nlst_warn
+    ):
         """Private method to check that all files are present for each job"""
         counter = 0
         for job in self.jobs:
@@ -220,10 +228,13 @@ class Simulation(object):
             else:
                 ignore_restarts = True
 
-            check_input_files(hrldas_namelist=job.hrldas_namelist,
-                              hydro_namelist=job.hydro_namelist,
-                              sim_dir=os.getcwd(),
-                              ignore_restarts=ignore_restarts)
+            check_input_files(
+                hrldas_namelist=job.hrldas_namelist,
+                hydro_namelist=job.hydro_namelist,
+                sim_dir=os.getcwd(),
+                ignore_restarts=ignore_restarts,
+                check_nlst_warn=check_nlst_warn
+            )
 
     def _set_base_namelists(self):
         """Private method to create the base namelists which are added to each Job. The Job then

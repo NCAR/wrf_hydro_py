@@ -6,3 +6,4 @@ from .core.domain import *
 from .core.job import *
 from .core.model import *
 from .core.simulation import *
+from .core.ensemble import *

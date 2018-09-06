@@ -1,6 +1,8 @@
+import copy
+import deepdiff
 import os
 import pathlib
-
+import pickle
 import pytest
 
 from wrfhydropy.core.domain import Domain
@@ -141,7 +143,6 @@ def test_simulation_run_no_scheduler(model, domain, job, capfd):
 
 
 def test_simulation_collect(sim_output):
-
     os.chdir(sim_output)
 
     sim = Simulation()
@@ -159,3 +160,36 @@ def test_simulation_output_checknans(sim_output):
         assert getattr(output, att) is not None
 
     assert output.check_output_nas() is not None
+
+
+def test_simulation_pickle(model, domain, job, tmpdir):
+    sim = Simulation()
+    sim.add(model)
+    sim.add(domain)
+    sim.add(job)
+
+    pickle_path = pathlib.Path(tmpdir).joinpath('Sim.pkl')
+    sim.pickle(pickle_path)
+    sim0 = copy.deepcopy(sim)
+    del sim
+    sim = pickle.load(pickle_path.open(mode='rb'))
+    assert deepdiff.DeepDiff(sim, sim0) == {}
+
+
+def test_simulation_sub_obj_pickle(model, domain, job, tmpdir):
+    sim = Simulation()
+    sim.add(model)
+    sim.add(domain)
+    sim.add(job)
+
+    domain_path = pathlib.Path(tmpdir).joinpath('Domain.pkl')
+    model_path = pathlib.Path(tmpdir).joinpath('Model.pkl')
+    sim.domain = sim.pickle_sub_obj(sim.domain, domain_path)
+    sim.model = sim.pickle_sub_obj(sim.model, model_path)
+    assert sim.domain == domain_path
+    assert sim.model == model_path
+
+    sim.domain = sim.restore_sub_obj(sim.domain)
+    sim.model = sim.restore_sub_obj(sim.model)
+    assert deepdiff.DeepDiff(sim.domain, domain) == {}
+    assert deepdiff.DeepDiff(sim.model, model) == {}

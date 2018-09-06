@@ -7,7 +7,7 @@ import pathlib
 import sys
 
 def is_sub_obj(obj):
-    """Test if an object is has a __dict__ (may not be the best definition of an object, 
+    """Test if an object is has a __dict__ (may not be the best definition of an object,
     but it works for classes in wrfhydropy)."""
 
     # If a dict, dont use __dict__
@@ -87,6 +87,7 @@ class DeepDiffEq(DeepDiff):
 
 
 def get_ens_file_last_restart_datetime(run_dir):
+    """Use the filesystem to probe the current ensemble time."""
     run_dir = pathlib.Path(run_dir)
     mem_dirs = sorted(run_dir.glob("member_*"))
     hydro_last = [sorted(mm.glob('HYDRO_RST.*'))[-1].name for mm in mem_dirs]
@@ -105,5 +106,6 @@ def get_ens_file_last_restart_datetime(run_dir):
 
 
 def mute():
+    """A initializer for multiprocessing.Pool to keep the processes quiet."""
     sys.stdout = open(os.devnull, 'w')
-    sys.stderr = open(os.devnull, 'w')    
+    sys.stderr = open(os.devnull, 'w')

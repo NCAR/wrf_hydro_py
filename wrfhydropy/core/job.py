@@ -184,14 +184,29 @@ class Job(object):
 
         cmd_string += '"'
 
-        # Set start time of job execution
-        self.job_start_time = str(datetime.datetime.now())
+        # Set start and end times
+        # 1) wall time of job execution in the job object and
+        # 2) (write to) file the model start and stop times.
+        
+        file_model_start_time = current_dir / '.model_start_time'
+        file_model_end_time = current_dir / '.model_end_time'
+        if file_model_end_time.exists():
+            file_model_end_time.unlink()
+        with file_model_start_time.open(mode='w') as opened_file:
+            _ = opened_file.write(str(self._model_start_time))
 
-        self._proc_log = subprocess.run(cmd_string,
-                                        shell = True,
-                                        cwd=str(current_dir))
+        self.job_start_time = str(datetime.datetime.now())
+        
+        self._proc_log = subprocess.run(
+            cmd_string,
+            shell = True,
+            cwd=str(current_dir)
+        )
 
         self.job_end_time = str(datetime.datetime.now())
+        
+        with file_model_end_time.open('w') as opened_file:
+            _ = opened_file.write(str(self._model_end_time))
 
         # String match diag files or stdout for successfull run if running on gfort or intel
         # Gfort outputs it to diag, intel outputs it to stdout

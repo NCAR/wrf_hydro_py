@@ -111,7 +111,7 @@ def test_simulation_compose(model, domain, job, capfd, tmpdir, domain_dir):
         out, err = capfd.readouterr()
         pass
 
-
+    # This compose exercises the options to compose. Gives the same result.
     compose_dir_opts = pathlib.Path(tmpdir).joinpath('sim_compose_opts')
     os.mkdir(str(compose_dir_opts))
     os.chdir(str(compose_dir_opts))

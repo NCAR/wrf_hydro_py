@@ -202,8 +202,12 @@ def check_input_files(
         """
         Check the paths in the namelist.
         Args:
+            nlst: The namelist to check.
+            file_dict: A dictionary of the files which are specified in nlst flaged True or
+            False if they exist on disk.
             warn: Allow the namelist checking/validation to only result in warnings.
         """
+
         # Scan the dicts for FALSE exempting certain ones for certain configs.
         def visit_missing_file(path, key, value):
             if type(value) is dict:

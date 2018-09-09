@@ -297,6 +297,8 @@ class EnsembleSimulation(object):
             is necessary in certain circumstances.
             rm_members_from_memory: Most applications will remove the members from the
             ensemble object upon compose. Testing and other reasons may keep them around.
+            check_nlst_warn: Allow the namelist checking/validation to only result in warnings.
+            This is also not great practice, but necessary in certain circumstances.
         """
 
         if len(self) < 1:

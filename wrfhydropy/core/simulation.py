@@ -75,6 +75,8 @@ class Simulation(object):
             symlink_domain: Symlink the domain files rather than copy
             force: Compose into directory even if not empty. This is considered bad practice but
             is necessary in certain circumstances.
+            check_nlst_warn: Allow the namelist checking/validation to only result in warnings.
+            This is also not great practice, but necessary in certain circumstances.
         """
 
         print("Composing simulation into directory:'" + os.getcwd() + "'")
@@ -224,9 +226,13 @@ class Simulation(object):
 
     def _validate_jobs(
         self,
-        check_nlst_warn
+        check_nlst_warn: bool=False
     ):
-        """Private method to check that all files are present for each job"""
+        """Private method to check that all files are present for each job.
+        Args:
+            check_nlst_warn: Allow the namelist checking/validation to only result in warnings.
+            This is also not great practice, but necessary in certain circumstances.
+        """
         counter = 0
         for job in self.jobs:
             counter += 1

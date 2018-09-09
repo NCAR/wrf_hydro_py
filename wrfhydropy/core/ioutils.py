@@ -31,7 +31,7 @@ def open_nwmdataset(paths: list,
     # Create dictionary of forecasts, i.e. reference times
     ds_dict = dict()
     for a_file in paths:
-        ds = xr.open_dataset(a_file,chunks=chunks)
+        ds = xr.open_dataset(a_file, chunks=chunks)
         # Check if forecast and set reference_time to zero if not
         if not forecast:
             ds.coords['reference_time'].values = np.array(
@@ -59,9 +59,10 @@ def open_nwmdataset(paths: list,
 
     # Break into chunked dask array
     if chunks is not None:
-       nwm_dataset = nwm_dataset.chunk(chunks=chunks)
+        nwm_dataset = nwm_dataset.chunk(chunks=chunks)
 
     return nwm_dataset
+
 
 class WrfHydroTs(list):
     """WRF-Hydro netcdf timeseries data class"""
@@ -80,6 +81,7 @@ class WrfHydroTs(list):
         nc_dataset = self.open()
         return check_file_nas(nc_dataset)
 
+
 class WrfHydroStatic(pathlib.PosixPath):
     """WRF-Hydro static data class"""
     def open(self):
@@ -95,6 +97,7 @@ class WrfHydroStatic(pathlib.PosixPath):
         """Return dictionary of counts of NA values for each data variable"""
         return check_file_nas(self)
 
+
 def _check_file_exist_colon(dirpath: str, file_str: str):
     """Private method to check if a filename containing a colon exists, accounting for renaming
     to an underscore that is done by some systems.
@@ -105,7 +108,7 @@ def _check_file_exist_colon(dirpath: str, file_str: str):
     if type(file_str) is not str:
         file_str = str(file_str)
     file_colon = pathlib.Path(file_str)
-    file_no_colon = pathlib.Path(file_str.replace(':','_'))
+    file_no_colon = pathlib.Path(file_str.replace(':', '_'))
     run_dir = pathlib.Path(dirpath)
 
     if (run_dir / file_colon).exists():
@@ -114,12 +117,14 @@ def _check_file_exist_colon(dirpath: str, file_str: str):
         return './' + str(file_no_colon)
     return None
 
+
 def _touch(filename, mode=0o666, dir_fd=None, **kwargs):
     flags = os.O_CREAT | os.O_APPEND
     filename.open(mode='a+')
     with os.fdopen(os.open(str(filename), flags=flags, mode=mode, dir_fd=dir_fd)) as f:
         os.utime(f.fileno() if os.utime in os.supports_fd else filename,
                  dir_fd=None if os.supports_fd else dir_fd, **kwargs)
+
 
 # TODO Refactor this to be a generic and not need both hydro and hrldas namelist to do a check
 def check_input_files(
@@ -137,6 +142,7 @@ def check_input_files(
         file_str: A wrfhydropy hrldas_namelist dictionary
         sim_dir: The path to the directory containing input files.
         ignore_restarts: Ignore restart files.
+        check_nlst_warn: Allow the namelist checking/validation to only result in warnings.
     """
 
     def visit_is_file(path, key, value):
@@ -167,11 +173,11 @@ def check_input_files(
     # What are the colon cases? Hydro/nudging restart files
     hydro_file_dict['hydro_nlist']['restart_file'] = \
         bool(_check_file_exist_colon(sim_dir,
-                                    hydro_namelist['hydro_nlist']['restart_file']))
+                                     hydro_namelist['hydro_nlist']['restart_file']))
     if 'nudging_nlist' in hydro_file_dict.keys():
         hydro_file_dict['nudging_nlist']['nudginglastobsfile'] = \
             bool(_check_file_exist_colon(sim_dir,
-                                        hydro_namelist['nudging_nlist']['nudginglastobsfile']))
+                                         hydro_namelist['nudging_nlist']['nudginglastobsfile']))
 
     hrldas_exempt_list = []
     hydro_exempt_list = ['nudginglastobsfile', 'timeslicepath']
@@ -180,7 +186,7 @@ def check_input_files(
     if hydro_namelist['hydro_nlist']['udmp_opt'] == 0:
         hydro_exempt_list = hydro_exempt_list + ['udmap_file']
 
-    if hrldas_namelist['wrf_hydro_offline']['forc_typ'] in [9,10]:
+    if hrldas_namelist['wrf_hydro_offline']['forc_typ'] in [9, 10]:
         hrldas_exempt_list = hrldas_exempt_list + ['restart_filename_requested']
 
     if ignore_restarts:
@@ -193,6 +199,14 @@ def check_input_files(
         file_dict,
         warn: bool=False
     ):
+        """
+        Check the paths in the namelist.
+        Args:
+            nlst: The namelist to check.
+            file_dict: A dictionary of the files which are specified in nlst flaged True or
+            False if they exist on disk.
+            warn: Allow the namelist checking/validation to only result in warnings.
+        """
 
         # Scan the dicts for FALSE exempting certain ones for certain configs.
         def visit_missing_file(path, key, value):
@@ -216,7 +230,8 @@ def check_input_files(
 
     return None
 
-def check_file_nas(dataset_path: Union[str,pathlib.Path]) -> str:
+
+def check_file_nas(dataset_path: Union[str, pathlib.Path]) -> str:
     """Opens the specified netcdf file and checks all data variables for NA values. NA assigned
     according to xarray __FillVal parsing. See xarray.Dataset documentation
     Args:
@@ -231,12 +246,12 @@ def check_file_nas(dataset_path: Union[str,pathlib.Path]) -> str:
     # nans will not equal each other so will report nans as fails
     command_str = 'nccmp --data --metadata --force ' + dataset_path + ' ' + dataset_path
 
-    #Run the subprocess to call nccmp
+    # Run the subprocess to call nccmp
     proc = subprocess.run(shlex.split(command_str),
                           stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE)
 
-    #Check return code
+    # Check return code
     if proc.returncode != 0:
         # Get stoud into stringio object
         output = io.StringIO()
@@ -251,6 +266,7 @@ def check_file_nas(dataset_path: Union[str,pathlib.Path]) -> str:
             warnings.warn('Problem reading nccmp output to pandas dataframe,'
                           'returning as subprocess object')
             return proc.stderr
+
 
 def sort_files_by_time(file_list: list):
     """Given a list of file paths, sort list by file modified time

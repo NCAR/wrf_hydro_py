@@ -98,17 +98,32 @@ def test_simulation_compose(model, domain, job, capfd, tmpdir, domain_dir):
     sim.add(domain)
     sim.add(job)
 
+    # copy before compose
+    sim_opts = copy.deepcopy(sim)
+
     compose_dir = pathlib.Path(tmpdir).joinpath('sim_compose')
     os.mkdir(str(compose_dir))
-
     os.chdir(str(compose_dir))
 
     try:
         sim.compose()
+    except FileNotFoundError:
         out, err = capfd.readouterr()
-        print(out)
-    except:
-        out, err = capfd.readouterr()
+        pass
+
+    # This compose exercises the options to compose. Gives the same result.
+    compose_dir_opts = pathlib.Path(tmpdir).joinpath('sim_compose_opts')
+    os.mkdir(str(compose_dir_opts))
+    os.chdir(str(compose_dir_opts))
+
+    try:
+        sim_opts.compose(
+            symlink_domain=False,
+            force=True,
+            check_nlst_warn=True
+        )
+    except FileNotFoundError:
+        out_opts, err_opts = capfd.readouterr()
         pass
 
     actual_files = list()
@@ -125,6 +140,8 @@ def test_simulation_compose(model, domain, job, capfd, tmpdir, domain_dir):
         assert file in expected_files
 
     assert out[-19:] == 'Compiling model...\n'
+    assert out_opts[-228:] == out[-228:]
+    assert err_opts == err
 
 
 def test_simulation_run_no_scheduler(model, domain, job, capfd):

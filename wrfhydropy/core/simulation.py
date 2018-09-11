@@ -98,6 +98,12 @@ class Simulation(object):
             job._make_job_dir()
             job._write_namelists()  # write namelists
 
+        # If the first job is a restart, set the model end time.
+        if self.jobs[0].restart:
+            file_model_end_time = current_dir / '.model_end_time'
+            with file_model_end_time.open('w') as opened_file:
+                _ = opened_file.write(str(self.jobs[0]._model_start_time))
+            
         # Validate jobs
         print('Validating job input files')
         self._validate_jobs(check_nlst_warn=check_nlst_warn)

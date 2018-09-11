@@ -192,6 +192,8 @@ class Job(object):
         file_model_end_time = current_dir / '.model_end_time'
         if file_model_end_time.exists():
             file_model_end_time.unlink()
+        # Write the model start time now, but only write the file .model_end_time
+        # upon successful completion. See below.
         with file_model_start_time.open(mode='w') as opened_file:
             _ = opened_file.write(str(self._model_start_time))
 
@@ -205,9 +207,6 @@ class Job(object):
 
         self.job_end_time = str(datetime.datetime.now())
         
-        with file_model_end_time.open('w') as opened_file:
-            _ = opened_file.write(str(self._model_end_time))
-
         # String match diag files or stdout for successfull run if running on gfort or intel
         # Gfort outputs it to diag, intel outputs it to stdout
         diag_file = current_dir.joinpath('diag_hydro.00000')
@@ -247,6 +246,11 @@ class Job(object):
             self.pickle(str(self.job_dir.joinpath('WrfHydroJob_postrun.pkl')))
             raise RuntimeError('Model did not finish successfully')
 
+        # Only write the file .model_end_time upon successful completion.
+        if self.exit_status == 0:
+            with file_model_end_time.open('w') as opened_file:
+                _ = opened_file.write(str(self._model_end_time))
+        
         self.pickle(str(self.job_dir.joinpath('WrfHydroJob_postrun.pkl')))
 
     def _write_namelists(self):

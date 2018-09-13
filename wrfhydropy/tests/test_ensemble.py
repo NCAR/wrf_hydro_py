@@ -258,7 +258,7 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         },
         '_hrldas_times': {
             'noahlsm_offline': {
-                'kday': 11770,
+                'khour': 282480,
                 'restart_filename_requested': None,
                 'start_day': 14,
                 'start_hour': 0,

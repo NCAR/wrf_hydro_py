@@ -246,11 +246,9 @@ class Job(object):
             duration = self._model_end_time - self._model_start_time
             if duration.seconds == 0:
                 self._hrldas_times['noahlsm_offline']['kday'] = int(duration.days)
-                del self._hrldas_times['noahlsm_offline']['khour']
             else:
                 self._hrldas_times['noahlsm_offline']['khour'] =int(duration.days * 60 +
                                                                     duration.seconds / 3600)
-                del self._hrldas_times['noahlsm_offline']['kday']
 
             # Start
             self._hrldas_times['noahlsm_offline']['start_year'] = int(self._model_start_time.year)
@@ -394,9 +392,7 @@ class Job(object):
             warnings.warn('model start or end time was not specified in job, start end times will \
             be used from supplied namelist')
             self._model_start_time, self._model_end_time = self._solve_model_start_end_times()
-        hrldas_nl = self._hrldas_namelist.patch(self.hrldas_times)
-
-        return
+        return self._hrldas_namelist.patch(self.hrldas_times)
 
     @property
     def model_start_time(self):

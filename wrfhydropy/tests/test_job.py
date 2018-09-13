@@ -22,7 +22,6 @@ def test_job_init():
     assert job.hydro_times == {'hydro_nlist': {'restart_file': None},
                                'nudging_nlist': {'nudginglastobsfile': None}}
     assert job.hrldas_times == {'noahlsm_offline': {'kday': 11770,
-                                                    'khour': None,
                                                     'start_year': 1984,
                                                     'start_month': 10,
                                                     'start_day': 14,

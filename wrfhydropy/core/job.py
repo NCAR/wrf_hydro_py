@@ -115,8 +115,7 @@ class Job(object):
         """
         self._hrldas_namelist = copy.deepcopy(namelist)
         # Never use KDAY in wrfhydropy. This eliminates it entering the patch with the time info.
-        if 'kday' in self._hrldas_namelist['noahlsm_offline'].keys():
-            self._hrldas_namelist['noahlsm_offline'].pop('kday')
+        self._hrldas_namelist['noahlsm_offline'].pop('kday', None)
 
     def clone(self, N) -> list:
         """Clone a job object N-times using deepcopy.

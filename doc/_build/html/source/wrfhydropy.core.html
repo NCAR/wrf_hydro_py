@@ -24,25 +24,17 @@
 
   
 
-  
-  
-    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-  
-
-  
-
-  
-        <link rel="index" title="Index"
-              href="../genindex.html"/>
-        <link rel="search" title="Search" href="../search.html"/>
-    <link rel="top" title="wrfhydropy 0.0.3 documentation" href="../index.html"/> 
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
 
   
   <script src="../_static/js/modernizr.min.js"></script>
 
 </head>
 
-<body class="wy-body-for-nav" role="document">
+<body class="wy-body-for-nav">
 
    
   <div class="wy-grid-for-nav">
@@ -89,6 +81,8 @@
 <li><a class="reference internal" href="#">wrfhydropy.core package</a><ul>
 <li><a class="reference internal" href="#submodules">Submodules</a></li>
 <li><a class="reference internal" href="#module-wrfhydropy.core.domain">wrfhydropy.core.domain module</a></li>
+<li><a class="reference internal" href="#module-wrfhydropy.core.ensemble">wrfhydropy.core.ensemble module</a></li>
+<li><a class="reference internal" href="#module-wrfhydropy.core.ensemble_tools">wrfhydropy.core.ensemble_tools module</a></li>
 <li><a class="reference internal" href="#module-wrfhydropy.core.ioutils">wrfhydropy.core.ioutils module</a></li>
 <li><a class="reference internal" href="#module-wrfhydropy.core.job">wrfhydropy.core.job module</a></li>
 <li><a class="reference internal" href="#module-wrfhydropy.core.model">wrfhydropy.core.model module</a></li>
@@ -110,7 +104,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
 
       
-      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+      <nav class="wy-nav-top" aria-label="top navigation">
         
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="../index.html">wrfhydropy</a>
@@ -118,9 +112,10 @@
       </nav>
 
 
-      
       <div class="wy-nav-content">
+        
         <div class="rst-content">
+        
           
 
 
@@ -171,10 +166,16 @@
 <span id="wrfhydropy-core-domain-module"></span><h2>wrfhydropy.core.domain module<a class="headerlink" href="#module-wrfhydropy.core.domain" title="Permalink to this headline">¶</a></h2>
 <dl class="class">
 <dt id="wrfhydropy.core.domain.Domain">
-<em class="property">class </em><code class="descclassname">wrfhydropy.core.domain.</code><code class="descname">Domain</code><span class="sig-paren">(</span><em>domain_top_dir: str</em>, <em>domain_config: str</em>, <em>hydro_namelist_patch_file: str = 'hydro_namelist_patches.json'</em>, <em>hrldas_namelist_patch_file: str = 'hrldas_namelist_patches.json'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/domain.html#Domain"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.domain.Domain" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">wrfhydropy.core.domain.</code><code class="descname">Domain</code><span class="sig-paren">(</span><em>domain_top_dir: str</em>, <em>domain_config: str</em>, <em>compatible_version: str = None</em>, <em>hydro_namelist_patch_file: str = 'hydro_namelist_patches.json'</em>, <em>hrldas_namelist_patch_file: str = 'hrldas_namelist_patches.json'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/domain.html#Domain"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.domain.Domain" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Class for a WRF-Hydro domain, which constitutes all domain-specific files needed for a
 setup.</p>
+<dl class="attribute">
+<dt id="wrfhydropy.core.domain.Domain.compatible_version">
+<code class="descname">compatible_version</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.domain.Domain.compatible_version" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>str</em> – Source-code version for which the domain is to be used.</p>
+</dd></dl>
+
 <dl class="method">
 <dt id="wrfhydropy.core.domain.Domain.copy_files">
 <code class="descname">copy_files</code><span class="sig-paren">(</span><em>dest_dir: str</em>, <em>symlink: bool = True</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/domain.html#Domain.copy_files"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.domain.Domain.copy_files" title="Permalink to this definition">¶</a></dt>
@@ -197,6 +198,12 @@ setup.</p>
 <dt id="wrfhydropy.core.domain.Domain.domain_top_dir">
 <code class="descname">domain_top_dir</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.domain.Domain.domain_top_dir" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>pathlib.Path</em> – pathlib.Paths to <a href="#id1"><span class="problematic" id="id2">*</span></a>.TBL files generated at compile-time.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.domain.Domain.forcing_dir">
+<code class="descname">forcing_dir</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.domain.Domain.forcing_dir" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>pathlib.Path</em> – path to the forcing directory</p>
 </dd></dl>
 
 <dl class="attribute">
@@ -224,11 +231,187 @@ setup.</p>
 </dd></dl>
 
 <dl class="attribute">
+<dt id="wrfhydropy.core.domain.Domain.nudging_dir">
+<code class="descname">nudging_dir</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.domain.Domain.nudging_dir" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>pathlib.Path</em> – path to the nudging obs directory</p>
+</dd></dl>
+
+<dl class="attribute">
 <dt id="wrfhydropy.core.domain.Domain.nudging_files">
 <code class="descname">nudging_files</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.domain.Domain.nudging_files" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>list</em> – Files specified in nudging_nlist section of the domain namelist patches</p>
 </dd></dl>
 
+</dd></dl>
+
+</div>
+<div class="section" id="module-wrfhydropy.core.ensemble">
+<span id="wrfhydropy-core-ensemble-module"></span><h2>wrfhydropy.core.ensemble module<a class="headerlink" href="#module-wrfhydropy.core.ensemble" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="wrfhydropy.core.ensemble.EnsembleSimulation">
+<em class="property">class </em><code class="descclassname">wrfhydropy.core.ensemble.</code><code class="descname">EnsembleSimulation</code><span class="sig-paren">(</span><em>ncores: int = 1</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ensemble.html#EnsembleSimulation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ensemble.EnsembleSimulation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Class for a WRF-Hydro EnsembleSimulation object. The Ensemble Simulation object is used to
+orchestrate a set of ‘N’ WRF-Hydro simulations. It requires members with pre-compiled models
+and there are set and get methods across the ensemble (member_diffs &amp; set_member_diffs). Jobs
+and scheduler set on the EnsembleSimulation object are set on all the members.</p>
+<dl class="attribute">
+<dt id="wrfhydropy.core.ensemble.EnsembleSimulation.N">
+<code class="descname">N</code><a class="headerlink" href="#wrfhydropy.core.ensemble.EnsembleSimulation.N" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="wrfhydropy.core.ensemble.EnsembleSimulation.add">
+<code class="descname">add</code><span class="sig-paren">(</span><em>obj: Union[list, wrfhydropy.core.schedulers.Scheduler, wrfhydropy.core.job.Job]</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ensemble.html#EnsembleSimulation.add"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ensemble.EnsembleSimulation.add" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add an approparite object to an EnsembleSimulation, such as a Simulation, Job, or
+Scheduler.
+:Parameters: <strong>obj</strong> – the object to add.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="wrfhydropy.core.ensemble.EnsembleSimulation.compose">
+<code class="descname">compose</code><span class="sig-paren">(</span><em>symlink_domain: bool = True</em>, <em>force: bool = False</em>, <em>check_nlst_warn: bool = False</em>, <em>rm_members_from_memory: bool = True</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ensemble.html#EnsembleSimulation.compose"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ensemble.EnsembleSimulation.compose" title="Permalink to this definition">¶</a></dt>
+<dd><p>Ensemble compose simulation directories and files
+:Parameters: * <strong>symlink_domain</strong> – Symlink the domain files rather than copy</p>
+<blockquote>
+<div><ul class="simple">
+<li><strong>force</strong> – Compose into directory even if not empty. This is considered bad practice but</li>
+<li><strong>is necessary in certain circumstances.</strong></li>
+<li><strong>rm_members_from_memory</strong> – Most applications will remove the members from the</li>
+<li><strong>ensemble object upon compose. Testing and other reasons may keep them around.</strong></li>
+<li><strong>check_nlst_warn</strong> – Allow the namelist checking/validation to only result in warnings.</li>
+<li><strong>This is also not great practice, but necessary in certain circumstances.</strong></li>
+</ul>
+</div></blockquote>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.ensemble.EnsembleSimulation.jobs">
+<code class="descname">jobs</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.ensemble.EnsembleSimulation.jobs" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list</em> – a list containing Job objects</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.ensemble.EnsembleSimulation.member_diffs">
+<code class="descname">member_diffs</code><a class="headerlink" href="#wrfhydropy.core.ensemble.EnsembleSimulation.member_diffs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get method for ensemble member differences. Only differences are reported.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.ensemble.EnsembleSimulation.members">
+<code class="descname">members</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.ensemble.EnsembleSimulation.members" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list</em> – a list of simulations which are the members of the ensemble.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.ensemble.EnsembleSimulation.ncores">
+<code class="descname">ncores</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.ensemble.EnsembleSimulation.ncores" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>ncores</em> – integer number of cores for running parallelizable methods.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="wrfhydropy.core.ensemble.EnsembleSimulation.pickle">
+<code class="descname">pickle</code><span class="sig-paren">(</span><em>path: str</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ensemble.html#EnsembleSimulation.pickle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ensemble.EnsembleSimulation.pickle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Pickle ensemble sim object to specified file path
+:Parameters: <strong>path</strong> – The file path for pickle</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="wrfhydropy.core.ensemble.EnsembleSimulation.replicate_member">
+<code class="descname">replicate_member</code><span class="sig-paren">(</span><em>N: int</em>, <em>copy_members: bool = True</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ensemble.html#EnsembleSimulation.replicate_member"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ensemble.EnsembleSimulation.replicate_member" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="wrfhydropy.core.ensemble.EnsembleSimulation.rm_members">
+<code class="descname">rm_members</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ensemble.html#EnsembleSimulation.rm_members"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ensemble.EnsembleSimulation.rm_members" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove members from memory, replace with their paths.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="wrfhydropy.core.ensemble.EnsembleSimulation.run">
+<code class="descname">run</code><span class="sig-paren">(</span><em>n_concurrent: int = 1</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ensemble.html#EnsembleSimulation.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ensemble.EnsembleSimulation.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the ensemble of simulations.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.ensemble.EnsembleSimulation.scheduler">
+<code class="descname">scheduler</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.ensemble.EnsembleSimulation.scheduler" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Scheduler</em> – A scheduler object to use for each Job in self.jobs</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="wrfhydropy.core.ensemble.EnsembleSimulation.set_member_diffs">
+<code class="descname">set_member_diffs</code><span class="sig-paren">(</span><em>att_tuple: tuple</em>, <em>values: list</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ensemble.html#EnsembleSimulation.set_member_diffs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ensemble.EnsembleSimulation.set_member_diffs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set method for ensemble member differences. (Currently fails silently when
+requested fields are not found.)</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="wrfhydropy.core.ensemble.parallel_compose">
+<code class="descclassname">wrfhydropy.core.ensemble.</code><code class="descname">parallel_compose</code><span class="sig-paren">(</span><em>arg_dict</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ensemble.html#parallel_compose"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ensemble.parallel_compose" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parallelizable function to compose an EnsembleSimuation.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="wrfhydropy.core.ensemble.parallel_compose_addjobs">
+<code class="descclassname">wrfhydropy.core.ensemble.</code><code class="descname">parallel_compose_addjobs</code><span class="sig-paren">(</span><em>arg_dict</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ensemble.html#parallel_compose_addjobs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ensemble.parallel_compose_addjobs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parallelizable function to add jobs to EnsembleSimuation.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="wrfhydropy.core.ensemble.parallel_compose_addscheduler">
+<code class="descclassname">wrfhydropy.core.ensemble.</code><code class="descname">parallel_compose_addscheduler</code><span class="sig-paren">(</span><em>arg_dict</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ensemble.html#parallel_compose_addscheduler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ensemble.parallel_compose_addscheduler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parallelizable function to add a scheduler to EnsembleSimuation.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="wrfhydropy.core.ensemble.parallel_run">
+<code class="descclassname">wrfhydropy.core.ensemble.</code><code class="descname">parallel_run</code><span class="sig-paren">(</span><em>arg_dict</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ensemble.html#parallel_run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ensemble.parallel_run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parallelizable function to run an EnsembleSimuation.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-wrfhydropy.core.ensemble_tools">
+<span id="wrfhydropy-core-ensemble-tools-module"></span><h2>wrfhydropy.core.ensemble_tools module<a class="headerlink" href="#module-wrfhydropy.core.ensemble_tools" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="wrfhydropy.core.ensemble_tools.DeepDiffEq">
+<em class="property">class </em><code class="descclassname">wrfhydropy.core.ensemble_tools.</code><code class="descname">DeepDiffEq</code><span class="sig-paren">(</span><em>t1</em>, <em>t2</em>, <em>eq_types</em>, <em>ignore_order=False</em>, <em>report_repetition=False</em>, <em>significant_digits=None</em>, <em>exclude_paths=set()</em>, <em>exclude_types=set()</em>, <em>verbose_level=1</em>, <em>view='text'</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ensemble_tools.html#DeepDiffEq"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ensemble_tools.DeepDiffEq" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">deepdiff.diff.DeepDiff</span></code></p>
+<p>Extend Deep Diff to handle __eq__ for specified types.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="wrfhydropy.core.ensemble_tools.dictify">
+<code class="descclassname">wrfhydropy.core.ensemble_tools.</code><code class="descname">dictify</code><span class="sig-paren">(</span><em>obj</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ensemble_tools.html#dictify"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ensemble_tools.dictify" title="Permalink to this definition">¶</a></dt>
+<dd><p>Recursively transform deepcopy sub __dicts__ of an object into dicts for dictionary
+traversal of a deepcopy of the object.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="wrfhydropy.core.ensemble_tools.get_ens_dotfile_end_datetime">
+<code class="descclassname">wrfhydropy.core.ensemble_tools.</code><code class="descname">get_ens_dotfile_end_datetime</code><span class="sig-paren">(</span><em>run_dir</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ensemble_tools.html#get_ens_dotfile_end_datetime"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ensemble_tools.get_ens_dotfile_end_datetime" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use the the .model_end_time files to get the current ensemble time.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="wrfhydropy.core.ensemble_tools.get_sub_objs">
+<code class="descclassname">wrfhydropy.core.ensemble_tools.</code><code class="descname">get_sub_objs</code><span class="sig-paren">(</span><em>obj</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ensemble_tools.html#get_sub_objs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ensemble_tools.get_sub_objs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Identify which attributes of an object are objects with __dicts__.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="wrfhydropy.core.ensemble_tools.is_sub_obj">
+<code class="descclassname">wrfhydropy.core.ensemble_tools.</code><code class="descname">is_sub_obj</code><span class="sig-paren">(</span><em>obj</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ensemble_tools.html#is_sub_obj"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ensemble_tools.is_sub_obj" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test if an object is has a __dict__ (may not be the best definition of an object,
+but it works for classes in wrfhydropy).</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="wrfhydropy.core.ensemble_tools.mute">
+<code class="descclassname">wrfhydropy.core.ensemble_tools.</code><code class="descname">mute</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ensemble_tools.html#mute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ensemble_tools.mute" title="Permalink to this definition">¶</a></dt>
+<dd><p>A initializer for multiprocessing.Pool to keep the processes quiet.</p>
 </dd></dl>
 
 </div>
@@ -239,6 +422,12 @@ setup.</p>
 <em class="property">class </em><code class="descclassname">wrfhydropy.core.ioutils.</code><code class="descname">WrfHydroStatic</code><a class="reference internal" href="../_modules/wrfhydropy/core/ioutils.html#WrfHydroStatic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ioutils.WrfHydroStatic" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">pathlib.PosixPath</span></code></p>
 <p>WRF-Hydro static data class</p>
+<dl class="method">
+<dt id="wrfhydropy.core.ioutils.WrfHydroStatic.check_nas">
+<code class="descname">check_nas</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ioutils.html#WrfHydroStatic.check_nas"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ioutils.WrfHydroStatic.check_nas" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return dictionary of counts of NA values for each data variable</p>
+</dd></dl>
+
 <dl class="method">
 <dt id="wrfhydropy.core.ioutils.WrfHydroStatic.open">
 <code class="descname">open</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ioutils.html#WrfHydroStatic.open"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ioutils.WrfHydroStatic.open" title="Permalink to this definition">¶</a></dt>
@@ -262,6 +451,12 @@ setup.</p>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></p>
 <p>WRF-Hydro netcdf timeseries data class</p>
 <dl class="method">
+<dt id="wrfhydropy.core.ioutils.WrfHydroTs.check_nas">
+<code class="descname">check_nas</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ioutils.html#WrfHydroTs.check_nas"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ioutils.WrfHydroTs.check_nas" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return dictionary of counts of NA values for each data variable summed across files</p>
+</dd></dl>
+
+<dl class="method">
 <dt id="wrfhydropy.core.ioutils.WrfHydroTs.open">
 <code class="descname">open</code><span class="sig-paren">(</span><em>chunks: dict = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ioutils.html#WrfHydroTs.open"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ioutils.WrfHydroTs.open" title="Permalink to this definition">¶</a></dt>
 <dd><p>Open a WrfHydroTs object
@@ -284,16 +479,27 @@ setup.</p>
 </dd></dl>
 
 <dl class="function">
+<dt id="wrfhydropy.core.ioutils.check_file_nas">
+<code class="descclassname">wrfhydropy.core.ioutils.</code><code class="descname">check_file_nas</code><span class="sig-paren">(</span><em>dataset_path: Union[str, pathlib.Path]</em><span class="sig-paren">)</span> &#x2192; str<a class="reference internal" href="../_modules/wrfhydropy/core/ioutils.html#check_file_nas"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ioutils.check_file_nas" title="Permalink to this definition">¶</a></dt>
+<dd><p>Opens the specified netcdf file and checks all data variables for NA values. NA assigned
+according to xarray __FillVal parsing. See xarray.Dataset documentation
+:Parameters: <strong>dataset_path</strong> – The path to the netcdf dataset file</p>
+<p>Returns: string summary of nas if present</p>
+</dd></dl>
+
+<dl class="function">
 <dt id="wrfhydropy.core.ioutils.check_input_files">
-<code class="descclassname">wrfhydropy.core.ioutils.</code><code class="descname">check_input_files</code><span class="sig-paren">(</span><em>hydro_namelist: dict</em>, <em>hrldas_namelist: dict</em>, <em>sim_dir: str</em>, <em>ignore_restarts: bool = False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ioutils.html#check_input_files"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ioutils.check_input_files" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">wrfhydropy.core.ioutils.</code><code class="descname">check_input_files</code><span class="sig-paren">(</span><em>hydro_namelist: dict</em>, <em>hrldas_namelist: dict</em>, <em>sim_dir: str</em>, <em>ignore_restarts: bool = False</em>, <em>check_nlst_warn: bool = False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ioutils.html#check_input_files"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ioutils.check_input_files" title="Permalink to this definition">¶</a></dt>
 <dd><p>Given hydro and hrldas namelists and a directory, check that all files listed in the
 namelist exist in the specified directory.
 :Parameters: * <strong>hydro_namelist</strong> – A wrfhydropy hydro_namelist dictionary</p>
 <blockquote>
 <div><ul class="simple">
+<li><strong>hrldas_namelist</strong> – A wrfhydropy hydro_namelist dictionary</li>
 <li><strong>file_str</strong> – A wrfhydropy hrldas_namelist dictionary</li>
 <li><strong>sim_dir</strong> – The path to the directory containing input files.</li>
 <li><strong>ignore_restarts</strong> – Ignore restart files.</li>
+<li><strong>check_nlst_warn</strong> – Allow the namelist checking/validation to only result in warnings.</li>
 </ul>
 </div></blockquote>
 </dd></dl>
@@ -323,30 +529,24 @@ reference_time dimensions</td>
 </table>
 </dd></dl>
 
+<dl class="function">
+<dt id="wrfhydropy.core.ioutils.sort_files_by_time">
+<code class="descclassname">wrfhydropy.core.ioutils.</code><code class="descname">sort_files_by_time</code><span class="sig-paren">(</span><em>file_list: list</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ioutils.html#sort_files_by_time"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ioutils.sort_files_by_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Given a list of file paths, sort list by file modified time
+:Parameters: <strong>file_list</strong> – The list of file paths to sort</p>
+<p>Returns: A list of file paths sorted by file modified time</p>
+</dd></dl>
+
 </div>
 <div class="section" id="module-wrfhydropy.core.job">
 <span id="wrfhydropy-core-job-module"></span><h2>wrfhydropy.core.job module<a class="headerlink" href="#module-wrfhydropy.core.job" title="Permalink to this headline">¶</a></h2>
 <dl class="class">
 <dt id="wrfhydropy.core.job.Job">
-<em class="property">class </em><code class="descclassname">wrfhydropy.core.job.</code><code class="descname">Job</code><span class="sig-paren">(</span><em>job_id: str</em>, <em>model_start_time: Union[str</em>, <em>datetime.datetime] = None</em>, <em>model_end_time: Union[str</em>, <em>datetime.datetime] = None</em>, <em>exe_cmd: str = None</em>, <em>entry_cmd: str = None</em>, <em>exit_cmd: str = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/job.html#Job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.job.Job" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">wrfhydropy.core.job.</code><code class="descname">Job</code><span class="sig-paren">(</span><em>job_id: str</em>, <em>model_start_time: Union[str</em>, <em>datetime.datetime] = None</em>, <em>model_end_time: Union[str</em>, <em>datetime.datetime] = None</em>, <em>restart: bool = True</em>, <em>exe_cmd: str = None</em>, <em>entry_cmd: str = None</em>, <em>exit_cmd: str = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/job.html#Job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.job.Job" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>A Job represents run-time specific information for a given WRF-Hydro run. A Simulation
 consists of one or more jobs. For example, adding multiple Jobs can be used to split a
 Simulation into multiple runs to limit the wall-clock duration of each individual run.</p>
-<dl class="method">
-<dt id="wrfhydropy.core.job.Job.add_hrldas_namelist">
-<code class="descname">add_hrldas_namelist</code><span class="sig-paren">(</span><em>namelist: dict</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/job.html#Job.add_hrldas_namelist"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.job.Job.add_hrldas_namelist" title="Permalink to this definition">¶</a></dt>
-<dd><p>Add a hrldas_namelist Namelist object to the job object
-:Parameters: <strong>namelist</strong> – The namelist dictionary to add</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="wrfhydropy.core.job.Job.add_hydro_namelist">
-<code class="descname">add_hydro_namelist</code><span class="sig-paren">(</span><em>namelist: wrfhydropy.core.namelist.Namelist</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/job.html#Job.add_hydro_namelist"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.job.Job.add_hydro_namelist" title="Permalink to this definition">¶</a></dt>
-<dd><p>Add a hydro_namelist Namelist object to the job object
-:Parameters: <strong>namelist</strong> – The Namelist to add</p>
-</dd></dl>
-
 <dl class="method">
 <dt id="wrfhydropy.core.job.Job.clone">
 <code class="descname">clone</code><span class="sig-paren">(</span><em>N</em><span class="sig-paren">)</span> &#x2192; list<a class="reference internal" href="../_modules/wrfhydropy/core/job.html#Job.clone"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.job.Job.clone" title="Permalink to this definition">¶</a></dt>
@@ -403,12 +603,26 @@ Simulation into multiple runs to limit the wall-clock duration of each individua
 <dl class="attribute">
 <dt id="wrfhydropy.core.job.Job.model_end_time">
 <code class="descname">model_end_time</code><a class="headerlink" href="#wrfhydropy.core.job.Job.model_end_time" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p><em>datetime</em> – The model time at the end of the execution.</p>
+</dd></dl>
 
 <dl class="attribute">
 <dt id="wrfhydropy.core.job.Job.model_start_time">
 <code class="descname">model_start_time</code><a class="headerlink" href="#wrfhydropy.core.job.Job.model_start_time" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>np.datetime64</em> – The model time at the start of the execution.</p>
+<dd><p><em>datetime</em> – The model time at the start of the execution.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="wrfhydropy.core.job.Job.pickle">
+<code class="descname">pickle</code><span class="sig-paren">(</span><em>path: str</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/job.html#Job.pickle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.job.Job.pickle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Pickle job object to specified file path
+:Parameters: <strong>path</strong> – The file path for pickle</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.job.Job.restart">
+<code class="descname">restart</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.job.Job.restart" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>bool</em> – Start model from a restart.</p>
 </dd></dl>
 
 </dd></dl>
@@ -481,6 +695,12 @@ code.</p>
 </dd></dl>
 
 <dl class="attribute">
+<dt id="wrfhydropy.core.model.Model.git_hash">
+<code class="descname">git_hash</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.model.Model.git_hash" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>str</em> – The git revision hash if seld.source_dir is a git repository</p>
+</dd></dl>
+
+<dl class="attribute">
 <dt id="wrfhydropy.core.model.Model.hrldas_namelists">
 <code class="descname">hrldas_namelists</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.model.Model.hrldas_namelists" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>Namelist</em> – HRLDAS namelist for specified model config</p>
@@ -538,8 +758,18 @@ code.</p>
 
 <dl class="function">
 <dt id="wrfhydropy.core.model.get_git_revision_hash">
-<code class="descclassname">wrfhydropy.core.model.</code><code class="descname">get_git_revision_hash</code><span class="sig-paren">(</span><em>the_dir</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/model.html#get_git_revision_hash"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.model.get_git_revision_hash" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<code class="descclassname">wrfhydropy.core.model.</code><code class="descname">get_git_revision_hash</code><span class="sig-paren">(</span><em>the_dir: str</em><span class="sig-paren">)</span> &#x2192; str<a class="reference internal" href="../_modules/wrfhydropy/core/model.html#get_git_revision_hash"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.model.get_git_revision_hash" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the last git revision hash from a directory if directory is a git repository
+:Parameters: <strong>the_dir</strong> – String for the directory path</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">String with the git hash if a git repo or message if not</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 </div>
 <div class="section" id="module-wrfhydropy.core.namelist">
@@ -603,100 +833,11 @@ to an arbitrary depth, updating keys. The <code class="docutils literal notransl
 </table>
 </dd></dl>
 
-</div>
-<div class="section" id="module-wrfhydropy.core.outputdiffs">
-<span id="wrfhydropy-core-outputdiffs-module"></span><h2>wrfhydropy.core.outputdiffs module<a class="headerlink" href="#module-wrfhydropy.core.outputdiffs" title="Permalink to this headline">¶</a></h2>
-<dl class="class">
-<dt id="wrfhydropy.core.outputdiffs.OutputDiffs">
-<em class="property">class </em><code class="descclassname">wrfhydropy.core.outputdiffs.</code><code class="descname">OutputDiffs</code><span class="sig-paren">(</span><em>candidate_output: wrfhydropy.core.simulation.SimulationOutput, reference_output: wrfhydropy.core.simulation.SimulationOutput, nccmp_options: list = ['--data', '--metadata', '--force'], exclude_vars: list = ['ACMELT', 'ACSNOW', 'SFCRUNOFF', 'UDRUNOFF', 'ACCPRCP', 'ACCECAN', 'ACCEDIR', 'ACCETRAN', 'qstrmvolrt', 'reference_time'], exclude_atts: list = ['valid_min']</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/outputdiffs.html#OutputDiffs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputDiffs" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-<dl class="attribute">
-<dt id="wrfhydropy.core.outputdiffs.OutputDiffs.channel_rt">
-<code class="descname">channel_rt</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputDiffs.channel_rt" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>list</em> – List of pandas dataframes if possible or subprocess objects containing nudging
-restart file diffs</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="wrfhydropy.core.outputdiffs.OutputDiffs.chanobs">
-<code class="descname">chanobs</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputDiffs.chanobs" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>list</em> – List of pandas dataframes if possible or subprocess objects containing nudging
-restart file diffs</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="wrfhydropy.core.outputdiffs.OutputDiffs.diff_counts">
-<code class="descname">diff_counts</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputDiffs.diff_counts" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>dict</em> – Counts of diffs by restart type</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="wrfhydropy.core.outputdiffs.OutputDiffs.gwout">
-<code class="descname">gwout</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputDiffs.gwout" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>list</em> – List of pandas dataframes if possible or subprocess objects containing nudging
-restart file diffs</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="wrfhydropy.core.outputdiffs.OutputDiffs.lakeout">
-<code class="descname">lakeout</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputDiffs.lakeout" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>list</em> – List of pandas dataframes if possible or subprocess objects containing nudging
-restart file diffs</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="wrfhydropy.core.outputdiffs.OutputDiffs.restart_hydro">
-<code class="descname">restart_hydro</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputDiffs.restart_hydro" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>list</em> – List of pandas dataframes if possible or subprocess objects containing hydro
-restart file diffs</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="wrfhydropy.core.outputdiffs.OutputDiffs.restart_lsm">
-<code class="descname">restart_lsm</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputDiffs.restart_lsm" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>list</em> – List of pandas dataframes if possible or subprocess objects containing lsm restart
-file diffs</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="wrfhydropy.core.outputdiffs.OutputDiffs.restart_nudging">
-<code class="descname">restart_nudging</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputDiffs.restart_nudging" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>list</em> – List of pandas dataframes if possible or subprocess objects containing nudging
-restart file diffs</p>
-</dd></dl>
-
-</dd></dl>
-
 <dl class="function">
-<dt id="wrfhydropy.core.outputdiffs.compare_ncfiles">
-<code class="descclassname">wrfhydropy.core.outputdiffs.</code><code class="descname">compare_ncfiles</code><span class="sig-paren">(</span><em>candidate_files: list, reference_files: list, nccmp_options: list = ['--data', '--metadata', '--force'], exclude_vars: list = ['ACMELT', 'ACSNOW', 'SFCRUNOFF', 'UDRUNOFF', 'ACCPRCP', 'ACCECAN', 'ACCEDIR', 'ACCETRAN', 'qstrmvolrt', 'reference_time'], exclude_atts: list = ['valid_min']</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/outputdiffs.html#compare_ncfiles"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.outputdiffs.compare_ncfiles" title="Permalink to this definition">¶</a></dt>
-<dd><p>Compare lists of netcdf restart files element-wise. Files must have common names
-:Parameters: * <strong>candidate_files</strong> – List of candidate netcdf file paths</p>
-<blockquote>
-<div><ul class="simple">
-<li><strong>reference_files</strong> – List of reference netcdf file paths</li>
-<li><strong>nccmp_options</strong> – List of long-form command line options passed to nccmp,</li>
-<li><strong>see http</strong> – //nccmp.sourceforge.net/ for options</li>
-<li><strong>exclude_vars</strong> – A list of strings containing variables names to</li>
-<li><strong>exclude from the comparison</strong></li>
-<li><strong>exclude_atts</strong> – A list of strings containing attribute names to</li>
-<li><strong>exclude from the comparison</strong></li>
-</ul>
-</div></blockquote>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A named list of either pandas dataframes if possible or subprocess objects</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="function">
-<dt id="wrfhydropy.core.outputdiffs.diff_namelist">
-<code class="descclassname">wrfhydropy.core.outputdiffs.</code><code class="descname">diff_namelist</code><span class="sig-paren">(</span><em>namelist1: str</em>, <em>namelist2: str</em>, <em>**kwargs</em><span class="sig-paren">)</span> &#x2192; dict<a class="reference internal" href="../_modules/wrfhydropy/core/outputdiffs.html#diff_namelist"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.outputdiffs.diff_namelist" title="Permalink to this definition">¶</a></dt>
-<dd><p>Diff two fortran namelist files and return a dictionary of differences.</p>
+<dt id="wrfhydropy.core.namelist.diff_namelist">
+<code class="descclassname">wrfhydropy.core.namelist.</code><code class="descname">diff_namelist</code><span class="sig-paren">(</span><em>old_namelist: Union[wrfhydropy.core.namelist.Namelist, str], new_namelist: Union[wrfhydropy.core.namelist.Namelist, str], **kwargs</em><span class="sig-paren">)</span> &#x2192; dict<a class="reference internal" href="../_modules/wrfhydropy/core/namelist.html#diff_namelist"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.namelist.diff_namelist" title="Permalink to this definition">¶</a></dt>
+<dd><p>Diff two Namelist objects or fortran 90 namelist files and return a dictionary of
+differences.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -717,20 +858,189 @@ restart file diffs</p>
 </table>
 </dd></dl>
 
+<dl class="function">
+<dt id="wrfhydropy.core.namelist.load_namelist">
+<code class="descclassname">wrfhydropy.core.namelist.</code><code class="descname">load_namelist</code><span class="sig-paren">(</span><em>nml_path: str</em><span class="sig-paren">)</span> &#x2192; dict<a class="reference internal" href="../_modules/wrfhydropy/core/namelist.html#load_namelist"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.namelist.load_namelist" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load a F90 namelist into a wrfhydropy.Namelist object
+:Parameters: <strong>nml_path</strong> – String containing path to F90 namelist</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">dict interpretation of namelist</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-wrfhydropy.core.outputdiffs">
+<span id="wrfhydropy-core-outputdiffs-module"></span><h2>wrfhydropy.core.outputdiffs module<a class="headerlink" href="#module-wrfhydropy.core.outputdiffs" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="wrfhydropy.core.outputdiffs.OutputDataDiffs">
+<em class="property">class </em><code class="descclassname">wrfhydropy.core.outputdiffs.</code><code class="descname">OutputDataDiffs</code><span class="sig-paren">(</span><em>candidate_output: wrfhydropy.core.simulation.SimulationOutput</em>, <em>reference_output: wrfhydropy.core.simulation.SimulationOutput</em>, <em>nccmp_options: list = None</em>, <em>exclude_vars: list = None</em>, <em>exclude_atts: list = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/outputdiffs.html#OutputDataDiffs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputDataDiffs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="attribute">
+<dt id="wrfhydropy.core.outputdiffs.OutputDataDiffs.channel_rt">
+<code class="descname">channel_rt</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputDataDiffs.channel_rt" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list</em> – List of pandas dataframes if possible or subprocess objects containing nudging
+restart file diffs</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.outputdiffs.OutputDataDiffs.channel_rt_grid">
+<code class="descname">channel_rt_grid</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputDataDiffs.channel_rt_grid" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list</em> – List of pandas dataframes if possible or subprocess objects containing nudging
+restart file diffs</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.outputdiffs.OutputDataDiffs.chanobs">
+<code class="descname">chanobs</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputDataDiffs.chanobs" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list</em> – List of pandas dataframes if possible or subprocess objects containing nudging
+restart file diffs</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.outputdiffs.OutputDataDiffs.diff_counts">
+<code class="descname">diff_counts</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputDataDiffs.diff_counts" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>dict</em> – Counts of diffs by restart type</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.outputdiffs.OutputDataDiffs.gwout">
+<code class="descname">gwout</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputDataDiffs.gwout" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list</em> – List of pandas dataframes if possible or subprocess objects containing nudging
+restart file diffs</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.outputdiffs.OutputDataDiffs.lakeout">
+<code class="descname">lakeout</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputDataDiffs.lakeout" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list</em> – List of pandas dataframes if possible or subprocess objects containing nudging
+restart file diffs</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.outputdiffs.OutputDataDiffs.restart_hydro">
+<code class="descname">restart_hydro</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputDataDiffs.restart_hydro" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list</em> – List of pandas dataframes if possible or subprocess objects containing hydro
+restart file diffs</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.outputdiffs.OutputDataDiffs.restart_lsm">
+<code class="descname">restart_lsm</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputDataDiffs.restart_lsm" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list</em> – List of pandas dataframes if possible or subprocess objects containing lsm restart
+file diffs</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.outputdiffs.OutputDataDiffs.restart_nudging">
+<code class="descname">restart_nudging</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputDataDiffs.restart_nudging" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list</em> – List of pandas dataframes if possible or subprocess objects containing nudging
+restart file diffs</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="wrfhydropy.core.outputdiffs.OutputMetaDataDiffs">
+<em class="property">class </em><code class="descclassname">wrfhydropy.core.outputdiffs.</code><code class="descname">OutputMetaDataDiffs</code><span class="sig-paren">(</span><em>candidate_output: wrfhydropy.core.simulation.SimulationOutput</em>, <em>reference_output: wrfhydropy.core.simulation.SimulationOutput</em>, <em>stats_only=False</em>, <em>nccmp_options: list = None</em>, <em>exclude_vars: list = None</em>, <em>exclude_atts: list = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/outputdiffs.html#OutputMetaDataDiffs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputMetaDataDiffs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="attribute">
+<dt id="wrfhydropy.core.outputdiffs.OutputMetaDataDiffs.channel_rt">
+<code class="descname">channel_rt</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputMetaDataDiffs.channel_rt" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list</em> – List of pandas dataframes if possible or subprocess objects containing nudging
+restart file diffs</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.outputdiffs.OutputMetaDataDiffs.chanobs">
+<code class="descname">chanobs</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputMetaDataDiffs.chanobs" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list</em> – List of pandas dataframes if possible or subprocess objects containing nudging
+restart file diffs</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.outputdiffs.OutputMetaDataDiffs.diff_counts">
+<code class="descname">diff_counts</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputMetaDataDiffs.diff_counts" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>dict</em> – Counts of diffs by restart type</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.outputdiffs.OutputMetaDataDiffs.gwout">
+<code class="descname">gwout</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputMetaDataDiffs.gwout" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list</em> – List of pandas dataframes if possible or subprocess objects containing nudging
+restart file diffs</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.outputdiffs.OutputMetaDataDiffs.lakeout">
+<code class="descname">lakeout</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputMetaDataDiffs.lakeout" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list</em> – List of pandas dataframes if possible or subprocess objects containing nudging
+restart file diffs</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.outputdiffs.OutputMetaDataDiffs.restart_hydro">
+<code class="descname">restart_hydro</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputMetaDataDiffs.restart_hydro" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list</em> – List of pandas dataframes if possible or subprocess objects containing hydro
+restart file diffs</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.outputdiffs.OutputMetaDataDiffs.restart_lsm">
+<code class="descname">restart_lsm</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputMetaDataDiffs.restart_lsm" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list</em> – List of pandas dataframes if possible or subprocess objects containing lsm restart
+file diffs</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.outputdiffs.OutputMetaDataDiffs.restart_nudging">
+<code class="descname">restart_nudging</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.outputdiffs.OutputMetaDataDiffs.restart_nudging" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list</em> – List of pandas dataframes if possible or subprocess objects containing nudging
+restart file diffs</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="wrfhydropy.core.outputdiffs.compare_ncfiles">
+<code class="descclassname">wrfhydropy.core.outputdiffs.</code><code class="descname">compare_ncfiles</code><span class="sig-paren">(</span><em>candidate_files: list</em>, <em>reference_files: list</em>, <em>stats_only: bool = False</em>, <em>nccmp_options: list = None</em>, <em>exclude_vars: list = None</em>, <em>exclude_atts: list = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/outputdiffs.html#compare_ncfiles"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.outputdiffs.compare_ncfiles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compare lists of netcdf restart files element-wise. Files must have common names
+:Parameters: * <strong>candidate_files</strong> – List of candidate netcdf file paths</p>
+<blockquote>
+<div><ul class="simple">
+<li><strong>reference_files</strong> – List of reference netcdf file paths</li>
+<li><strong>stats_only</strong> – Only return statistics on differences in data values</li>
+<li><strong>nccmp_options</strong> – List of long-form command line options passed to nccmp,</li>
+<li><strong>see http</strong> – //nccmp.sourceforge.net/ for options. Defaults are ‘–metadata’, ‘–force’</li>
+<li><strong>exclude_vars</strong> – A list of strings containing variables names to</li>
+<li><strong>exclude from the comparison. Defaults are ‘ACMELT’, ‘ACSNOW’, ‘SFCRUNOFF’,</strong></li>
+<li><strong>‘UDRUNOFF’, ‘ACCPRCP’,’ACCECAN’, ‘ACCEDIR’, ‘ACCETRAN’, ‘qstrmvolrt’, ‘reference_time’</strong></li>
+<li><strong>exclude_atts</strong> – A list of strings containing attribute names to exclude from the</li>
+<li><strong>comparison. Defaults are ‘valid_min’</strong></li>
+</ul>
+</div></blockquote>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A named list of either pandas dataframes if possible or subprocess objects</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 </div>
 <div class="section" id="module-wrfhydropy.core.schedulers">
 <span id="wrfhydropy-core-schedulers-module"></span><h2>wrfhydropy.core.schedulers module<a class="headerlink" href="#module-wrfhydropy.core.schedulers" title="Permalink to this headline">¶</a></h2>
 <dl class="class">
 <dt id="wrfhydropy.core.schedulers.PBSCheyenne">
-<em class="property">class </em><code class="descclassname">wrfhydropy.core.schedulers.</code><code class="descname">PBSCheyenne</code><span class="sig-paren">(</span><em>account: str</em>, <em>email_who: str = None</em>, <em>email_when: str = 'abe'</em>, <em>nproc: int = 360</em>, <em>nnodes: int = None</em>, <em>ppn: int = 36</em>, <em>queue: str = 'regular'</em>, <em>walltime: str = '12:00:00'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/schedulers.html#PBSCheyenne"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.schedulers.PBSCheyenne" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">wrfhydropy.core.schedulers.</code><code class="descname">PBSCheyenne</code><span class="sig-paren">(</span><em>account: str</em>, <em>email_who: str = None</em>, <em>email_when: str = 'abe'</em>, <em>nproc: int = 216</em>, <em>nnodes: int = 6</em>, <em>ppn: int = None</em>, <em>queue: str = 'regular'</em>, <em>walltime: str = '12:00:00'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/schedulers.html#PBSCheyenne"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.schedulers.PBSCheyenne" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#wrfhydropy.core.schedulers.Scheduler" title="wrfhydropy.core.schedulers.Scheduler"><code class="xref py py-class docutils literal notranslate"><span class="pre">wrfhydropy.core.schedulers.Scheduler</span></code></a></p>
 <p>A Scheduler object compatible with PBS on the NCAR Cheyenne system.</p>
-<dl class="method">
-<dt id="wrfhydropy.core.schedulers.PBSCheyenne.add_job">
-<code class="descname">add_job</code><span class="sig-paren">(</span><em>job: wrfhydropy.core.job.Job</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/schedulers.html#PBSCheyenne.add_job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.schedulers.PBSCheyenne.add_job" title="Permalink to this definition">¶</a></dt>
-<dd><p>Add a job to the scheduler</p>
-</dd></dl>
-
 <dl class="attribute">
 <dt id="wrfhydropy.core.schedulers.PBSCheyenne.nnodes">
 <code class="descname">nnodes</code><a class="headerlink" href="#wrfhydropy.core.schedulers.PBSCheyenne.nnodes" title="Permalink to this definition">¶</a></dt>
@@ -748,8 +1058,9 @@ restart file diffs</p>
 
 <dl class="method">
 <dt id="wrfhydropy.core.schedulers.PBSCheyenne.schedule">
-<code class="descname">schedule</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/schedulers.html#PBSCheyenne.schedule"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.schedulers.PBSCheyenne.schedule" title="Permalink to this definition">¶</a></dt>
-<dd><p>Schedule jobs that have been added to the scheduler</p>
+<code class="descname">schedule</code><span class="sig-paren">(</span><em>jobs: list</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/schedulers.html#PBSCheyenne.schedule"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.schedulers.PBSCheyenne.schedule" title="Permalink to this definition">¶</a></dt>
+<dd><p>Schedule one or more jobs using the scheduler scheduler
+:Parameters: <strong>jobs</strong> – list of jobs to schedule</p>
 </dd></dl>
 
 </dd></dl>
@@ -759,13 +1070,8 @@ restart file diffs</p>
 <em class="property">class </em><code class="descclassname">wrfhydropy.core.schedulers.</code><code class="descname">Scheduler</code><a class="reference internal" href="../_modules/wrfhydropy/core/schedulers.html#Scheduler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.schedulers.Scheduler" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">abc.ABC</span></code></p>
 <dl class="method">
-<dt id="wrfhydropy.core.schedulers.Scheduler.add_job">
-<code class="descname">add_job</code><span class="sig-paren">(</span><em>job: wrfhydropy.core.job.Job</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/schedulers.html#Scheduler.add_job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.schedulers.Scheduler.add_job" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
 <dt id="wrfhydropy.core.schedulers.Scheduler.schedule">
-<code class="descname">schedule</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/schedulers.html#Scheduler.schedule"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.schedulers.Scheduler.schedule" title="Permalink to this definition">¶</a></dt>
+<code class="descname">schedule</code><span class="sig-paren">(</span><em>jobs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/schedulers.html#Scheduler.schedule"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.schedulers.Scheduler.schedule" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -782,7 +1088,7 @@ WRF-Hydro simulation by accessing methods of Model, Domain, and Job objects. Opt
 a scheduler can also be added.</p>
 <dl class="method">
 <dt id="wrfhydropy.core.simulation.Simulation.add">
-<code class="descname">add</code><span class="sig-paren">(</span><em>obj: object</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/simulation.html#Simulation.add"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.simulation.Simulation.add" title="Permalink to this definition">¶</a></dt>
+<code class="descname">add</code><span class="sig-paren">(</span><em>obj: Union[wrfhydropy.core.model.Model, wrfhydropy.core.domain.Domain, wrfhydropy.core.schedulers.Scheduler, wrfhydropy.core.job.Job]</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/simulation.html#Simulation.add"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.simulation.Simulation.add" title="Permalink to this definition">¶</a></dt>
 <dd><p>Add an approparite object to a Simulation, such as a Model, Domain, Job, or Scheduler</p>
 </dd></dl>
 
@@ -806,13 +1112,15 @@ a scheduler can also be added.</p>
 
 <dl class="method">
 <dt id="wrfhydropy.core.simulation.Simulation.compose">
-<code class="descname">compose</code><span class="sig-paren">(</span><em>symlink_domain: bool = True</em>, <em>force: bool = False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/simulation.html#Simulation.compose"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.simulation.Simulation.compose" title="Permalink to this definition">¶</a></dt>
+<code class="descname">compose</code><span class="sig-paren">(</span><em>symlink_domain: bool = True</em>, <em>force: bool = False</em>, <em>check_nlst_warn: bool = False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/simulation.html#Simulation.compose"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.simulation.Simulation.compose" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compose simulation directories and files
 :Parameters: * <strong>symlink_domain</strong> – Symlink the domain files rather than copy</p>
 <blockquote>
 <div><ul class="simple">
 <li><strong>force</strong> – Compose into directory even if not empty. This is considered bad practice but</li>
 <li><strong>is necessary in certain circumstances.</strong></li>
+<li><strong>check_nlst_warn</strong> – Allow the namelist checking/validation to only result in warnings.</li>
+<li><strong>This is also not great practice, but necessary in certain circumstances.</strong></li>
 </ul>
 </div></blockquote>
 </dd></dl>
@@ -849,6 +1157,29 @@ a scheduler can also be added.</p>
 </dd></dl>
 
 <dl class="method">
+<dt id="wrfhydropy.core.simulation.Simulation.pickle_sub_obj">
+<code class="descname">pickle_sub_obj</code><span class="sig-paren">(</span><em>sub_obj</em>, <em>path</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/simulation.html#Simulation.pickle_sub_obj"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.simulation.Simulation.pickle_sub_obj" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method to reduce <em>composed</em> simulation pickle sizes for performance applications. This
+method replaces a simulation sub-object (model, domain, or output)  with it’s relative
+pathlib.Path. The inverse, to bring that object back from its path is restore_obj().
+Usage example:</p>
+<blockquote>
+<div>sim.model = sim.pickle_sub_obj(sim.model, ‘WrfHydroModel.pkl’)</div></blockquote>
+</dd></dl>
+
+<dl class="method">
+<dt id="wrfhydropy.core.simulation.Simulation.restore_sub_obj">
+<code class="descname">restore_sub_obj</code><span class="sig-paren">(</span><em>attr_name: pathlib.Path</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/simulation.html#Simulation.restore_sub_obj"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.simulation.Simulation.restore_sub_obj" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method to reduce <em>composed</em> simulation pickle sizes for performance applications. This
+method restores a simulation sub-object (model, domain, or output) from it’s relative
+pathlib.Path, which replaces the object in the simulation. The inverse, that pickles the
+subobject is pickle_sub_obj().
+Usage:</p>
+<blockquote>
+<div>sim.model = sim.restore_obj(‘model’)</div></blockquote>
+</dd></dl>
+
+<dl class="method">
 <dt id="wrfhydropy.core.simulation.Simulation.run">
 <code class="descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/simulation.html#Simulation.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.simulation.Simulation.run" title="Permalink to this definition">¶</a></dt>
 <dd><p>Run the composed simulation</p>
@@ -875,16 +1206,28 @@ Simulation.collect() method</p>
 </dd></dl>
 
 <dl class="attribute">
+<dt id="wrfhydropy.core.simulation.SimulationOutput.channel_rt_grid">
+<code class="descname">channel_rt_grid</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.simulation.SimulationOutput.channel_rt_grid" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>WrfHydroTs</em> – Timeseries dataset of CHRTOUT gridded files</p>
+</dd></dl>
+
+<dl class="attribute">
 <dt id="wrfhydropy.core.simulation.SimulationOutput.chanobs">
 <code class="descname">chanobs</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.simulation.SimulationOutput.chanobs" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>WrfHydroTs</em> – Timeseries dataset of CHANOBS files</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="wrfhydropy.core.simulation.SimulationOutput.collect">
-<code class="descname">collect</code><span class="sig-paren">(</span><em>sim_dir: Union[str, pathlib.Path]</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/simulation.html#SimulationOutput.collect"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.simulation.SimulationOutput.collect" title="Permalink to this definition">¶</a></dt>
+<dt id="wrfhydropy.core.simulation.SimulationOutput.check_output_nas">
+<code class="descname">check_output_nas</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/simulation.html#SimulationOutput.check_output_nas"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.simulation.SimulationOutput.check_output_nas" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check all outputs for NA values</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="wrfhydropy.core.simulation.SimulationOutput.collect_output">
+<code class="descname">collect_output</code><span class="sig-paren">(</span><em>sim_dir: Union[str</em>, <em>pathlib.Path] = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/simulation.html#SimulationOutput.collect_output"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.simulation.SimulationOutput.collect_output" title="Permalink to this definition">¶</a></dt>
 <dd><p>Collect simulation output after a run
-:Parameters: <strong>sim_dir</strong> – The simulation directory</p>
+:Parameters: <strong>sim_dir</strong> – The simulation directory to collect</p>
 </dd></dl>
 
 <dl class="attribute">
@@ -927,9 +1270,7 @@ Simulation.collect() method</p>
 
 
            </div>
-           <div class="articleComments">
-            
-           </div>
+           
           </div>
           <footer>
   
@@ -942,7 +1283,7 @@ Simulation.collect() method</p>
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -961,6 +1302,7 @@ Simulation.collect() method</p>
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../',
             VERSION:'0.0.3',
+            LANGUAGE:'None',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true,
@@ -973,19 +1315,13 @@ Simulation.collect() method</p>
 
   
 
-  
-  
-    <script type="text/javascript" src="../_static/js/theme.js"></script>
-  
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
 
-  
-  
   <script type="text/javascript">
       jQuery(function () {
-          SphinxRtdTheme.StickyNav.enable();
+          SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-   
+  </script> 
 
 </body>
 </html>

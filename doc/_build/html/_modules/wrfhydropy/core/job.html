@@ -24,26 +24,17 @@
 
   
 
-  
-  
-    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
-  
-
-  
-
-  
-        <link rel="index" title="Index"
-              href="../../../genindex.html"/>
-        <link rel="search" title="Search" href="../../../search.html"/>
-    <link rel="top" title="wrfhydropy 0.0.3 documentation" href="../../../index.html"/>
-        <link rel="up" title="Module code" href="../../index.html"/> 
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
 
   
   <script src="../../../_static/js/modernizr.min.js"></script>
 
 </head>
 
-<body class="wy-body-for-nav" role="document">
+<body class="wy-body-for-nav">
 
    
   <div class="wy-grid-for-nav">
@@ -96,7 +87,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
 
       
-      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+      <nav class="wy-nav-top" aria-label="top navigation">
         
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="../../../index.html">wrfhydropy</a>
@@ -104,9 +95,10 @@
       </nav>
 
 
-      
       <div class="wy-nav-content">
+        
         <div class="rst-content">
+        
           
 
 
@@ -136,8 +128,6 @@
     
       <li class="wy-breadcrumbs-aside">
         
-            
-        
       </li>
     
   </ul>
@@ -149,22 +139,21 @@
            <div itemprop="articleBody">
             
   <h1>Source code for wrfhydropy.core.job</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">pathlib</span>
-<span class="kn">import</span> <span class="nn">f90nml</span>
+<span></span><span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">pathlib</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
 <span class="kn">import</span> <span class="nn">shutil</span>
 <span class="kn">import</span> <span class="nn">subprocess</span>
-<span class="kn">import</span> <span class="nn">shlex</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
-<span class="kn">import</span> <span class="nn">pickle</span>
-<span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">import</span> <span class="nn">copy</span>
-<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
-
 <span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Union</span>
 
-<span class="kn">from</span> <span class="nn">.namelist</span> <span class="k">import</span> <span class="n">Namelist</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
 <span class="kn">from</span> <span class="nn">.ioutils</span> <span class="k">import</span> <span class="n">_check_file_exist_colon</span>
+<span class="kn">from</span> <span class="nn">.namelist</span> <span class="k">import</span> <span class="n">Namelist</span>
+
 
 <div class="viewcode-block" id="Job"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job">[docs]</a><span class="k">class</span> <span class="nc">Job</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;A Job represents run-time specific information for a given WRF-Hydro run. A Simulation</span>
@@ -175,6 +164,7 @@
             <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
             <span class="n">model_start_time</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span><span class="n">pd</span><span class="o">.</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
             <span class="n">model_end_time</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span><span class="n">pd</span><span class="o">.</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">restart</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
             <span class="n">exe_cmd</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
             <span class="n">entry_cmd</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
             <span class="n">exit_cmd</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
@@ -185,6 +175,7 @@
 <span class="sd">            a pandas.to_datetime compatible string or a pandas datetime object.</span>
 <span class="sd">            model_end_time: The model end time to use for the WRF-Hydro model run. Can be</span>
 <span class="sd">            a pandas.to_datetime compatible string or a pandas datetime object.</span>
+<span class="sd">            restart: Job is starting from a restart file. Use False for a cold start.</span>
 <span class="sd">            exe_cmd: The system-specific command to execute WRF-Hydro, for example &#39;mpirun -np</span>
 <span class="sd">            36 ./wrf_hydro.exe&#39;. Can be left as None if jobs is added to a scheduler or if a</span>
 <span class="sd">            scheduler is used in a simulation.</span>
@@ -207,6 +198,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">job_id</span> <span class="o">=</span> <span class="n">job_id</span>
         <span class="sd">&quot;&quot;&quot;str: The job id.&quot;&quot;&quot;</span>
 
+        <span class="bp">self</span><span class="o">.</span><span class="n">restart</span> <span class="o">=</span> <span class="n">restart</span>
+        <span class="sd">&quot;&quot;&quot;bool: Start model from a restart.&quot;&quot;&quot;</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">_model_start_time</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">model_start_time</span><span class="p">)</span>
         <span class="sd">&quot;&quot;&quot;np.datetime64: The model time at the start of the execution.&quot;&quot;&quot;</span>
 
@@ -214,45 +208,26 @@
         <span class="sd">&quot;&quot;&quot;np.datetime64: The model time at the end of the execution.&quot;&quot;&quot;</span>
 
         <span class="c1">## property construction</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_hrldas_times</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">:</span>
-                                  <span class="p">{</span><span class="s1">&#39;kday&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
-                                   <span class="s1">&#39;khour&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
-                                   <span class="s1">&#39;start_year&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
-                                   <span class="s1">&#39;start_month&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
-                                   <span class="s1">&#39;start_day&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
-                                   <span class="s1">&#39;start_hour&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
-                                   <span class="s1">&#39;start_min&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
-                                   <span class="s1">&#39;restart_filename_requested&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
-                              <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_hrldas_times</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">:</span>
+            <span class="p">{</span>
+                <span class="s1">&#39;khour&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s1">&#39;start_year&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s1">&#39;start_month&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s1">&#39;start_day&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s1">&#39;start_hour&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s1">&#39;start_min&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s1">&#39;restart_filename_requested&#39;</span><span class="p">:</span> <span class="kc">None</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_hydro_times</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;hydro_nlist&#39;</span><span class="p">:</span>
-                                 <span class="p">{</span><span class="s1">&#39;restart_file&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
-                             <span class="s1">&#39;nudging_nlist&#39;</span><span class="p">:</span>
-                                 <span class="p">{</span><span class="s1">&#39;nudginglastobsfile&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
-                             <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_hydro_times</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;hydro_nlist&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;restart_file&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
+            <span class="s1">&#39;nudging_nlist&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;nudginglastobsfile&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+        <span class="p">}</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_hydro_namelist</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_hrldas_namelist</span> <span class="o">=</span> <span class="kc">None</span>
-
-        <span class="c1"># # Attributes set by class methods</span>
-        <span class="c1"># self.hrldas_times = {&#39;noahlsm_offline&#39;:</span>
-        <span class="c1">#                          {&#39;kday&#39;:None,</span>
-        <span class="c1">#                           &#39;khour&#39;:None,</span>
-        <span class="c1">#                           &#39;start_year&#39;:None,</span>
-        <span class="c1">#                           &#39;start_month&#39;:None,</span>
-        <span class="c1">#                           &#39;start_day&#39;: None,</span>
-        <span class="c1">#                           &#39;start_hour&#39;:None,</span>
-        <span class="c1">#                           &#39;start_min&#39;:None,</span>
-        <span class="c1">#                           &#39;restart_filename_requested&#39;: None}</span>
-        <span class="c1">#                      }</span>
-        <span class="c1"># &quot;&quot;&quot;dict: the HRLDAS namelist used for this job.&quot;&quot;&quot;</span>
-        <span class="c1">#</span>
-        <span class="c1"># self.hydro_times = {&#39;hydro_nlist&#39;:</span>
-        <span class="c1">#                         {&#39;restart_file&#39;:None},</span>
-        <span class="c1">#                     &#39;nudging_nlist&#39;:</span>
-        <span class="c1">#                         {&#39;nudginglastobsfile&#39;:None}</span>
-        <span class="c1">#                     }</span>
-        <span class="c1"># &quot;&quot;&quot;dict: the hydro namelist used for this job.&quot;&quot;&quot;</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">exit_status</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="sd">&quot;&quot;&quot;int: The exit status of the model job parsed from WRF-Hydro diag files&quot;&quot;&quot;</span>
@@ -267,19 +242,21 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_job_submission_time</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="sd">&quot;&quot;&quot;str?: The time the job object was created.&quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="Job.add_hydro_namelist"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job.add_hydro_namelist">[docs]</a>    <span class="k">def</span> <span class="nf">add_hydro_namelist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">namelist</span><span class="p">:</span> <span class="n">Namelist</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_add_hydro_namelist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">namelist</span><span class="p">:</span> <span class="n">Namelist</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Add a hydro_namelist Namelist object to the job object</span>
 <span class="sd">        Args:</span>
 <span class="sd">            namelist: The Namelist to add</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_hydro_namelist</span> <span class="o">=</span> <span class="n">namelist</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_hydro_namelist</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">namelist</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Job.add_hrldas_namelist"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job.add_hrldas_namelist">[docs]</a>    <span class="k">def</span> <span class="nf">add_hrldas_namelist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">namelist</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_add_hrldas_namelist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">namelist</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Add a hrldas_namelist Namelist object to the job object</span>
 <span class="sd">        Args:</span>
 <span class="sd">            namelist: The namelist dictionary to add</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_hrldas_namelist</span> <span class="o">=</span> <span class="n">namelist</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_hrldas_namelist</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">namelist</span><span class="p">)</span>
+        <span class="c1"># Never use KDAY in wrfhydropy. This eliminates it entering the patch with the time info.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_hrldas_namelist</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;kday&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
 
 <div class="viewcode-block" id="Job.clone"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job.clone">[docs]</a>    <span class="k">def</span> <span class="nf">clone</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Clone a job object N-times using deepcopy.</span>
@@ -291,14 +268,22 @@
         <span class="n">clones</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">):</span>
             <span class="n">clones</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
-        <span class="k">return</span><span class="p">(</span><span class="n">clones</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="n">clones</span></div>
+
+    <span class="k">def</span> <span class="nf">pickle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Pickle sim object to specified file path</span>
+<span class="sd">        Args:</span>
+<span class="sd">            path: The file path for pickle</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">path</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Private method to run a job&quot;&quot;&quot;</span>
 
         <span class="c1"># Create curent dir path to use for all operations. Needed so that everything can be run</span>
         <span class="c1"># relative to the simulation directory</span>
-
         <span class="n">current_dir</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">curdir</span><span class="p">)</span>
 
         <span class="c1"># Print some basic info about the run</span>
@@ -343,52 +328,89 @@
 
         <span class="n">cmd_string</span> <span class="o">+=</span> <span class="s1">&#39;&quot;&#39;</span>
 
-        <span class="c1"># Set start time of job execution</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">job_start_time</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">())</span>
+        <span class="c1"># Set start and end times</span>
+        <span class="c1"># 1) wall time of job execution in the job object and</span>
+        <span class="c1"># 2) (write to) file the model start and stop times.</span>
+        
+        <span class="n">file_model_start_time</span> <span class="o">=</span> <span class="n">current_dir</span> <span class="o">/</span> <span class="s1">&#39;.model_start_time&#39;</span>
+        <span class="n">file_model_end_time</span> <span class="o">=</span> <span class="n">current_dir</span> <span class="o">/</span> <span class="s1">&#39;.model_end_time&#39;</span>
+        <span class="k">if</span> <span class="n">file_model_end_time</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">file_model_end_time</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
+        <span class="c1"># Write the model start time now, but only write the file .model_end_time</span>
+        <span class="c1"># upon successful completion. See below.</span>
+        <span class="k">with</span> <span class="n">file_model_start_time</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">opened_file</span><span class="p">:</span>
+            <span class="n">_</span> <span class="o">=</span> <span class="n">opened_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_model_start_time</span><span class="p">))</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_proc_log</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">cmd_string</span><span class="p">,</span>
-                                        <span class="n">shell</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-                                        <span class="n">cwd</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">current_dir</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_start_time</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">())</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_proc_log</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+            <span class="n">cmd_string</span><span class="p">,</span>
+            <span class="n">shell</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="n">cwd</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">current_dir</span><span class="p">)</span>
+        <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">job_end_time</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">())</span>
+        
+        <span class="c1"># String match diag files or stdout for successfull run if running on gfort or intel</span>
+        <span class="c1"># Gfort outputs it to diag, intel outputs it to stdout</span>
+        <span class="n">diag_file</span> <span class="o">=</span> <span class="n">current_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;diag_hydro.00000&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">diag_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="c1">#Check diag files first</span>
+            <span class="k">with</span> <span class="n">diag_file</span><span class="o">.</span><span class="n">open</span><span class="p">()</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">diag_file</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+                <span class="k">if</span> <span class="s1">&#39;The model finished successfully.......&#39;</span> <span class="ow">in</span> <span class="n">diag_file</span><span class="p">:</span>
+                    <span class="n">diag_exit_status</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">diag_exit_status</span> <span class="o">=</span> <span class="mi">1</span>
 
-        <span class="c1"># String match diag files for successfull run</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">exit_status</span> <span class="o">=</span> <span class="mi">1</span>
-        <span class="k">with</span> <span class="n">current_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;diag_hydro.00000&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">open</span><span class="p">()</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="n">diag_file</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
-            <span class="k">if</span> <span class="s1">&#39;The model finished successfully.......&#39;</span> <span class="ow">in</span> <span class="n">diag_file</span><span class="p">:</span>
+            <span class="c1"># Check stdout files second</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">stdout_file</span><span class="o">.</span><span class="n">open</span><span class="p">()</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">stdout_file</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+                <span class="k">if</span> <span class="s1">&#39;The model finished successfully.......&#39;</span> <span class="ow">in</span> <span class="n">stdout_file</span><span class="p">:</span>
+                    <span class="n">stdout_exit_status</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">stdout_exit_status</span> <span class="o">=</span> <span class="mi">1</span>
+
+            <span class="k">if</span> <span class="n">diag_exit_status</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">stdout_exit_status</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">exit_status</span> <span class="o">=</span> <span class="mi">0</span>
 
-        <span class="c1"># cleanup job-specific run files</span>
-        <span class="n">diag_files</span> <span class="o">=</span> <span class="n">current_dir</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;*diag*&#39;</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">diag_files</span><span class="p">:</span>
-            <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">file</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="p">))</span>
+                <span class="c1"># cleanup job-specific run files</span>
+                <span class="n">diag_files</span> <span class="o">=</span> <span class="n">current_dir</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;*diag*&#39;</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">diag_files</span><span class="p">:</span>
+                    <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">file</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="p">))</span>
 
-        <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stdout_file</span><span class="p">),</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="p">))</span>
-        <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stderr_file</span><span class="p">),</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="p">))</span>
-        <span class="n">current_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;hydro.namelist&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
-        <span class="n">current_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;namelist.hrldas&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
+                <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stdout_file</span><span class="p">),</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="p">))</span>
+                <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stderr_file</span><span class="p">),</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="p">))</span>
+                <span class="n">current_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;hydro.namelist&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
+                <span class="n">current_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;namelist.hrldas&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">exit_status</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exit_status</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pickle</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;WrfHydroJob_postrun.pkl&#39;</span><span class="p">)))</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Model did not finish successfully&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Only write the file .model_end_time upon successful completion.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exit_status</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">file_model_end_time</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">opened_file</span><span class="p">:</span>
+                <span class="n">_</span> <span class="o">=</span> <span class="n">opened_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_model_end_time</span><span class="p">))</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">pickle</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;WrfHydroJob_postrun.pkl&#39;</span><span class="p">)))</span>
 
     <span class="k">def</span> <span class="nf">_write_namelists</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Private method to write namelist dicts to FORTRAN namelist files&quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">hydro_namelist</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;hydro.namelist&#39;</span><span class="p">)))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">hrldas_namelist</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;namelist.hrldas&#39;</span><span class="p">)))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hydro_namelist</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;hydro.namelist&#39;</span><span class="p">)))</span>
 
     <span class="k">def</span> <span class="nf">_set_hrldas_times</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Private method to set model run times in the hrldas namelist&quot;&quot;&quot;</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_start_time</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_end_time</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="c1"># Duration</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">][</span><span class="s1">&#39;kday&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">][</span><span class="s1">&#39;khour&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="n">duration</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_end_time</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_start_time</span>
-            <span class="k">if</span> <span class="n">duration</span><span class="o">.</span><span class="n">seconds</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">][</span><span class="s1">&#39;kday&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">duration</span><span class="o">.</span><span class="n">days</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;khour&#39;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">][</span><span class="s1">&#39;khour&#39;</span><span class="p">]</span> <span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">duration</span><span class="o">.</span><span class="n">days</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">+</span>
-                                                                    <span class="n">duration</span><span class="o">.</span><span class="n">seconds</span> <span class="o">/</span> <span class="mi">3600</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;kday&#39;</span><span class="p">)</span>
+
+            <span class="c1"># Only use KHOUR. Never use KDAY in wrfhydropy.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">][</span><span class="s1">&#39;khour&#39;</span><span class="p">]</span> <span class="o">=</span> \
+                <span class="nb">int</span><span class="p">((</span><span class="n">duration</span><span class="o">.</span><span class="n">days</span> <span class="o">*</span> <span class="mi">24</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">duration</span><span class="o">.</span><span class="n">seconds</span> <span class="o">/</span> <span class="mi">3600</span><span class="p">))</span>
 
             <span class="c1"># Start</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">][</span><span class="s1">&#39;start_year&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_model_start_time</span><span class="o">.</span><span class="n">year</span><span class="p">)</span>
@@ -397,20 +419,21 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">][</span><span class="s1">&#39;start_hour&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_model_start_time</span><span class="o">.</span><span class="n">hour</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">][</span><span class="s1">&#39;start_min&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_model_start_time</span><span class="o">.</span><span class="n">minute</span><span class="p">)</span>
 
-            <span class="n">lsm_restart_dirname</span> <span class="o">=</span> <span class="s1">&#39;.&#39;</span>  <span class="c1"># os.path.dirname(noah_nlst[&#39;restart_filename_requested&#39;])</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">restart</span><span class="p">:</span>
+                <span class="n">lsm_restart_dirname</span> <span class="o">=</span> <span class="s1">&#39;.&#39;</span>  <span class="c1"># os.path.dirname(noah_nlst[&#39;restart_filename_requested&#39;])</span>
 
-            <span class="c1"># Format - 2011082600 - no minutes</span>
-            <span class="n">lsm_restart_basename</span> <span class="o">=</span> <span class="s1">&#39;RESTART.&#39;</span> <span class="o">+</span> \
-                                   <span class="bp">self</span><span class="o">.</span><span class="n">_model_start_time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y%m</span><span class="si">%d</span><span class="s1">%H&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;_DOMAIN1&#39;</span>
+                <span class="c1"># Format - 2011082600 - no minutes</span>
+                <span class="n">lsm_restart_basename</span> <span class="o">=</span> <span class="s1">&#39;RESTART.&#39;</span> <span class="o">+</span> \
+                                       <span class="bp">self</span><span class="o">.</span><span class="n">_model_start_time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y%m</span><span class="si">%d</span><span class="s1">%H&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;_DOMAIN1&#39;</span>
 
-            <span class="n">lsm_restart_file</span> <span class="o">=</span> <span class="n">lsm_restart_dirname</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">lsm_restart_basename</span>
+                <span class="n">lsm_restart_file</span> <span class="o">=</span> <span class="n">lsm_restart_dirname</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">lsm_restart_basename</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">_hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">][</span><span class="s1">&#39;restart_filename_requested&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lsm_restart_file</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_hrldas_times</span><span class="p">[</span><span class="s1">&#39;noahlsm_offline&#39;</span><span class="p">][</span><span class="s1">&#39;restart_filename_requested&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lsm_restart_file</span>
 
     <span class="k">def</span> <span class="nf">_set_hydro_times</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Private method to set model run times in the hydro namelist&quot;&quot;&quot;</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_start_time</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_start_time</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">restart</span><span class="p">:</span>
             <span class="c1"># Format - 2011-08-26_00_00 - minutes</span>
             <span class="n">hydro_restart_basename</span> <span class="o">=</span> <span class="s1">&#39;HYDRO_RST.&#39;</span> <span class="o">+</span> \
                                      <span class="bp">self</span><span class="o">.</span><span class="n">_model_start_time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">_%H:%M&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;_DOMAIN1&#39;</span>
@@ -440,7 +463,7 @@
         <span class="sd">&quot;&quot;&quot;Private method to write a python script to run the job. This is used primarily for</span>
 <span class="sd">        compatibility with job schedulers on HPC systems&quot;&quot;&quot;</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_pickle</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pickle</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;WrfHydroJob_prerun.pkl&#39;</span><span class="p">)))</span>
 
         <span class="n">pystr</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
         <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;# import modules</span><span class="se">\n</span><span class="s2">&quot;</span>
@@ -461,11 +484,10 @@
         <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
 
         <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;#load job object</span><span class="se">\n</span><span class="s2">&quot;</span>
-        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;job_dir = &#39;job_&#39; + args.job_id + &#39;/WrfHydroJob.pkl&#39;</span><span class="se">\n</span><span class="s2">&quot;</span>
-        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;job = pickle.load(open(job_dir,mode=&#39;rb&#39;))</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;job_file = &#39;job_&#39; + args.job_id + &#39;/WrfHydroJob_prerun.pkl&#39;</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;job = pickle.load(open(job_file,mode=&#39;rb&#39;))</span><span class="se">\n</span><span class="s2">&quot;</span>
         <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;#Run the job</span><span class="se">\n</span><span class="s2">&quot;</span>
         <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;job._run()</span><span class="se">\n</span><span class="s2">&quot;</span>
-        <span class="n">pystr</span> <span class="o">+=</span> <span class="s2">&quot;job._pickle()</span><span class="se">\n</span><span class="s2">&quot;</span>
 
         <span class="n">pystr_file</span> <span class="o">=</span> <span class="s1">&#39;run_job.py&#39;</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">pystr_file</span><span class="p">,</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
@@ -484,17 +506,21 @@
         <span class="c1"># model_end_time</span>
         <span class="k">if</span> <span class="s1">&#39;khour&#39;</span> <span class="ow">in</span> <span class="n">noah_namelist</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
             <span class="n">duration</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;hours&#39;</span><span class="p">:</span> <span class="n">noah_namelist</span><span class="p">[</span><span class="s1">&#39;khour&#39;</span><span class="p">]}</span>
-        <span class="k">elif</span> <span class="s1">&#39;kday&#39;</span> <span class="ow">in</span> <span class="n">noah_namelist</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-            <span class="n">duration</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;days&#39;</span><span class="p">:</span> <span class="n">noah_namelist</span><span class="p">[</span><span class="s1">&#39;kday&#39;</span><span class="p">]}</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Neither KDAY nor KHOUR in namelist.hrldas.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;KHOUR is not in namelist.hrldas (wrfhydropy only uses KHOUR).&quot;</span><span class="p">)</span>
         <span class="n">model_end_time</span> <span class="o">=</span> <span class="n">model_start_time</span> <span class="o">+</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="o">**</span><span class="n">duration</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">model_start_time</span><span class="p">,</span> <span class="n">model_end_time</span>
 
-    <span class="k">def</span> <span class="nf">_pickle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;WrfHydroJob.pkl&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+<div class="viewcode-block" id="Job.pickle"><a class="viewcode-back" href="../../../source/wrfhydropy.core.html#wrfhydropy.core.job.Job.pickle">[docs]</a>    <span class="k">def</span> <span class="nf">pickle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Pickle job object to specified file path</span>
+<span class="sd">        Args:</span>
+<span class="sd">            path: The file path for pickle</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">path</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span></div>
+
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">job_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -530,7 +556,7 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">model_start_time</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;np.datetime64: The model time at the start of the execution.&quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot;datetime: The model time at the start of the execution.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_start_time</span>
 
     <span class="nd">@model_start_time</span><span class="o">.</span><span class="n">setter</span>
@@ -539,6 +565,7 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">model_end_time</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;datetime: The model time at the end of the execution.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_end_time</span>
 
     <span class="nd">@model_end_time</span><span class="o">.</span><span class="n">setter</span>
@@ -549,9 +576,7 @@
 </pre></div>
 
            </div>
-           <div class="articleComments">
-            
-           </div>
+           
           </div>
           <footer>
   
@@ -564,7 +589,7 @@
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -583,6 +608,7 @@
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../../',
             VERSION:'0.0.3',
+            LANGUAGE:'None',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true,
@@ -595,19 +621,13 @@
 
   
 
-  
-  
-    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
-  
+  <script type="text/javascript" src="../../../_static/js/theme.js"></script>
 
-  
-  
   <script type="text/javascript">
       jQuery(function () {
-          SphinxRtdTheme.StickyNav.enable();
+          SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-   
+  </script> 
 
 </body>
 </html>

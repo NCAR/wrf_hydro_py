@@ -19,9 +19,12 @@ def test_job_init():
     assert job.model_start_time == Timestamp('1984-10-14 00:00:00')
     assert job.model_end_time == Timestamp('2017-01-04 00:00:00')
 
-    assert job.hydro_times == {'hydro_nlist': {'restart_file': None},
-                               'nudging_nlist': {'nudginglastobsfile': None}}
+    assert job.hydro_times == {'hydro_nlist': {'restart_file': None,'rst_dt': 60, 'out_dt': 60 },
+                               'nudging_nlist': {'nudginglastobsfile': None},
+                               }
     assert job.hrldas_times == {'noahlsm_offline': {'khour': 282480,
+                                                    'restart_frequency_hours': 1,
+                                                    'output_timestep' : 1,
                                                     'start_year': 1984,
                                                     'start_month': 10,
                                                     'start_day': 14,
@@ -48,7 +51,10 @@ def test_job_hydro_namelist():
     })
 
     job._add_hydro_namelist(hydro_namelist)
-    assert job.hydro_namelist == {'hydro_nlist': {'restart_file': None, 'channel_option': 2},
+    assert job.hydro_namelist == {'hydro_nlist': {'restart_file': None,
+                                                  'channel_option': 2,
+                                                  'rst_dt': 60,
+                                                  'out_dt' : 60},
                                   'nudging_nlist': {'nudginglastobsfile': None}}
 
 
@@ -78,6 +84,8 @@ def test_job_hrldas_namelist():
     job._add_hrldas_namelist(hrldas_namelist)
     assert job.hrldas_namelist == {'noahlsm_offline': {'btr_option': 1,
                                                        'khour': 282480,
+                                                       'restart_frequency_hours': 1,
+                                                       'output_timestep' : 1,
                                                        'start_year': 1984,
                                                        'start_month': 10,
                                                        'start_day': 14,
@@ -122,7 +130,9 @@ def test_job_restart_file_times():
 
     assert job.hydro_namelist == {
         'hydro_nlist': {
-            'restart_file': 'HYDRO_RST.1984-10-14_00:00_DOMAIN1'
+            'restart_file': 'HYDRO_RST.1984-10-14_00:00_DOMAIN1',
+            'rst_dt': 60,
+            'out_dt': 60
         },
         'nudging_nlist': {
             'nudginglastobsfile': 'nudgingLastObs.1984-10-14_00:00:00.nc'
@@ -132,6 +142,8 @@ def test_job_restart_file_times():
     assert job.hrldas_namelist == {'noahlsm_offline': {
         'btr_option': 1,
         'khour': 282480,
+        'restart_frequency_hours': 1,
+        'output_timestep': 1,
         'start_year': 1984,
         'start_month': 10,
         'start_day': 14,

@@ -304,7 +304,7 @@ class Job(object):
                 self._hrldas_times['noahlsm_offline']['restart_filename_requested'] = lsm_restart_file
 
             self._hrldas_times['noahlsm_offline']['restart_frequency_hours'] = self.restart_freq
-            self._hrldas_times['noahlsm_offline']['output_timestep'] = self.output_freq
+            self._hrldas_times['noahlsm_offline']['output_timestep'] = self.output_freq*60*60
 
     def _set_hydro_times(self):
         """Private method to set model run times in the hydro namelist"""

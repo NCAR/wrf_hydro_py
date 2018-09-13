@@ -458,12 +458,15 @@ but it works for classes in wrfhydropy).</p>
 
 <dl class="method">
 <dt id="wrfhydropy.core.ioutils.WrfHydroTs.open">
-<code class="descname">open</code><span class="sig-paren">(</span><em>chunks: dict = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ioutils.html#WrfHydroTs.open"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ioutils.WrfHydroTs.open" title="Permalink to this definition">¶</a></dt>
+<code class="descname">open</code><span class="sig-paren">(</span><em>chunks: dict = None</em>, <em>forecast: bool = True</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/ioutils.html#WrfHydroTs.open"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.ioutils.WrfHydroTs.open" title="Permalink to this definition">¶</a></dt>
 <dd><p>Open a WrfHydroTs object
 :Parameters: * <strong>self</strong></p>
 <blockquote>
 <div><ul class="simple">
 <li><strong>chunks</strong> – chunks argument passed on to xarray.DataFrame.chunk() method</li>
+<li><strong>forecast</strong> – If forecast the reference time dimension is retained, if not then</li>
+<li><strong>reference_time dimension is set to a dummy value</strong> (<em>1970-01-01</em>)</li>
+<li><strong>and analysis</strong></li>
 </ul>
 </div></blockquote>
 <table class="docutils field-list" frame="void" rules="none">
@@ -542,7 +545,7 @@ reference_time dimensions</td>
 <span id="wrfhydropy-core-job-module"></span><h2>wrfhydropy.core.job module<a class="headerlink" href="#module-wrfhydropy.core.job" title="Permalink to this headline">¶</a></h2>
 <dl class="class">
 <dt id="wrfhydropy.core.job.Job">
-<em class="property">class </em><code class="descclassname">wrfhydropy.core.job.</code><code class="descname">Job</code><span class="sig-paren">(</span><em>job_id: str</em>, <em>model_start_time: Union[str</em>, <em>datetime.datetime] = None</em>, <em>model_end_time: Union[str</em>, <em>datetime.datetime] = None</em>, <em>restart: bool = True</em>, <em>exe_cmd: str = None</em>, <em>entry_cmd: str = None</em>, <em>exit_cmd: str = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/job.html#Job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.job.Job" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">wrfhydropy.core.job.</code><code class="descname">Job</code><span class="sig-paren">(</span><em>job_id: str</em>, <em>model_start_time: Union[str</em>, <em>datetime.datetime] = None</em>, <em>model_end_time: Union[str</em>, <em>datetime.datetime] = None</em>, <em>restart_freq_hr: int = 1</em>, <em>output_freq_hr: int = 1</em>, <em>restart: bool = True</em>, <em>exe_cmd: str = None</em>, <em>entry_cmd: str = None</em>, <em>exit_cmd: str = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/job.html#Job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.job.Job" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>A Job represents run-time specific information for a given WRF-Hydro run. A Simulation
 consists of one or more jobs. For example, adding multiple Jobs can be used to split a
@@ -612,6 +615,12 @@ Simulation into multiple runs to limit the wall-clock duration of each individua
 <dd><p><em>datetime</em> – The model time at the start of the execution.</p>
 </dd></dl>
 
+<dl class="attribute">
+<dt id="wrfhydropy.core.job.Job.output_freq_hr">
+<code class="descname">output_freq_hr</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.job.Job.output_freq_hr" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>int</em> – Output write frequency in hours.</p>
+</dd></dl>
+
 <dl class="method">
 <dt id="wrfhydropy.core.job.Job.pickle">
 <code class="descname">pickle</code><span class="sig-paren">(</span><em>path: str</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/wrfhydropy/core/job.html#Job.pickle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#wrfhydropy.core.job.Job.pickle" title="Permalink to this definition">¶</a></dt>
@@ -623,6 +632,12 @@ Simulation into multiple runs to limit the wall-clock duration of each individua
 <dt id="wrfhydropy.core.job.Job.restart">
 <code class="descname">restart</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.job.Job.restart" title="Permalink to this definition">¶</a></dt>
 <dd><p><em>bool</em> – Start model from a restart.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="wrfhydropy.core.job.Job.restart_freq_hr">
+<code class="descname">restart_freq_hr</code><em class="property"> = None</em><a class="headerlink" href="#wrfhydropy.core.job.Job.restart_freq_hr" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>int</em> – Restart write frequency in hours.</p>
 </dd></dl>
 
 </dd></dl>

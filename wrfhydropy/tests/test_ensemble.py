@@ -259,7 +259,8 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         '_hrldas_times': {
             'noahlsm_offline': {
                 'khour': 282480,
-                'RESTART_FREQUENCY_HOURS': 1,
+                'restart_frequency_hours': 1,
+                'output_timestep': 1,
                 'restart_filename_requested': None,
                 'start_day': 14,
                 'start_hour': 0,
@@ -288,7 +289,8 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         '_hydro_times': {
             'hydro_nlist': {
                 'restart_file': None,
-                'rst_dt': 60
+                'rst_dt': 60,
+                'out_dt': 60
             },
             'nudging_nlist': {
                 'nudginglastobsfile': None
@@ -302,6 +304,7 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         'exit_status': None,
         'job_id': 'test_job_1',
         'restart_freq' : 1,
+        'output_freq': 1,
         'restart': False
     }
 

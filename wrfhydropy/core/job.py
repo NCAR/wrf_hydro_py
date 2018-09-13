@@ -23,6 +23,7 @@ class Job(object):
             job_id: str,
             model_start_time: Union[str,pd.datetime] = None,
             model_end_time: Union[str,pd.datetime] = None,
+            restart_freq: int = 1,
             restart: bool = True,
             exe_cmd: str = None,
             entry_cmd: str = None,
@@ -34,6 +35,7 @@ class Job(object):
             a pandas.to_datetime compatible string or a pandas datetime object.
             model_end_time: The model end time to use for the WRF-Hydro model run. Can be
             a pandas.to_datetime compatible string or a pandas datetime object.
+            restart_freq: Frequency to output restarts in hours.
             restart: Job is starting from a restart file. Use False for a cold start.
             exe_cmd: The system-specific command to execute WRF-Hydro, for example 'mpirun -np
             36 ./wrf_hydro.exe'. Can be left as None if jobs is added to a scheduler or if a
@@ -66,11 +68,15 @@ class Job(object):
         self._model_end_time = pd.to_datetime(model_end_time)
         """np.datetime64: The model time at the end of the execution."""
 
+        self.restart_freq = restart_freq
+        """int: The model restart output frequency in hours."""
+
         ## property construction
         self._hrldas_times = {
             'noahlsm_offline':
             {
                 'khour': None,
+                'RESTART_FREQUENCY_HOURS': None,
                 'start_year': None,
                 'start_month': None,
                 'start_day': None,
@@ -81,7 +87,7 @@ class Job(object):
         }
 
         self._hydro_times = {
-            'hydro_nlist': {'restart_file': None},
+            'hydro_nlist': {'restart_file': None, 'rst_dt': None},
             'nudging_nlist': {'nudginglastobsfile': None}
         }
 
@@ -289,6 +295,8 @@ class Job(object):
 
                 self._hrldas_times['noahlsm_offline']['restart_filename_requested'] = lsm_restart_file
 
+            self._hrldas_times['noahlsm_offline']['RESTART_FREQUENCY_HOURS'] = self.restart_freq
+
     def _set_hydro_times(self):
         """Private method to set model run times in the hydro namelist"""
 
@@ -310,6 +318,8 @@ class Job(object):
 
             self._hydro_times['hydro_nlist']['restart_file'] = hydro_restart_basename
             self._hydro_times['nudging_nlist']['nudginglastobsfile'] = nudging_restart_basename
+
+        self._hydro_times['hydro_nlist']['rst_dt'] = self.restart_freq * 60
 
     def _make_job_dir(self):
         """Private method to make the job directory"""
@@ -431,4 +441,3 @@ class Job(object):
     def model_end_time(self, value):
         """np.datetime64: The model time at the start of the execution."""
         self._model_end_time = pd.to_datetime(value)
-

@@ -104,7 +104,7 @@ def test_ensemble_addsimulation(simulation, job, scheduler, simulation_compiled)
 
     # This sim does not have a pre-compiled model
     with pytest.raises(Exception) as e_info:
-            ens1.add([sim])
+        ens1.add([sim])
 
     sim = simulation_compiled
     ens1.add([sim])
@@ -138,7 +138,7 @@ def test_ensemble_addscheduler(simulation, scheduler):
     sched2 = copy.deepcopy(scheduler)
     sched2.nnodes = 99
     ens1.add(sched2)
-    assert deepdiff.DeepDiff(ens1.scheduler, sched2) == {}    
+    assert deepdiff.DeepDiff(ens1.scheduler, sched2) == {}
 
 
 def test_ensemble_replicate(simulation_compiled):
@@ -177,11 +177,11 @@ def test_set_diff_dicts(simulation_compiled):
     sim = simulation_compiled
     ens = EnsembleSimulation()
     ens.add([sim, sim, sim, sim, sim])
-    ens.set_member_diffs(('base_hrldas_namelist', 'noahlsm_offline', 'indir'), 
-                       ['./FOO' if mm == 2 else './FORCING' for mm in range(len(ens))])
+    ens.set_member_diffs(('base_hrldas_namelist', 'noahlsm_offline', 'indir'),
+                         ['./FOO' if mm == 2 else './FORCING' for mm in range(len(ens))])
     answer = {
         ('base_hrldas_namelist', 'noahlsm_offline', 'indir'):
-        ['./FORCING', './FORCING', './FOO', './FORCING', './FORCING'],
+            ['./FORCING', './FORCING', './FOO', './FORCING', './FORCING'],
         'number': ['000', '001', '002', '003', '004'],
         'run_dir': ['member_000', 'member_001', 'member_002', 'member_003', 'member_004']
     }
@@ -260,7 +260,7 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
             'noahlsm_offline': {
                 'khour': 282480,
                 'restart_frequency_hours': 1,
-                'output_timestep': 1,
+                'output_timestep': 3600,
                 'restart_filename_requested': None,
                 'start_day': 14,
                 'start_hour': 0,
@@ -303,8 +303,8 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         '_model_start_time': pandas.Timestamp('1984-10-14 00:00:00'),
         'exit_status': None,
         'job_id': 'test_job_1',
-        'restart_freq' : 1,
-        'output_freq': 1,
+        'restart_freq_hr': 1,
+        'output_freq_hr': 1,
         'restart': False
     }
 

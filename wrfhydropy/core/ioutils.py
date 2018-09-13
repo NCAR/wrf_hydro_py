@@ -66,15 +66,18 @@ def open_nwmdataset(paths: list,
 
 class WrfHydroTs(list):
     """WRF-Hydro netcdf timeseries data class"""
-    def open(self, chunks: dict = None):
+    def open(self, chunks: dict = None, forecast: bool=True):
         """Open a WrfHydroTs object
         Args:
             self
             chunks: chunks argument passed on to xarray.DataFrame.chunk() method
+            forecast: If forecast the reference time dimension is retained, if not then
+            reference_time dimension is set to a dummy value (1970-01-01) to ease concatenation
+            and analysis
         Returns:
             An xarray mfdataset object concatenated on dimension 'Time'.
         """
-        return open_nwmdataset(self, chunks=chunks)
+        return open_nwmdataset(self, chunks=chunks, forecast=forecast)
 
     def check_nas(self):
         """Return dictionary of counts of NA values for each data variable summed across files"""

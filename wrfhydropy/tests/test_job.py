@@ -21,7 +21,7 @@ def test_job_init():
 
     assert job.hydro_times == {'hydro_nlist': {'restart_file': None},
                                'nudging_nlist': {'nudginglastobsfile': None}}
-    assert job.hrldas_times == {'noahlsm_offline': {'kday': 11770,
+    assert job.hrldas_times == {'noahlsm_offline': {'khour': 282480,
                                                     'start_year': 1984,
                                                     'start_month': 10,
                                                     'start_day': 14,
@@ -77,8 +77,7 @@ def test_job_hrldas_namelist():
 
     job._add_hrldas_namelist(hrldas_namelist)
     assert job.hrldas_namelist == {'noahlsm_offline': {'btr_option': 1,
-                                                       'kday': 11770,
-                                                       'khour': None,
+                                                       'khour': 282480,
                                                        'start_year': 1984,
                                                        'start_month': 10,
                                                        'start_day': 14,
@@ -132,8 +131,7 @@ def test_job_restart_file_times():
 
     assert job.hrldas_namelist == {'noahlsm_offline': {
         'btr_option': 1,
-        'kday': 11770,
-        'khour': None,
+        'khour': 282480,
         'start_year': 1984,
         'start_month': 10,
         'start_day': 14,

@@ -67,22 +67,23 @@ class Job(object):
         """np.datetime64: The model time at the end of the execution."""
 
         ## property construction
-        self._hrldas_times = {'noahlsm_offline':
-                                  {'kday': None,
-                                   'khour': None,
-                                   'start_year': None,
-                                   'start_month': None,
-                                   'start_day': None,
-                                   'start_hour': None,
-                                   'start_min': None,
-                                   'restart_filename_requested': None}
-                              }
+        self._hrldas_times = {
+            'noahlsm_offline':
+            {
+                'khour': None,
+                'start_year': None,
+                'start_month': None,
+                'start_day': None,
+                'start_hour': None,
+                'start_min': None,
+                'restart_filename_requested': None
+            }
+        }
 
-        self._hydro_times = {'hydro_nlist':
-                                 {'restart_file': None},
-                             'nudging_nlist':
-                                 {'nudginglastobsfile': None}
-                             }
+        self._hydro_times = {
+            'hydro_nlist': {'restart_file': None},
+            'nudging_nlist': {'nudginglastobsfile': None}
+        }
 
         self._hydro_namelist = None
         self._hrldas_namelist = None
@@ -113,6 +114,9 @@ class Job(object):
             namelist: The namelist dictionary to add
         """
         self._hrldas_namelist = copy.deepcopy(namelist)
+        # Never use KDAY in wrfhydropy. This eliminates it entering the patch with the time info.
+        if 'kday' in self._hrldas_namelist['noahlsm_offline'].keys():
+            self._hrldas_namelist['noahlsm_offline'].pop('kday')
 
     def clone(self, N) -> list:
         """Clone a job object N-times using deepcopy.
@@ -263,15 +267,10 @@ class Job(object):
 
         if self._model_start_time is not None and self._model_end_time is not None:
             duration = self._model_end_time - self._model_start_time
-            if duration.seconds == 0:
-                self._hrldas_times['noahlsm_offline']['kday'] = int(duration.days)
-                if 'khour' in self._hrldas_times['noahlsm_offline'].keys():
-                    self._hrldas_times['noahlsm_offline'].pop('khour')
-            else:
-                self._hrldas_times['noahlsm_offline']['khour'] =int(duration.days * 60 +
-                                                                    duration.seconds / 3600)
-                if 'kday' in self._hrldas_times['noahlsm_offline'].keys():
-                    self._hrldas_times['noahlsm_offline'].pop('kday')
+
+            # Only use KHOUR. Never use KDAY in wrfhydropy.
+            self._hrldas_times['noahlsm_offline']['khour'] = \
+                int((duration.days * 24) + (duration.seconds / 3600))
 
             # Start
             self._hrldas_times['noahlsm_offline']['start_year'] = int(self._model_start_time.year)
@@ -367,10 +366,8 @@ class Job(object):
         # model_end_time
         if 'khour' in noah_namelist.keys():
             duration = {'hours': noah_namelist['khour']}
-        elif 'kday' in noah_namelist.keys():
-            duration = {'days': noah_namelist['kday']}
         else:
-            raise ValueError("Neither KDAY nor KHOUR in namelist.hrldas.")
+            raise ValueError("KHOUR is not in namelist.hrldas (wrfhydropy only uses KHOUR).")
         model_end_time = model_start_time + datetime.timedelta(**duration)
 
         return model_start_time, model_end_time

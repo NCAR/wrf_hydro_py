@@ -3,6 +3,7 @@ import os
 import pathlib
 import pickle
 import warnings
+import shutil
 from typing import Union
 
 import pandas as pd
@@ -103,7 +104,7 @@ class Simulation(object):
             file_model_end_time = current_dir / '.model_end_time'
             with file_model_end_time.open('w') as opened_file:
                 _ = opened_file.write(str(self.jobs[0]._model_start_time))
-            
+
         # Validate jobs
         print('Validating job input files')
         self._validate_jobs(check_nlst_warn=check_nlst_warn)
@@ -118,6 +119,15 @@ class Simulation(object):
         else:
             print('Compiling model...')
             self.model.compile(compile_dir=os.getcwd())
+
+        # Make symlinks/copies for each TBL file
+        for from_file in self.table_files:
+            to_file = current_dir.joinpath(from_file.name)
+            if symlink_domain:
+                to_file.symlink_to(from_file)
+            else:
+                shutil.copy(str(from_file), str(to_file))
+
 
         print('Simulation successfully composed')
 

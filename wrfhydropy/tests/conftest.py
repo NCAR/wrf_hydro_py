@@ -41,9 +41,9 @@ def ds_1d_has_nans():
 
 @pytest.fixture(scope='function')
 def ds_2d():
-    x = [10,11,12]
-    y = [101,102,103]
-    vals_2d = np.random.randn(3,3)
+    x = [10, 11, 12]
+    y = [101, 102, 103]
+    vals_2d = np.random.randn(3, 3)
 
     time = pd.to_datetime('1984-10-14')
 

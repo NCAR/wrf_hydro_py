@@ -7,6 +7,7 @@ import pytest
 
 from wrfhydropy.core.simulation import Simulation, SimulationOutput
 from wrfhydropy.core.ioutils import WrfHydroTs
+from wrfhydropy.core.ensemble_tools import DeepDiffEq
 
 
 def test_simulation_add_model_domain(model, domain):
@@ -57,6 +58,7 @@ def test_simulation_compose(model, domain, job, capfd, tmpdir):
 
     # copy before compose
     sim_opts = copy.deepcopy(sim)
+    sim_tbls = copy.deepcopy(sim)
 
     compose_dir = pathlib.Path(tmpdir).joinpath('sim_compose')
     os.mkdir(str(compose_dir))
@@ -64,7 +66,10 @@ def test_simulation_compose(model, domain, job, capfd, tmpdir):
 
     sim.compose()
 
+    # Doing this thrice kinda asks for function...
+
     # This compose exercises the options to compose. Gives the same result.
+    # This compose 
     compose_dir_opts = pathlib.Path(tmpdir).joinpath('sim_compose_opts')
     os.mkdir(str(compose_dir_opts))
     os.chdir(str(compose_dir_opts))
@@ -97,6 +102,52 @@ def test_simulation_compose(model, domain, job, capfd, tmpdir):
 
     assert sim.model.table_files == sim_opts.model.table_files
     assert [str(ff.name) for ff in sim.model.table_files] == ['DUMMY.TBL']
+
+    # These composes result in alternative, user selected table files.
+    # Do it before and after model.compile()
+    sim_tbls_postcompile = copy.deepcopy(sim_tbls)
+
+    dummy_user_tbl = pathlib.Path(tmpdir).joinpath('DUMMY_USER.TBL')
+    with dummy_user_tbl.open('w') as f:
+        f.write('# dummy TBL \n')
+
+    compose_dir_tbls = pathlib.Path(tmpdir).joinpath('sim_compose_tbls')
+    os.mkdir(str(compose_dir_tbls))
+    os.chdir(str(compose_dir_tbls))
+    # before compile
+    sim_tbls.model.table_files = [dummy_user_tbl]
+    sim_tbls.compose()
+
+    compose_dir_tbls_postcompile = pathlib.Path(tmpdir).joinpath('sim_compose_tbls_postcompile')
+    compile_dir_tbls_postcompile = pathlib.Path(tmpdir).joinpath('sim_compile_tbls_postcompile')
+    os.mkdir(str(compose_dir_tbls_postcompile))
+    os.chdir(str(compose_dir_tbls_postcompile))
+    sim_tbls_postcompile.model.compile(compile_dir_tbls_postcompile)
+    sim_tbls_postcompile.model.table_files = [dummy_user_tbl]
+    sim_tbls_postcompile.compose()
+
+    assert sim_tbls.model.table_files == sim_tbls_postcompile.model.table_files
+    assert sim_tbls.model.table_files == [dummy_user_tbl]
+
+    actual_files = list(compose_dir_tbls.rglob('./*'))
+    domain_files = domain.domain_top_dir.rglob('*')
+    expected_files = [
+        'namelist.hrldas',
+        'hydro.namelist',
+        'job_test_job_1',
+        '.uid',
+        'NWM',
+        'WrfHydroModel.pkl',
+        'FORCING',
+        'DUMMY_USER.TBL',
+        'wrf_hydro.exe'
+    ]
+
+    for file in domain_files:
+        expected_files.append(file.name)
+
+    for file in actual_files:
+        assert file.name in expected_files
 
 
 def test_simulation_run_no_scheduler(model, domain, job, tmpdir, capfd):

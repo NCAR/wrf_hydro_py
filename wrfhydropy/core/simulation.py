@@ -121,13 +121,12 @@ class Simulation(object):
             self.model.compile(compile_dir=os.getcwd())
 
         # Make symlinks/copies for each TBL file
-        for from_file in self.table_files:
+        for from_file in self.model.table_files:
             to_file = current_dir.joinpath(from_file.name)
-            if symlink_domain:
-                to_file.symlink_to(from_file)
-            else:
-                shutil.copy(str(from_file), str(to_file))
+            shutil.copy(str(from_file), str(to_file))
 
+        if self.model.compile_log.returncode == 0:
+            shutil.rmtree(str(self.model.source_dir.joinpath('Run')))
 
         print('Simulation successfully composed')
 

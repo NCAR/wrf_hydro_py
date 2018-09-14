@@ -204,21 +204,21 @@ class Model(object):
             # Wrf hydro always puts files in source directory under a new directory called 'Run'
             # Copy files to the specified simulation directory if its not the same as the
             # source code directory
-            for file in self.source_dir.joinpath('Run').glob('*.TBL'):
-                shutil.copyfile(str(file), str(self.compile_dir.joinpath(file.name)))
+            if len(self.table_files) == 0:
+                self.table_files = list(self.source_dir.joinpath('Run').glob('*.TBL'))
 
             shutil.copyfile(str(self.source_dir.joinpath('Run').joinpath('wrf_hydro.exe')),
                             str(self.compile_dir.joinpath('wrf_hydro.exe')))
 
             # Remove old files
-            shutil.rmtree(str(self.source_dir.joinpath('Run')))
+            # shutil.rmtree(str(self.source_dir.joinpath('Run')))
 
             # Open permissions on copied compiled files
             subprocess.run(['chmod', '-R', '755', str(self.compile_dir)])
 
             # Get file lists as attributes
             # Get list of table file paths
-            self.table_files = list(self.compile_dir.glob('*.TBL'))
+
 
             # Get wrf_hydro.exe file path
             self.wrf_hydro_exe = self.compile_dir.joinpath('wrf_hydro.exe')
@@ -248,16 +248,6 @@ class Model(object):
         # Make directory if it does not exist.
         if not dest_dir.is_dir():
             dest_dir.mkdir(parents=True)
-
-        # Loop to make symlinks/copies for each TBL file
-        for from_file in self.table_files:
-            # Create file paths to symlink
-            to_file = dest_dir.joinpath(from_file.name)
-            # Create symlinks
-            if symlink:
-                to_file.symlink_to(from_file)
-            else:
-                shutil.copy(str(from_file),str(to_file))
 
         # Symlink/copy in exe
         from_file = self.wrf_hydro_exe

@@ -153,7 +153,7 @@ class Model(object):
             attributes to WrfHydroModel
         """
 
-        self.compile_dir = pathlib.Path(compile_dir)
+        self.compile_dir = pathlib.Path(compile_dir).absolute()
 
         # check compile directory.
         if not self.compile_dir.is_dir():

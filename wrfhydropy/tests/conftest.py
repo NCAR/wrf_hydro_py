@@ -87,7 +87,6 @@ def domain_dir(tmpdir, ds_1d):
                          'wrfinput_d01.nc',
                          'LAKEPARM.nc',
                          'nudgingParams.nc']
-
     for file in domain_file_names:
         file_path = domain_dir_path.joinpath(file)
         ds_1d.to_netcdf(str(file_path))
@@ -157,8 +156,12 @@ def domain_dir(tmpdir, ds_1d):
 
 @pytest.fixture()
 def model_dir(tmpdir):
+
     model_dir_path = pathlib.Path(tmpdir).joinpath('wrf_hydro_nwm_public/trunk/NDHMS')
     model_dir_path.mkdir(parents=True)
+
+    run_dir_path = model_dir_path.joinpath('Run')
+    run_dir_path.mkdir()
 
     # Make namelist patch files
     hrldas_namelist = {
@@ -221,6 +224,9 @@ def model_dir(tmpdir):
 
     with model_dir_path.joinpath('./compile_offline_NoahMP.sh').open('w') as f:
         f.write('#dummy compile')
+
+    with run_dir_path.joinpath('RUNDIR.TBL').open('w') as f:
+        f.write('DUMMY TBL')
 
     subprocess.run(['chmod', '-R', '755', str(model_dir_path)])
 

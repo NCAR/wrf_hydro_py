@@ -5,52 +5,8 @@ import pathlib
 import pickle
 import pytest
 
-from wrfhydropy.core.domain import Domain
-from wrfhydropy.core.job import Job
-from wrfhydropy.core.model import Model
-from wrfhydropy.core.schedulers import PBSCheyenne
 from wrfhydropy.core.simulation import Simulation, SimulationOutput
 from wrfhydropy.core.ioutils import WrfHydroTs
-
-
-@pytest.fixture()
-def model(model_dir):
-    model = Model(source_dir=model_dir,
-                  model_config='nwm_ana')
-    return model
-
-
-@pytest.fixture()
-def domain(domain_dir):
-    domain = Domain(domain_top_dir=domain_dir,
-                    domain_config='nwm_ana',
-                    compatible_version='v5.1.0')
-    return domain
-
-
-@pytest.fixture()
-def job():
-    job = Job(job_id='test_job_1',
-              model_start_time='1984-10-14',
-              model_end_time='2017-01-04',
-              restart=False,
-              exe_cmd='bogus exe cmd',
-              entry_cmd='bogus entry cmd',
-              exit_cmd='bogus exit cmd')
-    return job
-
-
-@pytest.fixture()
-def scheduler():
-    scheduler = PBSCheyenne(account='fake_acct',
-                            email_who='elmo',
-                            email_when='abe',
-                            nproc=216,
-                            nnodes=6,
-                            ppn=None,
-                            queue='regular',
-                            walltime="12:00:00")
-    return scheduler
 
 
 def test_simulation_add_model_domain(model, domain):
@@ -92,7 +48,8 @@ def test_simulation_add_job(model, domain, job):
     sim.add(job)
 
 
-def test_simulation_compose(model, domain, job, capfd, tmpdir, domain_dir):
+def test_simulation_compose(model, domain, job, capfd, tmpdir):
+
     sim = Simulation()
     sim.add(model)
     sim.add(domain)
@@ -105,59 +62,58 @@ def test_simulation_compose(model, domain, job, capfd, tmpdir, domain_dir):
     os.mkdir(str(compose_dir))
     os.chdir(str(compose_dir))
 
-    try:
-        sim.compose()
-    except FileNotFoundError:
-        out, err = capfd.readouterr()
-        pass
+    sim.compose()
 
     # This compose exercises the options to compose. Gives the same result.
     compose_dir_opts = pathlib.Path(tmpdir).joinpath('sim_compose_opts')
     os.mkdir(str(compose_dir_opts))
     os.chdir(str(compose_dir_opts))
 
-    try:
-        sim_opts.compose(
-            symlink_domain=False,
-            force=True,
-            check_nlst_warn=True
-        )
-    except FileNotFoundError:
-        out_opts, err_opts = capfd.readouterr()
-        pass
+    sim_opts.compose(
+        symlink_domain=False,
+        force=True,
+        check_nlst_warn=True
+    )
 
-    actual_files = list()
-    for file in list(compose_dir.rglob('*')):
-        actual_files.append(file.name)
-
+    actual_files = list(compose_dir.rglob('./*'))
     domain_files = domain.domain_top_dir.rglob('*')
-    expected_files = ['namelist.hrldas', 'hydro.namelist', 'job_test_job_1', '.uid', 'NWM']
+    expected_files = [
+        'namelist.hrldas',
+        'hydro.namelist',
+        'job_test_job_1',
+        '.uid',
+        'NWM',
+        'WrfHydroModel.pkl',
+        'FORCING',
+        'DUMMY.TBL',
+        'wrf_hydro.exe'
+    ]
 
     for file in domain_files:
         expected_files.append(file.name)
 
     for file in actual_files:
-        assert file in expected_files
+        assert file.name in expected_files
 
-    assert out[-19:] == 'Compiling model...\n'
-    assert out_opts[-228:] == out[-228:]
-    assert err_opts == err
+    assert sim.model.table_files == sim_opts.model.table_files
+    assert [str(ff.name) for ff in sim.model.table_files] == ['DUMMY.TBL']
 
 
-def test_simulation_run_no_scheduler(model, domain, job, capfd):
+def test_simulation_run_no_scheduler(model, domain, job, tmpdir, capfd):
+
     sim = Simulation()
     sim.add(model)
     sim.add(domain)
     sim.add(job)
 
-    try:
-        sim.run()
-        out, err = capfd.readouterr()
-    except:
-        out, err = capfd.readouterr()
-        pass
-    assert err == '/bin/bash: bogus: command not found\n/bin/bash: bogus: command not found\n'
+    compose_dir = pathlib.Path(tmpdir).joinpath('sim_run_no_sched')
+    os.mkdir(str(compose_dir))
+    os.chdir(str(compose_dir))
 
+    sim.compose()
+    sim.run()
+    assert sim.jobs[0].exit_status == 0, \
+        "The job did not exit successfully."
 
 def test_simulation_collect(sim_output):
     os.chdir(sim_output)

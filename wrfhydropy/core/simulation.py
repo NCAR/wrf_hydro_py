@@ -126,10 +126,6 @@ class Simulation(object):
             to_file = current_dir.joinpath(from_file.name)
             shutil.copy(str(from_file), str(to_file))
 
-        if self.model.compile_log.returncode == 0:
-            if self.model.source_dir.joinpath('Run').exists():
-                shutil.rmtree(str(self.model.source_dir.joinpath('Run')))
-
         print('Simulation successfully composed')
 
     def run(self):

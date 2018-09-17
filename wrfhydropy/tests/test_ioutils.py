@@ -1,11 +1,15 @@
-import json
-
+import numpy as np
+import pandas as pd
+import pathlib
 import pytest
+import warnings
+import xarray as xr
 
-from wrfhydropy.core.ioutils import *
+from wrfhydropy.core.ioutils import open_nwmdataset, WrfHydroTs, WrfHydroStatic, check_input_files
 from wrfhydropy.core.namelist import JSONNamelist
 
-@pytest.fixture
+
+@pytest.fixture(scope='function')
 def ds_timeseries(tmpdir):
     ts_dir = pathlib.Path(tmpdir).joinpath('timeseries_data')
     ts_dir.mkdir(parents=True)
@@ -13,14 +17,18 @@ def ds_timeseries(tmpdir):
     # Create a dummy dataset
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        vals_ts = np.array([np.log(-1.0),2.0,3.0],dtype='float')
+        vals_ts = np.array([np.log(-1.0), 2.0, 3.0], dtype='float')
 
-    reference_times = pd.to_datetime(['1984-10-14 00:00:00',
-                                      '1984-10-14 01:00:00',
-                                      '1984-10-14 02:00:00'])
-    times = pd.to_datetime(['1984-10-14 01:00:00',
-                            '1984-10-14 02:00:00',
-                            '1984-10-14 03:00:00'])
+    reference_times = pd.to_datetime([
+        '1984-10-14 00:00:00',
+        '1984-10-14 01:00:00',
+        '1984-10-14 02:00:00'
+    ])
+    times = pd.to_datetime([
+        '1984-10-14 01:00:00',
+        '1984-10-14 02:00:00',
+        '1984-10-14 03:00:00'
+    ])
     location = ['loc1', 'loc2', 'loc3']
 
     for idx in enumerate(times):
@@ -35,11 +43,14 @@ def ds_timeseries(tmpdir):
         ds_ts.to_netcdf(ts_dir.joinpath(filename))
     return ts_dir
 
+
 def test_open_nwmdataset_no_forecast(ds_timeseries):
     ds_paths = list(ds_timeseries.rglob('*.nc'))
-    the_ds = open_nwmdataset(paths = ds_paths,
-                             chunks = None,
-                             forecast = False)
+    the_ds = open_nwmdataset(
+        paths=ds_paths,
+        chunks=None,
+        forecast=False
+    )
 
     assert the_ds['reference_time'].values == np.array(['1970-01-01T00:00:00.000000000'],
                                                        dtype='datetime64[ns]')
@@ -50,11 +61,14 @@ def test_open_nwmdataset_no_forecast(ds_timeseries):
                                                      '1984-10-14T03:00:00.000000000'],
                                                     dtype='datetime64[ns]'))
 
+
 def test_open_nwmdataset_forecast(ds_timeseries):
     ds_paths = list(ds_timeseries.rglob('*.nc'))
-    the_ds = open_nwmdataset(paths = ds_paths,
-                             chunks = None,
-                             forecast = True)
+    the_ds = open_nwmdataset(
+        paths=ds_paths,
+        chunks=None,
+        forecast=True
+    )
 
     the_ds['reference_time'].values.sort()
     assert np.all(the_ds['reference_time'].values == np.array(['1984-10-14T00:00:00.000000000',
@@ -71,6 +85,7 @@ def test_open_nwmdataset_forecast(ds_timeseries):
     # print(the_ds['var1'].values)
     # assert np.all(the_ds['var1'].values == np.array([[[1.0,2.0,3.0]]], dtype='int'))
 
+
 def test_wrfhydrots(ds_timeseries):
     ts_obj = WrfHydroTs(list(ds_timeseries.rglob('*.nc')))
 
@@ -78,6 +93,7 @@ def test_wrfhydrots(ds_timeseries):
 
     assert type(ts_obj_open) == xr.core.dataset.Dataset
     assert type(ts_obj.check_nas()) == pd.DataFrame
+
 
 def test_wrfhydrostatic(ds_timeseries):
 
@@ -87,6 +103,7 @@ def test_wrfhydrostatic(ds_timeseries):
 
     assert type(static_obj_open) == xr.core.dataset.Dataset
     assert type(static_obj.check_nas()) == pd.DataFrame
+
 
 def test_check_input_files(domain_dir):
     hrldas_namelist = JSONNamelist(domain_dir.joinpath('hrldas_namelist_patches.json'))
@@ -108,4 +125,3 @@ def test_check_input_files(domain_dir):
                           sim_dir=domain_dir)
 
     assert str(excinfo.value) == 'The namelist file geo_static_flnm = no_such_file does not exist'
-

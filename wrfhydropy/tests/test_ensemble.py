@@ -4,37 +4,13 @@ import os
 import pathlib
 import pandas
 import pytest
-import subprocess
 import timeit
 
-from wrfhydropy.core.domain import Domain
-from wrfhydropy.core.job import Job
-from wrfhydropy.core.model import Model
-from wrfhydropy.core.schedulers import PBSCheyenne
 from wrfhydropy.core.simulation import Simulation
 from wrfhydropy.core.ensemble import EnsembleSimulation
 
 
-@pytest.fixture()
-def model(model_dir):
-    model = Model(
-        source_dir=model_dir,
-        model_config='nwm_ana'
-    )
-    return model
-
-
-@pytest.fixture()
-def domain(domain_dir):
-    domain = Domain(
-        domain_top_dir=domain_dir,
-        domain_config='nwm_ana',
-        compatible_version='v5.1.0'
-    )
-    return domain
-
-
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def simulation(model, domain):
     sim = Simulation()
     sim.add(model)
@@ -42,49 +18,17 @@ def simulation(model, domain):
     return sim
 
 
-@pytest.fixture()
-def simulation_compiled(model, domain, tmpdir):
+@pytest.fixture(scope='function')
+def simulation_compiled(model, domain, job, tmpdir):
+    sim_dir = pathlib.Path(tmpdir).joinpath('sim_compiled_dir')
     sim = Simulation()
     sim.add(model)
     sim.add(domain)
-    sim.model.compile_log = subprocess.run(
-        'pwd',
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-    )
-    wrf_hydro_exe = pathlib.Path(tmpdir).joinpath('wrf_hydro_exe.dum')
-    wrf_hydro_exe.touch()
-    sim.model.wrf_hydro_exe = wrf_hydro_exe
+    sim.add(job)
+    os.mkdir(sim_dir)
+    os.chdir(sim_dir)
+    sim.compose()
     return sim
-
-
-@pytest.fixture()
-def job():
-    job = Job(
-        job_id='test_job_1',
-        model_start_time='1984-10-14',
-        model_end_time='2017-01-04',
-        restart=False,
-        exe_cmd='bogus exe cmd',
-        entry_cmd='bogus entry cmd',
-        exit_cmd='bogus exit cmd'
-    )
-    return job
-
-
-@pytest.fixture()
-def scheduler():
-    scheduler = PBSCheyenne(
-        account='fake_acct',
-        email_who='elmo',
-        email_when='abe',
-        nproc=216,
-        nnodes=6,
-        ppn=None,
-        queue='regular',
-        walltime="12:00:00"
-    )
-    return scheduler
 
 
 def test_ensemble_init():
@@ -104,7 +48,7 @@ def test_ensemble_addsimulation(simulation, job, scheduler, simulation_compiled)
 
     # This sim does not have a pre-compiled model
     with pytest.raises(Exception) as e_info:
-            ens1.add([sim])
+        ens1.add([sim])
 
     sim = simulation_compiled
     ens1.add([sim])
@@ -138,7 +82,7 @@ def test_ensemble_addscheduler(simulation, scheduler):
     sched2 = copy.deepcopy(scheduler)
     sched2.nnodes = 99
     ens1.add(sched2)
-    assert deepdiff.DeepDiff(ens1.scheduler, sched2) == {}    
+    assert deepdiff.DeepDiff(ens1.scheduler, sched2) == {}
 
 
 def test_ensemble_replicate(simulation_compiled):
@@ -177,11 +121,11 @@ def test_set_diff_dicts(simulation_compiled):
     sim = simulation_compiled
     ens = EnsembleSimulation()
     ens.add([sim, sim, sim, sim, sim])
-    ens.set_member_diffs(('base_hrldas_namelist', 'noahlsm_offline', 'indir'), 
-                       ['./FOO' if mm == 2 else './FORCING' for mm in range(len(ens))])
+    ens.set_member_diffs(('base_hrldas_namelist', 'noahlsm_offline', 'indir'),
+                         ['./FOO' if mm == 2 else './FORCING' for mm in range(len(ens))])
     answer = {
         ('base_hrldas_namelist', 'noahlsm_offline', 'indir'):
-        ['./FORCING', './FORCING', './FOO', './FORCING', './FORCING'],
+            ['./FORCING', './FORCING', './FOO', './FORCING', './FORCING'],
         'number': ['000', '001', '002', '003', '004'],
         'run_dir': ['member_000', 'member_001', 'member_002', 'member_003', 'member_004']
     }
@@ -242,7 +186,7 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
     # The job gets heavily modified on compose.
     answer = {
         '_entry_cmd': 'bogus entry cmd',
-        '_exe_cmd': 'bogus exe cmd',
+        '_exe_cmd': './wrf_hydro.exe',
         '_exit_cmd': 'bogus exit cmd',
         '_hrldas_namelist': {
             'noahlsm_offline': {
@@ -258,7 +202,9 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         },
         '_hrldas_times': {
             'noahlsm_offline': {
-                'kday': 11770,
+                'khour': 282480,
+                'restart_frequency_hours': 1,
+                'output_timestep': 3600,
                 'restart_filename_requested': None,
                 'start_day': 14,
                 'start_hour': 0,
@@ -286,7 +232,9 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         },
         '_hydro_times': {
             'hydro_nlist': {
-                'restart_file': None
+                'restart_file': None,
+                'rst_dt': 60,
+                'out_dt': 60
             },
             'nudging_nlist': {
                 'nudginglastobsfile': None
@@ -299,6 +247,8 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         '_model_start_time': pandas.Timestamp('1984-10-14 00:00:00'),
         'exit_status': None,
         'job_id': 'test_job_1',
+        'restart_freq_hr': 1,
+        'output_freq_hr': 1,
         'restart': False
     }
 
@@ -356,14 +306,10 @@ def test_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     os.chdir(tmpdir)
     os.mkdir(str(ens_dir))
     os.chdir(str(ens_dir))
-    ens_serial.compose()
-    try:
-        ens_serial.run()
-        out, err = capfd.readouterr()
-    except:
-        out, err = capfd.readouterr()
-        pass
-    assert err == '/bin/bash: bogus: command not found\n/bin/bash: bogus: command not found\n'
+    ens_serial.compose(rm_members_from_memory=False)
+    serial_run_success = ens_serial.run()
+    assert serial_run_success, \
+        "Some serial ensemble members did not run successfully."
 
     # Parallel test
     ens_parallel = copy.deepcopy(ens)
@@ -372,16 +318,10 @@ def test_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     os.mkdir(str(ens_dir))
     os.chdir(str(ens_dir))
     ens_parallel.compose()
-    try:
-        ens_run_succcess = ens_parallel.run(n_concurrent=2)
-    except:
-        pass
 
-    os.chdir(ens_dir)
-    for mm in ens_parallel.members:
-        with open(pathlib.Path(mm) / 'test_job_1.stderr') as f:
-            error_msg = f.read()
-            assert error_msg == '/bin/bash: bogus: command not found\n'
+    ens_run_success = ens_parallel.run(n_concurrent=2)
+    assert ens_run_success, \
+        "Some parallel ensemble members did not run successfully."
 
     # Parallel test with ensemble in memory
     ens_parallel = copy.deepcopy(ens)
@@ -390,13 +330,6 @@ def test_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     os.mkdir(str(ens_dir))
     os.chdir(str(ens_dir))
     ens_parallel.compose(rm_members_from_memory=False)
-    try:
-        ens_run_succcess = ens_parallel.run(n_concurrent=2)
-    except:
-        pass
-
-    os.chdir(ens_dir)
-    for mm in ens_parallel.members:
-        with open(pathlib.Path(mm.run_dir) / 'test_job_1.stderr') as f:
-            error_msg = f.read()
-            assert error_msg == '/bin/bash: bogus: command not found\n'
+    ens_run_mem_success = ens_parallel.run(n_concurrent=2)
+    assert ens_run_mem_success, \
+        "Some parallel ensemble members in memory did not run successfully."

@@ -4,7 +4,8 @@ import pytest
 from wrfhydropy.core.schedulers import PBSCheyenne
 from wrfhydropy.core.job import Job
 
-@pytest.fixture()
+
+@pytest.fixture(scope='function')
 def scheduler_regular():
     scheduler = PBSCheyenne(account='fake_acct',
                             email_who='elmo',
@@ -17,7 +18,7 @@ def scheduler_regular():
     return scheduler
 
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def scheduler_shared():
     scheduler = PBSCheyenne(account='fake_acct',
                             email_who='elmo',
@@ -37,6 +38,7 @@ def test_schedulers_pbs_regular_init(scheduler_regular):
 def test_schedulers_pbs_shared_init(scheduler_shared):
     assert scheduler_shared._exe_cmd == 'mpirun -np 216 ./wrf_hydro.exe'
 
+
 def test_schedulers_pbs_solve_nodes(scheduler_regular):
 
     assert scheduler_regular.ppn == 36
@@ -47,6 +49,7 @@ def test_schedulers_pbs_solve_nodes(scheduler_regular):
     assert scheduler_regular.nnodes == 5
     assert scheduler_regular.nproc == 180
 
+
 def test_schedulers_pbs_writescript(scheduler_regular):
     job = Job(job_id='test_job_1',
               model_start_time='1984-10-14',
@@ -56,7 +59,7 @@ def test_schedulers_pbs_writescript(scheduler_regular):
               entry_cmd='bogus entry cmd',
               exit_cmd='bogus exit cmd')
 
-    scheduler_regular._write_job_pbs([job,job])
+    scheduler_regular._write_job_pbs([job, job])
 
     script_path = job.job_dir.joinpath('job_' + job.job_id + '.pbs')
     with script_path.open(mode='r') as f:
@@ -88,6 +91,7 @@ def test_schedulers_pbs_writescript(scheduler_regular):
     # Only comparing the first 400 lines because the last lines vary according to system
     assert job_script[0:400] == expected_script[0:400]
 
+
 def test_schedulers_pbs_schedule(scheduler_regular,capfd):
     job = Job(job_id='test_job_1',
               model_start_time='1984-10-14',
@@ -98,7 +102,7 @@ def test_schedulers_pbs_schedule(scheduler_regular,capfd):
               exit_cmd='bogus exit cmd')
 
     try:
-        scheduler_regular.schedule([job,job])
+        scheduler_regular.schedule([job, job])
         out, err = capfd.readouterr()
         print(out)
     except:

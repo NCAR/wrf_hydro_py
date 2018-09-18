@@ -12,6 +12,22 @@ wrfhydropy.core.domain module
     :undoc-members:
     :show-inheritance:
 
+wrfhydropy.core.ensemble module
+-------------------------------
+
+.. automodule:: wrfhydropy.core.ensemble
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+wrfhydropy.core.ensemble\_tools module
+--------------------------------------
+
+.. automodule:: wrfhydropy.core.ensemble_tools
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 wrfhydropy.core.ioutils module
 ------------------------------
 

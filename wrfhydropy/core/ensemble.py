@@ -99,9 +99,6 @@ class EnsembleSimulation(object):
     # data belongs to the members:
     # 1) member number
     # 2) member_dir
-    # # Removed these two until it's obvious we need them
-    # # 3) description
-    # # 4) forcing_source_dir
 
     def add(
         self,
@@ -156,7 +153,7 @@ class EnsembleSimulation(object):
 
             if type(mm) is not Simulation:
                 raise ValueError("A non-simulation object can not be "
-                                 "added to the ensemble members")
+                                 "added as a simulation to the ensemble members.")
 
             if mm.model.compile_log is None:
                 raise ValueError("Only simulations with compiled model objects "

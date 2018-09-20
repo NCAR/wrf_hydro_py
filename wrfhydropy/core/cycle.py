@@ -1,23 +1,24 @@
-import ast
-from boltons.iterutils import remap, get_path
 import copy
 import datetime
 import multiprocessing
 import pathlib
 from typing import Union
 import os
-import pandas
 import pickle
 
-from .ensemble_tools import DeepDiffEq, dictify, get_sub_objs, mute
+from .ensemble_tools import mute
 from .job import Job
 from .schedulers import Scheduler
 from .simulation import Simulation
 
 
 def translate_special_paths(cast):
-    # Rules:
-    # A dot or a null string are identical and mean "do nothing".
+    # Rules for both forcing_dirs and restart_dirs:
+    # 1) A dot or a null string (are identical pathlib.Path objects and) mean "do nothing"
+    #    with respect to the default path in the domain.
+    # 2) An existing path/file is kept.
+    # 3) A negative integer is units hours, pointing to a previous cast in the cycle.
+    # 4) Other wise, value error raised.
 
     # forcing_dirs:
     if cast.forcing_dir == pathlib.Path(''):
@@ -73,14 +74,13 @@ def parallel_compose_casts(arg_dict):
 
     cast = copy.deepcopy(arg_dict['simulation'])
     cast.init_time = arg_dict['init_time']
-    cast.run_dir = pathlib.Path('cast_' + cast.init_time.strftime('%Y%m%d%H'))
+    cast.run_dir = str(pathlib.Path('cast_' + cast.init_time.strftime('%Y%m%d%H')))
     cast.forcing_dir = arg_dict['forcing_dir']
     cast.restart_dir = arg_dict['restart_dir']
 
     job = copy.deepcopy(arg_dict['job'])
     cast.add(job)
 
-    # This has to come after the paths are translated.
     khour = job.model_end_time - job.model_start_time
     cast.jobs[0].model_start_time = arg_dict['init_time']
     cast.jobs[0].model_end_time = arg_dict['init_time'] + khour
@@ -94,18 +94,21 @@ def parallel_compose_casts(arg_dict):
     os.mkdir(cast.run_dir)
     os.chdir(cast.run_dir)
     cast.compose()
+    cast.pickle('WrfHydroSim.pkl')
     os.chdir(orig_dir)
+    
     return cast
 
-# def parallel_run(arg_dict):
-#     """Parallelizable function to run an EnsembleSimuation."""
-#     if type(arg_dict['member']) is str:
-#         os.chdir(str(pathlib.Path(arg_dict['ens_dir']) / arg_dict['member']))
-#     else:
-#         os.chdir(str(pathlib.Path(arg_dict['ens_dir']) / arg_dict['member'].run_dir))
-#     mem_pkl = pickle.load(open("WrfHydroSim.pkl", "rb"))
-#     mem_pkl.run()
-#     return mem_pkl.jobs[0].exit_status
+
+def parallel_run_casts(arg_dict):
+    """Parallelizable function to run an Cycle."""
+    if type(arg_dict['cast']) is str:
+        os.chdir(str(pathlib.Path(arg_dict['cycle_dir']) / arg_dict['cast']))
+    else:
+        os.chdir(str(pathlib.Path(arg_dict['cycle_dir']) / arg_dict['cast'].run_dir))
+    cast_pkl = pickle.load(open("WrfHydroSim.pkl", "rb"))
+    cast_pkl.run()
+    return cast_pkl.jobs[0].exit_status
 
 
 # Classes for constructing and running a wrf_hydro simulation
@@ -125,19 +128,30 @@ class CycleSimulation(object):
         """ Instantiates an EnsembleSimulation object. """
 
         self.casts = []
-        """list: a list of 'casts' which are the individual simulations."""
+        """list: a list of 'casts' which are the individual simulations in the cycle object."""
 
         self._init_times = []
-        self._forcing_dirs = []
-        """list: a list of either strings or pathlib.Path objects (do not mix). pathlib.Path objects 
-        are used when all the directories are known in advance. Strings accomodate special cases: 
-        the null string ('') or '.' mean use the path specfied in the simulations hrldas namelist. 
-        Negative integers can be specfied as well: -n indicates use the forcing from the cast -n 
-        hours ago in this same cycle."""
+        """list: required list of datetime.datetime objects which specify the restart time of 
+        each cast in the cycle."""
+
         self._restart_dirs = []
+        """list: required list of either strings or pathlib.Path objects (do not mix) where the
+        following rules are applied:
+        1) A dot or a null string (are identical pathlib.Path objects and) mean "do nothing"
+           with respect to the default path in the domain.
+        2) An existing path/file is kept.
+        3) A negative integer is units hours, pointing to a previous cast in the cycle.
+        4) Other wise, value error raised.
+        """
+
+        self._forcing_dirs = []
+        """list: optional list of either strings or pathlib.Path objects (do not mix). See 
+        _restart_dirs for usage rules. Unlike _restart_dirs, may be a scalar applied to
+        each cast in the cycle."""
 
         self._job = None
         """list: a list containing Job objects"""
+
         self._scheduler = None
         """Scheduler: A scheduler object to use for each Job in self.jobs"""
 
@@ -279,6 +293,9 @@ class CycleSimulation(object):
         if len(self) < 1:
             raise ValueError("There are no casts (init_times) to compose.")
 
+        self.cycle_dir = os.getcwd()
+
+        # Allowing forcing_dirs to be optional or scalar.
         if self._forcing_dirs == []:
             self._forcing_dirs = [pathlib.Path('.')] * len(self)
         if len(self._forcing_dirs) == 1:
@@ -288,105 +305,89 @@ class CycleSimulation(object):
         if self._simulation.model.compile_log is None:
             self._simulation.model.compile()
 
-        # Set the pool for the following parallelizable operations
-        pool = multiprocessing.Pool(self.ncores, initializer=mute)
-
         # Set the ensemble jobs on the casts before composing (this is a loop over the jobs).
-        self.casts = [
-            parallel_compose_casts(
-                {'simulation': self._simulation,
-                 'init_time': init_time,
-                 'restart_dir': restart_dir,
-                 'forcing_dir': forcing_dir,
-                 'job': self._job,
-                 'scheduler': self._scheduler,
-                }
-            ) for init_time, restart_dir, forcing_dir in zip(
-                self._init_times,
-                self._restart_dirs,
-                self._forcing_dirs
-            )
-        ]
-
-        adfhh
-
-        # Ensemble compose
-        ens_dir = pathlib.Path(os.getcwd())
-        ens_dir_files = list(ens_dir.rglob('*'))
-        if len(ens_dir_files) > 0 and force is False:
-            raise FileExistsError(
-                'Unable to compose ensemble, current working directory is not empty and force '
-                'is False. \nChange working directory to an empty directory with os.chdir()'
-            )
-
-        if self.ncores > 1:
-            self.members = pool.map(
-                parallel_compose,
-                ({
-                    'member': mm,
-                    'ens_dir': ens_dir,
-                    'args': {
-                        'symlink_domain': symlink_domain,
-                        'force': force,
-                        'check_nlst_warn': check_nlst_warn
+        if self.ncores == 1:
+            
+            self.casts = [
+                parallel_compose_casts(
+                    {'simulation': self._simulation,
+                     'init_time': init_time,
+                     'restart_dir': restart_dir,
+                     'forcing_dir': forcing_dir,
+                     'job': self._job,
+                     'scheduler': self._scheduler,
                     }
-                } for mm in self.members)
-            )
-        else:
-            # Keep the following for debugging: Run it without pool.map
-            self.members = [
-                parallel_compose(
-                    {'member': mm,
-                     'ens_dir': ens_dir,
-                     'args': {
-                         'symlink_domain': symlink_domain,
-                         'force': force,
-                         'check_nlst_warn': check_nlst_warn
-                     }
-                    }) for mm in self.members]
+                ) for init_time, restart_dir, forcing_dir in zip(
+                    self._init_times,
+                    self._restart_dirs,
+                    self._forcing_dirs
+                )
+            ]
 
-        # Return to the ensemble dir.
-        os.chdir(ens_dir)
+        else: 
+
+            # Set the pool for the following parallelizable operations
+            pool = multiprocessing.Pool(self.ncores, initializer=mute)
+
+            self.casts = pool.map(
+                parallel_compose_casts,
+                ({
+                    'simulation': self._simulation,
+                    'init_time': init_time,
+                    'restart_dir': restart_dir,
+                    'forcing_dir': forcing_dir,
+                    'job': self._job,
+                    'scheduler': self._scheduler,
+                } for init_time, restart_dir, forcing_dir in zip(
+                    self._init_times,
+                    self._restart_dirs,
+                    self._forcing_dirs
+                )
+                )
+            )            
+
+        # Return from indivdual compose.
+        os.chdir(self.cycle_dir)
 
         # After successful compose, delete the members from memory and replace with
         # their relative dirs, if requested
-        if rm_members_from_memory:
-            self.rm_members()
+        if rm_casts_from_memory:
+            self.rm_casts()
 
     def rm_casts(self):
         """Remove members from memory, replace with their paths."""
-        run_dirs = [mm.run_dir for mm in self.members]
+        run_dirs = [cc.run_dir for cc in self.casts]
         self.casts = run_dirs
 
-    # def run(
-    #     self,
-    #     n_concurrent: int=1
-    # ):
-    #     """Run the ensemble of simulations."""
-    #     ens_dir = os.getcwd()
+    def run(
+        self,
+        n_concurrent: int=1
+    ):
+        """Run the ensemble of simulations."""
+        #ens_dir = os.getcwd()
 
-    #     if n_concurrent > 1:
-    #         pool = multiprocessing.Pool(n_concurrent, initializer=mute)
-    #         exit_codes = pool.map(
-    #             parallel_run,
-    #             ({'member': mm, 'ens_dir': ens_dir} for mm in self.members)
-    #         )
-    #     else:
-    #         # Keep the following for debugging: Run it without pool.map
-    #         exit_codes = [
-    #             parallel_run({'member': mm, 'ens_dir': ens_dir}) for mm in self.members
-    #         ]
+        if n_concurrent > 1:
+            pool = multiprocessing.Pool(n_concurrent, initializer=mute)
+            exit_codes = pool.map(
+                parallel_run_casts,
+                ({'cast': cc, 'cycle_dir': self.cycle_dir} for cc in self.casts)
+            )
+        else:
+            # Keep the following for debugging: Run it without pool.map
+            exit_codes = [
+                parallel_run_casts({'cast': cc, 'cycle_dir': self.cycle_dir}) for cc in self.casts
+            ]
 
-    #     # Return to the ensemble dir.
-    #     os.chdir(ens_dir)
+        # Return to the cycle dir.
+        os.chdir(self.cycle_dir)
 
-    #     return all([ee == 0 for ee in exit_codes])
+        return all([ee == 0 for ee in exit_codes])
 
-    # def pickle(self, path: str):
-    #     """Pickle ensemble sim object to specified file path
-    #     Args:
-    #         path: The file path for pickle
-    #     """
-    #     path = pathlib.Path(path)
-    #     with path.open(mode='wb') as f:
-    #         pickle.dump(self, f, 2)
+    def pickle(self, path: str):
+        """Pickle ensemble sim object to specified file path
+        Args:
+            path: The file path for pickle
+        """
+        path = pathlib.Path(path)
+        with path.open(mode='wb') as f:
+            pickle.dump(self, f, 2)

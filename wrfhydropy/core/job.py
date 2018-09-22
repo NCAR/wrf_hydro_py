@@ -294,7 +294,10 @@ class Job(object):
 
             if self.restart:
                 noah_nlst = self._hrldas_namelist['noahlsm_offline']
-                lsm_restart_dirname = os.path.dirname(noah_nlst['restart_filename_requested'])
+                if noah_nlst['restart_filename_requested'] is not None:
+                    lsm_restart_dirname = os.path.dirname(noah_nlst['restart_filename_requested'])
+                else:
+                    lsm_restart_dirname = '.'
 
                 # Format - 2011082600 - no minutes
                 lsm_restart_basename = 'RESTART.' + \
@@ -312,8 +315,11 @@ class Job(object):
 
         if self._model_start_time is not None and self.restart:
             hydro_nlst = self._hydro_namelist['hydro_nlist']
-            hydro_restart_dirname = os.path.dirname(hydro_nlst['restart_file'])
-
+            if hydro_nlst['restart_file'] is not None:
+                hydro_restart_dirname = os.path.dirname(hydro_nlst['restart_file'])
+            else:
+                hydro_restart_dirname = '.'
+            
             # Format - 2011-08-26_00_00 - minutes
             hydro_restart_basename = \
                 'HYDRO_RST.' + self._model_start_time.strftime('%Y-%m-%d_%H:%M') + '_DOMAIN1'

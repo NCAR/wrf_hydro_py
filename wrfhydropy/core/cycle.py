@@ -70,7 +70,7 @@ def translate_special_paths(cast):
 
 
 def parallel_compose_casts(arg_dict):
-    """Parallelizable function to compose casts of a CycleSimuation."""
+    """Parallelizable function to compose casts of a CycleSimulation."""
 
     cast = copy.deepcopy(arg_dict['simulation'])
     cast.init_time = arg_dict['init_time']
@@ -94,9 +94,14 @@ def parallel_compose_casts(arg_dict):
     os.mkdir(cast.run_dir)
     os.chdir(cast.run_dir)
     cast.compose()
+
+    del cast.model
+    del cast.domain
+    del cast.output
+
     cast.pickle('WrfHydroSim.pkl')
     os.chdir(orig_dir)
-    
+
     return cast
 
 
@@ -353,6 +358,10 @@ class CycleSimulation(object):
         # their relative dirs, if requested
         if rm_casts_from_memory:
             self.rm_casts()
+
+        # Remove bloaty atts
+        del self._simulation
+        del self._job
 
     def rm_casts(self):
         """Remove members from memory, replace with their paths."""

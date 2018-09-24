@@ -13,7 +13,7 @@ from wrfhydropy.core.cycle import CycleSimulation
 
 @pytest.fixture(scope='function')
 def init_times():
-    some_time = datetime.datetime(2012, 12, 21, 21, 12)
+    some_time = datetime.datetime(2012, 12, 12, 0, 0)
     init_times = [some_time + datetime.timedelta(dd) for dd in range(0, 9, 3)]
     return init_times
 
@@ -26,12 +26,12 @@ def simulation(model, domain):
 
 
 @pytest.fixture(scope='function')
-def simulation_compiled(model, domain, job, tmpdir):
+def simulation_compiled(model, domain, job_restart, tmpdir):
     sim_dir = pathlib.Path(tmpdir).joinpath('sim_compiled_dir')
     sim = Simulation()
     sim.add(model)
     sim.add(domain)
-    sim.add(job)
+    sim.add(job_restart)
     os.mkdir(sim_dir)
     os.chdir(sim_dir)
     sim.compose()
@@ -55,7 +55,7 @@ def test_cycle_init(init_times):
 
 def test_cycle_addsimulation(
     simulation,
-    job,
+    job_restart,
     scheduler,
     simulation_compiled,
     init_times    
@@ -79,7 +79,7 @@ def test_cycle_addsimulation(
     cy1.add(sim_compiled)
 
     # add a sim with job and make sure it is deleted.
-    sim_compiled.add(job)
+    sim_compiled.add(job_restart)
     sim_compiled.add(scheduler)
     cy2 = CycleSimulation(
         init_times=init_times,
@@ -91,14 +91,14 @@ def test_cycle_addsimulation(
     assert all([cc.scheduler is None for cc in cy2.casts])
 
 
-def test_cycle_addjob(simulation, job, init_times):
+def test_cycle_addjob(simulation, job_restart, init_times):
     cy1 = CycleSimulation(init_times=init_times, restart_dirs=['.'] * len(init_times))
-    cy1.add(job)
-    assert deepdiff.DeepDiff(cy1._job, job) == {}
+    cy1.add(job_restart)
+    assert deepdiff.DeepDiff(cy1._job, job_restart) == {}
 
-    job.job_id = 'a_different_id'
-    cy1.add(job)
-    assert deepdiff.DeepDiff(cy1._job, job) == {}
+    job_restart.job_id = 'a_different_id'
+    cy1.add(job_restart)
+    assert deepdiff.DeepDiff(cy1._job, job_restart) == {}
 
 
 def test_cycle_addscheduler(
@@ -131,7 +131,7 @@ def test_cycle_length(
 
 def test_cycle_parallel_compose(
     simulation_compiled,
-    job,
+    job_restart,
     scheduler,
     tmpdir,
     init_times
@@ -141,7 +141,7 @@ def test_cycle_parallel_compose(
         init_times=init_times,
         restart_dirs=['.'] * len(init_times)
     )
-    cy.add(job)
+    cy.add(job_restart)
     cy.add(scheduler)
 
     with pytest.raises(Exception) as e_info:
@@ -190,10 +190,10 @@ def test_cycle_parallel_compose(
                 'khour': 282480,
                 'restart_frequency_hours': 1,
                 'output_timestep': 3600,
-                'restart_filename_requested': None,
-                'start_day': 21,
-                'start_hour': 21,
-                'start_min': 12,
+                'restart_filename_requested': './NWM/RESTART/RESTART.2012121200_DOMAIN1',
+                'start_day': 12,
+                'start_hour': 00,
+                'start_min': 00,
                 'start_month': 12,
                 'start_year': 2012
             }
@@ -217,24 +217,24 @@ def test_cycle_parallel_compose(
         },
         '_hydro_times': {
             'hydro_nlist': {
-                'restart_file': None,
+                'restart_file': './NWM/RESTART/HYDRO_RST.2012-12-12_00:00_DOMAIN1',
                 'rst_dt': 60,
                 'out_dt': 60
             },
             'nudging_nlist': {
-                'nudginglastobsfile': None
+                'nudginglastobsfile': './NWM/RESTART/nudgingLastObs.2012-12-12_00:00:00.nc'
             }
         },
         '_job_end_time': None,
         '_job_start_time': None,
         '_job_submission_time': None,
-        '_model_end_time': pandas.Timestamp('2045-03-13 21:12:00'),
-        '_model_start_time': pandas.Timestamp('2012-12-21 21:12:00'),
+        '_model_end_time': pandas.Timestamp('2045-03-04 00:00:00'),
+        '_model_start_time': pandas.Timestamp('2012-12-12 00:00:00'),
         'exit_status': None,
         'job_id': 'test_job_1',
         'restart_freq_hr': 1,
         'output_freq_hr': 1,
-        'restart': False
+        'restart': True
     }
 
     # For the cycle where the compse retains the casts...
@@ -257,7 +257,7 @@ def test_cycle_parallel_compose(
     # Note that the deletion of the model, domain, and output objects are
     # done for the casts regardless of not removing the casts
     # from memory (currently).
-    os.chdir(str(pathlib.Path(tmpdir) / 'cycle_compose/cast_2012122121'))
+    os.chdir(str(pathlib.Path(tmpdir) / 'cycle_compose/cast_2012121200'))
     time_taken = timeit.timeit(
         setup='import pickle',
         stmt='pickle.load(open("WrfHydroSim.pkl","rb"))',
@@ -279,9 +279,9 @@ def test_cycle_parallel_compose(
     assert time_taken < .6
 
 
-def test_cycle_parallel_run(
+def test_cycle_run(
     simulation_compiled,
-    job,
+    job_restart,
     scheduler,
     tmpdir,
     capfd,
@@ -293,8 +293,8 @@ def test_cycle_parallel_run(
         init_times=init_times,
         restart_dirs=['.'] * len(init_times)
     )
-    cy.add(job)
     cy.add(sim)
+    cy.add(job_restart)
 
     # Serial test
     cy_serial = copy.deepcopy(cy)
@@ -329,3 +329,45 @@ def test_cycle_parallel_run(
     cy_run_mem_success = cy_parallel.run(n_concurrent=2)
     assert cy_run_mem_success, \
         "Some parallel cycle casts in memory did not run successfully."
+
+
+def test_cycle_self_dependent_run(
+    simulation_compiled,
+    job_restart,
+    scheduler,
+    tmpdir,
+    capfd,
+    init_times
+):
+
+    sim = simulation_compiled
+    cy = CycleSimulation(
+        init_times=init_times,
+        restart_dirs=['.', '-3', '-3']
+    )
+    cy.add(job_restart)
+    cy.add(sim)
+
+    # Serial test
+    cy_serial = copy.deepcopy(cy)
+    cy_dir = pathlib.Path(tmpdir).joinpath('cycle_serial_run')
+    os.chdir(tmpdir)
+    os.mkdir(str(cy_dir))
+    os.chdir(str(cy_dir))
+    cy_serial.compose(rm_casts_from_memory=False)
+    serial_run_success = cy_serial.run()
+    assert serial_run_success, \
+        "Some serial cycle casts did not run successfully."
+
+    # Parallel test
+    # TODO: This test should fail in a real run
+    # cy_parallel = copy.deepcopy(cy)
+    # cy_dir = pathlib.Path(tmpdir).joinpath('cycle_parallel_run')
+    # os.chdir(tmpdir)
+    # os.mkdir(str(cy_dir))
+    # os.chdir(str(cy_dir))
+    # cy_parallel.compose()
+
+    # cy_run_success = cy_parallel.run(n_concurrent=2)
+    # assert cy_run_success, \
+    #     "Some parallel cycle casts did not run successfully."

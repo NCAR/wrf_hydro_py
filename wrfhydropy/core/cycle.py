@@ -251,6 +251,7 @@ class CycleSimulation(object):
             job: The job to add
         """
         self._job = copy.deepcopy(job)
+        self._job.restart = True
 
     def _addsimulation(
         self,

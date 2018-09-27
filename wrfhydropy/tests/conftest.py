@@ -299,12 +299,27 @@ def domain(domain_dir):
 
 
 @pytest.fixture(scope='function')
+# TODO: this should be changed to job_cold_start
 def job():
     job = Job(
         job_id='test_job_1',
         model_start_time='1984-10-14',
         model_end_time='2017-01-04',
         restart=False,
+        exe_cmd='./wrf_hydro.exe',
+        entry_cmd='bogus entry cmd',
+        exit_cmd='bogus exit cmd'
+    )
+    return job
+
+
+@pytest.fixture(scope='function')
+def job_restart():
+    job = Job(
+        job_id='test_job_1',
+        model_start_time='1984-10-14',
+        model_end_time='2017-01-04',
+        restart=True,
         exe_cmd='./wrf_hydro.exe',
         entry_cmd='bogus entry cmd',
         exit_cmd='bogus exit cmd'

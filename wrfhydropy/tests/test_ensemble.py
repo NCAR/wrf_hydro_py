@@ -106,7 +106,7 @@ def test_ensemble_length(simulation_compiled):
     # assert ens1.replicate_member(4) == "WTF mate?"
 
 
-def test_get_diff_dicts(simulation_compiled):
+def test_ens_get_diff_dicts(simulation_compiled):
     sim = simulation_compiled
     ens = EnsembleSimulation()
     ens.add([sim, sim, sim, sim])
@@ -117,7 +117,7 @@ def test_get_diff_dicts(simulation_compiled):
     assert ens.member_diffs == answer
 
 
-def test_set_diff_dicts(simulation_compiled):
+def test_ens_set_diff_dicts(simulation_compiled):
     sim = simulation_compiled
     ens = EnsembleSimulation()
     ens.add([sim, sim, sim, sim, sim])
@@ -132,27 +132,7 @@ def test_set_diff_dicts(simulation_compiled):
     assert ens.member_diffs == answer
 
 
-def test_addjob(simulation, job):
-    ens1 = EnsembleSimulation()
-    ens1.add(job)
-    assert deepdiff.DeepDiff(ens1.jobs[0], job) == {}
-
-    job.job_id = 'a_different_id'
-    ens1.add(job)
-    assert deepdiff.DeepDiff(ens1.jobs[1], job) == {}
-
-
-def test_addscheduler(simulation, scheduler):
-    ens1 = EnsembleSimulation()
-    ens1.add(scheduler)
-    assert deepdiff.DeepDiff(ens1.scheduler, scheduler) == {}
-
-    scheduler.queue = 'no-queue'
-    ens1.add(scheduler)
-    assert deepdiff.DeepDiff(ens1.scheduler, scheduler) == {}
-
-
-def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
+def test_ens_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
     sim = simulation_compiled
     ens = EnsembleSimulation()
     ens.add(job)
@@ -294,7 +274,7 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
     assert time_taken < .6
 
 
-def test_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
+def test_ens_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     sim = simulation_compiled
     ens = EnsembleSimulation()
     ens.add(job)

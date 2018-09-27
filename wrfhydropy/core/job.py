@@ -303,7 +303,7 @@ class Job(object):
                 lsm_restart_basename = 'RESTART.' + \
                                        self._model_start_time.strftime('%Y%m%d%H') + '_DOMAIN1'
 
-                lsm_restart_file = lsm_restart_dirname + '/' + lsm_restart_basename
+                lsm_restart_file = str(pathlib.Path(lsm_restart_dirname) / lsm_restart_basename)
 
                 self._hrldas_times['noahlsm_offline']['restart_filename_requested'] = lsm_restart_file
 
@@ -336,9 +336,9 @@ class Job(object):
             #nudging_restart_file = _check_file_exist_colon(os.getcwd(),nudging_restart_basename)
 
             self._hydro_times['hydro_nlist']['restart_file'] = \
-                hydro_restart_dirname + '/' + hydro_restart_basename
+                str(pathlib.Path(hydro_restart_dirname) / hydro_restart_basename)
             self._hydro_times['nudging_nlist']['nudginglastobsfile'] = \
-                hydro_restart_dirname + '/' + nudging_restart_basename
+                str(pathlib.Path(hydro_restart_dirname) / nudging_restart_basename)
 
         self._hydro_times['hydro_nlist']['rst_dt'] = self.restart_freq_hr * 60
         self._hydro_times['hydro_nlist']['out_dt'] = self.output_freq_hr * 60

@@ -164,12 +164,12 @@ def test_job_restart_file_times():
 
     assert job.hydro_namelist == {
         'hydro_nlist': {
-            'restart_file': './HYDRO_RST.1984-10-14_00:00_DOMAIN1',
+            'restart_file': 'HYDRO_RST.1984-10-14_00:00_DOMAIN1',
             'rst_dt': 60,
             'out_dt': 60
         },
         'nudging_nlist': {
-            'nudginglastobsfile': './nudgingLastObs.1984-10-14_00:00:00.nc'
+            'nudginglastobsfile': 'nudgingLastObs.1984-10-14_00:00:00.nc'
         }
     }
 
@@ -184,7 +184,7 @@ def test_job_restart_file_times():
             'start_day': 14,
             'start_hour': 0,
             'start_min': 0,
-            'restart_filename_requested': './RESTART.1984101400_DOMAIN1'
+            'restart_filename_requested': 'RESTART.1984101400_DOMAIN1'
         }
     }
 

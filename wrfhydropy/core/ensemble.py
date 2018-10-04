@@ -302,20 +302,20 @@ class EnsembleSimulation(object):
             raise ValueError("There are no member simulations to compose.")
 
         # Set the pool for the following parallelizable operations
-        pool = multiprocessing.Pool(self.ncores, initializer=mute)
+        with multiprocessing.Pool(processes=self.ncores, initializer=mute) as pool:
 
-        # Set the ensemble jobs on the members before composing (this is a loop over the jobs).
-        self.members = pool.map(
-            parallel_compose_addjobs,
-            ({'member': mm, 'jobs': self.jobs} for mm in self.members)
-        )
-
-        # Set the ensemble scheduler (not a loop)
-        if self.scheduler is not None:
+            # Set the ensemble jobs on the members before composing (this is a loop over the jobs).
             self.members = pool.map(
-                parallel_compose_addscheduler,
-                ({'member': mm, 'scheduler': self.scheduler} for mm in self.members)
+                parallel_compose_addjobs,
+                ({'member': mm, 'jobs': self.jobs} for mm in self.members)
             )
+
+            # Set the ensemble scheduler (not a loop)
+            if self.scheduler is not None:
+                self.members = pool.map(
+                    parallel_compose_addscheduler,
+                    ({'member': mm, 'scheduler': self.scheduler} for mm in self.members)
+                )
 
         # Ensemble compose
         ens_dir = pathlib.Path(os.getcwd())
@@ -327,18 +327,19 @@ class EnsembleSimulation(object):
             )
 
         if self.ncores > 1:
-            self.members = pool.map(
-                parallel_compose,
-                ({
-                    'member': mm,
-                    'ens_dir': ens_dir,
-                    'args': {
-                        'symlink_domain': symlink_domain,
-                        'force': force,
-                        'check_nlst_warn': check_nlst_warn
-                    }
-                } for mm in self.members)
-            )
+            with multiprocessing.Pool(processes=self.ncores, initializer=mute) as pool:
+                self.members = pool.map(
+                    parallel_compose,
+                    ({
+                        'member': mm,
+                        'ens_dir': ens_dir,
+                        'args': {
+                            'symlink_domain': symlink_domain,
+                            'force': force,
+                            'check_nlst_warn': check_nlst_warn
+                        }
+                    } for mm in self.members)
+                )
         else:
             # Keep the following for debugging: Run it without pool.map
             self.members = [
@@ -373,11 +374,11 @@ class EnsembleSimulation(object):
         ens_dir = os.getcwd()
 
         if n_concurrent > 1:
-            pool = multiprocessing.Pool(n_concurrent, initializer=mute)
-            exit_codes = pool.map(
-                parallel_run,
-                ({'member': mm, 'ens_dir': ens_dir} for mm in self.members)
-            )
+            with multiprocessing.Pool(n_concurrent, initializer=mute) as pool:
+                exit_codes = pool.map(
+                    parallel_run,
+                    ({'member': mm, 'ens_dir': ens_dir} for mm in self.members)
+                )
         else:
             # Keep the following for debugging: Run it without pool.map
             exit_codes = [

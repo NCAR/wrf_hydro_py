@@ -333,24 +333,24 @@ class CycleSimulation(object):
         else: 
 
             # Set the pool for the following parallelizable operations
-            pool = multiprocessing.Pool(self.ncores, initializer=mute)
+            with multiprocessing.Pool(self.ncores, initializer=mute) as pool:
 
-            self.casts = pool.map(
-                parallel_compose_casts,
-                ({
-                    'simulation': self._simulation,
-                    'init_time': init_time,
-                    'restart_dir': restart_dir,
-                    'forcing_dir': forcing_dir,
-                    'job': self._job,
-                    'scheduler': self._scheduler,
-                } for init_time, restart_dir, forcing_dir in zip(
-                    self._init_times,
-                    self._restart_dirs,
-                    self._forcing_dirs
-                )
-                )
-            )            
+                self.casts = pool.map(
+                    parallel_compose_casts,
+                    ({
+                        'simulation': self._simulation,
+                        'init_time': init_time,
+                        'restart_dir': restart_dir,
+                        'forcing_dir': forcing_dir,
+                        'job': self._job,
+                        'scheduler': self._scheduler,
+                    } for init_time, restart_dir, forcing_dir in zip(
+                        self._init_times,
+                        self._restart_dirs,
+                        self._forcing_dirs
+                    )
+                    )
+                )            
 
         # Return from indivdual compose.
         os.chdir(self.cycle_dir)
@@ -377,11 +377,11 @@ class CycleSimulation(object):
         #ens_dir = os.getcwd()
 
         if n_concurrent > 1:
-            pool = multiprocessing.Pool(n_concurrent, initializer=mute)
-            exit_codes = pool.map(
-                parallel_run_casts,
-                ({'cast': cc, 'cycle_dir': self.cycle_dir} for cc in self.casts)
-            )
+            with multiprocessing.Pool(n_concurrent, initializer=mute) as pool:
+                exit_codes = pool.map(
+                    parallel_run_casts,
+                    ({'cast': cc, 'cycle_dir': self.cycle_dir} for cc in self.casts)
+                )
         else:
             # Keep the following for debugging: Run it without pool.map
             exit_codes = [

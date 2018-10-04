@@ -270,8 +270,8 @@ def test_ens_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         number=10000
     )
     # If your system is busy, this could take longer...
-    # Notes(JLM): .6 seems to work on OSX spinning disk and chyenne scratch.
-    assert time_taken < .6
+    # Notes(JLM): .7 seems to work on OSX spinning disk and chyenne scratch.
+    assert time_taken < .7
 
 
 def test_ens_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):

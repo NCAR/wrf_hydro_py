@@ -54,8 +54,37 @@ def parallel_run(arg_dict):
     else:
         os.chdir(str(pathlib.Path(arg_dict['ens_dir']) / arg_dict['member'].run_dir))
     mem_pkl = pickle.load(open("WrfHydroSim.pkl", "rb"))
+
+    adsfadf
+    
     mem_pkl.run()
     return mem_pkl.jobs[0].exit_status
+
+
+def parallel_teams_run(arg_dict):
+    """Parallelizable function for teams to run an EnsembleSimuation."""
+    passastone
+    # ens_dir = arg_dict['ens_dir']
+    # team_dict = arg_dict['team_dict']
+    # # team_dict['members'], team_dict['nodes']
+    # # team_dict['entry_cmd'], team_dict['exe_cmd'], team_dict['exit_cmd']
+    
+    # for member in team_dict['members']:
+    #     if type(member) is str:
+    #         os.chdir(str(pathlib.Path(ens_dir) / member))
+    #     else:
+    #         os.chdir(str(pathlib.Path(ens_dir) / member.run_dir))
+            
+    # mem_pkl = pickle.load(open("WrfHydroSim.pkl", "rb"))
+
+    # # Edit the job to be run on the specific team nodes.
+    # # Entry and exit commands are not (typically) mpirun/mpt commands, so they need
+    # # MPI_SHEPHERD=true in the subprocess command and to be called using mpirun on the
+    # # first node in the list.
+    # # TODO abstract this PBS jazz during the construction of the team_dict.
+    
+    # mem_pkl.run()
+    # return mem_pkl.jobs[0].exit_status
 
 
 # Classes for constructing and running a wrf_hydro simulation
@@ -368,17 +397,29 @@ class EnsembleSimulation(object):
 
     def run(
         self,
-        n_concurrent: int=1
+        n_concurrent: int=1,
+        teams_dict: dict=None
     ):
-        """Run the ensemble of simulations."""
+        """Run the ensemble of simulations. """
         ens_dir = os.getcwd()
 
+        if teams_dict is not None:
+            n_concurrent=0
+        
         if n_concurrent > 1:
             with multiprocessing.Pool(n_concurrent, initializer=mute) as pool:
                 exit_codes = pool.map(
                     parallel_run,
                     ({'member': mm, 'ens_dir': ens_dir} for mm in self.members)
                 )
+                
+        elif isinstance(teams_dict, dict):
+            with multiprocessing.Pool(len(teams_dict), initializer=mute) as pool:
+                exit_codes = pool.map(
+                    parallel_teams_run,
+                    ({'member': mm, 'ens_dir': ens_dir} for mm in self.members)
+                )
+                
         else:
             # Keep the following for debugging: Run it without pool.map
             exit_codes = [

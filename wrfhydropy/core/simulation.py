@@ -137,7 +137,6 @@ class Simulation(object):
             pickle.dump(self, f, 2)
 
         if self.scheduler is None:
-
             for job in self.jobs:
                 job._run()
         else:

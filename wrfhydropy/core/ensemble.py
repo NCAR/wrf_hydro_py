@@ -63,28 +63,50 @@ def parallel_run(arg_dict):
 
 def parallel_teams_run(arg_dict):
     """Parallelizable function for teams to run an EnsembleSimuation."""
-    passastone
-    # ens_dir = arg_dict['ens_dir']
-    # team_dict = arg_dict['team_dict']
-    # # team_dict['members'], team_dict['nodes']
-    # # team_dict['entry_cmd'], team_dict['exe_cmd'], team_dict['exit_cmd']
-    
-    # for member in team_dict['members']:
-    #     if type(member) is str:
-    #         os.chdir(str(pathlib.Path(ens_dir) / member))
-    #     else:
-    #         os.chdir(str(pathlib.Path(ens_dir) / member.run_dir))
-            
-    # mem_pkl = pickle.load(open("WrfHydroSim.pkl", "rb"))
 
-    # # Edit the job to be run on the specific team nodes.
-    # # Entry and exit commands are not (typically) mpirun/mpt commands, so they need
-    # # MPI_SHEPHERD=true in the subprocess command and to be called using mpirun on the
-    # # first node in the list.
-    # # TODO abstract this PBS jazz during the construction of the team_dict.
+    ens_dir = arg_dict['ens_dir']
+    team_dict = arg_dict['team_dict']
+    env = arg_dict['env']
+    # team_dict['members'], team_dict['nodes']
+    # team_dict['entry_cmd'], team_dict['exe_cmd'], team_dict['exit_cmd']
+
+    exit_statuses = {}
+    for member in team_dict['members']:
+        if type(member) is str:
+            os.chdir(str(pathlib.Path(ens_dir) / member))
+        else:
+            os.chdir(str(pathlib.Path(ens_dir) / member.run_dir))
+            
+        mem_pkl = pickle.load(open("WrfHydroSim.pkl", "rb"))
+
+        # Run-time job manipulation:
+        # Edit the job to be run on the specific team nodes.
+        # Entry and exit commands are not (typically) mpirun/mpt commands, so they need
+        # MPI_SHEPHERD=true in the subprocess command and to be called using mpirun on the
+        # first node in the list.
+        job = mem_pkl.jobs[0]
+
+        if job._entry_cmd is not None:
+            job._entry_cmd = team_dict['entry_cmd'].format(
+                **{'hostname': team_dict['nodes'][0]}
+            )
+
+        if job._exit_cmd is not None: 
+            job._exit_cmd = team_dict['exit_cmd'].format(
+                **{'hostname': team_dict['nodes'][0]}
+            )
+
+        # TODO: what is the right number of proc?
+        job._exe_cmd = team_dict['exe_cmd'].format(
+            **{'hostname': ','.join(team_dict['nodes']),
+               'nproc': 1 #len(team_dict['nodes'])
+            }
+        )
     
-    # mem_pkl.run()
-    # return mem_pkl.jobs[0].exit_status
+        mem_pkl.run(env=env)
+        exit_statuses.update({member: mem_pkl.jobs[0].exit_status})
+
+    return exit_statuses
 
 
 # Classes for constructing and running a wrf_hydro simulation
@@ -398,7 +420,8 @@ class EnsembleSimulation(object):
     def run(
         self,
         n_concurrent: int=1,
-        teams_dict: dict=None
+        teams_dict: dict=None,
+        env: dict=None
     ):
         """Run the ensemble of simulations. """
         ens_dir = os.getcwd()
@@ -412,24 +435,41 @@ class EnsembleSimulation(object):
                     parallel_run,
                     ({'member': mm, 'ens_dir': ens_dir} for mm in self.members)
                 )
-                
+
+            # Return to the ensemble dir.
+            os.chdir(ens_dir)
+            return all([ee == 0 for ee in exit_codes])
+
         elif isinstance(teams_dict, dict):
+
             with multiprocessing.Pool(len(teams_dict), initializer=mute) as pool:
+            #with multiprocessing.Pool(len(teams_dict)) as pool:
                 exit_codes = pool.map(
                     parallel_teams_run,
-                    ({'member': mm, 'ens_dir': ens_dir} for mm in self.members)
+                    (
+                        {'team_dict': team_dict , 'ens_dir': ens_dir, 'env': env}
+                        for (key, team_dict) in teams_dict.items()
+                    )
                 )
-                
+            # Return to the ensemble dir.
+            os.chdir(ens_dir)
+            return all([list(ee.values())[0] == 0 for ee in exit_codes])
+
+            # Keep around for serial testing/debugging
+            # exit_codes = [
+            #     parallel_teams_run({'team_dict': team_dict, 'ens_dir': ens_dir, 'env': env})
+            #     for (key, team_dict) in teams_dict.items()
+            # ]
+
         else:
             # Keep the following for debugging: Run it without pool.map
             exit_codes = [
                 parallel_run({'member': mm, 'ens_dir': ens_dir}) for mm in self.members
             ]
 
-        # Return to the ensemble dir.
-        os.chdir(ens_dir)
-
-        return all([ee == 0 for ee in exit_codes])
+            # Return to the ensemble dir.
+            os.chdir(ens_dir)
+            return all([ee == 0 for ee in exit_codes])
 
     def pickle(self, path: str):
         """Pickle ensemble sim object to specified file path

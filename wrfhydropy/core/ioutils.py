@@ -296,7 +296,7 @@ def nwm_forcing_to_ldasin(
     forc_type = 1
 ):
     """Convert nwm dir and naming format to wrf-hydro read format.
-    Agrs:
+    Args:
         nwm_forcing_dir: the pathlib.Path or str for the source dir or a list of source 
             directories. If a pathlib.Path object or str is provided, it is assume that this 
             single directory contains nwm.YYYYMMDDHH downloaded from NOMADS and that their 
@@ -304,27 +304,14 @@ def nwm_forcing_to_ldasin(
             these should be the desired nwm.YYYYMMDD to translate with no changed to their 
             subdirectory structure.
         ldasin_dir: the pathlib.Path or str for a new NONEXISTANT output dir.
-        range: str range as on nomads in: forcing_analysis_assim, forcing_analysis_assim_extend,
-            forcing_analysis_assim_hawaii, forcing_medium_range, forcing_short_range, 
-            forcing_short_range_hawaii
+        range: str range as on nomads in: analysis_assim, analysis_assim_extend,
+            analysis_assim_hawaii, medium_range, short_range, 
+            short_range_hawaii
         copy: True or false. Default is false creates symlinks. 
         forc_type: 1 (hour) or 2 (minute) formats are supported. 
     Returns:
         None on success.
 """
-
-    if isinstance(ldasin_dir, str):
-        ldasin_dir = pathlib.Path(ldasin_dir)
-    if ldasin_dir.exists():
-        raise FileExistsError("The ldasin_dir already exists, exiting")
-    os.mkdir(str(ldasin_dir))
-    
-    if isinstance(nwm_forcing_dir, str):
-        nwm_forcing_dir = pathlib.Path(nwm_forcing_dir)
-    if not nwm_forcing_dir.exists():
-        raise FileNotFoundError("The nwm_forcing_dir does not exist, exiting.")
-    os.chdir(str(nwm_forcing_dir))
-
     # Some example file names
     # nwm.t00z.analysis_assim.forcing.tm00.conus.nc 
     # nwm.t00z.short_range.forcing.f001.conus.nc
@@ -336,19 +323,45 @@ def nwm_forcing_to_ldasin(
     # nwm.t00z.long_range.channel_rt_1.f006.conus.nc
     # nwm.t00z.long_range.channel_rt_2.f006.conus.nc 
 
-    daily_dirs = nwm_forcing_dir.glob("nwm.*[0-9]")
+    # The proper range specification is as in args above, but if "forcing_" is prepended, try our best.
+    if 'forcing_' in range:
+        range = range.split('forcing_')[1]
+
+    # Ldasin dir
+    # Might move this to the individual forecast folder creation below.
+    if isinstance(ldasin_dir, str):
+        ldasin_dir = pathlib.Path(ldasin_dir)
+    if not ldasin_dir.exists():
+        os.mkdir(str(ldasin_dir))
+
+    if isinstance(nwm_forcing_dir, list):
+
+        daily_dirs = [pathlib.Path(dd) for dd in nwm_forcing_dir]
+        daily_exist = [dd.exists() for dd in daily_dirs]
+        if not all(daily_exist):
+            raise FileNotFoundError('Some requested daily nwm forcing source dirs do not exist')
+
+    else:
+
+        if isinstance(nwm_forcing_dir, str):
+            nwm_forcing_dir = pathlib.Path(nwm_forcing_dir)
+        if not nwm_forcing_dir.exists():
+            raise FileNotFoundError("The nwm_forcing_dir does not exist, exiting.")
+        os.chdir(str(nwm_forcing_dir))
+        daily_dirs = nwm_forcing_dir.glob("nwm.*[0-9]")
+        
     for daily_dir in daily_dirs:
         the_day = datetime.datetime.strptime(daily_dir.name,'nwm.%Y%m%d')
 
-        member_dirs = daily_dir.glob('*forcing_' + range + '*')
+        member_dirs = sorted(daily_dir.glob('*forcing_' + range + '*'))
+        #if len(member_dirs) == 0:
+            
         for member_dir in member_dirs:
             if not member_dir.is_dir():
                 continue
-            # print(member_dir)
 
             forcing_files = member_dir.glob('*' + range + '.forcing.*')
             for forcing_file in forcing_files:
-                
                 name_split = forcing_file.name.split('.')
                 init_hour = int(re.findall(r'\d+', name_split[1])[0])
 

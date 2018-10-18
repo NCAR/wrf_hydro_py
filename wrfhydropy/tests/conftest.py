@@ -9,7 +9,7 @@ import pytest
 import xarray as xr
 
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def ds_1d():
     # Create a dummy dataset
     vals_1d = np.random.randn(3)
@@ -22,7 +22,7 @@ def ds_1d():
 
     return ds_1d
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def ds_1d_has_nans():
     # Create a dummy dataset
     vals_1d = np.random.randn(3)
@@ -34,7 +34,7 @@ def ds_1d_has_nans():
 
     return ds_1d
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def ds_2d():
     x = [10,11,12]
     y = [101,102,103]
@@ -49,7 +49,7 @@ def ds_2d():
     return ds_2d
 
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def ds_timeseries():
     # Create a dummy dataset
     vals_ts = np.random.randn(3,3)
@@ -63,7 +63,7 @@ def ds_timeseries():
     return ds_ts
 
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def domain_dir(tmpdir, ds_1d):
     domain_top_dir_path = pathlib.Path(tmpdir).joinpath('example_case')
     domain_dir_path = domain_top_dir_path.joinpath('NWM/DOMAIN')
@@ -155,7 +155,7 @@ def domain_dir(tmpdir, ds_1d):
     return domain_top_dir_path
 
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def model_dir(tmpdir):
     model_dir_path = pathlib.Path(tmpdir).joinpath('wrf_hydro_nwm_public/trunk/NDHMS')
     model_dir_path.mkdir(parents=True)
@@ -227,7 +227,7 @@ def model_dir(tmpdir):
     return model_dir_path
 
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def compile_dir(tmpdir):
     compile_dir = pathlib.Path(tmpdir).joinpath('compile_dir')
     compile_dir.mkdir(parents=True)
@@ -247,7 +247,7 @@ def compile_dir(tmpdir):
     return compile_dir
 
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def sim_output(tmpdir, ds_1d, ds_1d_has_nans, ds_2d):
 
     tmpdir = pathlib.Path(tmpdir)

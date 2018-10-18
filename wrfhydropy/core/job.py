@@ -293,13 +293,17 @@ class Job(object):
             self._hrldas_times['noahlsm_offline']['start_min'] = int(self._model_start_time.minute)
 
             if self.restart:
-                lsm_restart_dirname = '.'  # os.path.dirname(noah_nlst['restart_filename_requested'])
+                noah_nlst = self._hrldas_namelist['noahlsm_offline']
+                if noah_nlst['restart_filename_requested'] is not None:
+                    lsm_restart_dirname = os.path.dirname(noah_nlst['restart_filename_requested'])
+                else:
+                    lsm_restart_dirname = '.'
 
                 # Format - 2011082600 - no minutes
                 lsm_restart_basename = 'RESTART.' + \
                                        self._model_start_time.strftime('%Y%m%d%H') + '_DOMAIN1'
 
-                lsm_restart_file = lsm_restart_dirname + '/' + lsm_restart_basename
+                lsm_restart_file = str(pathlib.Path(lsm_restart_dirname) / lsm_restart_basename)
 
                 self._hrldas_times['noahlsm_offline']['restart_filename_requested'] = lsm_restart_file
 
@@ -310,13 +314,19 @@ class Job(object):
         """Private method to set model run times in the hydro namelist"""
 
         if self._model_start_time is not None and self.restart:
+            hydro_nlst = self._hydro_namelist['hydro_nlist']
+            if hydro_nlst['restart_file'] is not None:
+                hydro_restart_dirname = os.path.dirname(hydro_nlst['restart_file'])
+            else:
+                hydro_restart_dirname = '.'
+            
             # Format - 2011-08-26_00_00 - minutes
-            hydro_restart_basename = 'HYDRO_RST.' + \
-                                     self._model_start_time.strftime('%Y-%m-%d_%H:%M') + '_DOMAIN1'
+            hydro_restart_basename = \
+                'HYDRO_RST.' + self._model_start_time.strftime('%Y-%m-%d_%H:%M') + '_DOMAIN1'
 
             # Format - 2011-08-26_00_00 - seconds
-            nudging_restart_basename = 'nudgingLastObs.' + \
-                                     self._model_start_time.strftime('%Y-%m-%d_%H:%M:%S') + '.nc'
+            nudging_restart_basename = \
+                'nudgingLastObs.' + self._model_start_time.strftime('%Y-%m-%d_%H:%M:%S') + '.nc'
 
             # Use convenience function to return name of file with or without colons in name
             # This is needed because the model outputs restarts with colons, and our distributed
@@ -325,8 +335,10 @@ class Job(object):
             #hydro_restart_file = _check_file_exist_colon(os.getcwd(),hydro_restart_basename)
             #nudging_restart_file = _check_file_exist_colon(os.getcwd(),nudging_restart_basename)
 
-            self._hydro_times['hydro_nlist']['restart_file'] = hydro_restart_basename
-            self._hydro_times['nudging_nlist']['nudginglastobsfile'] = nudging_restart_basename
+            self._hydro_times['hydro_nlist']['restart_file'] = \
+                str(pathlib.Path(hydro_restart_dirname) / hydro_restart_basename)
+            self._hydro_times['nudging_nlist']['nudginglastobsfile'] = \
+                str(pathlib.Path(hydro_restart_dirname) / nudging_restart_basename)
 
         self._hydro_times['hydro_nlist']['rst_dt'] = self.restart_freq_hr * 60
         self._hydro_times['hydro_nlist']['out_dt'] = self.output_freq_hr * 60

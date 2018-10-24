@@ -164,7 +164,7 @@ class Domain(object):
         # Symlink in nudging files
 
         # handling nudging obs files
-        if self.nudging_dir is not None:
+        if not (self.nudging_dir is None or self.nudging_dir is ''):
             from_dir = self.nudging_dir
             to_dir = dest_dir.joinpath(from_dir.relative_to(self.domain_top_dir))
             if symlink:

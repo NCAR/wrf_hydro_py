@@ -48,9 +48,9 @@ class Model(object):
     def __init__(self,
                  source_dir: str,
                  model_config: str,
-                 hydro_namelist_config_file: str='hydro_namelists.json',
-                 hrldas_namelist_config_file: str='hrldas_namelists.json',
-                 compile_options_config_file: str='compile_options.json',
+                 hydro_namelist_config_file: str=None,
+                 hrldas_namelist_config_file: str=None,
+                 compile_options_config_file: str=None,
                  compiler: str = 'gfort',
                  pre_compile_cmd: str = None,
                  compile_options: dict = None):
@@ -92,13 +92,17 @@ class Model(object):
         self.hydro_namelist_config_file = hydro_namelist_config_file
         self.hrldas_namelist_config_file = hrldas_namelist_config_file
         self.compile_options_config_file = compile_options_config_file
-    
+
+        default_hydro_namelist_config_file = 'hydro_namelists.json'
+        default_hrldas_namelist_config_file = 'hrldas_namelists.json'
+        default_compile_options_config_file = 'compile_options.json'
+        
         if self.hydro_namelist_config_file is None:
-            self.hydro_namelist_config_file = 'hydro_namelists.json'
+            self.hydro_namelist_config_file = default_hydro_namelist_config_file
         if self.hrldas_namelist_config_file is None:
-            self.hrldas_namelist_config_file = 'hrldas_namelists.json'
+            self.hrldas_namelist_config_file = default_hrldas_namelist_config_file
         if self.compile_options_config_file is None:
-            self.compile_options_config_file = 'compile_options.json'
+            self.compile_options_config_file = default_compile_options_config_file
         
         ## Load master namelists
         self.hydro_namelists = JSONNamelist(

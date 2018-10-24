@@ -88,15 +88,27 @@ class Model(object):
         """dict: Compile-time options. Defaults are loaded from json file stored with source 
         code."""
 
+        # Set nameilst config file defaults while allowing None to be passed.
+        self.hydro_namelist_config_file = hydro_namelist_config_file
+        self.hrldas_namelist_config_file = hrldas_namelist_config_file
+        self.compile_options_config_file = compile_options_config_file
+    
+        if self.hydro_namelist_config_file is None:
+            self.hydro_namelist_config_file = 'hydro_namelists.json'
+        if self.hrldas_namelist_config_file is None:
+            self.hrldas_namelist_config_file = 'hrldas_namelists.json'
+        if self.compile_options_config_file is None:
+            self.compile_options_config_file = 'compile_options.json'
+        
         ## Load master namelists
         self.hydro_namelists = JSONNamelist(
-            str(self.source_dir.joinpath(hydro_namelist_config_file))
+            str(self.source_dir.joinpath(self.hydro_namelist_config_file))
         )
         """Namelist: Hydro namelist for specified model config"""
         self.hydro_namelists = self.hydro_namelists.get_config(self.model_config)
 
         self.hrldas_namelists = JSONNamelist(
-            str(self.source_dir.joinpath(hrldas_namelist_config_file))
+            str(self.source_dir.joinpath(self.hrldas_namelist_config_file))
         )
         """Namelist: HRLDAS namelist for specified model config"""
         self.hrldas_namelists = self.hrldas_namelists.get_config(self.model_config)
@@ -136,7 +148,7 @@ class Model(object):
             self.version = f.read()
 
         ## Load compile options
-        compile_json = json.load(self.source_dir.joinpath(compile_options_config_file).open())
+        compile_json = json.load(self.source_dir.joinpath(self.compile_options_config_file).open())
         if 'nwm' in self.model_config:
             compile_config = 'nwm'
         else:

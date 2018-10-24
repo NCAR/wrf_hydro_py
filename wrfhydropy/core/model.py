@@ -96,7 +96,7 @@ class Model(object):
         self.hydro_namelists = self.hydro_namelists.get_config(self.model_config)
 
         self.hrldas_namelists = JSONNamelist(
-            str(self.source_dir.joinpath(hrldas_namelists_config_file))
+            str(self.source_dir.joinpath(hrldas_namelist_config_file))
         )
         """Namelist: HRLDAS namelist for specified model config"""
         self.hrldas_namelists = self.hrldas_namelists.get_config(self.model_config)

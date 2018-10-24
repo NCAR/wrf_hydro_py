@@ -1,9 +1,8 @@
 import copy
-import json
-from typing import Union
-
 import deepdiff
 import f90nml
+import json
+from typing import Union
 
 
 def load_namelist(nml_path: str) -> dict:
@@ -29,7 +28,7 @@ class JSONNamelist(object):
         self._json_namelist = json.load(open(file_path,mode='r'))
         self.configs = self._json_namelist.keys()
 
-    def get_config(self,config: str):
+    def get_config(self, config: str):
         """Get a namelist for a given configuration. This works internally by grabbing the base
         namelist and updating with the config-specific changes.
         Args:

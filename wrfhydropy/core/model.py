@@ -48,6 +48,9 @@ class Model(object):
     def __init__(self,
                  source_dir: str,
                  model_config: str,
+                 hydro_namelist_config_file: str='hydro_namelists.json',
+                 hrldas_namelist_config_file: str='hrldas_namelists.json',
+                 compile_options_config_file: str='compile_options.json',
                  compiler: str = 'gfort',
                  pre_compile_cmd: str = None,
                  compile_options: dict = None):
@@ -86,14 +89,17 @@ class Model(object):
         code."""
 
         ## Load master namelists
-        self.hydro_namelists = JSONNamelist(str(self.source_dir.joinpath('hydro_namelists.json')))
+        self.hydro_namelists = JSONNamelist(
+            str(self.source_dir.joinpath(hydro_namelist_config_file))
+        )
         """Namelist: Hydro namelist for specified model config"""
         self.hydro_namelists = self.hydro_namelists.get_config(self.model_config)
 
-        self.hrldas_namelists = JSONNamelist(str(self.source_dir.joinpath('hrldas_namelists.json')))
+        self.hrldas_namelists = JSONNamelist(
+            str(self.source_dir.joinpath(hrldas_namelists_config_file))
+        )
         """Namelist: HRLDAS namelist for specified model config"""
         self.hrldas_namelists = self.hrldas_namelists.get_config(self.model_config)
-
 
         ## Attributes set by other methods
         self.compile_dir = None
@@ -130,7 +136,7 @@ class Model(object):
             self.version = f.read()
 
         ## Load compile options
-        compile_json = json.load(self.source_dir.joinpath('compile_options.json').open())
+        compile_json = json.load(self.source_dir.joinpath(compile_options_config_file).open())
         if 'nwm' in self.model_config:
             compile_config = 'nwm'
         else:

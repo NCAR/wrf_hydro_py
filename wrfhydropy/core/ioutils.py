@@ -1,7 +1,10 @@
+import datetime
 import io
 import os
 import pathlib
+import re
 import shlex
+import shutil
 import subprocess
 import warnings
 from typing import Union
@@ -283,3 +286,111 @@ def sort_files_by_time(file_list: list):
     )
 
     return file_list_sorted
+
+
+def nwm_forcing_to_ldasin(
+    nwm_forcing_dir: Union[pathlib.Path, str],
+    ldasin_dir: Union[pathlib.Path, str],
+    range: str,
+    copy: bool=False,
+    forc_type=1
+):
+    """Convert nwm dir and naming format to wrf-hydro read format.
+    Args:
+        nwm_forcing_dir: the pathlib.Path or str for the source dir or a list of source
+            directories. If a pathlib.Path object or str is provided, it is assume that this
+            single directory contains nwm.YYYYMMDDHH downloaded from NOMADS and that their
+            subdirectory structure is unchanged. If a list of pathlib.Path (or str) is provided,
+            these should be the desired nwm.YYYYMMDD to translate with no changed to their
+            subdirectory structure.
+        ldasin_dir: the pathlib.Path or str for a new NONEXISTANT output dir.
+        range: str range as on nomads in: analysis_assim, analysis_assim_extend,
+            analysis_assim_hawaii, medium_range, short_range,
+            short_range_hawaii
+        copy: True or false. Default is false creates symlinks.
+        forc_type: 1 (hour) or 2 (minute) formats are supported.
+    Returns:
+        None on success.
+"""
+
+    # The proper range specification is as in args above, but if "forcing_" is
+    # prepended, try our best.
+    if 'forcing_' in range:
+        range = range.split('forcing_')[1]
+
+    # Ldasin dir
+    # Might move this to the individual forecast folder creation below.
+    if isinstance(ldasin_dir, str):
+        ldasin_dir = pathlib.Path(ldasin_dir)
+    if not ldasin_dir.exists():
+        os.mkdir(str(ldasin_dir))
+
+    if isinstance(nwm_forcing_dir, list):
+
+        daily_dirs = [pathlib.Path(dd) for dd in nwm_forcing_dir]
+        daily_exist = [dd.exists() for dd in daily_dirs]
+        if not all(daily_exist):
+            raise FileNotFoundError('Some requested daily nwm forcing source dirs do not exist')
+
+    else:
+
+        if isinstance(nwm_forcing_dir, str):
+            nwm_forcing_dir = pathlib.Path(nwm_forcing_dir)
+        if not nwm_forcing_dir.exists():
+            raise FileNotFoundError("The nwm_forcing_dir does not exist, exiting.")
+        os.chdir(str(nwm_forcing_dir))
+        daily_dirs = sorted(nwm_forcing_dir.glob("nwm.*[0-9]"))
+        if len(daily_dirs) is 0:
+            warnings.warn(
+                "No daily nwm.YYYYMMDD directores found in the supplied path, "
+                "If you passed a daily directory, it must be conatined in a list."
+            )
+
+    for daily_dir in daily_dirs:
+        the_day = datetime.datetime.strptime(daily_dir.name, 'nwm.%Y%m%d')
+
+        member_dirs = sorted(daily_dir.glob('forcing_' + range))
+        # if len(member_dirs) == 0:
+
+        for member_dir in member_dirs:
+            if not member_dir.is_dir():
+                continue
+
+            re_range = range
+            if '_hawaii' in range:
+                re_range = range.split('_hawaii')[0]
+            forcing_files = member_dir.glob('*' + re_range + '.forcing.*')
+
+            for forcing_file in forcing_files:
+                name_split = forcing_file.name.split('.')
+                init_hour = int(re.findall(r'\d+', name_split[1])[0])
+
+                # Each init time will have it's own directory.
+                init_time = the_day + datetime.timedelta(hours=init_hour)
+                init_time_dir = ldasin_dir / init_time.strftime('%Y%m%d%H')
+                init_time_dir.mkdir(mode=0o777, parents=False, exist_ok=True)
+
+                # Them each file inside has it's own time on the file.
+                cast_hour = int(re.findall(r'\d+', name_split[4])[0])
+                if 'analysis_assim' in range:
+                    model_time = init_hour - cast_hour
+                else:
+                    model_time = init_hour + cast_hour
+
+                ldasin_time = the_day + datetime.timedelta(hours=model_time)
+
+                # Solve the forcing type/format
+                if forc_type == 1:
+                    fmt = '%Y%m%d%H.LDASIN_DOMAIN1'
+                elif forc_type == 2:
+                    fmt = '%Y%m%d%H00.LDASIN_DOMAIN1'
+                else:
+                    raise ValueError("Only forc_type 1 and 2 are supported")
+                ldasin_file_name = init_time_dir / ldasin_time.strftime(fmt)
+
+                if copy:
+                    shutil.copy(forcing_file, ldasin_file_name)
+                else:
+                    ldasin_file_name.symlink_to(forcing_file)
+
+    return

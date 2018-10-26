@@ -290,40 +290,31 @@ def sort_files_by_time(file_list: list):
 
 def nwm_forcing_to_ldasin(
     nwm_forcing_dir: Union[pathlib.Path, str],
-    ldasin_dir: Union[pathlib.Path, str], 
+    ldasin_dir: Union[pathlib.Path, str],
     range: str,
     copy: bool=False,
-    forc_type = 1
+    forc_type=1
 ):
     """Convert nwm dir and naming format to wrf-hydro read format.
     Args:
-        nwm_forcing_dir: the pathlib.Path or str for the source dir or a list of source 
-            directories. If a pathlib.Path object or str is provided, it is assume that this 
-            single directory contains nwm.YYYYMMDDHH downloaded from NOMADS and that their 
-            subdirectory structure is unchanged. If a list of pathlib.Path (or str) is provided, 
-            these should be the desired nwm.YYYYMMDD to translate with no changed to their 
+        nwm_forcing_dir: the pathlib.Path or str for the source dir or a list of source
+            directories. If a pathlib.Path object or str is provided, it is assume that this
+            single directory contains nwm.YYYYMMDDHH downloaded from NOMADS and that their
+            subdirectory structure is unchanged. If a list of pathlib.Path (or str) is provided,
+            these should be the desired nwm.YYYYMMDD to translate with no changed to their
             subdirectory structure.
         ldasin_dir: the pathlib.Path or str for a new NONEXISTANT output dir.
         range: str range as on nomads in: analysis_assim, analysis_assim_extend,
-            analysis_assim_hawaii, medium_range, short_range, 
+            analysis_assim_hawaii, medium_range, short_range,
             short_range_hawaii
-        copy: True or false. Default is false creates symlinks. 
-        forc_type: 1 (hour) or 2 (minute) formats are supported. 
+        copy: True or false. Default is false creates symlinks.
+        forc_type: 1 (hour) or 2 (minute) formats are supported.
     Returns:
         None on success.
 """
-    # Some example file names
-    # nwm.t00z.analysis_assim.forcing.tm00.conus.nc 
-    # nwm.t00z.short_range.forcing.f001.conus.nc
 
-    # From v1.2.1 to v2.0 we will gain ensembles in the medium_range
-    # nwm.t00z.medium_range.channel_rt_1.f003.conus.nc
-    # nwm.t00z.medium_range.channel_rt.f012.conus.nc
-    
-    # nwm.t00z.long_range.channel_rt_1.f006.conus.nc
-    # nwm.t00z.long_range.channel_rt_2.f006.conus.nc 
-
-    # The proper range specification is as in args above, but if "forcing_" is prepended, try our best.
+    # The proper range specification is as in args above, but if "forcing_" is
+    # prepended, try our best.
     if 'forcing_' in range:
         range = range.split('forcing_')[1]
 
@@ -348,19 +339,28 @@ def nwm_forcing_to_ldasin(
         if not nwm_forcing_dir.exists():
             raise FileNotFoundError("The nwm_forcing_dir does not exist, exiting.")
         os.chdir(str(nwm_forcing_dir))
-        daily_dirs = nwm_forcing_dir.glob("nwm.*[0-9]")
-        
-    for daily_dir in daily_dirs:
-        the_day = datetime.datetime.strptime(daily_dir.name,'nwm.%Y%m%d')
+        daily_dirs = sorted(nwm_forcing_dir.glob("nwm.*[0-9]"))
+        if len(daily_dirs) is 0:
+            warnings.warn(
+                "No daily nwm.YYYYMMDD directores found in the supplied path, "
+                "If you passed a daily directory, it must be conatined in a list."
+            )
 
-        member_dirs = sorted(daily_dir.glob('*forcing_' + range + '*'))
-        #if len(member_dirs) == 0:
-            
+    for daily_dir in daily_dirs:
+        the_day = datetime.datetime.strptime(daily_dir.name, 'nwm.%Y%m%d')
+
+        member_dirs = sorted(daily_dir.glob('forcing_' + range))
+        # if len(member_dirs) == 0:
+
         for member_dir in member_dirs:
             if not member_dir.is_dir():
                 continue
 
-            forcing_files = member_dir.glob('*' + range + '.forcing.*')
+            re_range = range
+            if '_hawaii' in range:
+                re_range = range.split('_hawaii')[0]
+            forcing_files = member_dir.glob('*' + re_range + '.forcing.*')
+
             for forcing_file in forcing_files:
                 name_split = forcing_file.name.split('.')
                 init_hour = int(re.findall(r'\d+', name_split[1])[0])
@@ -371,12 +371,12 @@ def nwm_forcing_to_ldasin(
                 init_time_dir.mkdir(mode=0o777, parents=False, exist_ok=True)
 
                 # Them each file inside has it's own time on the file.
-                cast_hour = int(re.findall(r'\d+', name_split[4])[0])               
+                cast_hour = int(re.findall(r'\d+', name_split[4])[0])
                 if 'analysis_assim' in range:
                     model_time = init_hour - cast_hour
                 else:
                     model_time = init_hour + cast_hour
-                    
+
                 ldasin_time = the_day + datetime.timedelta(hours=model_time)
 
                 # Solve the forcing type/format
@@ -392,5 +392,5 @@ def nwm_forcing_to_ldasin(
                     shutil.copy(forcing_file, ldasin_file_name)
                 else:
                     ldasin_file_name.symlink_to(forcing_file)
-                    
+
     return

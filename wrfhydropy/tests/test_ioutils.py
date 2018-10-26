@@ -1,11 +1,17 @@
+from bs4 import BeautifulSoup
+import datetime
 import numpy as np
 import pandas as pd
 import pathlib
 import pytest
+import re
+import requests
 import warnings
 import xarray as xr
 
-from wrfhydropy.core.ioutils import open_nwmdataset, WrfHydroTs, WrfHydroStatic, check_input_files
+from wrfhydropy.core.ioutils import \
+    open_nwmdataset, WrfHydroTs, WrfHydroStatic, check_input_files, nwm_forcing_to_ldasin
+
 from wrfhydropy.core.namelist import JSONNamelist
 
 
@@ -125,3 +131,59 @@ def test_check_input_files(domain_dir):
                           sim_dir=domain_dir)
 
     assert str(excinfo.value) == 'The namelist file geo_static_flnm = no_such_file does not exist'
+
+
+def test_nwm_forcing_to_ldasin(tmpdir):
+
+    tmpdir = pathlib.Path(tmpdir)
+    def url_index_anchor_regex(url, regex=''):
+        page = requests.get(url).text
+        soup = BeautifulSoup(page, 'html.parser')
+        anchors = [url + '/' + node.get('href') for
+                   node in soup.find_all('a') if re.search(regex, node.get('href'))]
+        return anchors
+
+    nwm_yesterday = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1))
+    nwm_yesterday = nwm_yesterday.strftime("nwm.%Y%m%d")
+    prod_url = 'http://nomads.ncep.noaa.gov/pub/data/nccf/com/nwm/prod/' + nwm_yesterday
+    para_url = 'http://para.nomads.ncep.noaa.gov/pub/data/nccf/com/nwm/para/' + nwm_yesterday
+
+    for version_name, model_version in {'para': para_url, 'prod': prod_url}.items():
+
+        forcing_dirs = url_index_anchor_regex(model_version, '^forcing_')
+        for forcing_range in forcing_dirs:
+
+            forcing_files = url_index_anchor_regex(forcing_range, '\.nc$')
+            for file in forcing_files:
+                the_split = file.split('/')
+                the_base = '/'.join(file.split('/')[(the_split.index(version_name)+1):])
+                the_file = tmpdir.joinpath(version_name).joinpath(the_base)
+                the_file.parent.mkdir(exist_ok=True, parents=True)
+                the_file.touch()
+
+
+            # The argument to nwm_forcing_dir is a list of "nwm.YYYYMMDD" dirs.
+            ldasin_dir_list = tmpdir.joinpath(
+                'ldasin_' + version_name + '_from_list/' + pathlib.Path(forcing_range).name
+            )
+            ldasin_dir_list.mkdir(parents=True)
+            nwm_forcing_to_ldasin(
+                nwm_forcing_dir=[tmpdir.joinpath(version_name).joinpath(nwm_yesterday)],
+                ldasin_dir=ldasin_dir_list,
+                range=pathlib.Path(forcing_range).name
+            )
+            ldasin_list_files = sorted(ldasin_dir_list.glob('*/*'))
+            assert len(ldasin_list_files) == len(forcing_files)
+
+            # The argument to nwm_forcing_dir is a path which contains "nwm.YYYYMMDD" dirs.
+            ldasin_dir = tmpdir.joinpath(
+                'ldasin_' + version_name + '/' + pathlib.Path(forcing_range).name
+            )
+            ldasin_dir.mkdir(parents=True)
+            nwm_forcing_to_ldasin(
+                nwm_forcing_dir=tmpdir.joinpath(version_name),
+                ldasin_dir=ldasin_dir,
+                range=pathlib.Path(forcing_range).name
+            )
+            ldasin_files = sorted(ldasin_dir.glob('*/*'))
+            assert len(ldasin_files) == len(forcing_files)

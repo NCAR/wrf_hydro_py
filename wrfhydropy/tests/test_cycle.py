@@ -237,8 +237,10 @@ def test_cycle_parallel_compose(
         '_model_start_time': pandas.Timestamp('2012-12-12 00:00:00'),
         'exit_status': None,
         'job_id': 'test_job_1',
-        'restart_freq_hr': None,
-        'output_freq_hr': None,
+        'restart_freq_hr_hydro': None,
+        'restart_freq_hr_hrldas': None,
+        'output_freq_hr_hydro': None,
+        'output_freq_hr_hrldas': None,
         'restart': True
     }
 

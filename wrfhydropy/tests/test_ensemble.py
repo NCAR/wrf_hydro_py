@@ -231,8 +231,10 @@ def test_ens_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         '_model_start_time': pandas.Timestamp('1984-10-14 00:00:00'),
         'exit_status': None,
         'job_id': 'test_job_1',
-        'restart_freq_hr': None,
-        'output_freq_hr': None,
+        'restart_freq_hr_hydro': None,
+        'restart_freq_hr_hrldas': None,
+        'output_freq_hr_hydro': None,
+        'output_freq_hr_hrldas': None,
         'restart': False
     }
 

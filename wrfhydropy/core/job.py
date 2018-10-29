@@ -24,30 +24,39 @@ class Job(object):
             model_start_time: Union[str,pd.datetime] = None,
             model_end_time: Union[str,pd.datetime] = None,
             restart_freq_hr: int = None,
+            restart_freq_hr_hydro: int = None,
+            restart_freq_hr_hrldas: int = None,
             output_freq_hr: int = None,
+            output_freq_hr_hydro: int = None,
+            output_freq_hr_hrldas: int = None,
             restart: bool = True,
             exe_cmd: str = None,
             entry_cmd: str = None,
             exit_cmd: str = None):
         """Instatiate a Job object.
         Args:
-            job_id: A string identify the job
-            model_start_time: The model start time to use for the WRF-Hydro model run. Can be
+        job_id: A string identify the job
+        model_start_time: The model start time to use for the WRF-Hydro model run. Can be
             a pandas.to_datetime compatible string or a pandas datetime object.
-            model_end_time: The model end time to use for the WRF-Hydro model run. Can be
+        model_end_time: The model end time to use for the WRF-Hydro model run. Can be
             a pandas.to_datetime compatible string or a pandas datetime object.
-            restart_freq_hr: Restart write frequency, hours. Sets both hydro and hrldas to the
-            same frequency, if specified. Non-positive values (those <=0) set the restart
-            frequency for both models to -99999, which gives restarts at start of each month.
-            output_freq_hr: Output write frequency, hours. Sets both hydro and hrldas to the
-            same frequency, if specified.
-            restart: Job is starting from a restart file. Use False for a cold start.
-            exe_cmd: The system-specific command to execute WRF-Hydro, for example 'mpirun -np
+        restart_freq_hr: Restart write frequency, hours. If they are not specified, will set the
+            restart_freq_hr_hydro and the restart_freq_hr_hrldas. Non-positive values (those <=0) 
+            set the restart frequency for both models to -99999, which gives restarts at start of 
+            each month.
+        restart_freq_hr_hydro: As for restart_freq_hr, but specific to they hydro model.
+        restart_freq_hr_hrldas: As for restart_freq_hr, but specific to they hrldas model.
+        output_freq_hr: Output write frequency, hours. If they are not specified, will set the
+            output_freq_hr_hydro and the output_freq_hr_hrldas.
+        output_freq_hr_hydro: As for output_freq_hr, but specific to they hydro model.
+        output_freq_hr_hrldas: As for output_freq_hr, but specific to they hrldas model.
+        restart: Job is starting from a restart file. Use False for a cold start.
+        exe_cmd: The system-specific command to execute WRF-Hydro, for example 'mpirun -np
             36 ./wrf_hydro.exe'. Can be left as None if jobs is added to a scheduler or if a
             scheduler is used in a simulation.
-            entry_cmd: A command to run prior to executing WRF-Hydro, such as loading modules or
+        entry_cmd: A command to run prior to executing WRF-Hydro, such as loading modules or
             libraries.
-            exit_cmd: A command to run after completion of the job.
+        exit_cmd: A command to run after completion of the job.
         """
 
         # Attributes set at instantiation through arguments
@@ -73,11 +82,25 @@ class Job(object):
         self._model_end_time = pd.to_datetime(model_end_time)
         """np.datetime64: The model time at the end of the execution."""
 
-        self.restart_freq_hr = restart_freq_hr
-        """int: Restart write frequency in hours."""
+        if restart_freq_hr_hydro is None:
+            restart_freq_hr_hydro = restart_freq_hr
+        self.restart_freq_hr_hydro = restart_freq_hr_hydro
+        """int: Hydro restart write frequency in hours."""
 
-        self.output_freq_hr = output_freq_hr
-        """int: Output write frequency in hours."""
+        if restart_freq_hr_hrldas is None:
+            restart_freq_hr_hrldas = restart_freq_hr
+        self.restart_freq_hr_hrldas = restart_freq_hr_hrldas
+        """int: Hrldas restart write frequency in hours."""
+        
+        if output_freq_hr_hydro is None:
+            output_freq_hr_hydro = output_freq_hr
+        self.output_freq_hr_hydro = output_freq_hr_hydro
+        """int: Hydro output write frequency in hours."""
+
+        if output_freq_hr_hrldas is None:
+            output_freq_hr_hrldas = output_freq_hr
+        self.output_freq_hr_hrldas = output_freq_hr
+        """int: Hrldas output write frequency in hours."""
 
         # property construction
         self._hrldas_times = {
@@ -317,17 +340,17 @@ class Job(object):
                 noah_nlst = self._hrldas_namelist['noahlsm_offline']
 
                 the_noahlsm_offline = self._hrldas_times['noahlsm_offline']
-                if self.restart_freq_hr is not None:
-                    if self.restart_freq_hr > 0:
-                        the_noahlsm_offline['restart_frequency_hours'] = self.restart_freq_hr
+                if self.restart_freq_hr_hrldas is not None:
+                    if self.restart_freq_hr_hrldas > 0:
+                        the_noahlsm_offline['restart_frequency_hours'] = self.restart_freq_hr_hrldas
                     else:
                         the_noahlsm_offline['restart_frequency_hours'] = -99999
                 else:
                     the_noahlsm_offline['restart_frequency_hours'] = \
                         noah_nlst['restart_frequency_hours']
 
-                if self.output_freq_hr is not None:
-                    the_noahlsm_offline['output_timestep'] = self.output_freq_hr * 3600
+                if self.output_freq_hr_hrldas is not None:
+                    the_noahlsm_offline['output_timestep'] = self.output_freq_hr_hrldas * 3600
                 else:
                     the_noahlsm_offline['output_timestep'] = noah_nlst['output_timestep']
 
@@ -367,16 +390,16 @@ class Job(object):
         if self._hydro_namelist is not None:
             hydro_nlst = self._hydro_namelist['hydro_nlist']
 
-            if self.restart_freq_hr is not None:
-                if self.restart_freq_hr > 0:
-                    self._hydro_times['hydro_nlist']['rst_dt'] = self.restart_freq_hr * 60
+            if self.restart_freq_hr_hydro is not None:
+                if self.restart_freq_hr_hydro > 0:
+                    self._hydro_times['hydro_nlist']['rst_dt'] = self.restart_freq_hr_hydro * 60
                 else:
                     self._hydro_times['hydro_nlist']['rst_dt'] = -99999
             else:
                 self._hydro_times['hydro_nlist']['rst_dt'] = hydro_nlst['rst_dt']
 
-            if self.output_freq_hr is not None:
-                self._hydro_times['hydro_nlist']['out_dt'] = self.output_freq_hr * 60
+            if self.output_freq_hr_hydro is not None:
+                self._hydro_times['hydro_nlist']['out_dt'] = self.output_freq_hr_hydro * 60
             else:
                 self._hydro_times['hydro_nlist']['out_dt'] = hydro_nlst['out_dt']
 

@@ -72,7 +72,7 @@ class Model(object):
         """
 
         # Instantiate all attributes and methods
-        ## Attributes set by init args
+        # Attributes set by init args
         self.source_dir = pathlib.Path(source_dir)
         """pathlib.Path: pathlib.Path object for source code directory."""
 
@@ -86,7 +86,7 @@ class Model(object):
         """str: Command string to be executed prior to model compilation, e.g. to load modules"""
 
         self.compile_options = dict()
-        """dict: Compile-time options. Defaults are loaded from json file stored with source 
+        """dict: Compile-time options. Defaults are loaded from json file stored with source
         code."""
 
         # Set nameilst config file defaults while allowing None to be passed.
@@ -96,19 +96,19 @@ class Model(object):
         """Namelist: HRLDAS namelist file specified for model config."""
         self.compile_options_config_file = compile_options_config_file
         """Namelist: Compile options file specified for model config."""
-        
+
         default_hydro_namelist_config_file = 'hydro_namelists.json'
         default_hrldas_namelist_config_file = 'hrldas_namelists.json'
         default_compile_options_config_file = 'compile_options.json'
-        
+
         if self.hydro_namelist_config_file is None:
             self.hydro_namelist_config_file = default_hydro_namelist_config_file
         if self.hrldas_namelist_config_file is None:
             self.hrldas_namelist_config_file = default_hrldas_namelist_config_file
         if self.compile_options_config_file is None:
             self.compile_options_config_file = default_compile_options_config_file
-        
-        ## Load master namelists
+
+        # Load master namelists
         self.hydro_namelists = JSONNamelist(
             str(self.source_dir.joinpath(self.hydro_namelist_config_file))
         )
@@ -120,8 +120,8 @@ class Model(object):
         )
         """Namelist: HRLDAS namelist for specified model config"""
         self.hrldas_namelists = self.hrldas_namelists.get_config(self.model_config)
-        
-        ## Attributes set by other methods
+
+        # Attributes set by other methods
         self.compile_dir = None
         """pathlib.Path: pathlib.Path object pointing to the compile directory."""
 
@@ -149,13 +149,12 @@ class Model(object):
         self.wrf_hydro_exe = None
         """pathlib.Path: pathlib.Path to wrf_hydro.exe file generated at compile-time."""
 
-
         # Set attributes
-        ## Get code version
+        # Get code version
         with self.source_dir.joinpath('.version').open() as f:
             self.version = f.read()
 
-        ## Load compile options
+        # Load compile options
         compile_json = json.load(self.source_dir.joinpath(self.compile_options_config_file).open())
         if 'nwm' in self.model_config and \
            self.compile_options_config_file == default_compile_options_config_file:
@@ -245,7 +244,6 @@ class Model(object):
 
             # Get file lists as attributes
             # Get list of table file paths
-
 
             # Get wrf_hydro.exe file path
             self.wrf_hydro_exe = self.compile_dir.joinpath('wrf_hydro.exe')

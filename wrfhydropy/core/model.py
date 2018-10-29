@@ -54,6 +54,7 @@ class Model(object):
                  compiler: str = 'gfort',
                  pre_compile_cmd: str = None,
                  compile_options: dict = None):
+        
         """Instantiate a Model object.
         Args:
             source_dir: Directory containing the source code, e.g.
@@ -90,9 +91,12 @@ class Model(object):
 
         # Set nameilst config file defaults while allowing None to be passed.
         self.hydro_namelist_config_file = hydro_namelist_config_file
+        """Namelist: Hydro namelist file specified for model config"""
         self.hrldas_namelist_config_file = hrldas_namelist_config_file
+        """Namelist: HRLDAS namelist file specified for model config."""
         self.compile_options_config_file = compile_options_config_file
-
+        """Namelist: Compile options file specified for model config."""
+        
         default_hydro_namelist_config_file = 'hydro_namelists.json'
         default_hrldas_namelist_config_file = 'hrldas_namelists.json'
         default_compile_options_config_file = 'compile_options.json'
@@ -116,7 +120,7 @@ class Model(object):
         )
         """Namelist: HRLDAS namelist for specified model config"""
         self.hrldas_namelists = self.hrldas_namelists.get_config(self.model_config)
-
+        
         ## Attributes set by other methods
         self.compile_dir = None
         """pathlib.Path: pathlib.Path object pointing to the compile directory."""
@@ -153,7 +157,8 @@ class Model(object):
 
         ## Load compile options
         compile_json = json.load(self.source_dir.joinpath(self.compile_options_config_file).open())
-        if 'nwm' in self.model_config:
+        if 'nwm' in self.model_config and \
+           self.compile_options_config_file == default_compile_options_config_file:
             compile_config = 'nwm'
         else:
             compile_config = self.model_config

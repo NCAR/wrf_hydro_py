@@ -220,12 +220,21 @@ class Job(object):
         self.job_start_time = str(datetime.datetime.now())
 
         print(cmd_string)
-        self._proc_log = subprocess.run(
-            cmd_string,
-            shell=True,
-            cwd=str(current_dir),
-            env=env
-        )
+
+        if env is None or env == 'None':
+            self._proc_log = subprocess.run(
+                cmd_string,
+                shell=True,
+                cwd=str(current_dir)
+            )
+        else: 
+            self._proc_log = subprocess.run(
+                cmd_string,
+                shell=True,
+                cwd=str(current_dir),
+                env=env
+
+            )
 
         self.job_end_time = str(datetime.datetime.now())
         

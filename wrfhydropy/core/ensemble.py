@@ -66,7 +66,6 @@ def parallel_teams_run(arg_dict):
 
     ens_dir = arg_dict['ens_dir']
     team_dict = arg_dict['team_dict']
-    env = arg_dict['env']
     # team_dict['members'], team_dict['nodes']
     # team_dict['entry_cmd'], team_dict['exe_cmd'], team_dict['exit_cmd']
 
@@ -76,8 +75,9 @@ def parallel_teams_run(arg_dict):
             os.chdir(str(pathlib.Path(ens_dir) / member))
         else:
             os.chdir(str(pathlib.Path(ens_dir) / member.run_dir))
-            
-        mem_pkl = pickle.load(open("WrfHydroSim.pkl", "rb"))
+
+        mem_pkl_file = "WrfHydroSim.pkl"
+        mem_pkl = pickle.load(open(mem_pkl_file, "rb"))
 
         # Run-time job manipulation:
         # Edit the job to be run on the specific team nodes.
@@ -87,23 +87,54 @@ def parallel_teams_run(arg_dict):
         job = mem_pkl.jobs[0]
 
         if job._entry_cmd is not None:
-            job._entry_cmd = team_dict['entry_cmd'].format(
-                **{'hostname': team_dict['nodes'][0]}
-            )
-
-        if job._exit_cmd is not None: 
-            job._exit_cmd = team_dict['exit_cmd'].format(
-                **{'hostname': team_dict['nodes'][0]}
-            )
-
-        # TODO: what is the right number of proc?
+            entry_cmds = job._entry_cmd.split(';')
+            new_entry_cmd = []
+            for cmd in entry_cmds:
+                if 'mpirun' not in cmd:
+                    new_entry_cmd.append(
+                        team_dict['exe_cmd'].format(
+                            **{
+                                'cmd': cmd,
+                                'hostname': team_dict['nodes'][0], #only use one task
+                                'nproc': 1
+                            }
+                        )
+                    )
+                else:
+                    new_entry_cmd.append(cmd)
+            job._entry_cmd = '; '.join(new_entry_cmd)
+                
+        if job._exit_cmd is not None:
+            exit_cmds = job._exit_cmd.split(';')
+            new_exit_cmd = []
+            for cmd in exit_cmds:
+                if 'mpirun' not in cmd:
+                    new_exit_cmd.append(
+                        team_dict['exe_cmd'].format(
+                            **{
+                                'cmd': cmd,
+                                'hostname': team_dict['nodes'][0], #only use one task
+                                'nproc': 1
+                            }
+                        )
+                    )
+                else:
+                    new_exit_cmd.append(cmd)
+            job._exit_cmd = '; '.join(new_exit_cmd)
+        
+        # What is the right number of proc for your flavor of MPI?
+        # Let the user control that in the exe_cmd from the yaml.
         job._exe_cmd = team_dict['exe_cmd'].format(
-            **{'hostname': ','.join(team_dict['nodes']),
-               'nproc': 1 #len(team_dict['nodes'])
+            **{
+                'cmd': './wrf_hydro.exe',
+                'hostname': ','.join(team_dict['nodes']),
+                'nproc': len(team_dict['nodes'])
             }
         )
-    
-        mem_pkl.run(env=env)
+            
+        mem_pkl.pickle(mem_pkl_file)
+        mem_pkl.run(env=team_dict['env'])
+            
         exit_statuses.update({member: mem_pkl.jobs[0].exit_status})
 
     return exit_statuses
@@ -443,7 +474,6 @@ class EnsembleSimulation(object):
         elif isinstance(teams_dict, dict):
 
             with multiprocessing.Pool(len(teams_dict), initializer=mute) as pool:
-            #with multiprocessing.Pool(len(teams_dict)) as pool:
                 exit_codes = pool.map(
                     parallel_teams_run,
                     (
@@ -451,15 +481,16 @@ class EnsembleSimulation(object):
                         for (key, team_dict) in teams_dict.items()
                     )
                 )
-            # Return to the ensemble dir.
-            os.chdir(ens_dir)
-            return all([list(ee.values())[0] == 0 for ee in exit_codes])
-
-            # Keep around for serial testing/debugging
+            
+            # # Keep around for serial testing/debugging
             # exit_codes = [
             #     parallel_teams_run({'team_dict': team_dict, 'ens_dir': ens_dir, 'env': env})
             #     for (key, team_dict) in teams_dict.items()
             # ]
+            
+            # Return to the ensemble dir.
+            os.chdir(ens_dir)
+            return all([list(ee.values())[0] == 0 for ee in exit_codes])
 
         else:
             # Keep the following for debugging: Run it without pool.map

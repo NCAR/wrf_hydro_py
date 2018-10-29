@@ -36,8 +36,11 @@ class Job(object):
             a pandas.to_datetime compatible string or a pandas datetime object.
             model_end_time: The model end time to use for the WRF-Hydro model run. Can be
             a pandas.to_datetime compatible string or a pandas datetime object.
-            restart_freq_hr: Restart write frequency, hours
-            output_freq_hr: Output write frequency, hours
+            restart_freq_hr: Restart write frequency, hours. Sets both hydro and hrldas to the
+            same frequency, if specified. Non-positive values (those <=0) set the restart
+            frequency for both models to -99999, which gives restarts at start of each month.
+            output_freq_hr: Output write frequency, hours. Sets both hydro and hrldas to the
+            same frequency, if specified.
             restart: Job is starting from a restart file. Use False for a cold start.
             exe_cmd: The system-specific command to execute WRF-Hydro, for example 'mpirun -np
             36 ./wrf_hydro.exe'. Can be left as None if jobs is added to a scheduler or if a
@@ -313,14 +316,20 @@ class Job(object):
             if self._hrldas_namelist is not None:
                 noah_nlst = self._hrldas_namelist['noahlsm_offline']
 
-                # Use the ternary operator since this LHS is so unwieldy.
-                self._hrldas_times['noahlsm_offline']['restart_frequency_hours'] \
-                    = self.restart_freq_hr if self.restart_freq_hr is not None else \
-                    noah_nlst['restart_frequency_hours']
+                the_noahlsm_offline = self._hrldas_times['noahlsm_offline']
+                if self.restart_freq_hr is not None:
+                    if self.restart_freq_hr > 0:
+                        the_noahlsm_offline['restart_frequency_hours'] = self.restart_freq_hr
+                    else:
+                        the_noahlsm_offline['restart_frequency_hours'] = -99999
+                else:
+                    the_noahlsm_offline['restart_frequency_hours'] = \
+                        noah_nlst['restart_frequency_hours']
 
-                self._hrldas_times['noahlsm_offline']['output_timestep'] \
-                    = self.output_freq_hr * 3600 if self.output_freq_hr is not None else \
-                    noah_nlst['output_timestep']
+                if self.output_freq_hr is not None:
+                    the_noahlsm_offline['output_timestep'] = self.output_freq_hr * 3600
+                else:
+                    the_noahlsm_offline['output_timestep'] = noah_nlst['output_timestep']
 
 
     def _set_hydro_times(self):
@@ -359,7 +368,10 @@ class Job(object):
             hydro_nlst = self._hydro_namelist['hydro_nlist']
 
             if self.restart_freq_hr is not None:
-                self._hydro_times['hydro_nlist']['rst_dt'] = self.restart_freq_hr * 60
+                if self.restart_freq_hr > 0:
+                    self._hydro_times['hydro_nlist']['rst_dt'] = self.restart_freq_hr * 60
+                else:
+                    self._hydro_times['hydro_nlist']['rst_dt'] = -99999
             else:
                 self._hydro_times['hydro_nlist']['rst_dt'] = hydro_nlst['rst_dt']
 

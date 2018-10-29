@@ -174,7 +174,9 @@ def test_ens_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
                 'canopy_stomatal_resistance_option': 1,
                 'hrldas_setup_file': './NWM/DOMAIN/wrfinput_d01.nc',
                 'indir': './FORCING',
-                'restart_filename_requested': './NWM/RESTART/RESTART.2011082600_DOMAIN1'
+                'restart_filename_requested': './NWM/RESTART/RESTART.2011082600_DOMAIN1',
+                'restart_frequency_hours': 24,
+                'output_timestep': 86400
             },
             'wrf_hydro_offline': {
                 'forc_typ': 1
@@ -183,8 +185,8 @@ def test_ens_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         '_hrldas_times': {
             'noahlsm_offline': {
                 'khour': 282480,
-                'restart_frequency_hours': 1,
-                'output_timestep': 3600,
+                'restart_frequency_hours': 24,
+                'output_timestep': 86400,
                 'restart_filename_requested': None,
                 'start_day': 14,
                 'start_hour': 0,
@@ -202,7 +204,9 @@ def test_ens_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
                 'chrtout_domain': 1,
                 'geo_static_flnm': './NWM/DOMAIN/geo_em.d01.nc',
                 'restart_file': './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
-                'udmp_opt': 1
+                'udmp_opt': 1,
+                'rst_dt': 1440,
+                'out_dt': 1440
             },
             'nudging_nlist': {
                 'maxagepairsbiaspersist': 3,
@@ -213,8 +217,8 @@ def test_ens_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         '_hydro_times': {
             'hydro_nlist': {
                 'restart_file': None,
-                'rst_dt': 60,
-                'out_dt': 60
+                'rst_dt': 1440,
+                'out_dt': 1440
             },
             'nudging_nlist': {
                 'nudginglastobsfile': None
@@ -227,8 +231,8 @@ def test_ens_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         '_model_start_time': pandas.Timestamp('1984-10-14 00:00:00'),
         'exit_status': None,
         'job_id': 'test_job_1',
-        'restart_freq_hr': 1,
-        'output_freq_hr': 1,
+        'restart_freq_hr': None,
+        'output_freq_hr': None,
         'restart': False
     }
 

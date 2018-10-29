@@ -23,8 +23,8 @@ class Job(object):
             job_id: str,
             model_start_time: Union[str,pd.datetime] = None,
             model_end_time: Union[str,pd.datetime] = None,
-            restart_freq_hr: int = 1,
-            output_freq_hr: int = 1,
+            restart_freq_hr: int = None,
+            output_freq_hr: int = None,
             restart: bool = True,
             exe_cmd: str = None,
             entry_cmd: str = None,
@@ -307,8 +307,21 @@ class Job(object):
 
                 self._hrldas_times['noahlsm_offline']['restart_filename_requested'] = lsm_restart_file
 
-            self._hrldas_times['noahlsm_offline']['restart_frequency_hours'] = self.restart_freq_hr
-            self._hrldas_times['noahlsm_offline']['output_timestep'] = self.output_freq_hr * 3600
+            # TODO(JLM): I dont love this if statement, it's a bit hacky.
+            # Some of the tests call _set_hrldas/hydro_times when no namelist has been set.
+            # That's why this is here.
+            if self._hrldas_namelist is not None:
+                noah_nlst = self._hrldas_namelist['noahlsm_offline']
+
+                # Use the ternary operator since this LHS is so unwieldy.
+                self._hrldas_times['noahlsm_offline']['restart_frequency_hours'] \
+                    = self.restart_freq_hr if self.restart_freq_hr is not None else \
+                    noah_nlst['restart_frequency_hours']
+
+                self._hrldas_times['noahlsm_offline']['output_timestep'] \
+                    = self.output_freq_hr * 3600 if self.output_freq_hr is not None else \
+                    noah_nlst['output_timestep']
+
 
     def _set_hydro_times(self):
         """Private method to set model run times in the hydro namelist"""
@@ -319,7 +332,7 @@ class Job(object):
                 hydro_restart_dirname = os.path.dirname(hydro_nlst['restart_file'])
             else:
                 hydro_restart_dirname = '.'
-            
+
             # Format - 2011-08-26_00_00 - minutes
             hydro_restart_basename = \
                 'HYDRO_RST.' + self._model_start_time.strftime('%Y-%m-%d_%H:%M') + '_DOMAIN1'
@@ -332,16 +345,28 @@ class Job(object):
             # This is needed because the model outputs restarts with colons, and our distributed
             # domains do not have restarts with colons so that they can be easily shared across file
             # systems
-            #hydro_restart_file = _check_file_exist_colon(os.getcwd(),hydro_restart_basename)
-            #nudging_restart_file = _check_file_exist_colon(os.getcwd(),nudging_restart_basename)
+            # hydro_restart_file = _check_file_exist_colon(os.getcwd(),hydro_restart_basename)
+            # nudging_restart_file = _check_file_exist_colon(os.getcwd(),nudging_restart_basename)
 
             self._hydro_times['hydro_nlist']['restart_file'] = \
                 str(pathlib.Path(hydro_restart_dirname) / hydro_restart_basename)
             self._hydro_times['nudging_nlist']['nudginglastobsfile'] = \
                 str(pathlib.Path(hydro_restart_dirname) / nudging_restart_basename)
 
-        self._hydro_times['hydro_nlist']['rst_dt'] = self.restart_freq_hr * 60
-        self._hydro_times['hydro_nlist']['out_dt'] = self.output_freq_hr * 60
+        # TODO(JLM): I dont love this if statement, it's a bit hacky. See comment above
+        # for _set_hrldas_times.
+        if self._hydro_namelist is not None:
+            hydro_nlst = self._hydro_namelist['hydro_nlist']
+
+            if self.restart_freq_hr is not None:
+                self._hydro_times['hydro_nlist']['rst_dt'] = self.restart_freq_hr * 60
+            else:
+                self._hydro_times['hydro_nlist']['rst_dt'] = hydro_nlst['rst_dt']
+
+            if self.output_freq_hr is not None:
+                self._hydro_times['hydro_nlist']['out_dt'] = self.output_freq_hr * 60
+            else:
+                self._hydro_times['hydro_nlist']['out_dt'] = hydro_nlst['out_dt']
 
 
     def _make_job_dir(self):

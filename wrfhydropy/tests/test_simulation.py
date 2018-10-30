@@ -16,27 +16,41 @@ def test_simulation_add_model_domain(model, domain):
     sim.add(domain)
 
     assert sim.base_hydro_namelist == \
-        {'hydro_nlist': {'channel_option': 2,
-                         'chanobs_domain': 0,
-                         'chanrtswcrt': 1,
-                         'chrtout_domain': 1,
-                         'geo_static_flnm': './NWM/DOMAIN/geo_em.d01.nc',
-                         'restart_file': './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
-                         'aggfactrt': 4,
-                         'udmp_opt': 1},
-         'nudging_nlist': {'maxagepairsbiaspersist': 3,
-                           'minnumpairsbiaspersist': 1,
-                           'nudginglastobsfile':
-                           './NWM/RESTART/nudgingLastObs.2011-08-26_00:00:00.nc'}}
+        {'hydro_nlist':
+         {
+             'channel_option': 2,
+             'chanobs_domain': 0,
+             'chanrtswcrt': 1,
+             'chrtout_domain': 1,
+             'geo_static_flnm': './NWM/DOMAIN/geo_em.d01.nc',
+             'restart_file': './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
+             'aggfactrt': 4,
+             'udmp_opt': 1,
+             'out_dt': 1440,
+             'rst_dt': 1440
+         },
+         'nudging_nlist': {
+             'maxagepairsbiaspersist': 3,
+             'minnumpairsbiaspersist': 1,
+             'nudginglastobsfile':
+             './NWM/RESTART/nudgingLastObs.2011-08-26_00:00:00.nc'
+         }
+        }
 
     assert sim.base_hrldas_namelist == \
-        {'noahlsm_offline': {'btr_option': 1,
-                             'canopy_stomatal_resistance_option': 1,
-                             'hrldas_setup_file': './NWM/DOMAIN/wrfinput_d01.nc',
-                             'restart_filename_requested':
-                             './NWM/RESTART/RESTART.2011082600_DOMAIN1',
-                             'indir': './FORCING'},
-         'wrf_hydro_offline': {'forc_typ': 1}}
+        {'noahlsm_offline':
+         {
+             'btr_option': 1,
+             'canopy_stomatal_resistance_option': 1,
+             'hrldas_setup_file': './NWM/DOMAIN/wrfinput_d01.nc',
+             'restart_filename_requested':
+             './NWM/RESTART/RESTART.2011082600_DOMAIN1',
+             'indir': './FORCING',
+             'output_timestep': 86400,
+             'restart_frequency_hours': 24
+         },
+         'wrf_hydro_offline': {'forc_typ': 1}
+        }
 
 
 def test_simulation_add_job(model, domain, job):

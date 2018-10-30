@@ -172,12 +172,14 @@ def model_dir(tmpdir):
     model_dir_path = pathlib.Path(tmpdir).joinpath('wrf_hydro_nwm_public/trunk/NDHMS')
     model_dir_path.mkdir(parents=True)
 
-    # Make namelist patch files
+    # Make namelist files
     hrldas_namelist = {
         "base": {
             "noahlsm_offline": {
                 "btr_option": 1,
                 "canopy_stomatal_resistance_option": 1,
+                'restart_frequency_hours': 24,
+                'output_timestep': 86400
             },
             "wrf_hydro_offline": {
                 "forc_typ": "NULL_specified_in_domain.json"
@@ -196,6 +198,8 @@ def model_dir(tmpdir):
                 "chanobs_domain": 0,
                 "chanrtswcrt": 1,
                 "chrtout_domain": 1,
+                'rst_dt': 1440,
+                'out_dt': 1440
             },
             "nudging_nlist": {
                 "maxagepairsbiaspersist": 3,

@@ -180,7 +180,9 @@ def test_cycle_parallel_compose(
                 'canopy_stomatal_resistance_option': 1,
                 'hrldas_setup_file': './NWM/DOMAIN/wrfinput_d01.nc',
                 'indir': './FORCING',
-                'restart_filename_requested': './NWM/RESTART/RESTART.2011082600_DOMAIN1'
+                'output_timestep': 86400,
+                'restart_filename_requested': './NWM/RESTART/RESTART.2011082600_DOMAIN1',
+                'restart_frequency_hours': 24
             },
             'wrf_hydro_offline': {
                 'forc_typ': 1
@@ -189,8 +191,8 @@ def test_cycle_parallel_compose(
         '_hrldas_times': {
             'noahlsm_offline': {
                 'khour': 282480,
-                'restart_frequency_hours': 1,
-                'output_timestep': 3600,
+                'restart_frequency_hours': 24,
+                'output_timestep': 86400,
                 'restart_filename_requested': 'NWM/RESTART/RESTART.2012121200_DOMAIN1',
                 'start_day': 12,
                 'start_hour': 00,
@@ -208,7 +210,9 @@ def test_cycle_parallel_compose(
                 'chrtout_domain': 1,
                 'geo_static_flnm': './NWM/DOMAIN/geo_em.d01.nc',
                 'restart_file': './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
-                'udmp_opt': 1
+                'udmp_opt': 1,
+                'rst_dt': 1440,
+                'out_dt': 1440
             },
             'nudging_nlist': {
                 'maxagepairsbiaspersist': 3,
@@ -219,8 +223,8 @@ def test_cycle_parallel_compose(
         '_hydro_times': {
             'hydro_nlist': {
                 'restart_file': 'NWM/RESTART/HYDRO_RST.2012-12-12_00:00_DOMAIN1',
-                'rst_dt': 60,
-                'out_dt': 60
+                'rst_dt': 1440,
+                'out_dt': 1440
             },
             'nudging_nlist': {
                 'nudginglastobsfile': 'NWM/RESTART/nudgingLastObs.2012-12-12_00:00:00.nc'
@@ -233,8 +237,10 @@ def test_cycle_parallel_compose(
         '_model_start_time': pandas.Timestamp('2012-12-12 00:00:00'),
         'exit_status': None,
         'job_id': 'test_job_1',
-        'restart_freq_hr': 1,
-        'output_freq_hr': 1,
+        'restart_freq_hr_hydro': None,
+        'restart_freq_hr_hrldas': None,
+        'output_freq_hr_hydro': None,
+        'output_freq_hr_hrldas': None,
         'restart': True
     }
 

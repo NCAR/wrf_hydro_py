@@ -55,8 +55,6 @@ def parallel_run(arg_dict):
         os.chdir(str(pathlib.Path(arg_dict['ens_dir']) / arg_dict['member'].run_dir))
     mem_pkl = pickle.load(open("WrfHydroSim.pkl", "rb"))
 
-    adsfadf
-    
     mem_pkl.run()
     return mem_pkl.jobs[0].exit_status
 
@@ -64,10 +62,42 @@ def parallel_run(arg_dict):
 def parallel_teams_run(arg_dict):
     """Parallelizable function for teams to run an EnsembleSimuation."""
 
+    # This function is called (in parallel) for each team.
+    # This function sequentially runs (loops over) the ensemble members for which
+    # the team is responsible.
+    # The information require comes from the arg_dict.
+    # arg_dict.keys() == [
+    #   'ens_dir',  # = the ensemble run directory full path, where the member dirs are found
+    #   'team_dict' # = the information needed for the team, see below
+    # ]
+    #
+    # team_dict.keys() == [
+    #     'members',   # = the strings for the member dirs to run
+    #     'nodes',     # = the nodes previously parsed from something like $PBS_NODEFILE
+    #     'entry_cmd', # = the entry cmd to be run
+    #     'exe_cmd',   # = the model invokation command
+    #     'exit_cmd',  # = exit cmd to be run
+    #     'env'        # = the environment dict in which to run all the commands, may be None or 'None'
+    # ]
+    #
+    # The "exe_cmd" is a form of invocation for the distribution of MPI to be used. For
+    # openmpi, for example, this is
+    #     exe_cmd: 'mpirun --host {hostname} -np {nproc} {cmd}'
+    # The variables in brackets are expanded
+    #
+    # The "entry_cmd" and "exit_cmd"
+    #   1) can be semicolon-separated commands which will be separated
+    #   2) and run serially on the first node listed in "nodes"
+    #
+    # The model command substitutes the wrfhydropy 'wrf_hydro.exe' convention for {cmd}
+    # and applies the full set of "nodes" for {hostname} which provides the length for
+    # determining {nproc}.
+    #
+    # Currently this is working/tested with openmpi.
+    # MPT requires MPI_SHEPERD env variable and it's performance is not satisfactory so far.
+
     ens_dir = arg_dict['ens_dir']
     team_dict = arg_dict['team_dict']
-    # team_dict['members'], team_dict['nodes']
-    # team_dict['entry_cmd'], team_dict['exe_cmd'], team_dict['exit_cmd']
 
     exit_statuses = {}
     for member in team_dict['members']:
@@ -78,12 +108,6 @@ def parallel_teams_run(arg_dict):
 
         mem_pkl_file = "WrfHydroSim.pkl"
         mem_pkl = pickle.load(open(mem_pkl_file, "rb"))
-
-        # Run-time job manipulation:
-        # Edit the job to be run on the specific team nodes.
-        # Entry and exit commands are not (typically) mpirun/mpt commands, so they need
-        # MPI_SHEPHERD=true in the subprocess command and to be called using mpirun on the
-        # first node in the list.
         job = mem_pkl.jobs[0]
 
         if job._entry_cmd is not None:
@@ -103,7 +127,7 @@ def parallel_teams_run(arg_dict):
                 else:
                     new_entry_cmd.append(cmd)
             job._entry_cmd = '; '.join(new_entry_cmd)
-                
+
         if job._exit_cmd is not None:
             exit_cmds = job._exit_cmd.split(';')
             new_exit_cmd = []
@@ -121,9 +145,7 @@ def parallel_teams_run(arg_dict):
                 else:
                     new_exit_cmd.append(cmd)
             job._exit_cmd = '; '.join(new_exit_cmd)
-        
-        # What is the right number of proc for your flavor of MPI?
-        # Let the user control that in the exe_cmd from the yaml.
+
         job._exe_cmd = team_dict['exe_cmd'].format(
             **{
                 'cmd': './wrf_hydro.exe',
@@ -131,10 +153,10 @@ def parallel_teams_run(arg_dict):
                 'nproc': len(team_dict['nodes'])
             }
         )
-            
+
         mem_pkl.pickle(mem_pkl_file)
         mem_pkl.run(env=team_dict['env'])
-            
+
         exit_statuses.update({member: mem_pkl.jobs[0].exit_status})
 
     return exit_statuses
@@ -454,13 +476,30 @@ class EnsembleSimulation(object):
         teams_dict: dict=None,
         env: dict=None
     ):
-        """Run the ensemble of simulations. """
+        """Run the ensemble of simulations."""
         ens_dir = os.getcwd()
 
-        if teams_dict is not None:
-            n_concurrent=0
-        
-        if n_concurrent > 1:
+        if isinstance(teams_dict, dict):
+            with multiprocessing.Pool(len(teams_dict), initializer=mute) as pool:
+                exit_codes = pool.map(
+                    parallel_teams_run,
+                    (
+                        {'team_dict': team_dict , 'ens_dir': ens_dir, 'env': env}
+                        for (key, team_dict) in teams_dict.items()
+                    )
+                )
+
+            # # Keep around for serial testing/debugging
+            # exit_codes = [
+            #     parallel_teams_run({'team_dict': team_dict, 'ens_dir': ens_dir, 'env': env})
+            #     for (key, team_dict) in teams_dict.items()
+            # ]
+
+            # Return to the ensemble dir.
+            os.chdir(ens_dir)
+            return all([list(ee.values())[0] == 0 for ee in exit_codes])
+
+        elif n_concurrent > 1:
             with multiprocessing.Pool(n_concurrent, initializer=mute) as pool:
                 exit_codes = pool.map(
                     parallel_run,
@@ -470,27 +509,6 @@ class EnsembleSimulation(object):
             # Return to the ensemble dir.
             os.chdir(ens_dir)
             return all([ee == 0 for ee in exit_codes])
-
-        elif isinstance(teams_dict, dict):
-
-            with multiprocessing.Pool(len(teams_dict), initializer=mute) as pool:
-                exit_codes = pool.map(
-                    parallel_teams_run,
-                    (
-                        {'team_dict': team_dict , 'ens_dir': ens_dir, 'env': env}
-                        for (key, team_dict) in teams_dict.items()
-                    )
-                )
-            
-            # # Keep around for serial testing/debugging
-            # exit_codes = [
-            #     parallel_teams_run({'team_dict': team_dict, 'ens_dir': ens_dir, 'env': env})
-            #     for (key, team_dict) in teams_dict.items()
-            # ]
-            
-            # Return to the ensemble dir.
-            os.chdir(ens_dir)
-            return all([list(ee.values())[0] == 0 for ee in exit_codes])
 
         else:
             # Keep the following for debugging: Run it without pool.map

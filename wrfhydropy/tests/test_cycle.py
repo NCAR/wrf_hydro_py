@@ -5,6 +5,7 @@ import os
 import pathlib
 import pandas
 import pytest
+import string
 import timeit
 
 from wrfhydropy.core.simulation import Simulation
@@ -16,6 +17,7 @@ def init_times():
     some_time = datetime.datetime(2012, 12, 12, 0, 0)
     init_times = [some_time + datetime.timedelta(dd) for dd in range(0, 9, 3)]
     return init_times
+
 
 @pytest.fixture(scope='function')
 def simulation(model, domain):
@@ -296,9 +298,18 @@ def test_cycle_run(
 ):
 
     sim = simulation_compiled
+
+    tmp = pathlib.Path(tmpdir)
+    forcing_dirs = [tmp / letter for letter in list(string.ascii_lowercase)[0:len(init_times)]]
+    for dir in forcing_dirs:
+        dir.mkdir()
+
+    restart_dirs = ['.'] *len(init_times)
+        
     cy = CycleSimulation(
         init_times=init_times,
-        restart_dirs=['.'] * len(init_times)
+        restart_dirs=restart_dirs,
+        forcing_dirs=forcing_dirs
     )
     cy.add(sim)
     cy.add(job_restart)
@@ -310,6 +321,7 @@ def test_cycle_run(
     os.mkdir(str(cy_dir))
     os.chdir(str(cy_dir))
     cy_serial.compose(rm_casts_from_memory=False)
+
     serial_run_success = cy_serial.run()
     assert serial_run_success, \
         "Some serial cycle casts did not run successfully."

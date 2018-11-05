@@ -59,9 +59,9 @@ def translate_special_paths(cast):
     elif int(str(cast.restart_dir)) < 0:
         forcing_cast_time = cast.init_time + datetime.timedelta(hours=int(str(cast.restart_dir)))
         cast.restart_dir = pathlib.Path('../cast_' + forcing_cast_time.strftime('%Y%m%d%H'))
-        cast.jobs[0]._hydro_namelist['hydro_nlist']['restart_file'] = \
+        cast.domain.hydro_namelist_patches['hydro_nlist']['restart_file'] = \
             str(cast.restart_dir / cast.init_time.strftime('HYDRO_RST.%Y-%m-%d_%H:00_DOMAIN1'))
-        cast.jobs[0]._hrldas_namelist['noahlsm_offline']['restart_filename_requested'] = \
+        cast.domain.hrldas_namelist_patches['noahlsm_offline']['restart_filename_requested'] = \
             str(cast.restart_dir / cast.init_time.strftime('RESTART.%Y%m%d%H_DOMAIN1'))
 
     else:
@@ -78,14 +78,13 @@ def parallel_compose_casts(arg_dict):
     cast.forcing_dir = arg_dict['forcing_dir']
     cast.restart_dir = arg_dict['restart_dir']
 
-    job = copy.deepcopy(arg_dict['job'])
-    cast.add(job)
-
-    khour = job.model_end_time - job.model_start_time
-    cast.jobs[0].model_start_time = arg_dict['init_time']
-    cast.jobs[0].model_end_time = arg_dict['init_time'] + khour
-
     translate_special_paths(cast)
+
+    job = copy.deepcopy(arg_dict['job'])
+    khour = job.model_end_time - job.model_start_time
+    job.model_start_time = arg_dict['init_time']
+    job.model_end_time = arg_dict['init_time'] + khour
+    cast.add(job)
 
     if arg_dict['scheduler'] is not None:
         cast.add(arg_dict['scheduler'])
@@ -219,7 +218,7 @@ class CycleSimulation(object):
         Args:
             forcing_dirs: a list of str objects.
         """
-        if not all([type(ff) in [str, pathlib.Path] for ff in forcing_dirs]):
+        if not all([type(ff) in [str, pathlib.Path, pathlib.PosixPath] for ff in forcing_dirs]):
             raise ValueError('List object not all str or pathlib.Path objects, as expected.')
         if self._init_times != [] and len(forcing_dirs) > 1:
             if len(self._init_times) != len(forcing_dirs):
@@ -229,9 +228,9 @@ class CycleSimulation(object):
     def _addrestartdirs(self, restart_dirs: list):
         """Private method to add init times to a CycleSimulation
         Args:
-            forcing_dirs: a list of str objects.
+            restart_dirs: a list of str objects.
         """
-        if not all([type(ff) in [str, pathlib.Path] for ff in restart_dirs]):
+        if not all([type(ff) in [str, pathlib.Path, pathlib.PosixPath] for ff in restart_dirs]):
             raise ValueError('List object not all str or pathlib.Path objects, as expected')
         if self._init_times != [] and len(restart_dirs) > 1:
             if len(self._init_times) != len(restart_dirs):

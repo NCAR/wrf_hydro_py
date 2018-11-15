@@ -349,8 +349,10 @@ def nwm_forcing_to_ldasin(
     for daily_dir in daily_dirs:
         the_day = datetime.datetime.strptime(daily_dir.name, 'nwm.%Y%m%d')
 
-        member_dirs = sorted(daily_dir.glob('forcing_' + range))
-        # if len(member_dirs) == 0:
+        if forc_type == 9 or forc_type == 10:
+            member_dirs = sorted(daily_dir.glob(range))
+        else:
+            member_dirs = sorted(daily_dir.glob('forcing_' + range))
 
         for member_dir in member_dirs:
             if not member_dir.is_dir():
@@ -359,7 +361,11 @@ def nwm_forcing_to_ldasin(
             re_range = range
             if '_hawaii' in range:
                 re_range = range.split('_hawaii')[0]
-            forcing_files = member_dir.glob('*' + re_range + '.forcing.*')
+                
+            if forc_type == 9 or forc_type ==10:
+                forcing_files = member_dir.glob('*' + re_range + '.channel_rt.*')
+            else:
+                forcing_files = member_dir.glob('*' + re_range + '.forcing.*')
 
             for forcing_file in forcing_files:
                 name_split = forcing_file.name.split('.')
@@ -384,8 +390,10 @@ def nwm_forcing_to_ldasin(
                     fmt = '%Y%m%d%H.LDASIN_DOMAIN1'
                 elif forc_type == 2:
                     fmt = '%Y%m%d%H00.LDASIN_DOMAIN1'
+                elif forc_type == 9 or forc_type ==10:
+                    fmt = '%Y%m%d%H00.CHRTOUT_DOMAIN1'
                 else:
-                    raise ValueError("Only forc_type 1 and 2 are supported")
+                    raise ValueError("Only forc_types 1, 2, 9, & 10 are supported.")
                 ldasin_file_name = init_time_dir / ldasin_time.strftime(fmt)
 
                 if copy:

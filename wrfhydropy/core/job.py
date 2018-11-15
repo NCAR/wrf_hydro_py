@@ -309,10 +309,10 @@ class Job(object):
         
         self.pickle(str(self.job_dir.joinpath('WrfHydroJob_postrun.pkl')))
 
-    def _write_namelists(self):
+    def _write_namelists(self, mode='x'):
         """Private method to write namelist dicts to FORTRAN namelist files"""
-        self.hrldas_namelist.write(str(self.job_dir.joinpath('namelist.hrldas')))
-        self.hydro_namelist.write(str(self.job_dir.joinpath('hydro.namelist')))
+        self.hrldas_namelist.write(str(self.job_dir.joinpath('namelist.hrldas')), mode=mode)
+        self.hydro_namelist.write(str(self.job_dir.joinpath('hydro.namelist')), mode=mode)
 
     def _set_hrldas_times(self):
         """Private method to set model run times in the hrldas namelist"""

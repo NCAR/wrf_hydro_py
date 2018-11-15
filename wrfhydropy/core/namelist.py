@@ -48,12 +48,13 @@ class JSONNamelist(object):
 class Namelist(dict):
     """Class for a WRF-Hydro namelist"""
 
-    def write(self, path: str):
+    def write(self, path: str, mode='x'):
         """Write a namelist to file as a fortran-compatible namelist
         Args:
             path: The file path
         """
-        f90nml.write(self,str(path))
+        with open(str(path), mode=mode) as nml_file:
+            f90nml.write(self,nml_file)
 
     def patch(self,patch: dict):
         """Recursively patch a namelist with key values from another namelist

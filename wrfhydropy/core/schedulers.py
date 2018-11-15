@@ -54,12 +54,6 @@ class PBSCheyenne(Scheduler):
                                'queue':queue,
                                'walltime':walltime}
 
-        # Setup exe cmd, will overwrite job exe cmd
-        if self.scheduler_opts['queue'] == 'shared':
-            self._exe_cmd = 'mpirun -np {0} ./wrf_hydro.exe'.format(self.nproc)
-        else:
-            self._exe_cmd = 'mpiexec_mpt ./wrf_hydro.exe'
-
     def schedule(self,jobs: list):
         """Schedule one or more jobs using the scheduler scheduler
             Args:
@@ -176,8 +170,9 @@ class PBSCheyenne(Scheduler):
                 f.write(jobstr)
 
             # Write the python run script for the job
-            # Overwrite job exe cmd with scheduler exe cmd
-            job._exe_cmd = self._exe_cmd
+            # If the job exe uses "nproc" then apply the schedulers value.
+            job._exe_cmd = job._exe_cmd.format(**{'nproc':self.nproc})
+
             job._write_run_script()
 
     def _solve_nodes_cores(self):

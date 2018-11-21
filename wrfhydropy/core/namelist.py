@@ -44,7 +44,9 @@ class JSONNamelist(object):
             config_namelist = dict_merge(base_namelist,config_patches)
 
         else:
-            if 'nwm' in config:
+            # 'nwm' as a config has been limited to the compile_options.json file
+            # so this hack is reasonable. 
+            if 'nwm' in config and 'nwm' in self._json_namelist.keys():
                 config = 'nwm'
             config_namelist = copy.deepcopy(self._json_namelist[config])
 

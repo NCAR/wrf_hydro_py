@@ -59,12 +59,16 @@ class Model(object):
             source_dir: Directory containing the source code, e.g.
                'wrf_hydro_nwm/trunk/NDHMS'.
             model_config: The configuration of the model. Used to match a model to a domain
-            configuration. Must be a key in both the *_namelists.json of in the source directory
-            and the *_namelist_patches.json in the domain directory.
+                configuration. Must be a key in both the *_namelists.json of in the source directory
+                and the *_namelist_patches.json in the domain directory.
             machine_spec: Optional dictionary of machine specification or string containing the
-            name of a known machine. Known machine names include 'cheyenne'. For an
-            example of a machine specification see the 'cheyenne' machine specification using
-            wrfhydropy.get_machine_spec('cheyenne').
+                name of a known machine. Known machine names include 'cheyenne'. For an
+                example of a machine specification see the 'cheyenne' machine specification using
+                wrfhydropy.get_machine_spec('cheyenne').
+            hydro_namelist_config_file: Path to a hydro namelist config file external to the model
+                repository. Default(None) implies using the model trunk/NDHMS/hydro_namelists.json.
+            hrldas_namelist_config_file: As for hydro_namelist_config_file, but for hrldas namelist.
+            compile_options_config_file: As for hydro_namelist_config_file, but for compile options.
             compiler: The compiler to use, must be one of 'pgi','gfort',
                 'ifort', or 'luna'.
             compile_options: Changes to default compile-time options.
@@ -154,14 +158,13 @@ class Model(object):
             self.version = f.read()
 
         # Load compile options
-        compile_json = json.load(self.source_dir.joinpath(self.compile_options_config_file).open())
-        if 'nwm' in self.model_config and \
-           self.compile_options_config_file == default_compile_options_config_file:
-            compile_config = 'nwm'
-        else:
-            compile_config = self.model_config
+        self.compile_options = JSONNamelist(
+            str(self.source_dir.joinpath(self.compile_options_config_file))
+        )
+        """Namelist: Hydro namelist for specified model config"""
+        self.compile_options = self.compile_options.get_config(self.model_config)
 
-        self.compile_options = compile_json[compile_config]
+        # "compile_options" is the argument to __init__
         if compile_options is not None:
             self.compile_options.update(compile_options)
 

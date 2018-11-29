@@ -35,11 +35,20 @@ class JSONNamelist(object):
             config: The configuration to retrieve
         """
 
-        base_namelist = copy.deepcopy(self._json_namelist['base'])
-        config_patches = copy.deepcopy(self._json_namelist[config])
+        # This ifelse statement is to make the compile options files.
+        # backwards-compatible. Should be left in through v2.1 (that makes sure v2.0 is covered).
+        if 'base' in self._json_namelist.keys():
+            base_namelist = copy.deepcopy(self._json_namelist['base'])
+            config_patches = copy.deepcopy(self._json_namelist[config])
+            #Update the base namelist with the config patches
+            config_namelist = dict_merge(base_namelist,config_patches)
 
-        #Update the base namelist with the config patches
-        config_namelist = dict_merge(base_namelist,config_patches)
+        else:
+            # 'nwm' as a config has been limited to the compile_options.json file
+            # so this hack is reasonable. 
+            if 'nwm' in config and 'nwm' in self._json_namelist.keys():
+                config = 'nwm'
+            config_namelist = copy.deepcopy(self._json_namelist[config])
 
         return Namelist(config_namelist)
 

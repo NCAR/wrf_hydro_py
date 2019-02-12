@@ -1,23 +1,28 @@
+from boltons import iterutils
+from typing import Union
+
+import collections
+import dask
+import dask.bag
 import datetime
 import io
+import numpy as np
 import os
+import pandas as pd
 import pathlib
 import re
 import shlex
 import shutil
 import subprocess
 import warnings
-from typing import Union
-
-import numpy as np
-import pandas as pd
 import xarray as xr
-from boltons import iterutils
 
 
-def open_nwmdataset(paths: list,
-                    chunks: dict=None,
-                    forecast: bool = True) -> xr.Dataset:
+def open_nwmdataset(
+    paths: list,
+    chunks: dict=None,
+    forecast: bool = True
+)-> xr.Dataset:
     """Open a multi-file wrf-hydro output dataset
     Args:
         paths: List ,iterable, or generator of file paths to wrf-hydro netcdf output files
@@ -65,6 +70,74 @@ def open_nwmdataset(paths: list,
         nwm_dataset = nwm_dataset.chunk(chunks=chunks)
 
     return nwm_dataset
+
+
+def preprocess_dart_member(ds):
+    member = int(ds.attrs['DART_file_information'].split()[-1])
+    ds.coords['member'] = member
+    return ds
+
+
+def open_ensemble_dataset(
+    paths: list,
+    chunks: dict=None,
+    preprocess_member: callable=preprocess_dart_member,
+    attrs_keep: list=None
+)-> xr.Dataset:
+    """Open a multi-file ensemble wrf-hydro output dataset
+    Args:
+        paths: List ,iterable, or generator of file paths to wrf-hydro netcdf output files
+        chunks: chunks argument passed on to xarray DataFrame.chunk() method
+        preprocess_member: A function that identifies the member from the file or filename.
+        attrs_keep: A list of the global attributes to be retained.
+    Returns:
+        An xarray dataset of dask arrays chunked by chunk_size along the feature_id
+        dimension concatenated along the time and member dimensions.
+    """
+
+    # TODO JLM: Can this be combined with open_nwmdataset?
+    # How can we differentiate between member and forecast, etc? provide as kw args?
+
+    # Explanation:
+    # Xarray currently first requires concatenation along existing dimensions (e.g. time)
+    # over the individual member groups, then it allows concatenation along the member
+    # dimensions. A dictionary is built wherein the member groups are identified/kept as
+    # lists of data sets (per member). Once this dictionary is complete, each list in
+    # the dict is concatenated along time. Once all members are concatenated along time,
+    # the all the members can be concatenated along "member". 
+   
+    paths_bag = dask.bag.from_sequence(paths)
+    ds_all = paths_bag.map(xr.open_dataset, chunks=chunks).compute()
+    all_bag = dask.bag.from_sequence(ds_all)
+    
+    def member_grouper(ds):
+        return preprocess_member(ds).member.item(0)
+    def concat_time(total, x):
+        return xr.concat([total, x], dim='time', coords='minimal')
+    # Foldby returns a tuple of (member_number, xarray.Dataset), strip off the member number.
+    ds_members = [tup[1] for tup in all_bag.foldby(member_grouper, concat_time).compute()]
+    del all_bag
+    
+    ens_dataset = xr.concat(ds_members, dim='member', coords='minimal')
+    del ds_members
+
+    # Xarray sets nan as the fill value. 
+    for key, val in ens_dataset.variables.items():
+        ens_dataset[key].encoding.update({'_FillValue': None})
+
+    new_attrs = collections.OrderedDict()
+    if attrs_keep is not None:
+        for key, value in ens_dataset.attrs.items():
+            if key in attrs_keep:
+                new_attrs[key] = ens_dataset.attrs[key]
+
+    ens_dataset.attrs = new_attrs
+
+    # Break into chunked dask array
+    if chunks is not None:
+        ens_dataset = ens_dataset.chunk(chunks=chunks)
+
+    return ens_dataset
 
 
 class WrfHydroTs(list):

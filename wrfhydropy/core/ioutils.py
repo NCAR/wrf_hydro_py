@@ -101,16 +101,14 @@ def open_ensemble_dataset(
     # Explanation:
     # Xarray currently first requires concatenation along existing dimensions (e.g. time)
     # over the individual member groups, then it allows concatenation along the member
-    # dimensions. A dictionary is built wherein the member groups are identified/kept as
-    # lists of data sets (per member). Once this dictionary is complete, each list in
-    # the dict is concatenated along time. Once all members are concatenated along time,
-    # the all the members can be concatenated along "member". 
+    # dimensions. 
    
     paths_bag = dask.bag.from_sequence(paths)
     ds_all = paths_bag.map(xr.open_dataset, chunks=chunks).compute()
     all_bag = dask.bag.from_sequence(ds_all)
     del ds_all
-    
+
+    # Concat along time within each member group.
     def member_grouper(ds):
         return preprocess_member(ds).member.item(0)
     def concat_time(total, x):
@@ -118,7 +116,8 @@ def open_ensemble_dataset(
     # Foldby returns a tuple of (member_number, xarray.Dataset), strip off the member number.
     ds_members = [tup[1] for tup in all_bag.foldby(member_grouper, concat_time).compute()]
     del all_bag
-    
+
+    # Concat all members along member dimension.
     ens_dataset = xr.concat(ds_members, dim='member', coords='minimal')
     del ds_members
 

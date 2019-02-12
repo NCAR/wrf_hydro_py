@@ -109,6 +109,7 @@ def open_ensemble_dataset(
     paths_bag = dask.bag.from_sequence(paths)
     ds_all = paths_bag.map(xr.open_dataset, chunks=chunks).compute()
     all_bag = dask.bag.from_sequence(ds_all)
+    del ds_all
     
     def member_grouper(ds):
         return preprocess_member(ds).member.item(0)

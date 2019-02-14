@@ -132,6 +132,7 @@ def open_ensemble_dataset(
                 new_attrs[key] = ens_dataset.attrs[key]
 
     ens_dataset.attrs = new_attrs
+    ens_dataset = ens_dataset.transpose('time', 'member', 'links')
 
     # Break into chunked dask array
     if chunks is not None:

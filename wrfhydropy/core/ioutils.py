@@ -6,6 +6,7 @@ import dask
 import dask.bag
 import datetime
 import io
+import itertools
 import numpy as np
 import os
 import pandas as pd
@@ -18,7 +19,7 @@ import warnings
 import xarray as xr
 
 
-def open_nwmdataset(
+def old_open_nwmdataset(
     paths: list,
     chunks: dict=None,
     forecast: bool = True
@@ -69,6 +70,205 @@ def open_nwmdataset(
     if chunks is not None:
         nwm_dataset = nwm_dataset.chunk(chunks=chunks)
 
+    return nwm_dataset
+
+
+def preprocess_nwmdata(
+    path,
+    forecast_range: str=None,
+    file_type: str=None,
+    chunks: dict= None,
+    spatial_indices: list=None
+)->xr.Dataset:
+    
+    ds = xr.open_dataset(path)
+    
+    # Check range (e.g. "medium_range")
+    # Check file type (e.g "channel_rt")
+    
+    # Member preprocess
+    filename_info = pathlib.Path(path).name.split('.')
+    try:
+        member = int(filename_info[3].split('_')[-1])
+    except ValueError:
+        member = None
+
+    if member is not None:
+        ds.coords['member'] =  member
+    
+    # Lead time preprocess
+    ds.coords['lead_time'] = np.array(
+        ds.time.values - ds.reference_time.values, 
+        dtype='timedelta64[ns]'
+    )    
+    ds = ds.drop('time')
+
+    # Spatial subsetting
+    if spatial_indices is not None:
+        ds = ds.isel(feature_id=spatial_indices)
+
+    return ds
+
+
+def group_lead_time_nwmdata(ds: xr.Dataset)-> int:
+    return ds.lead_time.item(0)
+
+
+def group_member_lead_time_nwmdata(ds: xr.Dataset)-> int:
+    return str(ds.member.item(0)) + '-' + str(ds.lead_time.item(0))
+
+def merge_reference_time_nwmdata(ds_list: list)-> xr.Dataset:
+    return xr.concat(ds_list, dim='reference_time', coords='minimal')
+
+def merge_member_nwmdata(ds_list: list)-> xr.Dataset:
+    return xr.concat(ds_list, dim='member', coords='minimal')
+
+def merge_lead_time_nwmdata(ds_list: list)-> xr.Dataset:
+    return xr.concat(ds_list, dim='lead_time', coords='minimal')
+
+def append_lead_time_nwmdata(total: xr.Dataset, x: xr.Dataset)-> xr.Dataset:
+    return xr.concat([total, x], dim='reference_time', coords='minimal')
+
+
+def open_nwm_dataset_0(
+    paths: list,
+    chunks: dict=None,
+    attrs_keep: list=None,
+    npartitions: int=None
+)-> xr.Dataset:
+
+    paths_bag = dask.bag.from_sequence(paths)
+    ds_all = paths_bag.map(preprocess_nwmdata, chunks=chunks).compute()
+    
+    if npartitions is None:
+        npartitions = dask.config.get('pool')._processes   
+    all_bag = dask.bag.from_sequence(ds_all, npartitions=npartitions)
+    del ds_all
+
+    # Try replacing with itertools groupsing and using a merge instead of append.
+    ds_folded = all_bag.foldby(group_lead_time_nwmdata,append_lead_time_nwmdata).compute()
+    del all_bag
+    
+    # Foldby returns a tuple of (member_number, xarray.Dataset), strip off the 
+    # member number with the list comp.
+    ds_groups = [tup[1] for tup in ds_folded]
+    del ds_folded
+    
+    nwm_dataset = xr.concat(ds_groups, dim='lead_time', coords='minimal')
+    del ds_groups
+
+    # How to create a valid time variable?   
+    return nwm_dataset
+
+
+def open_nwm_dataset_1(
+    paths: list,
+    chunks: dict=None,
+    attrs_keep: list=None,
+    spatial_indices: list=None
+)-> xr.Dataset:
+
+    paths_bag = dask.bag.from_sequence(paths)
+    ds_all = paths_bag.map(
+        preprocess_nwmdata,
+        chunks=chunks,
+        spatial_indices=spatial_indices
+    ).compute()
+    
+    the_sort = sorted(ds_all, key=group_lead_time_nwmdata)
+    ds_groups =[list(it) for k, it in itertools.groupby(the_sort, group_lead_time_nwmdata)]
+    group_bag = dask.bag.from_sequence(ds_groups)
+    del ds_groups
+    ds_groups = group_bag.map(merge_lead_time_nwmdata).compute()
+    del group_bag
+    
+    nwm_dataset = xr.concat(ds_groups, dim='lead_time', coords='minimal')
+    del ds_groups
+
+    # How to create a valid_time variable?   
+    return nwm_dataset
+
+
+def open_nwm_dataset_2(
+    paths: list,
+    chunks: dict=None,
+    attrs_keep: list=None,
+    spatial_indices: list=None
+)-> xr.Dataset:
+
+    paths_bag = dask.bag.from_sequence(paths)
+    ds_list = paths_bag.map(
+        preprocess_nwmdata,
+        chunks=chunks,
+        spatial_indices=spatial_indices
+    ).compute()
+
+    # Group by and merge choices
+    have_members = 'member' in ds_list[0].coords
+    if have_members:
+        group_list = [group_member_lead_time_nwmdata, group_lead_time_nwmdata]
+        merge_list = [merge_reference_time_nwmdata, merge_member_nwmdata]
+    else:
+        group_list = [group_lead_time_nwmdata]
+        merge_list = [merge_reference_time_nwmdata]
+    print('have_members:', have_members)
+    print(ds_list[0].coords)
+    
+    for group, merge in zip(group_list, merge_list):
+        the_sort = sorted(ds_list, key=group)
+        ds_groups =[list(it) for k, it in itertools.groupby(the_sort, group)]
+        group_bag = dask.bag.from_sequence(ds_groups)
+        ds_list = group_bag.map(merge).compute()
+        del group_bag, ds_groups, the_sort
+    
+    nwm_dataset = merge_lead_time_nwmdata(ds_list)
+    del ds_list
+
+    # How to create a valid_time variable?   
+    return nwm_dataset
+
+
+
+def open_nwm_dataset_3(
+    paths: list,
+    chunks: dict=None,
+    attrs_keep: list=None,
+    spatial_indices: list=None
+)-> xr.Dataset:
+
+    path_bag = dask.bag.from_sequence(paths)
+    ds_all = path_bag.map(
+        preprocess_nwmdata,
+        chunks=chunks,
+        spatial_indices=spatial_indices
+    ).compute()
+    del path_bag
+    
+    # Treat members. If no members, there is a dummy member (thought it is not a dimension).
+    have_members = 'member' in ds_all[0].dims
+    if have_members:
+        member_sort = sorted(ds_all, key=group_member_nwmdata)
+        member_list = [list(it) for k, it in itertools.groupby(member_sort, group_member_nwmdata)]
+        del member_sort
+    else:
+        member_list = [ds_all]
+
+    del ds_all
+        
+    for mm, member in enumerate(member_list):        
+        lead_sort = sorted(member, key=group_lead_time_nwmdata)
+        lead_groups =[list(it) for k, it in itertools.groupby(lead_sort, group_lead_time_nwmdata)]
+        lead_bag = dask.bag.from_sequence(lead_groups)
+        leads_groups = lead_bag.map(merge_lead_time_nwmdata).compute()
+        member_list[mm] = xr.concat(lead_groups, dim='lead_time', coords='minimal')
+        del lead_groups, lead_bag, lead_sort
+
+    if have_members:
+        nwm_dataset = xr.concat(member_list, dim='member', coords='minimal')
+    else:
+        nwm_dataset = member_list[0]
+        
+    # How to create a valid_time variable?   
     return nwm_dataset
 
 

@@ -79,7 +79,9 @@ def merge_lead_time_nwmdata(ds_list: list)-> xr.Dataset:
 def open_nwm_dataset(
     paths: list,
     chunks: dict=None,
-    attrs_keep: list=None,
+    attrs_keep: list=['featureType', 'proj4',
+                      'station_dimension', 'esri_pe_string',
+                      'Conventions', 'model_version'],
     spatial_indices: list=None
 )-> xr.Dataset:
 
@@ -119,6 +121,24 @@ def open_nwm_dataset(
         vectorize=True
     )
 
+    # Xarray sets nan as the fill value when there is none. Dont allow that...
+    for key, val in nwm_dataset.variables.items():
+        if '_FillValue' not in nwm_dataset[key].encoding:
+            nwm_dataset[key].encoding.update({'_FillValue': None})
+
+    # Clean up attributes
+    new_attrs = collections.OrderedDict()
+    if attrs_keep is not None:
+        for key, value in nwm_dataset.attrs.items():
+            if key in attrs_keep:
+                new_attrs[key] = nwm_dataset.attrs[key]
+                
+    nwm_dataset.attrs = new_attrs
+
+    # Break into chunked dask array
+    if chunks is not None:
+        nwm_dataset = nwm_dataset.chunk(chunks=chunks)
+    
     return nwm_dataset
 
 

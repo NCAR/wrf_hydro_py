@@ -20,7 +20,8 @@ setup(
         'pytest-datadir-ng',
         'boltons',
         'bs4',
-        'requests'
+        'requests',
+        'dask[bag]'
     ],
     author='Joe Mills',
     author_email='jmills@ucar.edu',

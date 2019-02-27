@@ -26,8 +26,11 @@ def preprocess_nwmdata(
     chunks: dict= None,
     spatial_indices: list=None
 )->xr.Dataset:
-    
-    ds = xr.open_dataset(path)
+
+    try:
+        ds = xr.open_dataset(path)
+    except OSError:
+        return None
     
     # Check range (e.g. "medium_range")
     # Check file type (e.g "channel_rt")
@@ -76,21 +79,49 @@ def merge_lead_time_nwmdata(ds_list: list)-> xr.Dataset:
     return xr.concat(ds_list, dim='lead_time', coords='minimal')
 
 
+import time
+import sys
+def timesince(when=None):
+    if when is None:
+        return time.time()
+    else:
+        print(time.time() - when)
+        sys.stdout.flush()
+        sys.stderr.flush()
+        return time.time()
+
+
 def open_nwm_dataset(
     paths: list,
     chunks: dict=None,
     attrs_keep: list=['featureType', 'proj4',
                       'station_dimension', 'esri_pe_string',
                       'Conventions', 'model_version'],
-    spatial_indices: list=None
+    spatial_indices: list=None,
+    npartitions: int=None
 )-> xr.Dataset:
 
-    paths_bag = dask.bag.from_sequence(paths)
+    then = timesince()
+    
+    if npartitions is None:
+        npartitions = dask.config.get('pool')._processes * 4
+    #npartitions = len(sorted(paths))
+    paths_bag = dask.bag.from_sequence(paths, npartitions=npartitions)
+
+    then=timesince(then)
+    print('after paths_bag')
+
+    def is_not_none(x):
+        return x is not None
+
     ds_list = paths_bag.map(
         preprocess_nwmdata,
         chunks=chunks,
         spatial_indices=spatial_indices
-    ).compute()
+    ).filter(is_not_none).compute()
+
+    then=timesince(then)
+    print("after ds_list preprocess/filter")
 
     # Group by and merge by choices
     have_members = 'member' in ds_list[0].coords
@@ -102,12 +133,24 @@ def open_nwm_dataset(
         merge_list = [merge_reference_time_nwmdata]
     
     for group, merge in zip(group_list, merge_list):
+
+        then=timesince(then)
+        print('before sort')
         the_sort = sorted(ds_list, key=group)
+        then=timesince(then)
+        print('after sort, before group')
         ds_groups =[list(it) for k, it in itertools.groupby(the_sort, group)]
-        group_bag = dask.bag.from_sequence(ds_groups)
+        then=timesince(then)
+        print('after group, before merge')
+
+        #npartitons = len(ds_groups)
+        group_bag = dask.bag.from_sequence(ds_groups, npartitions=npartitions)
         ds_list = group_bag.map(merge).compute()
+        then=timesince(then)
+        print('after merge')
+        
         del group_bag, ds_groups, the_sort
-    
+
     nwm_dataset = merge_lead_time_nwmdata(ds_list)
     del ds_list
 

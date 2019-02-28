@@ -19,7 +19,7 @@ import warnings
 import xarray as xr
 
 
-def preprocess_nwmdata(
+def preprocess_nwm_data(
     path,
     forecast_range: str=None,
     file_type: str=None,
@@ -37,8 +37,9 @@ def preprocess_nwmdata(
         to_drop = set(ds.variables).intersection(set(drop_variables))
         if to_drop != set():
             ds = ds.drop(to_drop)
-    # Check range (e.g. "medium_range")
-    # Check file type (e.g "channel_rt")
+            
+    # TODO JLM? Check range (e.g. "medium_range")
+    # TODO JLM? Check file type (e.g "channel_rt")
     
     # Member preprocess
     filename_info = pathlib.Path(path).name.split('.')
@@ -64,23 +65,23 @@ def preprocess_nwmdata(
     return ds
 
 
-def group_lead_time_nwmdata(ds: xr.Dataset)-> int:
+def group_lead_time_nwm_data(ds: xr.Dataset)-> int:
     return ds.lead_time.item(0)
 
 
-def group_member_lead_time_nwmdata(ds: xr.Dataset)-> int:
+def group_member_lead_time_nwm_data(ds: xr.Dataset)-> int:
     return str(ds.member.item(0)) + '-' + str(ds.lead_time.item(0))
 
 
-def merge_reference_time_nwmdata(ds_list: list)-> xr.Dataset:
+def merge_reference_time_nwm_data(ds_list: list)-> xr.Dataset:
     return xr.concat(ds_list, dim='reference_time', coords='minimal')
 
 
-def merge_member_nwmdata(ds_list: list)-> xr.Dataset:
+def merge_member_nwm_data(ds_list: list)-> xr.Dataset:
     return xr.concat(ds_list, dim='member', coords='minimal')
 
 
-def merge_lead_time_nwmdata(ds_list: list)-> xr.Dataset:
+def merge_lead_time_nwm_data(ds_list: list)-> xr.Dataset:
     return xr.concat(ds_list, dim='lead_time', coords='minimal')
 
 
@@ -104,61 +105,74 @@ def open_nwm_dataset(
                       'Conventions', 'model_version'],
     spatial_indices: list=None,
     drop_variables: list=None,
-    npartitions: int=None
+    npartitions: int=None,
+    profile: int=False
 )-> xr.Dataset:
 
-    then = timesince()
+    if profile:
+        then = timesince()
     
     if npartitions is None:
         npartitions = dask.config.get('pool')._processes * 4
     #npartitions = len(sorted(paths))
     paths_bag = dask.bag.from_sequence(paths, npartitions=npartitions)
 
-    then=timesince(then)
-    print('after paths_bag')
+    if profile:
+        then=timesince(then)
+        print('after paths_bag')
 
     def is_not_none(x):
         return x is not None
 
     ds_list = paths_bag.map(
-        preprocess_nwmdata,
+        preprocess_nwm_data,
         chunks=chunks,
         spatial_indices=spatial_indices,
         drop_variables=drop_variables
     ).filter(is_not_none).compute()
 
-    then=timesince(then)
-    print("after ds_list preprocess/filter")
+    if profile:
+        then=timesince(then)
+        print("after ds_list preprocess/filter")
 
     # Group by and merge by choices
     have_members = 'member' in ds_list[0].coords
     if have_members:
-        group_list = [group_member_lead_time_nwmdata, group_lead_time_nwmdata]
-        merge_list = [merge_reference_time_nwmdata, merge_member_nwmdata]
+        group_list = [group_member_lead_time_nwm_data, group_lead_time_nwm_data]
+        merge_list = [merge_reference_time_nwm_data, merge_member_nwm_data]
     else:
-        group_list = [group_lead_time_nwmdata]
-        merge_list = [merge_reference_time_nwmdata]
+        group_list = [group_lead_time_nwm_data]
+        merge_list = [merge_reference_time_nwm_data]
     
     for group, merge in zip(group_list, merge_list):
 
-        then=timesince(then)
-        print('before sort')
+        if profile:
+            then=timesince(then)
+            print('before sort')
+            
         the_sort = sorted(ds_list, key=group)
-        then=timesince(then)
-        print('after sort, before group')
+
+        if profile:
+            then=timesince(then)
+            print('after sort, before group')
+            
         ds_groups =[list(it) for k, it in itertools.groupby(the_sort, group)]
-        then=timesince(then)
-        print('after group, before merge')
+        
+        if profile:
+            then=timesince(then)
+            print('after group, before merge')
 
         #npartitons = len(ds_groups)
         group_bag = dask.bag.from_sequence(ds_groups, npartitions=npartitions)
         ds_list = group_bag.map(merge).compute()
-        then=timesince(then)
-        print('after merge')
+        
+        if profile:
+            then=timesince(then)
+            print('after merge')
         
         del group_bag, ds_groups, the_sort
 
-    nwm_dataset = merge_lead_time_nwmdata(ds_list)
+    nwm_dataset = merge_lead_time_nwm_data(ds_list)
     del ds_list
 
     # Create a valid_time variable.
@@ -215,7 +229,7 @@ def open_ensemble_dataset(
         dimension concatenated along the time and member dimensions.
     """
 
-    # TODO JLM: Can this be combined with open_nwmdataset?
+    # TODO JLM: Can this be combined with open_wh_dataset?
     # How can we differentiate between member and forecast, etc? provide as kw args?
 
     # Explanation:
@@ -260,6 +274,58 @@ def open_ensemble_dataset(
     return ens_dataset
 
 
+def open_wh_dataset(paths: list,
+                    chunks: dict=None,
+                    forecast: bool = True) -> xr.Dataset:
+    """Open a multi-file wrf-hydro output dataset
+    Args:
+        paths: List ,iterable, or generator of file paths to wrf-hydro netcdf output files
+        chunks: chunks argument passed on to xarray DataFrame.chunk() method
+        forecast: If forecast the reference time dimension is retained, if not then
+        reference_time dimension is set to a dummy value (1970-01-01) to ease concatenation
+        and analysis
+    Returns:
+        An xarray dataset of dask arrays chunked by chunk_size along the feature_id
+        dimension concatenated along the time and
+        reference_time dimensions
+    """
+
+    # Create dictionary of forecasts, i.e. reference times
+    ds_dict = dict()
+    for a_file in paths:
+        ds = xr.open_dataset(a_file, chunks=chunks)
+        # Check if forecast and set reference_time to zero if not
+        if not forecast:
+            ds.coords['reference_time'].values = np.array(
+                [np.datetime64('1970-01-01T00:00:00', 'ns')])
+
+        ref_time = ds['reference_time'].values[0]
+        if ref_time in ds_dict:
+            # append the new number to the existing array at this slot
+            ds_dict[ref_time].append(ds)
+        else:
+            # create a new array in this slot
+            ds_dict[ref_time] = [ds]
+
+    # Concatenate along time axis for each forecast
+    forecast_list = list()
+    for key in ds_dict.keys():
+        forecast_list.append(xr.concat(ds_dict[key],
+                                       dim='time',
+                                       coords='minimal'))
+
+    # Concatenate along reference_time axis for all forecasts
+    wh_dataset = xr.concat(forecast_list,
+                            dim='reference_time',
+                            coords='minimal')
+
+    # Break into chunked dask array
+    if chunks is not None:
+        wh_dataset = wh_dataset.chunk(chunks=chunks)
+
+    return wh_dataset 
+
+
 class WrfHydroTs(list):
     """WRF-Hydro netcdf timeseries data class"""
     def open(self, chunks: dict = None, forecast: bool=True):
@@ -273,7 +339,7 @@ class WrfHydroTs(list):
         Returns:
             An xarray mfdataset object concatenated on dimension 'Time'.
         """
-        return open_nwmdataset(self, chunks=chunks, forecast=forecast)
+        return open_wh_dataset(self, chunks=chunks, forecast=forecast)
 
     def check_nas(self):
         """Return dictionary of counts of NA values for each data variable summed across files"""

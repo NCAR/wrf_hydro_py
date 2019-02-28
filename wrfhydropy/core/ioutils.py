@@ -24,14 +24,19 @@ def preprocess_nwmdata(
     forecast_range: str=None,
     file_type: str=None,
     chunks: dict= None,
-    spatial_indices: list=None
+    spatial_indices: list=None,
+    drop_variables: list=None
 )->xr.Dataset:
 
     try:
         ds = xr.open_dataset(path)
     except OSError:
         return None
-    
+
+    if drop_variables is not None:
+        to_drop = set(ds.variables).intersection(set(drop_variables))
+        if to_drop != set():
+            ds = ds.drop(to_drop)
     # Check range (e.g. "medium_range")
     # Check file type (e.g "channel_rt")
     
@@ -98,6 +103,7 @@ def open_nwm_dataset(
                       'station_dimension', 'esri_pe_string',
                       'Conventions', 'model_version'],
     spatial_indices: list=None,
+    drop_variables: list=None,
     npartitions: int=None
 )-> xr.Dataset:
 
@@ -117,7 +123,8 @@ def open_nwm_dataset(
     ds_list = paths_bag.map(
         preprocess_nwmdata,
         chunks=chunks,
-        spatial_indices=spatial_indices
+        spatial_indices=spatial_indices,
+        drop_variables=drop_variables
     ).filter(is_not_none).compute()
 
     then=timesince(then)

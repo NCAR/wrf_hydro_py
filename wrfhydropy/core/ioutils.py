@@ -31,6 +31,7 @@ def preprocess_nwm_data(
     try:
         ds = xr.open_dataset(path)
     except OSError:
+        print("Skipping file, unable to open: ", path)
         return None
 
     if drop_variables is not None:

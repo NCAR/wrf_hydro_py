@@ -15,15 +15,56 @@ import re
 import shlex
 import shutil
 import subprocess
+import sys
+import time
 import warnings
 import xarray as xr
 
 
+def is_not_none(x):
+    return x is not None
+
+
+def timesince(when=None):
+    if when is None:
+        return time.time()
+    else:
+        print(time.time() - when)
+        sys.stdout.flush()
+        sys.stderr.flush()
+        return time.time()
+
+
+def group_lead_time(ds: xr.Dataset)-> int:
+    return ds.lead_time.item(0)
+
+
+def group_member_lead_time(ds: xr.Dataset)-> int:
+    return str(ds.member.item(0)) + '-' + str(ds.lead_time.item(0))
+
+
+def group_member(ds: xr.Dataset)-> int:
+    return ds.member.item(0)
+
+
+def merge_reference_time(ds_list: list)-> xr.Dataset:
+    return xr.concat(ds_list, dim='reference_time', coords='minimal')
+
+
+def merge_member(ds_list: list)-> xr.Dataset:
+    return xr.concat(ds_list, dim='member', coords='minimal')
+
+
+def merge_lead_time(ds_list: list)-> xr.Dataset:
+    return xr.concat(ds_list, dim='lead_time', coords='minimal')
+
+
+def merge_time(ds_list: list)-> xr.Dataset:
+    return xr.concat(ds_list, dim='time', coords='minimal')
+
+
 def preprocess_nwm_data(
     path,
-    forecast_range: str=None,
-    file_type: str=None,
-    chunks: dict= None,
     spatial_indices: list=None,
     drop_variables: list=None
 )->xr.Dataset:
@@ -66,38 +107,6 @@ def preprocess_nwm_data(
     return ds
 
 
-def group_lead_time_nwm_data(ds: xr.Dataset)-> int:
-    return ds.lead_time.item(0)
-
-
-def group_member_lead_time_nwm_data(ds: xr.Dataset)-> int:
-    return str(ds.member.item(0)) + '-' + str(ds.lead_time.item(0))
-
-
-def merge_reference_time_nwm_data(ds_list: list)-> xr.Dataset:
-    return xr.concat(ds_list, dim='reference_time', coords='minimal')
-
-
-def merge_member_nwm_data(ds_list: list)-> xr.Dataset:
-    return xr.concat(ds_list, dim='member', coords='minimal')
-
-
-def merge_lead_time_nwm_data(ds_list: list)-> xr.Dataset:
-    return xr.concat(ds_list, dim='lead_time', coords='minimal')
-
-
-import time
-import sys
-def timesince(when=None):
-    if when is None:
-        return time.time()
-    else:
-        print(time.time() - when)
-        sys.stdout.flush()
-        sys.stderr.flush()
-        return time.time()
-
-
 def open_nwm_dataset(
     paths: list,
     chunks: dict=None,
@@ -112,18 +121,17 @@ def open_nwm_dataset(
 
     if profile:
         then = timesince()
-    
+
+    # This is totally arbitrary be seems to work ok.
     if npartitions is None:
         npartitions = dask.config.get('pool')._processes * 4
-    #npartitions = len(sorted(paths))
+    # This choice does not seem to work well or at all, error?
+    # npartitions = len(sorted(paths))
     paths_bag = dask.bag.from_sequence(paths, npartitions=npartitions)
 
     if profile:
         then=timesince(then)
         print('after paths_bag')
-
-    def is_not_none(x):
-        return x is not None
 
     ds_list = paths_bag.map(
         preprocess_nwm_data,
@@ -139,11 +147,11 @@ def open_nwm_dataset(
     # Group by and merge by choices
     have_members = 'member' in ds_list[0].coords
     if have_members:
-        group_list = [group_member_lead_time_nwm_data, group_lead_time_nwm_data]
-        merge_list = [merge_reference_time_nwm_data, merge_member_nwm_data]
+        group_list = [group_member_lead_time, group_lead_time]
+        merge_list = [merge_reference_time, merge_member]
     else:
-        group_list = [group_lead_time_nwm_data]
-        merge_list = [merge_reference_time_nwm_data]
+        group_list = [group_lead_time]
+        merge_list = [merge_reference_time]
     
     for group, merge in zip(group_list, merge_list):
 
@@ -173,7 +181,7 @@ def open_nwm_dataset(
         
         del group_bag, ds_groups, the_sort
 
-    nwm_dataset = merge_lead_time_nwm_data(ds_list)
+    nwm_dataset = merge_lead_time(ds_list)
     del ds_list
 
     # Create a valid_time variable.
@@ -207,21 +215,46 @@ def open_nwm_dataset(
     return nwm_dataset
 
 
-def preprocess_dart_member(ds):
+def preprocess_dart_member(
+    path,
+    spatial_indices: list=None,
+    drop_variables: list=None
+)->xr.Dataset:
+
+    # This non-optional is different from preprocess_nwm_data
+    ## I kinda dont think this should be optional for dart experiment/run collection.
+    # try:
+    ds = xr.open_dataset(path)
+    # except OSError:
+    #    print("Skipping file, unable to open: ", path)
+    #    return None
+
+    if drop_variables is not None:
+        to_drop = set(ds.variables).intersection(set(drop_variables))
+        if to_drop != set():
+            ds = ds.drop(to_drop)
+
+    # This member definition is different from preprocess_nwm_data
     member = int(ds.attrs['DART_file_information'].split()[-1])
     ds.coords['member'] = member
+
+    # Spatial subsetting
+    if spatial_indices is not None:
+        ds = ds.isel(feature_id=spatial_indices)
+
+    # Chunk here?
+        
     return ds
 
 
-def open_ensemble_dataset(
+def open_dart_dataset(
     paths: list,
     chunks: dict=None,
-    preprocess_member: callable=preprocess_dart_member,
     attrs_keep: list=None
 )-> xr.Dataset:
     """Open a multi-file ensemble wrf-hydro output dataset
     Args:
-        paths: List ,iterable, or generator of file paths to wrf-hydro netcdf output files
+paths: List ,iterable, or generator of file paths to wrf-hydro netcdf output files
         chunks: chunks argument passed on to xarray DataFrame.chunk() method
         preprocess_member: A function that identifies the member from the file or filename.
         attrs_keep: A list of the global attributes to be retained.
@@ -231,48 +264,48 @@ def open_ensemble_dataset(
     """
 
     # TODO JLM: Can this be combined with open_wh_dataset?
-    # How can we differentiate between member and forecast, etc? provide as kw args?
-
     # Explanation:
     # Xarray currently first requires concatenation along existing dimensions (e.g. time)
     # over the individual member groups, then it allows concatenation along the member
     # dimensions. 
-   
+
+    # Set partitions
     paths_bag = dask.bag.from_sequence(paths)
-    ds_all = paths_bag.map(xr.open_dataset, chunks=chunks).compute()
-    all_bag = dask.bag.from_sequence(ds_all)
-    del ds_all
 
-    # Concat along time within each member group.
-    def member_grouper(ds):
-        return preprocess_member(ds).member.item(0)
-    def concat_time(total, x):
-        return xr.concat([total, x], dim='time', coords='minimal')
-    # Foldby returns a tuple of (member_number, xarray.Dataset), strip off the member number.
-    ds_members = [tup[1] for tup in all_bag.foldby(member_grouper, concat_time).compute()]
-    del all_bag
+    ds_list = paths_bag.map(
+        preprocess_dart_data,
+        chunks=chunks,
+        spatial_indices=spatial_indices,
+        drop_variables=drop_variables
+    ).filter(is_not_none).compute()
 
-    # Concat all members along member dimension.
-    ens_dataset = xr.concat(ds_members, dim='member', coords='minimal')
-    del ds_members
+    the_sort = sorted(ds_list, key=group_member)
+    ds_groups =[list(it) for k, it in itertools.groupby(the_sort, group_member)]
+    group_bag = dask.bag.from_sequence(ds_groups, npartitions=npartitions)
+    ds_list = group_bag.map(merge_time).compute()
+    del group_bag, ds_groups, the_sort
+    dart_dataset = merge_member(ds_list)
+    del ds_list
 
-    # Xarray sets nan as the fill value. 
-    for key, val in ens_dataset.variables.items():
-        ens_dataset[key].encoding.update({'_FillValue': None})
+    # Xarray sets nan as the fill value when there is none. Dont allow that...
+    for key, val in dart_dataset.variables.items():
+        if '_FillValue' not in dart_dataset[key].encoding:
+            dart_dataset[key].encoding.update({'_FillValue': None})
 
+    # Clean up attributes
     new_attrs = collections.OrderedDict()
     if attrs_keep is not None:
-        for key, value in ens_dataset.attrs.items():
+        for key, value in dart_dataset.attrs.items():
             if key in attrs_keep:
-                new_attrs[key] = ens_dataset.attrs[key]
-
-    ens_dataset.attrs = new_attrs
+                new_attrs[key] = dart_dataset.attrs[key]
+                
+    dart_dataset.attrs = new_attrs
 
     # Break into chunked dask array
     if chunks is not None:
-        ens_dataset = ens_dataset.chunk(chunks=chunks)
+        dart_dataset = dart_dataset.chunk(chunks=chunks)
 
-    return ens_dataset
+    return dart_dataset
 
 
 def open_wh_dataset(paths: list,

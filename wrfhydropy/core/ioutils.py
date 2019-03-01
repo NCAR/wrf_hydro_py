@@ -79,7 +79,7 @@ def preprocess_nwm_data(
         to_drop = set(ds.variables).intersection(set(drop_variables))
         if to_drop != set():
             ds = ds.drop(to_drop)
-            
+
     # TODO JLM? Check range (e.g. "medium_range")
     # TODO JLM? Check file type (e.g "channel_rt")
     
@@ -215,8 +215,9 @@ def open_nwm_dataset(
     return nwm_dataset
 
 
-def preprocess_dart_member(
+def preprocess_dart_data(
     path,
+    chunks: dict=None,
     spatial_indices: list=None,
     drop_variables: list=None
 )->xr.Dataset:
@@ -228,6 +229,11 @@ def preprocess_dart_member(
     # except OSError:
     #    print("Skipping file, unable to open: ", path)
     #    return None
+
+    # May need to add time... do this before changing any dimensions. 
+    for key in ds.variables.keys():
+        if 'time' not in ds[key].dims:
+            ds[key] = ds[key].expand_dims('time')
 
     if drop_variables is not None:
         to_drop = set(ds.variables).intersection(set(drop_variables))
@@ -243,13 +249,16 @@ def preprocess_dart_member(
         ds = ds.isel(feature_id=spatial_indices)
 
     # Chunk here?
-        
+
     return ds
 
 
 def open_dart_dataset(
     paths: list,
     chunks: dict=None,
+    spatial_indices: list=None,
+    drop_variables: list=None,
+    npartitions: int=None,
     attrs_keep: list=None
 )-> xr.Dataset:
     """Open a multi-file ensemble wrf-hydro output dataset
@@ -270,6 +279,10 @@ paths: List ,iterable, or generator of file paths to wrf-hydro netcdf output fil
     # dimensions. 
 
     # Set partitions
+    # This is arbitrary
+    if npartitions is None:
+        npartitions = dask.config.get('pool')._processes * 4
+
     paths_bag = dask.bag.from_sequence(paths)
 
     ds_list = paths_bag.map(
@@ -281,7 +294,7 @@ paths: List ,iterable, or generator of file paths to wrf-hydro netcdf output fil
 
     the_sort = sorted(ds_list, key=group_member)
     ds_groups =[list(it) for k, it in itertools.groupby(the_sort, group_member)]
-    group_bag = dask.bag.from_sequence(ds_groups, npartitions=npartitions)
+    group_bag = dask.bag.from_sequence(ds_groups) #, npartitions=npartitions)
     ds_list = group_bag.map(merge_time).compute()
     del group_bag, ds_groups, the_sort
     dart_dataset = merge_member(ds_list)
@@ -301,6 +314,9 @@ paths: List ,iterable, or generator of file paths to wrf-hydro netcdf output fil
                 
     dart_dataset.attrs = new_attrs
 
+    # The existing DART convention. 
+    dart_dataset = dart_dataset.transpose('time', 'member', 'links')
+    
     # Break into chunked dask array
     if chunks is not None:
         dart_dataset = dart_dataset.chunk(chunks=chunks)

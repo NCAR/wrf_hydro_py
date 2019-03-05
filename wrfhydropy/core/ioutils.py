@@ -1,21 +1,330 @@
+from boltons import iterutils
+from typing import Union
+
+import collections
+import dask
+import dask.bag
 import datetime
 import io
+import itertools
+import numpy as np
 import os
+import pandas as pd
 import pathlib
 import re
 import shlex
 import shutil
 import subprocess
+import sys
+import time
 import warnings
-from typing import Union
-
-import numpy as np
-import pandas as pd
 import xarray as xr
-from boltons import iterutils
 
 
-def open_nwmdataset(paths: list,
+def is_not_none(x):
+    return x is not None
+
+
+def timesince(when=None):
+    if when is None:
+        return time.time()
+    else:
+        print(time.time() - when)
+        sys.stdout.flush()
+        sys.stderr.flush()
+        return time.time()
+
+
+def group_lead_time(ds: xr.Dataset)-> int:
+    return ds.lead_time.item(0)
+
+
+def group_member_lead_time(ds: xr.Dataset)-> int:
+    return str(ds.member.item(0)) + '-' + str(ds.lead_time.item(0))
+
+
+def group_member(ds: xr.Dataset)-> int:
+    return ds.member.item(0)
+
+
+def merge_reference_time(ds_list: list)-> xr.Dataset:
+    return xr.concat(ds_list, dim='reference_time', coords='minimal')
+
+
+def merge_member(ds_list: list)-> xr.Dataset:
+    return xr.concat(ds_list, dim='member', coords='minimal')
+
+
+def merge_lead_time(ds_list: list)-> xr.Dataset:
+    return xr.concat(ds_list, dim='lead_time', coords='minimal')
+
+
+def merge_time(ds_list: list)-> xr.Dataset:
+    return xr.concat(ds_list, dim='time', coords='minimal')
+
+
+def preprocess_nwm_data(
+    path,
+    spatial_indices: list=None,
+    drop_variables: list=None
+)->xr.Dataset:
+
+    try:
+        ds = xr.open_dataset(path)
+    except OSError:
+        print("Skipping file, unable to open: ", path)
+        return None
+
+    if drop_variables is not None:
+        to_drop = set(ds.variables).intersection(set(drop_variables))
+        if to_drop != set():
+            ds = ds.drop(to_drop)
+
+    # TODO JLM? Check range (e.g. "medium_range")
+    # TODO JLM? Check file type (e.g "channel_rt")
+    
+    # Member preprocess
+    filename_info = pathlib.Path(path).name.split('.')
+    try:
+        member = int(filename_info[3].split('_')[-1])
+    except ValueError:
+        member = None
+
+    if member is not None:
+        ds.coords['member'] =  member
+    
+    # Lead time preprocess
+    ds.coords['lead_time'] = np.array(
+        ds.time.values - ds.reference_time.values, 
+        dtype='timedelta64[ns]'
+    )    
+    ds = ds.drop('time')
+
+    # Spatial subsetting
+    if spatial_indices is not None:
+        ds = ds.isel(feature_id=spatial_indices)
+
+    return ds
+
+
+def open_nwm_dataset(
+    paths: list,
+    chunks: dict=None,
+    attrs_keep: list=['featureType', 'proj4',
+                      'station_dimension', 'esri_pe_string',
+                      'Conventions', 'model_version'],
+    spatial_indices: list=None,
+    drop_variables: list=None,
+    npartitions: int=None,
+    profile: int=False
+)-> xr.Dataset:
+
+    if profile:
+        then = timesince()
+
+    # This is totally arbitrary be seems to work ok.
+    if npartitions is None:
+        npartitions = dask.config.get('pool')._processes * 4
+    # This choice does not seem to work well or at all, error?
+    # npartitions = len(sorted(paths))
+    paths_bag = dask.bag.from_sequence(paths, npartitions=npartitions)
+
+    if profile:
+        then=timesince(then)
+        print('after paths_bag')
+
+    ds_list = paths_bag.map(
+        preprocess_nwm_data,
+        chunks=chunks,
+        spatial_indices=spatial_indices,
+        drop_variables=drop_variables
+    ).filter(is_not_none).compute()
+
+    if profile:
+        then=timesince(then)
+        print("after ds_list preprocess/filter")
+
+    # Group by and merge by choices
+    have_members = 'member' in ds_list[0].coords
+    if have_members:
+        group_list = [group_member_lead_time, group_lead_time]
+        merge_list = [merge_reference_time, merge_member]
+    else:
+        group_list = [group_lead_time]
+        merge_list = [merge_reference_time]
+    
+    for group, merge in zip(group_list, merge_list):
+
+        if profile:
+            then=timesince(then)
+            print('before sort')
+            
+        the_sort = sorted(ds_list, key=group)
+
+        if profile:
+            then=timesince(then)
+            print('after sort, before group')
+            
+        ds_groups =[list(it) for k, it in itertools.groupby(the_sort, group)]
+        
+        if profile:
+            then=timesince(then)
+            print('after group, before merge')
+
+        #npartitons = len(ds_groups)
+        group_bag = dask.bag.from_sequence(ds_groups, npartitions=npartitions)
+        ds_list = group_bag.map(merge).compute()
+        
+        if profile:
+            then=timesince(then)
+            print('after merge')
+        
+        del group_bag, ds_groups, the_sort
+
+    nwm_dataset = merge_lead_time(ds_list)
+    del ds_list
+
+    # Create a valid_time variable.
+    def calc_valid_time(ref, lead):
+        return np.datetime64(int(ref) + int(lead), 'ns')
+    nwm_dataset['valid_time'] = xr.apply_ufunc(
+        calc_valid_time,
+        nwm_dataset['reference_time'],
+        nwm_dataset['lead_time'],
+        vectorize=True
+    )
+
+    # Xarray sets nan as the fill value when there is none. Dont allow that...
+    for key, val in nwm_dataset.variables.items():
+        if '_FillValue' not in nwm_dataset[key].encoding:
+            nwm_dataset[key].encoding.update({'_FillValue': None})
+
+    # Clean up attributes
+    new_attrs = collections.OrderedDict()
+    if attrs_keep is not None:
+        for key, value in nwm_dataset.attrs.items():
+            if key in attrs_keep:
+                new_attrs[key] = nwm_dataset.attrs[key]
+                
+    nwm_dataset.attrs = new_attrs
+
+    # Break into chunked dask array
+    if chunks is not None:
+        nwm_dataset = nwm_dataset.chunk(chunks=chunks)
+    
+    return nwm_dataset
+
+
+def preprocess_dart_data(
+    path,
+    chunks: dict=None,
+    spatial_indices: list=None,
+    drop_variables: list=None
+)->xr.Dataset:
+
+    # This non-optional is different from preprocess_nwm_data
+    ## I kinda dont think this should be optional for dart experiment/run collection.
+    # try:
+    ds = xr.open_dataset(path)
+    # except OSError:
+    #    print("Skipping file, unable to open: ", path)
+    #    return None
+
+    # May need to add time... do this before changing any dimensions. 
+    for key in ds.variables.keys():
+        if 'time' not in ds[key].dims:
+            ds[key] = ds[key].expand_dims('time')
+
+    if drop_variables is not None:
+        to_drop = set(ds.variables).intersection(set(drop_variables))
+        if to_drop != set():
+            ds = ds.drop(to_drop)
+
+    # This member definition is different from preprocess_nwm_data
+    member = int(ds.attrs['DART_file_information'].split()[-1])
+    ds.coords['member'] = member
+
+    # Spatial subsetting
+    if spatial_indices is not None:
+        ds = ds.isel(feature_id=spatial_indices)
+
+    # Chunk here?
+
+    return ds
+
+
+def open_dart_dataset(
+    paths: list,
+    chunks: dict=None,
+    spatial_indices: list=None,
+    drop_variables: list=None,
+    npartitions: int=None,
+    attrs_keep: list=None
+)-> xr.Dataset:
+    """Open a multi-file ensemble wrf-hydro output dataset
+    Args:
+paths: List ,iterable, or generator of file paths to wrf-hydro netcdf output files
+        chunks: chunks argument passed on to xarray DataFrame.chunk() method
+        preprocess_member: A function that identifies the member from the file or filename.
+        attrs_keep: A list of the global attributes to be retained.
+    Returns:
+        An xarray dataset of dask arrays chunked by chunk_size along the feature_id
+        dimension concatenated along the time and member dimensions.
+    """
+
+    # TODO JLM: Can this be combined with open_wh_dataset?
+    # Explanation:
+    # Xarray currently first requires concatenation along existing dimensions (e.g. time)
+    # over the individual member groups, then it allows concatenation along the member
+    # dimensions. 
+
+    # Set partitions
+    # This is arbitrary
+    if npartitions is None:
+        npartitions = dask.config.get('pool')._processes * 4
+
+    paths_bag = dask.bag.from_sequence(paths)
+
+    ds_list = paths_bag.map(
+        preprocess_dart_data,
+        chunks=chunks,
+        spatial_indices=spatial_indices,
+        drop_variables=drop_variables
+    ).filter(is_not_none).compute()
+
+    the_sort = sorted(ds_list, key=group_member)
+    ds_groups =[list(it) for k, it in itertools.groupby(the_sort, group_member)]
+    group_bag = dask.bag.from_sequence(ds_groups) #, npartitions=npartitions)
+    ds_list = group_bag.map(merge_time).compute()
+    del group_bag, ds_groups, the_sort
+    dart_dataset = merge_member(ds_list)
+    del ds_list
+
+    # Xarray sets nan as the fill value when there is none. Dont allow that...
+    for key, val in dart_dataset.variables.items():
+        if '_FillValue' not in dart_dataset[key].encoding:
+            dart_dataset[key].encoding.update({'_FillValue': None})
+
+    # Clean up attributes
+    new_attrs = collections.OrderedDict()
+    if attrs_keep is not None:
+        for key, value in dart_dataset.attrs.items():
+            if key in attrs_keep:
+                new_attrs[key] = dart_dataset.attrs[key]
+                
+    dart_dataset.attrs = new_attrs
+
+    # The existing DART convention. 
+    dart_dataset = dart_dataset.transpose('time', 'member', 'links')
+    
+    # Break into chunked dask array
+    if chunks is not None:
+        dart_dataset = dart_dataset.chunk(chunks=chunks)
+
+    return dart_dataset
+
+
+def open_wh_dataset(paths: list,
                     chunks: dict=None,
                     forecast: bool = True) -> xr.Dataset:
     """Open a multi-file wrf-hydro output dataset
@@ -56,15 +365,15 @@ def open_nwmdataset(paths: list,
                                        coords='minimal'))
 
     # Concatenate along reference_time axis for all forecasts
-    nwm_dataset = xr.concat(forecast_list,
+    wh_dataset = xr.concat(forecast_list,
                             dim='reference_time',
                             coords='minimal')
 
     # Break into chunked dask array
     if chunks is not None:
-        nwm_dataset = nwm_dataset.chunk(chunks=chunks)
+        wh_dataset = wh_dataset.chunk(chunks=chunks)
 
-    return nwm_dataset
+    return wh_dataset 
 
 
 class WrfHydroTs(list):
@@ -80,7 +389,7 @@ class WrfHydroTs(list):
         Returns:
             An xarray mfdataset object concatenated on dimension 'Time'.
         """
-        return open_nwmdataset(self, chunks=chunks, forecast=forecast)
+        return open_wh_dataset(self, chunks=chunks, forecast=forecast)
 
     def check_nas(self):
         """Return dictionary of counts of NA values for each data variable summed across files"""

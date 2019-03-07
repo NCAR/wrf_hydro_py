@@ -100,6 +100,7 @@ def test_schedulers_pbs_schedule(scheduler_regular,capfd):
     except:
         out, err = capfd.readouterr()
         pass
-    assert out == '/bin/bash -c "job_test_job_1=`qsub -h job_test_job_1/job_test_job_1.pbs`;' \
-                  'job_test_job_1=`qsub -W depend=afterok:$job_test_job_1 ' \
-                  'job_test_job_1/job_test_job_1.pbs`;qrls \$job_test_job_1;"\n'
+    assert out == "qsub_str:  /bin/bash -c 'job_test_job_1=`qsub -h job_test_job_1/job_test_job_1.pbs`;" \
+                  "job_test_job_1=`qsub -W depend=afterok:${job_test_job_1} " \
+                  "job_test_job_1/job_test_job_1.pbs`;qrls ${job_test_job_1};'" \
+                  '\n'

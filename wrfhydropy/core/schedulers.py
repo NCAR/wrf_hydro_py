@@ -83,35 +83,31 @@ class PBSCheyenne(Scheduler):
         pbs_jids = []
         pbs_scripts = []
 
-        qsub_str = '/bin/bash -c "'
+        qsub_str = "/bin/bash -c '"
         for job_num, option in enumerate(jobs):
 
             # This gets the pbs script name and pbs jid for submission
             # the obs jid is stored in a list so that the previous jid can be retrieved for
             # dependency
             job_id = jobs[job_num].job_id
-            pbs_scripts.append(str(jobs[job_num].job_dir) + '/job_' + job_id + '.pbs')
-            pbs_jids.append('job_' + job_id)
+            pbs_scripts.append(str(jobs[job_num].job_dir) + "/job_" + job_id + ".pbs")
+            pbs_jids.append("job_" + job_id)
 
             # If first job, schedule using hold
             if job_num == 0:
                 qsub_str += pbs_jids[job_num] + "=`qsub -h " + pbs_scripts[job_num] + "`;"
             # Else schedule using job dependency on previous pbs jid
             else:
-                qsub_str += pbs_jids[job_num] + "=`qsub -W depend=afterok:$" + pbs_jids[
-                    job_num-1] + " " + pbs_scripts[job_num] + "`;"
+                qsub_str += pbs_jids[job_num] + "=`qsub -W depend=afterok:${" + pbs_jids[
+                    job_num-1] + "} " + pbs_scripts[job_num] + "`;"
 
-        qsub_str += 'qrls \$' + pbs_jids[0] + ";"
-        qsub_str += '"'
+        qsub_str += "qrls ${" + pbs_jids[0] + "};"
+        qsub_str += "'"
 
         # Just for debugging purposes
-        print(qsub_str)
+        print("qsub_str: ", qsub_str)
         # This stacks up dependent jobs in PBS in the same order as the job list
         subprocess.run(shlex.split(qsub_str),
-                       cwd=str(current_dir))
-
-        # This releases the first job and triggers PBS to start the job sequence
-        subprocess.run(shlex.split('qrls $' + pbs_jids[0]),
                        cwd=str(current_dir))
 
     def _write_job_pbs(self,jobs):
@@ -172,10 +168,10 @@ class PBSCheyenne(Scheduler):
             if self.scheduler_opts['queue'] == 'share':
                 jobstr += "export MPI_USE_ARRAY=false\n"
 
-            jobstr += '{0} run_job.py --job_id {1}\n'.format(python_path, job.job_id)
-            jobstr += 'exit $?\n'
+            jobstr += "{0} run_job.py --job_id {1}\n".format(python_path, job.job_id)
+            jobstr += "exit $?\n"
 
-            pbs_file = job.job_dir.joinpath('job_' + job.job_id + '.pbs')
+            pbs_file = job.job_dir.joinpath("job_" + job.job_id + ".pbs")
             with pbs_file.open(mode='w') as f:
                 f.write(jobstr)
 

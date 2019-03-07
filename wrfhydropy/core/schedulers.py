@@ -21,12 +21,12 @@ class PBSCheyenne(Scheduler):
             account: str,
             nproc: int,
             nnodes: int,
-            mem: int=None
+            mem: int=None,
             ppn: int=None,
             queue: str='regular',
             walltime: str="12:00:00",
-            email_who: str = None,
-            email_when: str = 'abe'
+            email_who: str=None,
+            email_when: str='abe'
     ):
         """Initialize an PBSCheyenne object.
         Args:
@@ -51,17 +51,21 @@ class PBSCheyenne(Scheduler):
 
         # Scheduler options dict
         # TODO: Make this more elegant than hard coding for maintenance sake
-        self.scheduler_opts = {'account':account,
-                               'email_when':email_when,
-                               'email_who':email_who,
-                               'queue':queue,
-                               'walltime':walltime}
+        self.scheduler_opts = {
+            'account':account,
+            'email_when':email_when,
+            'email_who':email_who,
+            'queue':queue,
+            'walltime':walltime,
+            'mem': mem
+        }
 
         # Setup exe cmd, will overwrite job exe cmd
         if self.scheduler_opts['queue'] == 'shared':
             self._exe_cmd = 'mpirun -np {0} ./wrf_hydro.exe'.format(self.nproc)
         else:
             self._exe_cmd = 'mpiexec_mpt ./wrf_hydro.exe'
+
 
     def schedule(self,jobs: list):
         """Schedule one or more jobs using the scheduler scheduler
@@ -145,9 +149,9 @@ class PBSCheyenne(Scheduler):
 
             prcstr = "select={0}:ncpus={1}:mpiprocs={1}"
             prcstr = prcstr.format(self.nnodes, self.ppn)
-            if self.mem is not None:
+            if self.scheduler_opts['mem'] is not None:
                 prcstr = prcstr + ":mem={0}GB"
-                prcstr = prcstr.format(self.mem)
+                prcstr = prcstr.format(self.scheduler_opts['mem'])
             prcstr = prcstr + "\n"
 
             jobstr += "#PBS -l " + prcstr

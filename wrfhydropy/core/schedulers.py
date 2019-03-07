@@ -94,7 +94,7 @@ class PBSCheyenne(Scheduler):
                 qsub_str += pbs_jids[job_num] + "=`qsub -W depend=afterok:$" + pbs_jids[
                     job_num-1] + " " + pbs_scripts[job_num] + "`;"
 
-        qsub_str += 'qrls $' + pbs_jids[0] + ";"
+        qsub_str += 'qrls \$' + pbs_jids[0] + ";"
         qsub_str += '"'
 
         # Just for debugging purposes

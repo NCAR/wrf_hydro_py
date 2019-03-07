@@ -10,7 +10,7 @@ import warnings
 import xarray as xr
 
 from wrfhydropy.core.ioutils import \
-    open_nwmdataset, WrfHydroTs, WrfHydroStatic, check_input_files, nwm_forcing_to_ldasin
+    open_wh_dataset, WrfHydroTs, WrfHydroStatic, check_input_files, nwm_forcing_to_ldasin
 
 from wrfhydropy.core.namelist import JSONNamelist
 
@@ -50,9 +50,9 @@ def ds_timeseries(tmpdir):
     return ts_dir
 
 
-def test_open_nwmdataset_no_forecast(ds_timeseries):
+def test_open_wh_dataset_no_forecast(ds_timeseries):
     ds_paths = list(ds_timeseries.rglob('*.nc'))
-    the_ds = open_nwmdataset(
+    the_ds = open_wh_dataset(
         paths=ds_paths,
         chunks=None,
         forecast=False
@@ -68,9 +68,9 @@ def test_open_nwmdataset_no_forecast(ds_timeseries):
                                                     dtype='datetime64[ns]'))
 
 
-def test_open_nwmdataset_forecast(ds_timeseries):
+def test_open_wh_dataset_forecast(ds_timeseries):
     ds_paths = list(ds_timeseries.rglob('*.nc'))
-    the_ds = open_nwmdataset(
+    the_ds = open_wh_dataset(
         paths=ds_paths,
         chunks=None,
         forecast=True

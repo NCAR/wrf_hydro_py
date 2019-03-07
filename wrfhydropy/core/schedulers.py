@@ -19,22 +19,25 @@ class PBSCheyenne(Scheduler):
     def __init__(
             self,
             account: str,
+            nproc: int,
+            nnodes: int,
+            mem: int=None
+            ppn: int=None,
+            queue: str='regular',
+            walltime: str="12:00:00",
             email_who: str = None,
-            email_when: str = 'abe',
-            nproc: int = 216,
-            nnodes: int = 6,
-            ppn: int = None,
-            queue: str = 'regular',
-            walltime: str = "12:00:00"):
+            email_when: str = 'abe'
+    ):
         """Initialize an PBSCheyenne object.
         Args:
             account: The account string
-            email_who: Email address for PBS notifications
-            email_when: PBS email frequency options. Options include 'a' for on abort,
-            'b' for before each job, and 'e' for after each job.
             nproc: Number of processors to request
             nnodes: Number of nodes to request
             ppn: Number of processors per node
+            mem: Memory in GB usage/request on node (109 for fat nodes).
+            email_who: Email address for PBS notifications
+            email_when: PBS email frequency options. Options include 'a' for on abort,
+            'b' for before each job, and 'e' for after each job.
             queue: The queue to use, options are 'regular', 'premium', and 'shared'
             walltime: The wall clock time in HH:MM:SS format, max time is 12:00:00
         """
@@ -140,9 +143,12 @@ class PBSCheyenne(Scheduler):
             jobstr += "#PBS -l walltime={0}\n".format(self.scheduler_opts['walltime'])
             jobstr += "\n"
 
-            prcstr = "select={0}:ncpus={1}:mpiprocs={1}\n"
+            prcstr = "select={0}:ncpus={1}:mpiprocs={1}"
             prcstr = prcstr.format(self.nnodes, self.ppn)
-
+            if self.mem is not None:
+                prcstr = prcstr + ":mem={0}GB"
+                prcstr = prcstr.format(self.mem)
+            prcstr = prcstr + "\n"
 
             jobstr += "#PBS -l " + prcstr
             jobstr += "\n"

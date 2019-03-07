@@ -31,14 +31,6 @@ def scheduler_shared():
     return scheduler
 
 
-def test_schedulers_pbs_regular_init(scheduler_regular):
-    assert scheduler_regular._exe_cmd == 'mpiexec_mpt ./wrf_hydro.exe'
-
-
-def test_schedulers_pbs_shared_init(scheduler_shared):
-    assert scheduler_shared._exe_cmd == 'mpirun -np 216 ./wrf_hydro.exe'
-
-
 def test_schedulers_pbs_solve_nodes(scheduler_regular):
 
     assert scheduler_regular.ppn == 36

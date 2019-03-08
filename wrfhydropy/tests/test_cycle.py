@@ -5,6 +5,7 @@ import os
 import pathlib
 import pandas
 import pytest
+import string
 import timeit
 
 from wrfhydropy.core.simulation import Simulation
@@ -16,6 +17,7 @@ def init_times():
     some_time = datetime.datetime(2012, 12, 12, 0, 0)
     init_times = [some_time + datetime.timedelta(dd) for dd in range(0, 9, 3)]
     return init_times
+
 
 @pytest.fixture(scope='function')
 def simulation(model, domain):
@@ -193,7 +195,7 @@ def test_cycle_parallel_compose(
                 'khour': 282480,
                 'restart_frequency_hours': 24,
                 'output_timestep': 86400,
-                'restart_filename_requested': 'NWM/RESTART/RESTART.2012121200_DOMAIN1',
+                'restart_filename_requested': 'NWM/RESTART/RESTART.2013101300_DOMAIN1',
                 'start_day': 12,
                 'start_hour': 00,
                 'start_min': 00,
@@ -222,12 +224,12 @@ def test_cycle_parallel_compose(
         },
         '_hydro_times': {
             'hydro_nlist': {
-                'restart_file': 'NWM/RESTART/HYDRO_RST.2012-12-12_00:00_DOMAIN1',
+                'out_dt': 1440,
                 'rst_dt': 1440,
-                'out_dt': 1440
+                'restart_file': 'NWM/RESTART/HYDRO_RST.2013-10-13_00:00_DOMAIN1'
             },
             'nudging_nlist': {
-                'nudginglastobsfile': 'NWM/RESTART/nudgingLastObs.2012-12-12_00:00:00.nc'
+                'nudginglastobsfile': 'NWM/RESTART/nudgingLastObs.2013-10-13_00:00:00.nc'
             }
         },
         '_job_end_time': None,
@@ -241,7 +243,8 @@ def test_cycle_parallel_compose(
         'restart_freq_hr_hrldas': None,
         'output_freq_hr_hydro': None,
         'output_freq_hr_hrldas': None,
-        'restart': True
+        'restart': True,
+        'restart_file_time': pandas.Timestamp('2013-10-13 00:00:00')
     }
 
     # For the cycle where the compse retains the casts...
@@ -296,9 +299,18 @@ def test_cycle_run(
 ):
 
     sim = simulation_compiled
+
+    tmp = pathlib.Path(tmpdir)
+    forcing_dirs = [tmp / letter for letter in list(string.ascii_lowercase)[0:len(init_times)]]
+    for dir in forcing_dirs:
+        dir.mkdir()
+
+    restart_dirs = ['.'] *len(init_times)
+        
     cy = CycleSimulation(
         init_times=init_times,
-        restart_dirs=['.'] * len(init_times)
+        restart_dirs=restart_dirs,
+        forcing_dirs=forcing_dirs
     )
     cy.add(sim)
     cy.add(job_restart)
@@ -310,6 +322,7 @@ def test_cycle_run(
     os.mkdir(str(cy_dir))
     os.chdir(str(cy_dir))
     cy_serial.compose(rm_casts_from_memory=False)
+
     serial_run_success = cy_serial.run()
     assert serial_run_success, \
         "Some serial cycle casts did not run successfully."

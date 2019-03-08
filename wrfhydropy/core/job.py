@@ -23,12 +23,8 @@ class Job(object):
             job_id: str,
             model_start_time: Union[str,pd.datetime] = None,
             model_end_time: Union[str,pd.datetime] = None,
-            restart_freq_hr: int = None,
-            restart_freq_hr_hydro: int = None,
-            restart_freq_hr_hrldas: int = None,
-            output_freq_hr: int = None,
-            output_freq_hr_hydro: int = None,
-            output_freq_hr_hrldas: int = None,
+            restart_freq_hr: Union[int, dict] = None,
+            output_freq_hr: Union[int, dict] = None,
             restart: bool = True,
             exe_cmd: str = None,
             entry_cmd: str = None,
@@ -40,16 +36,12 @@ class Job(object):
             a pandas.to_datetime compatible string or a pandas datetime object.
         model_end_time: The model end time to use for the WRF-Hydro model run. Can be
             a pandas.to_datetime compatible string or a pandas datetime object.
-        restart_freq_hr: Restart write frequency, hours. If they are not specified, will set the
-            restart_freq_hr_hydro and the restart_freq_hr_hrldas. Non-positive values (those <=0) 
-            set the restart frequency for both models to -99999, which gives restarts at start of 
-            each month.
-        restart_freq_hr_hydro: As for restart_freq_hr, but specific to they hydro model.
-        restart_freq_hr_hrldas: As for restart_freq_hr, but specific to they hrldas model.
-        output_freq_hr: Output write frequency, hours. If they are not specified, will set the
-            output_freq_hr_hydro and the output_freq_hr_hrldas.
-        output_freq_hr_hydro: As for output_freq_hr, but specific to they hydro model.
-        output_freq_hr_hrldas: As for output_freq_hr, but specific to they hrldas model.
+        restart_freq_hr: Restart write frequency, hours. Either an int or a dict. If int: Output 
+        write frequency, hours. If dict, must be of the form {'hydro': int, 'hrldas': int} 
+        which sets them independently.  Non-positive values (those <=0) set the restart frequency 
+        for both models to -99999, which gives restarts at start of each month.
+        output_freq_hr: Either an int or a dict. If int: Output write frequency, hours. If dict,  
+        must be of the form {'hydro': int, 'hrldas': int} which sets them independently.
         restart: Job is starting from a restart file. Use False for a cold start.
         exe_cmd: The system-specific command to execute WRF-Hydro, for example 'mpirun -np
             36 ./wrf_hydro.exe'. Can be left as None if jobs is added to a scheduler or if a
@@ -82,24 +74,44 @@ class Job(object):
         self._model_end_time = pd.to_datetime(model_end_time)
         """np.datetime64: The model time at the end of the execution."""
 
-        if restart_freq_hr_hydro is None:
+        if isinstance(restart_freq_hr, dict):
+            if 'hydro' in restart_freq_hr.keys():
+                restart_freq_hr_hydro = restart_freq_hr['hydro']
+            else :
+                restart_freq_hr_hydro = None
+
+            if 'hrldas' in restart_freq_hr.keys():
+                restart_freq_hr_hrldas = restart_freq_hr['hrldas']
+            else:
+                restart_freq_hr_hrldas = None
+
+        else:
             restart_freq_hr_hydro = restart_freq_hr
+            restart_freq_hr_hrldas = restart_freq_hr
+
         self.restart_freq_hr_hydro = restart_freq_hr_hydro
         """int: Hydro restart write frequency in hours."""
-
-        if restart_freq_hr_hrldas is None:
-            restart_freq_hr_hrldas = restart_freq_hr
         self.restart_freq_hr_hrldas = restart_freq_hr_hrldas
         """int: Hrldas restart write frequency in hours."""
-        
-        if output_freq_hr_hydro is None:
+
+        if isinstance(output_freq_hr, dict):
+            if 'hydro' in output_freq_hr.keys():
+                output_freq_hr_hydro = output_freq_hr['hydro']
+            else:
+                output_freq_hr_hydro = None
+
+            if 'hrldas' in output_freq_hr.keys():
+                output_freq_hr_hrldas = output_freq_hr['hrldas']
+            else:
+                output_freq_hr_hrldas = None
+
+        else:
             output_freq_hr_hydro = output_freq_hr
+            output_freq_hr_hrldas = output_freq_hr
+
         self.output_freq_hr_hydro = output_freq_hr_hydro
         """int: Hydro output write frequency in hours."""
-
-        if output_freq_hr_hrldas is None:
-            output_freq_hr_hrldas = output_freq_hr
-        self.output_freq_hr_hrldas = output_freq_hr
+        self.output_freq_hr_hrldas = output_freq_hr_hrldas
         """int: Hrldas output write frequency in hours."""
 
         # property construction

@@ -21,14 +21,16 @@ class Job(object):
     def __init__(
             self,
             job_id: str,
-            model_start_time: Union[str,pd.datetime] = None,
-            model_end_time: Union[str,pd.datetime] = None,
-            restart_freq_hr: int = 1,
-            output_freq_hr: int = 1,
-            restart: bool = True,
-            exe_cmd: str = None,
-            entry_cmd: str = None,
-            exit_cmd: str = None):
+            model_start_time: Union[str,pd.datetime]=None,
+            model_end_time: Union[str,pd.datetime]=None,
+            restart_freq_hr: int=1,
+            output_freq_hr: int=1,
+            restart: bool=True,
+            restart_file_time: Union[str,pd.datetime]=None,
+            exe_cmd: str=None,
+            entry_cmd: str=None,
+            exit_cmd: str=None
+    ):
         """Instatiate a Job object.
         Args:
             job_id: A string identify the job
@@ -39,6 +41,7 @@ class Job(object):
             restart_freq_hr: Restart write frequency, hours
             output_freq_hr: Output write frequency, hours
             restart: Job is starting from a restart file. Use False for a cold start.
+            restart_file_time: The time on the restart file, if not the same as the model_start_time.
             exe_cmd: The system-specific command to execute WRF-Hydro, for example 'mpirun -np
             36 ./wrf_hydro.exe'. Can be left as None if jobs is added to a scheduler or if a
             scheduler is used in a simulation.
@@ -63,6 +66,13 @@ class Job(object):
 
         self.restart = restart
         """bool: Start model from a restart."""
+
+        if restart_file_time is None:
+            restart_file_time = model_start_time
+        self.restart_file_time = pd.to_datetime(restart_file_time)
+        """np.datetime: Time on the restart file to use, if different from model_start_time. The path 
+           in any supplied restart file path in the namelists is preserved while modifying the date and 
+           time."""
 
         self._model_start_time = pd.to_datetime(model_start_time)
         """np.datetime64: The model time at the start of the execution."""
@@ -301,7 +311,7 @@ class Job(object):
 
                 # Format - 2011082600 - no minutes
                 lsm_restart_basename = 'RESTART.' + \
-                                       self._model_start_time.strftime('%Y%m%d%H') + '_DOMAIN1'
+                                       self.restart_file_time.strftime('%Y%m%d%H') + '_DOMAIN1'
 
                 lsm_restart_file = str(pathlib.Path(lsm_restart_dirname) / lsm_restart_basename)
 
@@ -322,11 +332,11 @@ class Job(object):
             
             # Format - 2011-08-26_00_00 - minutes
             hydro_restart_basename = \
-                'HYDRO_RST.' + self._model_start_time.strftime('%Y-%m-%d_%H:%M') + '_DOMAIN1'
+                'HYDRO_RST.' + self.restart_file_time.strftime('%Y-%m-%d_%H:%M') + '_DOMAIN1'
 
             # Format - 2011-08-26_00_00 - seconds
             nudging_restart_basename = \
-                'nudgingLastObs.' + self._model_start_time.strftime('%Y-%m-%d_%H:%M:%S') + '.nc'
+                'nudgingLastObs.' + self.restart_file_time.strftime('%Y-%m-%d_%H:%M:%S') + '.nc'
 
             # Use convenience function to return name of file with or without colons in name
             # This is needed because the model outputs restarts with colons, and our distributed

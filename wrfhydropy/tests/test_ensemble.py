@@ -132,10 +132,10 @@ def test_ens_set_diff_dicts(simulation_compiled):
     assert ens.member_diffs == answer
 
 
-def test_ens_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
+def test_ens_parallel_compose(simulation_compiled, job_restart, scheduler, tmpdir):
     sim = simulation_compiled
     ens = EnsembleSimulation()
-    ens.add(job)
+    ens.add(job_restart)
     ens.add(scheduler)
 
     with pytest.raises(Exception) as e_info:
@@ -185,7 +185,7 @@ def test_ens_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
                 'khour': 282480,
                 'restart_frequency_hours': 1,
                 'output_timestep': 3600,
-                'restart_filename_requested': None,
+                'restart_filename_requested': 'NWM/RESTART/RESTART.2013101300_DOMAIN1',
                 'start_day': 14,
                 'start_hour': 0,
                 'start_min': 0,
@@ -212,12 +212,12 @@ def test_ens_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         },
         '_hydro_times': {
             'hydro_nlist': {
-                'restart_file': None,
+                'restart_file': 'NWM/RESTART/HYDRO_RST.2013-10-13_00:00_DOMAIN1',
                 'rst_dt': 60,
                 'out_dt': 60
             },
             'nudging_nlist': {
-                'nudginglastobsfile': None
+                'nudginglastobsfile': 'NWM/RESTART/nudgingLastObs.2013-10-13_00:00:00.nc'
             }
         },
         '_job_end_time': None,
@@ -229,7 +229,8 @@ def test_ens_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         'job_id': 'test_job_1',
         'restart_freq_hr': 1,
         'output_freq_hr': 1,
-        'restart': False
+        'restart': True,
+        'restart_file_time': pandas.Timestamp('2013-10-13 00:00:00')
     }
 
     # For the ensemble where the compse retains the members...

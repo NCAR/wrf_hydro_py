@@ -320,6 +320,7 @@ def job_restart():
         model_start_time='1984-10-14',
         model_end_time='2017-01-04',
         restart=True,
+        restart_file_time='2013-10-13',
         exe_cmd='./wrf_hydro.exe',
         entry_cmd='bogus entry cmd',
         exit_cmd='bogus exit cmd'

@@ -69,7 +69,7 @@ class Job(object):
 
         if restart_file_time is None:
             restart_file_time = model_start_time
-        self.restart_file_time = restart_file_time
+        self.restart_file_time = pd.to_datetime(restart_file_time)
         """np.datetime: Time on the restart file to use, if different from model_start_time. The path 
            in any supplied restart file path in the namelists is preserved while modifying the date and 
            time."""
@@ -336,7 +336,7 @@ class Job(object):
 
             # Format - 2011-08-26_00_00 - seconds
             nudging_restart_basename = \
-                'nudgingLastObs.' + self._model_start_time.strftime('%Y-%m-%d_%H:%M:%S') + '.nc'
+                'nudgingLastObs.' + self.restart_file_time.strftime('%Y-%m-%d_%H:%M:%S') + '.nc'
 
             # Use convenience function to return name of file with or without colons in name
             # This is needed because the model outputs restarts with colons, and our distributed

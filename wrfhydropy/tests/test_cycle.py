@@ -193,7 +193,7 @@ def test_cycle_parallel_compose(
                 'khour': 282480,
                 'restart_frequency_hours': 1,
                 'output_timestep': 3600,
-                'restart_filename_requested': 'NWM/RESTART/RESTART.2012121200_DOMAIN1',
+                'restart_filename_requested': 'NWM/RESTART/RESTART.2013101300_DOMAIN1',
                 'start_day': 12,
                 'start_hour': 00,
                 'start_min': 00,
@@ -220,12 +220,12 @@ def test_cycle_parallel_compose(
         },
         '_hydro_times': {
             'hydro_nlist': {
-                'restart_file': 'NWM/RESTART/HYDRO_RST.2012-12-12_00:00_DOMAIN1',
+                'restart_file': 'NWM/RESTART/HYDRO_RST.2013-10-13_00:00_DOMAIN1',
                 'rst_dt': 60,
                 'out_dt': 60
             },
             'nudging_nlist': {
-                'nudginglastobsfile': 'NWM/RESTART/nudgingLastObs.2012-12-12_00:00:00.nc'
+                'nudginglastobsfile': 'NWM/RESTART/nudgingLastObs.2013-10-13_00:00:00.nc'
             }
         },
         '_job_end_time': None,
@@ -237,7 +237,8 @@ def test_cycle_parallel_compose(
         'job_id': 'test_job_1',
         'restart_freq_hr': 1,
         'output_freq_hr': 1,
-        'restart': True
+        'restart': True,
+        'restart_file_time': pandas.Timestamp('2013-10-13 00:00:00')
     }
 
     # For the cycle where the compse retains the casts...

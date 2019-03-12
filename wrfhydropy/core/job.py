@@ -39,14 +39,17 @@ class Job(object):
             a pandas.to_datetime compatible string or a pandas datetime object.
         model_end_time: The model end time to use for the WRF-Hydro model run. Can be
             a pandas.to_datetime compatible string or a pandas datetime object.
-        restart_freq_hr: Restart write frequency, hours. Either an int or a dict. If int: Output 
-            write frequency, hours. If dict, must be of the form {'hydro': int, 'hrldas': int} 
-            which sets them independently.  Non-positive values (those <=0) set the restart frequency 
-            for both models to -99999, which gives restarts at start of each month.
-        output_freq_hr: Either an int or a dict. If int: Output write frequency, hours. If dict,  
+        restart_freq_hr: Restart write frequency, hours. Either an int or a dict. If int: Output
+            write frequency, hours. If dict, must be of the form {'hydro': int, 'hrldas': int}
+            which sets them independently.  Non-positive values (those <=0) set the restart
+            frequency for both models to -99999, which gives restarts at start of each month.
+        output_freq_hr: Either an int or a dict. If int: Output write frequency, hours. If dict,
             must be of the form {'hydro': int, 'hrldas': int} which sets them independently.
         restart: Job is starting from a restart file. Use False for a cold start.
         restart_file_time: The time on the restart file, if not the same as the model_start_time.
+        Eithera string (e.g. '2000-01-01 00') or a datetime object (datetime or pandas) or a dict
+        the form {'hydro': date1, 'hrldas': date2}  where dates are either strings or datetime
+        objects.
         exe_cmd: The system-specific command to execute WRF-Hydro, for example 'mpirun -np
             36 ./wrf_hydro.exe'. Can be left as None if jobs is added to a scheduler or if a
             scheduler is used in a simulation.
@@ -57,7 +60,7 @@ class Job(object):
 
         # Attributes set at instantiation through arguments
         self._exe_cmd = exe_cmd
-        """str: The job-specfific command to be executed. If None command is taken from machine 
+        """str: The job-specfific command to be executed. If None command is taken from machine
         class"""
 
         self._entry_cmd = entry_cmd
@@ -73,9 +76,9 @@ class Job(object):
         """bool: Start model from a restart."""
 
         self.restart_file_time = restart_file_time
-        """np.datetime: Time on the restart file to use, if different from model_start_time. The path 
-           in any supplied restart file path in the namelists is preserved while modifying the date and 
-           time."""
+        """np.datetime: Time on the restart file to use, if different from model_start_time. The path
+           in any supplied restart file path in the namelists is preserved while modifying the date
+           and time."""
 
         if self.restart_file_time is None:
             self._restart_file_time_hydro = pd.to_datetime(model_start_time)
@@ -99,7 +102,7 @@ class Job(object):
         if isinstance(restart_freq_hr, dict):
             if 'hydro' in restart_freq_hr.keys():
                 restart_freq_hr_hydro = restart_freq_hr['hydro']
-            else :
+            else:
                 restart_freq_hr_hydro = None
 
             if 'hrldas' in restart_freq_hr.keys():

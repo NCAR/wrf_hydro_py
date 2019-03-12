@@ -244,7 +244,9 @@ def test_cycle_parallel_compose(
         'output_freq_hr_hydro': None,
         'output_freq_hr_hrldas': None,
         'restart': True,
-        'restart_file_time': pandas.Timestamp('2013-10-13 00:00:00')
+        'restart_file_time': '2013-10-13',
+        '_restart_file_time_hydro': pandas.Timestamp('2013-10-13 00:00:00'),
+        '_restart_file_time_hrldas': pandas.Timestamp('2013-10-13 00:00:00')
     }
 
     # For the cycle where the compse retains the casts...

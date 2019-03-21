@@ -2,11 +2,10 @@ import io
 import shlex
 import subprocess
 import warnings
-import pathlib
-
 import pandas as pd
-
+import pathlib
 from .simulation import SimulationOutput
+
 
 def compare_ncfiles(candidate_files: list,
                     reference_files: list,
@@ -106,6 +105,12 @@ class OutputDataDiffs(object):
         self.gwout = list()
         """list: List of pandas dataframes if possible or subprocess objects containing nudging
         restart file diffs"""
+        self.rtout = list()
+        """list: List of pandas dataframes if possible or subprocess objects containing nudging
+        restart file diffs"""
+        self.ldasout = list()
+        """list: List of pandas dataframes if possible or subprocess objects containing nudging
+        restart file diffs"""
         self.restart_hydro = list()
         """list: List of pandas dataframes if possible or subprocess objects containing hydro
         restart file diffs"""
@@ -117,8 +122,8 @@ class OutputDataDiffs(object):
         restart file diffs"""
 
         # Create list of attributes to diff
-        atts_list = ['channel_rt', 'channel_rt_grid', 'chanobs', 'lakeout', 'gwout',
-                     'restart_hydro', 'restart_lsm', 'restart_nudging']
+        atts_list = ['channel_rt', 'channel_rt_grid', 'chanobs', 'lakeout', 'gwout', 'rtout',
+                     'ldasout', 'restart_hydro', 'restart_lsm', 'restart_nudging']
         for att in atts_list:
             candidate_att = getattr(candidate_output,att)
             reference_att = getattr(reference_output,att)
@@ -139,6 +144,7 @@ class OutputDataDiffs(object):
                         )
                 diff_counts = sum(1 for _ in filter(None.__ne__, getattr(self,att)))
                 self.diff_counts.update({att: diff_counts})
+
 
 class OutputMetaDataDiffs(object):
     def __init__(self,
@@ -190,6 +196,12 @@ class OutputMetaDataDiffs(object):
         self.gwout = list()
         """list: List of pandas dataframes if possible or subprocess objects containing nudging
         restart file diffs"""
+        self.rtout = list()
+        """list: List of pandas dataframes if possible or subprocess objects containing nudging
+        restart file diffs"""
+        self.ldasout = list()
+        """list: List of pandas dataframes if possible or subprocess objects containing nudging
+        restart file diffs"""
         self.restart_hydro = list()
         """list: List of pandas dataframes if possible or subprocess objects containing hydro
         restart file diffs"""
@@ -201,8 +213,8 @@ class OutputMetaDataDiffs(object):
         restart file diffs"""
 
         # Create list of attributes to diff
-        atts_list = ['channel_rt','chanobs','lakeout','gwout','restart_hydro','restart_lsm',
-                     'restart_nudging']
+        atts_list = ['channel_rt', 'chanobs', 'lakeout', 'gwout', 'rtout', 'ldasout',
+                     'restart_hydro','restart_lsm', 'restart_nudging']
         for att in atts_list:
             candidate_att = getattr(candidate_output,att)
             reference_att = getattr(reference_output,att)
@@ -222,6 +234,7 @@ class OutputMetaDataDiffs(object):
                         )
                 diff_counts = sum(1 for _ in filter(None.__ne__, getattr(self,att)))
                 self.diff_counts.update({att: diff_counts})
+
 
 def _compare_nc_nccmp(candidate_nc: str,
                       reference_nc: str,
@@ -302,6 +315,7 @@ def _compare_nc_nccmp(candidate_nc: str,
             return proc.stderr.decode('utf-8') + proc.stdout.decode('utf-8')
     else:
         return None
+
 
 def _check_file_lists(candidate_files: list,reference_files: list) -> tuple:
     """Function to check two lists of pathlib.Paths for commonly occuring files between the two

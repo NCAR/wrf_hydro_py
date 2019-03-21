@@ -18,9 +18,12 @@ def test_outputdiffs_outputdatadiffs(sim_output):
 
     output_diffs = OutputDataDiffs(output,output)
     print(output_diffs.diff_counts)
-    assert output_diffs.diff_counts == {'channel_rt': 0, 'channel_rt_grid': 0, 'chanobs': 0,
-                                        'lakeout': 0, 'gwout': 0, 'restart_hydro': 0,
-                                        'restart_lsm': 0, 'restart_nudging': 0}
+    assert output_diffs.diff_counts == {
+        'channel_rt': 0, 'channel_rt_grid': 0, 'chanobs': 0,
+        'lakeout': 0, 'gwout': 0, 'restart_hydro': 0,
+        'restart_lsm': 0, 'restart_nudging': 0,
+        'ldasout': 0, 'rtout': 0
+    }
 
 
 def test_outputdiffs_outputmetadatadiffs(sim_output):
@@ -30,5 +33,8 @@ def test_outputdiffs_outputmetadatadiffs(sim_output):
 
     output_diffs = OutputMetaDataDiffs(output,output)
 
-    assert output_diffs.diff_counts == {'channel_rt': 0, 'chanobs': 0, 'lakeout': 0, 'gwout': 3,
-                                     'restart_hydro': 0, 'restart_lsm': 0, 'restart_nudging': 0}
+    assert output_diffs.diff_counts == {
+        'channel_rt': 0, 'chanobs': 0, 'lakeout': 0, 'gwout': 3,
+        'rtout': 0, 'ldasout': 0, 'restart_hydro': 0,
+        'restart_lsm': 0, 'restart_nudging': 0
+    }

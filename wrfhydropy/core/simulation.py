@@ -395,8 +395,13 @@ class SimulationOutput(object):
 
         # Get ldasout files
         if len(list(sim_dir.glob('*LDASOUT*'))) > 0:
-            # The [1:] in the next line is a side effect of NoahMP always outputting a file at t0.
-            self.ldasout = sort_files_by_time(list(sim_dir.glob('*LDASOUT*')))[1:]
+            if len(list(sim_dir.glob('*LDASOUT*'))) > 1:
+                # The [1:] in the next line is a side effect of NoahMP always
+                # outputting a file at t0.
+                self.ldasout = sort_files_by_time(list(sim_dir.glob('*LDASOUT*')))[1:]
+            else:
+                self.ldasout = sort_files_by_time(list(sim_dir.glob('*LDASOUT*')))
+
             self.ldasout = WrfHydroTs(self.ldasout)
 
         # Get restart files and sort by modified time

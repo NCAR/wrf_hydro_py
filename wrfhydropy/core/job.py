@@ -21,12 +21,12 @@ class Job(object):
     def __init__(
             self,
             job_id: str,
-            model_start_time: Union[str,pd.datetime]=None,
-            model_end_time: Union[str,pd.datetime]=None,
+            model_start_time: Union[str, pd.datetime]=None,
+            model_end_time: Union[str, pd.datetime]=None,
             restart_freq_hr: Union[int, dict]=None,
             output_freq_hr: Union[int, dict]=None,
             restart: bool=True,
-            restart_file_time: Union[str,pd.datetime]=None,
+            restart_file_time: Union[str,pd.datetime, dict]=None,
             exe_cmd: str=None,
             entry_cmd: str=None,
             exit_cmd: str=None
@@ -39,14 +39,17 @@ class Job(object):
             a pandas.to_datetime compatible string or a pandas datetime object.
         model_end_time: The model end time to use for the WRF-Hydro model run. Can be
             a pandas.to_datetime compatible string or a pandas datetime object.
-        restart_freq_hr: Restart write frequency, hours. Either an int or a dict. If int: Output 
-            write frequency, hours. If dict, must be of the form {'hydro': int, 'hrldas': int} 
-            which sets them independently.  Non-positive values (those <=0) set the restart frequency 
-            for both models to -99999, which gives restarts at start of each month.
-        output_freq_hr: Either an int or a dict. If int: Output write frequency, hours. If dict,  
+        restart_freq_hr: Restart write frequency, hours. Either an int or a dict. If int: Output
+            write frequency, hours. If dict, must be of the form {'hydro': int, 'hrldas': int}
+            which sets them independently.  Non-positive values (those <=0) set the restart
+            frequency for both models to -99999, which gives restarts at start of each month.
+        output_freq_hr: Either an int or a dict. If int: Output write frequency, hours. If dict,
             must be of the form {'hydro': int, 'hrldas': int} which sets them independently.
         restart: Job is starting from a restart file. Use False for a cold start.
         restart_file_time: The time on the restart file, if not the same as the model_start_time.
+        Eithera string (e.g. '2000-01-01 00') or a datetime object (datetime or pandas) or a dict
+        the form {'hydro': date1, 'hrldas': date2}  where dates are either strings or datetime
+        objects.
         exe_cmd: The system-specific command to execute WRF-Hydro, for example 'mpirun -np
             36 ./wrf_hydro.exe'. Can be left as None if jobs is added to a scheduler or if a
             scheduler is used in a simulation.
@@ -57,7 +60,7 @@ class Job(object):
 
         # Attributes set at instantiation through arguments
         self._exe_cmd = exe_cmd
-        """str: The job-specfific command to be executed. If None command is taken from machine 
+        """str: The job-specfific command to be executed. If None command is taken from machine
         class"""
 
         self._entry_cmd = entry_cmd
@@ -72,12 +75,23 @@ class Job(object):
         self.restart = restart
         """bool: Start model from a restart."""
 
-        if restart_file_time is None:
-            restart_file_time = model_start_time
-        self.restart_file_time = pd.to_datetime(restart_file_time)
-        """np.datetime: Time on the restart file to use, if different from model_start_time. The path 
-           in any supplied restart file path in the namelists is preserved while modifying the date and 
-           time."""
+        self.restart_file_time = restart_file_time
+        """np.datetime: Time on the restart file to use, if different from model_start_time. The path
+           in any supplied restart file path in the namelists is preserved while modifying the date
+           and time."""
+
+        if self.restart_file_time is None:
+            self._restart_file_time_hydro = pd.to_datetime(model_start_time)
+            self._restart_file_time_hrldas = pd.to_datetime(model_start_time)
+        elif isinstance(self.restart_file_time, pd.datetime) or \
+             isinstance(self.restart_file_time, str):
+            self._restart_file_time_hydro = pd.to_datetime(self.restart_file_time)
+            self._restart_file_time_hrldas = pd.to_datetime(self.restart_file_time)
+        elif isinstance(self.restart_file_time, dict):
+            self._restart_file_time_hydro = pd.to_datetime(self.restart_file_time['hydro'])
+            self._restart_file_time_hrldas = pd.to_datetime(self.restart_file_time['hrldas'])
+        else:
+            raise ValueError("restart_file_time is an in appropriate type.")
 
         self._model_start_time = pd.to_datetime(model_start_time)
         """np.datetime64: The model time at the start of the execution."""
@@ -88,7 +102,7 @@ class Job(object):
         if isinstance(restart_freq_hr, dict):
             if 'hydro' in restart_freq_hr.keys():
                 restart_freq_hr_hydro = restart_freq_hr['hydro']
-            else :
+            else:
                 restart_freq_hr_hydro = None
 
             if 'hrldas' in restart_freq_hr.keys():
@@ -253,7 +267,7 @@ class Job(object):
         # Set start and end times
         # 1) wall time of job execution in the job object and
         # 2) (write to) file the model start and stop times.
-        
+
         file_model_start_time = current_dir / '.model_start_time'
         file_model_end_time = current_dir / '.model_end_time'
         if file_model_end_time.exists():
@@ -264,7 +278,7 @@ class Job(object):
             _ = opened_file.write(str(self._model_start_time))
 
         self.job_start_time = str(datetime.datetime.now())
-        
+
         self._proc_log = subprocess.run(
             cmd_string,
             shell = True,
@@ -350,7 +364,7 @@ class Job(object):
 
                 # Format - 2011082600 - no minutes
                 lsm_restart_basename = 'RESTART.' + \
-                                       self.restart_file_time.strftime('%Y%m%d%H') + '_DOMAIN1'
+                                       self._restart_file_time_hrldas.strftime('%Y%m%d%H') + '_DOMAIN1'
 
                 lsm_restart_file = str(pathlib.Path(lsm_restart_dirname) / lsm_restart_basename)
 
@@ -390,11 +404,11 @@ class Job(object):
 
             # Format - 2011-08-26_00_00 - minutes
             hydro_restart_basename = \
-                'HYDRO_RST.' + self.restart_file_time.strftime('%Y-%m-%d_%H:%M') + '_DOMAIN1'
+                'HYDRO_RST.' + self._restart_file_time_hydro.strftime('%Y-%m-%d_%H:%M') + '_DOMAIN1'
 
             # Format - 2011-08-26_00_00 - seconds
             nudging_restart_basename = \
-                'nudgingLastObs.' + self.restart_file_time.strftime('%Y-%m-%d_%H:%M:%S') + '.nc'
+                'nudgingLastObs.' + self._restart_file_time_hydro.strftime('%Y-%m-%d_%H:%M:%S') + '.nc'
 
             # Use convenience function to return name of file with or without colons in name
             # This is needed because the model outputs restarts with colons, and our distributed
@@ -519,6 +533,8 @@ class Job(object):
             warnings.warn('model start or end time was not specified in job, start end times will \
             be used from supplied namelist')
             self._model_start_time, self._model_end_time = self._solve_model_start_end_times()
+        if self.restart_file_time is None and self.restart is True:
+            self._restart_file_time_hydro = pd.to_datetime(self._model_start_time)
         return self._hydro_namelist.patch(self.hydro_times)
 
     @property
@@ -527,6 +543,8 @@ class Job(object):
             warnings.warn('model start or end time was not specified in job, start end times will \
             be used from supplied namelist')
             self._model_start_time, self._model_end_time = self._solve_model_start_end_times()
+        if self.restart_file_time is None and self.restart is True:
+            self._restart_file_time_hrldas = pd.to_datetime(self._model_start_time)
         return self._hrldas_namelist.patch(self.hrldas_times)
 
     @property

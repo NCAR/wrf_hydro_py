@@ -1,15 +1,18 @@
 import json
 import pathlib
 import subprocess
-import warnings
-
 import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
 
+from wrfhydropy.core.domain import Domain
+from wrfhydropy.core.job import Job
+from wrfhydropy.core.model import Model
+from wrfhydropy.core.schedulers import PBSCheyenne
 
-@pytest.fixture()
+
+@pytest.fixture(scope='function')
 def ds_1d():
     # Create a dummy dataset
     vals_1d = np.random.randn(3)
@@ -22,7 +25,8 @@ def ds_1d():
 
     return ds_1d
 
-@pytest.fixture()
+
+@pytest.fixture(scope='function')
 def ds_1d_has_nans():
     # Create a dummy dataset
     vals_1d = np.random.randn(3)
@@ -34,11 +38,12 @@ def ds_1d_has_nans():
 
     return ds_1d
 
-@pytest.fixture()
+
+@pytest.fixture(scope='function')
 def ds_2d():
-    x = [10,11,12]
-    y = [101,102,103]
-    vals_2d = np.random.randn(3,3)
+    x = [10, 11, 12]
+    y = [101, 102, 103]
+    vals_2d = np.random.randn(3, 3)
 
     time = pd.to_datetime('1984-10-14')
 
@@ -49,7 +54,7 @@ def ds_2d():
     return ds_2d
 
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def ds_timeseries():
     # Create a dummy dataset
     vals_ts = np.random.randn(3,3)
@@ -63,7 +68,7 @@ def ds_timeseries():
     return ds_ts
 
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def domain_dir(tmpdir, ds_1d):
     domain_top_dir_path = pathlib.Path(tmpdir).joinpath('example_case')
     domain_dir_path = domain_top_dir_path.joinpath('NWM/DOMAIN')
@@ -87,7 +92,6 @@ def domain_dir(tmpdir, ds_1d):
                          'wrfinput_d01.nc',
                          'LAKEPARM.nc',
                          'nudgingParams.nc']
-
     for file in domain_file_names:
         file_path = domain_dir_path.joinpath(file)
         ds_1d.to_netcdf(str(file_path))
@@ -149,23 +153,33 @@ def domain_dir(tmpdir, ds_1d):
         }
     }
 
-    json.dump(hrldas_namelist,domain_top_dir_path.joinpath('hrldas_namelist_patches.json').open('w'))
-    json.dump(hydro_namelist,domain_top_dir_path.joinpath('hydro_namelist_patches.json').open('w'))
+    json.dump(
+        hrldas_namelist,
+        domain_top_dir_path.joinpath('hrldas_namelist_patches.json').open('w')
+    )
+    
+    json.dump(
+        hydro_namelist,
+        domain_top_dir_path.joinpath('hydro_namelist_patches.json').open('w')
+    )
 
     return domain_top_dir_path
 
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def model_dir(tmpdir):
+
     model_dir_path = pathlib.Path(tmpdir).joinpath('wrf_hydro_nwm_public/trunk/NDHMS')
     model_dir_path.mkdir(parents=True)
 
-    # Make namelist patch files
+    # Make namelist files
     hrldas_namelist = {
         "base": {
             "noahlsm_offline": {
                 "btr_option": 1,
                 "canopy_stomatal_resistance_option": 1,
+                'restart_frequency_hours': 24,
+                'output_timestep': 86400
             },
             "wrf_hydro_offline": {
                 "forc_typ": "NULL_specified_in_domain.json"
@@ -184,6 +198,8 @@ def model_dir(tmpdir):
                 "chanobs_domain": 0,
                 "chanrtswcrt": 1,
                 "chrtout_domain": 1,
+                'rst_dt': 1440,
+                'out_dt': 1440
             },
             "nudging_nlist": {
                 "maxagepairsbiaspersist": 3,
@@ -197,8 +213,15 @@ def model_dir(tmpdir):
         }
     }
 
-    json.dump(hrldas_namelist,model_dir_path.joinpath('hrldas_namelists.json').open('w'))
-    json.dump(hydro_namelist,model_dir_path.joinpath('hydro_namelists.json').open('w'))
+    json.dump(
+        hrldas_namelist,
+        model_dir_path.joinpath('hrldas_namelists.json').open('w')
+    )
+
+    json.dump(
+        hydro_namelist,
+        model_dir_path.joinpath('hydro_namelists.json').open('w')
+    )
 
     compile_options = {
         "nwm": {
@@ -211,29 +234,42 @@ def model_dir(tmpdir):
             "WRF_HYDRO_NUDGING": 1
         }
     }
-    json.dump(compile_options,model_dir_path.joinpath('compile_options.json').open('w'))
+
+    json.dump(
+        compile_options,
+        model_dir_path.joinpath('compile_options.json').open('w')
+    )
 
     with model_dir_path.joinpath('.version').open('w') as f:
         f.write('v5.1.0')
 
     with model_dir_path.joinpath('configure').open('w') as f:
-        f.write('#dummy configure')
+        f.write('# dummy configure \n')
 
+    dummy_compile = (
+        "#!/bin/bash \n"
+        "# dummy compile \n"
+        "mkdir Run \n"
+        "echo '#!/bin/bash \n"
+        "echo \'The model finished successfully.......\' >  diag_hydro.00000\n"
+        "exit 0' > Run/wrf_hydro.exe\n"
+        "touch Run/DUMMY.TBL \n"
+    )
     with model_dir_path.joinpath('./compile_offline_NoahMP.sh').open('w') as f:
-        f.write('#dummy compile')
+        f.write(dummy_compile)
 
     subprocess.run(['chmod', '-R', '755', str(model_dir_path)])
 
     return model_dir_path
 
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def compile_dir(tmpdir):
     compile_dir = pathlib.Path(tmpdir).joinpath('compile_dir')
     compile_dir.mkdir(parents=True)
 
     # Set table files and exe file attributes
-    table_files = [compile_dir.joinpath('file1.tbl'),compile_dir.joinpath('file2.tbl')]
+    table_files = [compile_dir.joinpath('file1.tbl'), compile_dir.joinpath('file2.tbl')]
     wrf_hydro_exe = compile_dir.joinpath('wrf_hydro.exe')
 
     # Make fake run directory with files that would have been produced at compile
@@ -247,7 +283,69 @@ def compile_dir(tmpdir):
     return compile_dir
 
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
+def model(model_dir):
+    model = Model(
+        source_dir=model_dir,
+        model_config='nwm_ana'
+    )
+    return model
+
+
+@pytest.fixture(scope='function')
+def domain(domain_dir):
+    domain = Domain(
+        domain_top_dir=domain_dir,
+        domain_config='nwm_ana',
+        compatible_version='v5.1.0'
+    )
+    return domain
+
+
+@pytest.fixture(scope='function')
+# TODO: this should be changed to job_cold_start
+def job():
+    job = Job(
+        job_id='test_job_1',
+        model_start_time='1984-10-14',
+        model_end_time='2017-01-04',
+        restart=False,
+        exe_cmd='./wrf_hydro.exe',
+        entry_cmd='bogus entry cmd',
+        exit_cmd='bogus exit cmd'
+    )
+    return job
+
+
+@pytest.fixture(scope='function')
+def job_restart():
+    job = Job(
+        job_id='test_job_1',
+        model_start_time='1984-10-14',
+        model_end_time='2017-01-04',
+        restart=True,
+        restart_file_time='2013-10-13',
+        exe_cmd='./wrf_hydro.exe',
+        entry_cmd='bogus entry cmd',
+        exit_cmd='bogus exit cmd'
+    )
+    return job
+
+
+@pytest.fixture(scope='function')
+def scheduler():
+    scheduler = PBSCheyenne(account='fake_acct',
+                            email_who='elmo',
+                            email_when='abe',
+                            nproc=216,
+                            nnodes=6,
+                            ppn=None,
+                            queue='regular',
+                            walltime="12:00:00")
+    return scheduler
+
+
+@pytest.fixture(scope='function')
 def sim_output(tmpdir, ds_1d, ds_1d_has_nans, ds_2d):
 
     tmpdir = pathlib.Path(tmpdir)

@@ -4,37 +4,13 @@ import os
 import pathlib
 import pandas
 import pytest
-import subprocess
 import timeit
 
-from wrfhydropy.core.domain import Domain
-from wrfhydropy.core.job import Job
-from wrfhydropy.core.model import Model
-from wrfhydropy.core.schedulers import PBSCheyenne
 from wrfhydropy.core.simulation import Simulation
 from wrfhydropy.core.ensemble import EnsembleSimulation
 
 
-@pytest.fixture()
-def model(model_dir):
-    model = Model(
-        source_dir=model_dir,
-        model_config='nwm_ana'
-    )
-    return model
-
-
-@pytest.fixture()
-def domain(domain_dir):
-    domain = Domain(
-        domain_top_dir=domain_dir,
-        domain_config='nwm_ana',
-        compatible_version='v5.1.0'
-    )
-    return domain
-
-
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def simulation(model, domain):
     sim = Simulation()
     sim.add(model)
@@ -42,49 +18,17 @@ def simulation(model, domain):
     return sim
 
 
-@pytest.fixture()
-def simulation_compiled(model, domain, tmpdir):
+@pytest.fixture(scope='function')
+def simulation_compiled(model, domain, job, tmpdir):
+    sim_dir = pathlib.Path(tmpdir).joinpath('sim_compiled_dir')
     sim = Simulation()
     sim.add(model)
     sim.add(domain)
-    sim.model.compile_log = subprocess.run(
-        'pwd',
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-    )
-    wrf_hydro_exe = pathlib.Path(tmpdir).joinpath('wrf_hydro_exe.dum')
-    wrf_hydro_exe.touch()
-    sim.model.wrf_hydro_exe = wrf_hydro_exe
+    sim.add(job)
+    os.mkdir(sim_dir)
+    os.chdir(sim_dir)
+    sim.compose()
     return sim
-
-
-@pytest.fixture()
-def job():
-    job = Job(
-        job_id='test_job_1',
-        model_start_time='1984-10-14',
-        model_end_time='2017-01-04',
-        restart=False,
-        exe_cmd='bogus exe cmd',
-        entry_cmd='bogus entry cmd',
-        exit_cmd='bogus exit cmd'
-    )
-    return job
-
-
-@pytest.fixture()
-def scheduler():
-    scheduler = PBSCheyenne(
-        account='fake_acct',
-        email_who='elmo',
-        email_when='abe',
-        nproc=216,
-        nnodes=6,
-        ppn=None,
-        queue='regular',
-        walltime="12:00:00"
-    )
-    return scheduler
 
 
 def test_ensemble_init():
@@ -162,7 +106,7 @@ def test_ensemble_length(simulation_compiled):
     # assert ens1.replicate_member(4) == "WTF mate?"
 
 
-def test_get_diff_dicts(simulation_compiled):
+def test_ens_get_diff_dicts(simulation_compiled):
     sim = simulation_compiled
     ens = EnsembleSimulation()
     ens.add([sim, sim, sim, sim])
@@ -173,7 +117,7 @@ def test_get_diff_dicts(simulation_compiled):
     assert ens.member_diffs == answer
 
 
-def test_set_diff_dicts(simulation_compiled):
+def test_ens_set_diff_dicts(simulation_compiled):
     sim = simulation_compiled
     ens = EnsembleSimulation()
     ens.add([sim, sim, sim, sim, sim])
@@ -188,30 +132,10 @@ def test_set_diff_dicts(simulation_compiled):
     assert ens.member_diffs == answer
 
 
-def test_addjob(simulation, job):
-    ens1 = EnsembleSimulation()
-    ens1.add(job)
-    assert deepdiff.DeepDiff(ens1.jobs[0], job) == {}
-
-    job.job_id = 'a_different_id'
-    ens1.add(job)
-    assert deepdiff.DeepDiff(ens1.jobs[1], job) == {}
-
-
-def test_addscheduler(simulation, scheduler):
-    ens1 = EnsembleSimulation()
-    ens1.add(scheduler)
-    assert deepdiff.DeepDiff(ens1.scheduler, scheduler) == {}
-
-    scheduler.queue = 'no-queue'
-    ens1.add(scheduler)
-    assert deepdiff.DeepDiff(ens1.scheduler, scheduler) == {}
-
-
-def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
+def test_ens_parallel_compose(simulation_compiled, job_restart, scheduler, tmpdir):
     sim = simulation_compiled
     ens = EnsembleSimulation()
-    ens.add(job)
+    ens.add(job_restart)
     ens.add(scheduler)
 
     with pytest.raises(Exception) as e_info:
@@ -242,7 +166,7 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
     # The job gets heavily modified on compose.
     answer = {
         '_entry_cmd': 'bogus entry cmd',
-        '_exe_cmd': 'bogus exe cmd',
+        '_exe_cmd': './wrf_hydro.exe',
         '_exit_cmd': 'bogus exit cmd',
         '_hrldas_namelist': {
             'noahlsm_offline': {
@@ -250,7 +174,9 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
                 'canopy_stomatal_resistance_option': 1,
                 'hrldas_setup_file': './NWM/DOMAIN/wrfinput_d01.nc',
                 'indir': './FORCING',
-                'restart_filename_requested': './NWM/RESTART/RESTART.2011082600_DOMAIN1'
+                'restart_filename_requested': './NWM/RESTART/RESTART.2011082600_DOMAIN1',
+                'restart_frequency_hours': 24,
+                'output_timestep': 86400
             },
             'wrf_hydro_offline': {
                 'forc_typ': 1
@@ -259,9 +185,9 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         '_hrldas_times': {
             'noahlsm_offline': {
                 'khour': 282480,
-                'restart_frequency_hours': 1,
-                'output_timestep': 3600,
-                'restart_filename_requested': None,
+                'restart_frequency_hours': 24,
+                'output_timestep': 86400,
+                'restart_filename_requested': 'NWM/RESTART/RESTART.2013101300_DOMAIN1',
                 'start_day': 14,
                 'start_hour': 0,
                 'start_min': 0,
@@ -278,7 +204,9 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
                 'chrtout_domain': 1,
                 'geo_static_flnm': './NWM/DOMAIN/geo_em.d01.nc',
                 'restart_file': './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
-                'udmp_opt': 1
+                'udmp_opt': 1,
+                'rst_dt': 1440,
+                'out_dt': 1440
             },
             'nudging_nlist': {
                 'maxagepairsbiaspersist': 3,
@@ -288,12 +216,12 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         },
         '_hydro_times': {
             'hydro_nlist': {
-                'restart_file': None,
-                'rst_dt': 60,
-                'out_dt': 60
+                'restart_file': 'NWM/RESTART/HYDRO_RST.2013-10-13_00:00_DOMAIN1',
+                'rst_dt': 1440,
+                'out_dt': 1440
             },
             'nudging_nlist': {
-                'nudginglastobsfile': None
+                'nudginglastobsfile': 'NWM/RESTART/nudgingLastObs.2013-10-13_00:00:00.nc'
             }
         },
         '_job_end_time': None,
@@ -303,9 +231,12 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         '_model_start_time': pandas.Timestamp('1984-10-14 00:00:00'),
         'exit_status': None,
         'job_id': 'test_job_1',
-        'restart_freq_hr': 1,
-        'output_freq_hr': 1,
-        'restart': False
+        'restart_freq_hr_hydro': None,
+        'restart_freq_hr_hrldas': None,
+        'output_freq_hr_hydro': None,
+        'output_freq_hr_hrldas': None,
+        'restart': True,
+        'restart_file_time': pandas.Timestamp('2013-10-13 00:00:00')
     }
 
     # For the ensemble where the compse retains the members...
@@ -346,11 +277,11 @@ def test_parallel_compose(simulation_compiled, job, scheduler, tmpdir):
         number=10000
     )
     # If your system is busy, this could take longer...
-    # Notes(JLM): .6 seems to work on OSX spinning disk and chyenne scratch.
-    assert time_taken < .6
+    # Notes(JLM): .7 seems to work on OSX spinning disk and chyenne scratch.
+    assert time_taken < .7
 
 
-def test_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
+def test_ens_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     sim = simulation_compiled
     ens = EnsembleSimulation()
     ens.add(job)
@@ -362,14 +293,10 @@ def test_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     os.chdir(tmpdir)
     os.mkdir(str(ens_dir))
     os.chdir(str(ens_dir))
-    ens_serial.compose()
-    try:
-        ens_serial.run()
-        out, err = capfd.readouterr()
-    except:
-        out, err = capfd.readouterr()
-        pass
-    assert err == '/bin/bash: bogus: command not found\n/bin/bash: bogus: command not found\n'
+    ens_serial.compose(rm_members_from_memory=False)
+    serial_run_success = ens_serial.run()
+    assert serial_run_success, \
+        "Some serial ensemble members did not run successfully."
 
     # Parallel test
     ens_parallel = copy.deepcopy(ens)
@@ -378,16 +305,10 @@ def test_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     os.mkdir(str(ens_dir))
     os.chdir(str(ens_dir))
     ens_parallel.compose()
-    try:
-        ens_run_succcess = ens_parallel.run(n_concurrent=2)
-    except:
-        pass
 
-    os.chdir(ens_dir)
-    for mm in ens_parallel.members:
-        with open(pathlib.Path(mm) / 'test_job_1.stderr') as f:
-            error_msg = f.read()
-            assert error_msg == '/bin/bash: bogus: command not found\n'
+    ens_run_success = ens_parallel.run(n_concurrent=2)
+    assert ens_run_success, \
+        "Some parallel ensemble members did not run successfully."
 
     # Parallel test with ensemble in memory
     ens_parallel = copy.deepcopy(ens)
@@ -396,13 +317,6 @@ def test_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     os.mkdir(str(ens_dir))
     os.chdir(str(ens_dir))
     ens_parallel.compose(rm_members_from_memory=False)
-    try:
-        ens_run_succcess = ens_parallel.run(n_concurrent=2)
-    except:
-        pass
-
-    os.chdir(ens_dir)
-    for mm in ens_parallel.members:
-        with open(pathlib.Path(mm.run_dir) / 'test_job_1.stderr') as f:
-            error_msg = f.read()
-            assert error_msg == '/bin/bash: bogus: command not found\n'
+    ens_run_mem_success = ens_parallel.run(n_concurrent=2)
+    assert ens_run_mem_success, \
+        "Some parallel ensemble members in memory did not run successfully."

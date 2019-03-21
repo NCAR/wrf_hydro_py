@@ -21,8 +21,7 @@ def compare_ncfiles(candidate_files: list,
         nccmp_options: List of long-form command line options passed to nccmp,
         see http://nccmp.sourceforge.net/ for options. Defaults are '--metadata', '--force'
         exclude_vars: A list of strings containing variables names to
-        exclude from the comparison. Defaults are 'ACMELT', 'ACSNOW', 'SFCRUNOFF',
-        'UDRUNOFF', 'ACCPRCP','ACCECAN', 'ACCEDIR', 'ACCETRAN', 'qstrmvolrt', 'reference_time'
+        exclude from the comparison.
         exclude_atts: A list of strings containing attribute names to exclude from the
         comparison. Defaults are 'valid_min'
     Returns:
@@ -66,8 +65,7 @@ class OutputDataDiffs(object):
             nccmp_options: List of long-form command line options passed to nccmp,
             see http://nccmp.sourceforge.net/ for options. Defaults are '--data', '--force'
             exclude_vars: A list of strings containing variables names to
-            exclude from the comparison. Defaults are 'ACMELT', 'ACSNOW', 'SFCRUNOFF',
-            'UDRUNOFF', 'ACCPRCP','ACCECAN', 'ACCEDIR', 'ACCETRAN', 'qstrmvolrt', 'reference_time'
+            exclude from the comparison.
             exclude_atts: A list of strings containing attribute names to exclude from the
             comparison. Defaults are 'valid_min'
         Returns:
@@ -77,11 +75,6 @@ class OutputDataDiffs(object):
         # Set default arguments
         if nccmp_options is None:
             nccmp_options = ['--data', '--force']
-
-        if exclude_vars is None:
-            exclude_vars = ['ACMELT', 'ACSNOW', 'SFCRUNOFF', 'UDRUNOFF', 'ACCPRCP',
-                            'ACCECAN', 'ACCEDIR', 'ACCETRAN', 'qstrmvolrt',
-                            'reference_time']
 
         if exclude_atts is None:
             exclude_atts = ['valid_min']
@@ -161,8 +154,7 @@ class OutputMetaDataDiffs(object):
             nccmp_options: List of long-form command line options passed to nccmp,
             see http://nccmp.sourceforge.net/ for options. Defaults are '--metadata', '--force'
             exclude_vars: A list of strings containing variables names to
-            exclude from the comparison. Defaults are 'ACMELT', 'ACSNOW', 'SFCRUNOFF',
-            'UDRUNOFF', 'ACCPRCP','ACCECAN', 'ACCEDIR', 'ACCETRAN', 'qstrmvolrt', 'reference_time'
+            exclude from the comparison.
             exclude_atts: A list of strings containing attribute names to exclude from the
             comparison. Defaults are 'valid_min'
         Returns:
@@ -171,11 +163,6 @@ class OutputMetaDataDiffs(object):
         # Set default arguments
         if nccmp_options is None:
             nccmp_options = ['--metadata', '--force']
-
-        if exclude_vars is None:
-            exclude_vars = ['ACMELT', 'ACSNOW', 'SFCRUNOFF', 'UDRUNOFF', 'ACCPRCP',
-                            'ACCECAN', 'ACCEDIR', 'ACCETRAN', 'qstrmvolrt',
-                            'reference_time']
 
         if exclude_atts is None:
             exclude_atts = ['valid_min']
@@ -252,8 +239,7 @@ def _compare_nc_nccmp(candidate_nc: str,
         nccmp_options: List of long-form command line options passed to nccmp,
         see http://nccmp.sourceforge.net/ for options. Defaults are '--metadata', '--force'
         exclude_vars: A list of strings containing variables names to
-        exclude from the comparison. Defaults are 'ACMELT', 'ACSNOW', 'SFCRUNOFF',
-        'UDRUNOFF', 'ACCPRCP','ACCECAN', 'ACCEDIR', 'ACCETRAN', 'qstrmvolrt', 'reference_time'
+        exclude from the comparison.
         exclude_atts: A list of strings containing attribute names to exclude from the
         comparison. Defaults are 'valid_min'
     Returns:

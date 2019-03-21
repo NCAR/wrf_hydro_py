@@ -1,11 +1,21 @@
-import json
-
+from bs4 import BeautifulSoup
+import datetime
+import numpy as np
+import pandas as pd
+import pathlib
 import pytest
+import re
+import requests
+import warnings
+import xarray as xr
 
-from wrfhydropy.core.ioutils import *
+from wrfhydropy.core.ioutils import \
+    open_wh_dataset, WrfHydroTs, WrfHydroStatic, check_input_files, nwm_forcing_to_ldasin
+
 from wrfhydropy.core.namelist import JSONNamelist
 
-@pytest.fixture
+
+@pytest.fixture(scope='function')
 def ds_timeseries(tmpdir):
     ts_dir = pathlib.Path(tmpdir).joinpath('timeseries_data')
     ts_dir.mkdir(parents=True)
@@ -13,14 +23,18 @@ def ds_timeseries(tmpdir):
     # Create a dummy dataset
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        vals_ts = np.array([np.log(-1.0),2.0,3.0],dtype='float')
+        vals_ts = np.array([np.log(-1.0), 2.0, 3.0], dtype='float')
 
-    reference_times = pd.to_datetime(['1984-10-14 00:00:00',
-                                      '1984-10-14 01:00:00',
-                                      '1984-10-14 02:00:00'])
-    times = pd.to_datetime(['1984-10-14 01:00:00',
-                            '1984-10-14 02:00:00',
-                            '1984-10-14 03:00:00'])
+    reference_times = pd.to_datetime([
+        '1984-10-14 00:00:00',
+        '1984-10-14 01:00:00',
+        '1984-10-14 02:00:00'
+    ])
+    times = pd.to_datetime([
+        '1984-10-14 01:00:00',
+        '1984-10-14 02:00:00',
+        '1984-10-14 03:00:00'
+    ])
     location = ['loc1', 'loc2', 'loc3']
 
     for idx in enumerate(times):
@@ -35,11 +49,14 @@ def ds_timeseries(tmpdir):
         ds_ts.to_netcdf(ts_dir.joinpath(filename))
     return ts_dir
 
-def test_open_nwmdataset_no_forecast(ds_timeseries):
+
+def test_open_wh_dataset_no_forecast(ds_timeseries):
     ds_paths = list(ds_timeseries.rglob('*.nc'))
-    the_ds = open_nwmdataset(paths = ds_paths,
-                             chunks = None,
-                             forecast = False)
+    the_ds = open_wh_dataset(
+        paths=ds_paths,
+        chunks=None,
+        forecast=False
+    )
 
     assert the_ds['reference_time'].values == np.array(['1970-01-01T00:00:00.000000000'],
                                                        dtype='datetime64[ns]')
@@ -50,11 +67,14 @@ def test_open_nwmdataset_no_forecast(ds_timeseries):
                                                      '1984-10-14T03:00:00.000000000'],
                                                     dtype='datetime64[ns]'))
 
-def test_open_nwmdataset_forecast(ds_timeseries):
+
+def test_open_wh_dataset_forecast(ds_timeseries):
     ds_paths = list(ds_timeseries.rglob('*.nc'))
-    the_ds = open_nwmdataset(paths = ds_paths,
-                             chunks = None,
-                             forecast = True)
+    the_ds = open_wh_dataset(
+        paths=ds_paths,
+        chunks=None,
+        forecast=True
+    )
 
     the_ds['reference_time'].values.sort()
     assert np.all(the_ds['reference_time'].values == np.array(['1984-10-14T00:00:00.000000000',
@@ -71,6 +91,7 @@ def test_open_nwmdataset_forecast(ds_timeseries):
     # print(the_ds['var1'].values)
     # assert np.all(the_ds['var1'].values == np.array([[[1.0,2.0,3.0]]], dtype='int'))
 
+
 def test_wrfhydrots(ds_timeseries):
     ts_obj = WrfHydroTs(list(ds_timeseries.rglob('*.nc')))
 
@@ -78,6 +99,7 @@ def test_wrfhydrots(ds_timeseries):
 
     assert type(ts_obj_open) == xr.core.dataset.Dataset
     assert type(ts_obj.check_nas()) == pd.DataFrame
+
 
 def test_wrfhydrostatic(ds_timeseries):
 
@@ -87,6 +109,7 @@ def test_wrfhydrostatic(ds_timeseries):
 
     assert type(static_obj_open) == xr.core.dataset.Dataset
     assert type(static_obj.check_nas()) == pd.DataFrame
+
 
 def test_check_input_files(domain_dir):
     hrldas_namelist = JSONNamelist(domain_dir.joinpath('hrldas_namelist_patches.json'))
@@ -109,3 +132,58 @@ def test_check_input_files(domain_dir):
 
     assert str(excinfo.value) == 'The namelist file geo_static_flnm = no_such_file does not exist'
 
+
+def test_nwm_forcing_to_ldasin(tmpdir):
+
+    tmpdir = pathlib.Path(tmpdir)
+    def url_index_anchor_regex(url, regex=''):
+        page = requests.get(url).text
+        soup = BeautifulSoup(page, 'html.parser')
+        anchors = [url + '/' + node.get('href') for
+                   node in soup.find_all('a') if re.search(regex, node.get('href'))]
+        return anchors
+
+    nwm_yesterday = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1))
+    nwm_yesterday = nwm_yesterday.strftime("nwm.%Y%m%d")
+    prod_url = 'http://nomads.ncep.noaa.gov/pub/data/nccf/com/nwm/prod/' + nwm_yesterday
+    para_url = 'http://para.nomads.ncep.noaa.gov/pub/data/nccf/com/nwm/para/' + nwm_yesterday
+
+    for version_name, model_version in {'para': para_url, 'prod': prod_url}.items():
+
+        forcing_dirs = url_index_anchor_regex(model_version, '^forcing_')
+        for forcing_range in forcing_dirs:
+
+            forcing_files = url_index_anchor_regex(forcing_range, '\.nc$')
+            for file in forcing_files:
+                the_split = file.split('/')
+                the_base = '/'.join(file.split('/')[(the_split.index(version_name)+1):])
+                the_file = tmpdir.joinpath(version_name).joinpath(the_base)
+                the_file.parent.mkdir(exist_ok=True, parents=True)
+                the_file.touch()
+
+
+            # The argument to nwm_forcing_dir is a list of "nwm.YYYYMMDD" dirs.
+            ldasin_dir_list = tmpdir.joinpath(
+                'ldasin_' + version_name + '_from_list/' + pathlib.Path(forcing_range).name
+            )
+            ldasin_dir_list.mkdir(parents=True)
+            nwm_forcing_to_ldasin(
+                nwm_forcing_dir=[tmpdir.joinpath(version_name).joinpath(nwm_yesterday)],
+                ldasin_dir=ldasin_dir_list,
+                range=pathlib.Path(forcing_range).name
+            )
+            ldasin_list_files = sorted(ldasin_dir_list.glob('*/*'))
+            assert len(ldasin_list_files) == len(forcing_files)
+
+            # The argument to nwm_forcing_dir is a path which contains "nwm.YYYYMMDD" dirs.
+            ldasin_dir = tmpdir.joinpath(
+                'ldasin_' + version_name + '/' + pathlib.Path(forcing_range).name
+            )
+            ldasin_dir.mkdir(parents=True)
+            nwm_forcing_to_ldasin(
+                nwm_forcing_dir=tmpdir.joinpath(version_name),
+                ldasin_dir=ldasin_dir,
+                range=pathlib.Path(forcing_range).name
+            )
+            ldasin_files = sorted(ldasin_dir.glob('*/*'))
+            assert len(ldasin_files) == len(forcing_files)

@@ -21,30 +21,38 @@ class Job(object):
     def __init__(
             self,
             job_id: str,
-            model_start_time: Union[str,pd.datetime] = None,
-            model_end_time: Union[str,pd.datetime] = None,
-            restart_freq_hr: int = 1,
-            output_freq_hr: int = 1,
-            restart: bool = True,
-            exe_cmd: str = None,
-            entry_cmd: str = None,
-            exit_cmd: str = None):
+            model_start_time: Union[str,pd.datetime]=None,
+            model_end_time: Union[str,pd.datetime]=None,
+            restart_freq_hr: Union[int, dict]=None,
+            output_freq_hr: Union[int, dict]=None,
+            restart: bool=True,
+            restart_file_time: Union[str,pd.datetime]=None,
+            exe_cmd: str=None,
+            entry_cmd: str=None,
+            exit_cmd: str=None
+    ):
+
         """Instatiate a Job object.
         Args:
-            job_id: A string identify the job
-            model_start_time: The model start time to use for the WRF-Hydro model run. Can be
+        job_id: A string identify the job
+        model_start_time: The model start time to use for the WRF-Hydro model run. Can be
             a pandas.to_datetime compatible string or a pandas datetime object.
-            model_end_time: The model end time to use for the WRF-Hydro model run. Can be
+        model_end_time: The model end time to use for the WRF-Hydro model run. Can be
             a pandas.to_datetime compatible string or a pandas datetime object.
-            restart_freq_hr: Restart write frequency, hours
-            output_freq_hr: Output write frequency, hours
-            restart: Job is starting from a restart file. Use False for a cold start.
-            exe_cmd: The system-specific command to execute WRF-Hydro, for example 'mpirun -np
+        restart_freq_hr: Restart write frequency, hours. Either an int or a dict. If int: Output 
+            write frequency, hours. If dict, must be of the form {'hydro': int, 'hrldas': int} 
+            which sets them independently.  Non-positive values (those <=0) set the restart frequency 
+            for both models to -99999, which gives restarts at start of each month.
+        output_freq_hr: Either an int or a dict. If int: Output write frequency, hours. If dict,  
+            must be of the form {'hydro': int, 'hrldas': int} which sets them independently.
+        restart: Job is starting from a restart file. Use False for a cold start.
+        restart_file_time: The time on the restart file, if not the same as the model_start_time.
+        exe_cmd: The system-specific command to execute WRF-Hydro, for example 'mpirun -np
             36 ./wrf_hydro.exe'. Can be left as None if jobs is added to a scheduler or if a
             scheduler is used in a simulation.
-            entry_cmd: A command to run prior to executing WRF-Hydro, such as loading modules or
+        entry_cmd: A command to run prior to executing WRF-Hydro, such as loading modules or
             libraries.
-            exit_cmd: A command to run after completion of the job.
+        exit_cmd: A command to run after completion of the job.
         """
 
         # Attributes set at instantiation through arguments
@@ -64,17 +72,58 @@ class Job(object):
         self.restart = restart
         """bool: Start model from a restart."""
 
+        if restart_file_time is None:
+            restart_file_time = model_start_time
+        self.restart_file_time = pd.to_datetime(restart_file_time)
+        """np.datetime: Time on the restart file to use, if different from model_start_time. The path 
+           in any supplied restart file path in the namelists is preserved while modifying the date and 
+           time."""
+
         self._model_start_time = pd.to_datetime(model_start_time)
         """np.datetime64: The model time at the start of the execution."""
 
         self._model_end_time = pd.to_datetime(model_end_time)
         """np.datetime64: The model time at the end of the execution."""
 
-        self.restart_freq_hr = restart_freq_hr
-        """int: Restart write frequency in hours."""
+        if isinstance(restart_freq_hr, dict):
+            if 'hydro' in restart_freq_hr.keys():
+                restart_freq_hr_hydro = restart_freq_hr['hydro']
+            else :
+                restart_freq_hr_hydro = None
 
-        self.output_freq_hr = output_freq_hr
-        """int: Output write frequency in hours."""
+            if 'hrldas' in restart_freq_hr.keys():
+                restart_freq_hr_hrldas = restart_freq_hr['hrldas']
+            else:
+                restart_freq_hr_hrldas = None
+
+        else:
+            restart_freq_hr_hydro = restart_freq_hr
+            restart_freq_hr_hrldas = restart_freq_hr
+
+        self.restart_freq_hr_hydro = restart_freq_hr_hydro
+        """int: Hydro restart write frequency in hours."""
+        self.restart_freq_hr_hrldas = restart_freq_hr_hrldas
+        """int: Hrldas restart write frequency in hours."""
+
+        if isinstance(output_freq_hr, dict):
+            if 'hydro' in output_freq_hr.keys():
+                output_freq_hr_hydro = output_freq_hr['hydro']
+            else:
+                output_freq_hr_hydro = None
+
+            if 'hrldas' in output_freq_hr.keys():
+                output_freq_hr_hrldas = output_freq_hr['hrldas']
+            else:
+                output_freq_hr_hrldas = None
+
+        else:
+            output_freq_hr_hydro = output_freq_hr
+            output_freq_hr_hrldas = output_freq_hr
+
+        self.output_freq_hr_hydro = output_freq_hr_hydro
+        """int: Hydro output write frequency in hours."""
+        self.output_freq_hr_hrldas = output_freq_hr_hrldas
+        """int: Hrldas output write frequency in hours."""
 
         # property construction
         self._hrldas_times = {
@@ -270,10 +319,10 @@ class Job(object):
         
         self.pickle(str(self.job_dir.joinpath('WrfHydroJob_postrun.pkl')))
 
-    def _write_namelists(self):
+    def _write_namelists(self, mode='x'):
         """Private method to write namelist dicts to FORTRAN namelist files"""
-        self.hrldas_namelist.write(str(self.job_dir.joinpath('namelist.hrldas')))
-        self.hydro_namelist.write(str(self.job_dir.joinpath('hydro.namelist')))
+        self.hrldas_namelist.write(str(self.job_dir.joinpath('namelist.hrldas')), mode=mode)
+        self.hydro_namelist.write(str(self.job_dir.joinpath('hydro.namelist')), mode=mode)
 
     def _set_hrldas_times(self):
         """Private method to set model run times in the hrldas namelist"""
@@ -293,43 +342,89 @@ class Job(object):
             self._hrldas_times['noahlsm_offline']['start_min'] = int(self._model_start_time.minute)
 
             if self.restart:
-                lsm_restart_dirname = '.'  # os.path.dirname(noah_nlst['restart_filename_requested'])
+                noah_nlst = self._hrldas_namelist['noahlsm_offline']
+                if noah_nlst['restart_filename_requested'] is not None:
+                    lsm_restart_dirname = os.path.dirname(noah_nlst['restart_filename_requested'])
+                else:
+                    lsm_restart_dirname = '.'
 
                 # Format - 2011082600 - no minutes
                 lsm_restart_basename = 'RESTART.' + \
-                                       self._model_start_time.strftime('%Y%m%d%H') + '_DOMAIN1'
+                                       self.restart_file_time.strftime('%Y%m%d%H') + '_DOMAIN1'
 
-                lsm_restart_file = lsm_restart_dirname + '/' + lsm_restart_basename
+                lsm_restart_file = str(pathlib.Path(lsm_restart_dirname) / lsm_restart_basename)
 
                 self._hrldas_times['noahlsm_offline']['restart_filename_requested'] = lsm_restart_file
 
-            self._hrldas_times['noahlsm_offline']['restart_frequency_hours'] = self.restart_freq_hr
-            self._hrldas_times['noahlsm_offline']['output_timestep'] = self.output_freq_hr * 3600
+            # TODO(JLM): I dont love this if statement, it's a bit hacky.
+            # Some of the tests call _set_hrldas/hydro_times when no namelist has been set.
+            # That's why this is here.
+            if self._hrldas_namelist is not None:
+                noah_nlst = self._hrldas_namelist['noahlsm_offline']
+
+                the_noahlsm_offline = self._hrldas_times['noahlsm_offline']
+                if self.restart_freq_hr_hrldas is not None:
+                    if self.restart_freq_hr_hrldas > 0:
+                        the_noahlsm_offline['restart_frequency_hours'] = self.restart_freq_hr_hrldas
+                    else:
+                        the_noahlsm_offline['restart_frequency_hours'] = -99999
+                else:
+                    the_noahlsm_offline['restart_frequency_hours'] = \
+                        noah_nlst['restart_frequency_hours']
+
+                if self.output_freq_hr_hrldas is not None:
+                    the_noahlsm_offline['output_timestep'] = self.output_freq_hr_hrldas * 3600
+                else:
+                    the_noahlsm_offline['output_timestep'] = noah_nlst['output_timestep']
+
 
     def _set_hydro_times(self):
         """Private method to set model run times in the hydro namelist"""
 
         if self._model_start_time is not None and self.restart:
+            hydro_nlst = self._hydro_namelist['hydro_nlist']
+            if hydro_nlst['restart_file'] is not None:
+                hydro_restart_dirname = os.path.dirname(hydro_nlst['restart_file'])
+            else:
+                hydro_restart_dirname = '.'
+
             # Format - 2011-08-26_00_00 - minutes
-            hydro_restart_basename = 'HYDRO_RST.' + \
-                                     self._model_start_time.strftime('%Y-%m-%d_%H:%M') + '_DOMAIN1'
+            hydro_restart_basename = \
+                'HYDRO_RST.' + self.restart_file_time.strftime('%Y-%m-%d_%H:%M') + '_DOMAIN1'
 
             # Format - 2011-08-26_00_00 - seconds
-            nudging_restart_basename = 'nudgingLastObs.' + \
-                                     self._model_start_time.strftime('%Y-%m-%d_%H:%M:%S') + '.nc'
+            nudging_restart_basename = \
+                'nudgingLastObs.' + self.restart_file_time.strftime('%Y-%m-%d_%H:%M:%S') + '.nc'
 
             # Use convenience function to return name of file with or without colons in name
             # This is needed because the model outputs restarts with colons, and our distributed
             # domains do not have restarts with colons so that they can be easily shared across file
             # systems
-            #hydro_restart_file = _check_file_exist_colon(os.getcwd(),hydro_restart_basename)
-            #nudging_restart_file = _check_file_exist_colon(os.getcwd(),nudging_restart_basename)
+            # hydro_restart_file = _check_file_exist_colon(os.getcwd(),hydro_restart_basename)
+            # nudging_restart_file = _check_file_exist_colon(os.getcwd(),nudging_restart_basename)
 
-            self._hydro_times['hydro_nlist']['restart_file'] = hydro_restart_basename
-            self._hydro_times['nudging_nlist']['nudginglastobsfile'] = nudging_restart_basename
+            self._hydro_times['hydro_nlist']['restart_file'] = \
+                str(pathlib.Path(hydro_restart_dirname) / hydro_restart_basename)
+            self._hydro_times['nudging_nlist']['nudginglastobsfile'] = \
+                str(pathlib.Path(hydro_restart_dirname) / nudging_restart_basename)
 
-        self._hydro_times['hydro_nlist']['rst_dt'] = self.restart_freq_hr * 60
-        self._hydro_times['hydro_nlist']['out_dt'] = self.output_freq_hr * 60
+        # TODO(JLM): I dont love this if statement, it's a bit hacky. See comment above
+        # for _set_hrldas_times.
+        if self._hydro_namelist is not None:
+            hydro_nlst = self._hydro_namelist['hydro_nlist']
+
+            if self.restart_freq_hr_hydro is not None:
+                if self.restart_freq_hr_hydro > 0:
+                    self._hydro_times['hydro_nlist']['rst_dt'] = self.restart_freq_hr_hydro * 60
+                else:
+                    self._hydro_times['hydro_nlist']['rst_dt'] = -99999
+            else:
+                self._hydro_times['hydro_nlist']['rst_dt'] = hydro_nlst['rst_dt']
+
+            if self.output_freq_hr_hydro is not None:
+                self._hydro_times['hydro_nlist']['out_dt'] = self.output_freq_hr_hydro * 60
+            else:
+                self._hydro_times['hydro_nlist']['out_dt'] = hydro_nlst['out_dt']
 
 
     def _make_job_dir(self):

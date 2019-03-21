@@ -236,7 +236,9 @@ def test_ens_parallel_compose(simulation_compiled, job_restart, scheduler, tmpdi
         'output_freq_hr_hydro': None,
         'output_freq_hr_hrldas': None,
         'restart': True,
-        'restart_file_time': pandas.Timestamp('2013-10-13 00:00:00')
+        'restart_file_time': '2013-10-13',
+        '_restart_file_time_hrldas': pandas.Timestamp('2013-10-13 00:00:00'),
+        '_restart_file_time_hydro': pandas.Timestamp('2013-10-13 00:00:00')
     }
 
     # For the ensemble where the compse retains the members...

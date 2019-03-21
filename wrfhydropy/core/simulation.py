@@ -342,6 +342,10 @@ class SimulationOutput(object):
         """WrfHydroTs: Timeseries dataset of LAKEOUT files"""
         self.gwout = None
         """WrfHydroTs: Timeseries dataset of GWOUT files"""
+        self.rtout = None
+        """WrfHydroTs: Timeseries dataset of RTOUT files"""
+        self.ldasout = None
+        """WrfHydroTs: Timeseries dataset of LDASOUT files"""
         self.restart_hydro = None
         """list: List of HYDRO_RST WrfHydroStatic objects"""
         self.restart_lsm = None
@@ -362,12 +366,12 @@ class SimulationOutput(object):
 
         # Grab outputs as WrfHydroXX classes of file paths
         # Get channel files
-        if len(list(sim_dir.glob('*CHRTOUT_DOMAIN1*'))) > 0:
-            self.channel_rt = sort_files_by_time(list(sim_dir.glob('*CHRTOUT_DOMAIN1*')))
+        if len(list(sim_dir.glob('*CHRTOUT_DOMAIN*'))) > 0:
+            self.channel_rt = sort_files_by_time(list(sim_dir.glob('*CHRTOUT_DOMAIN*')))
             self.channel_rt = WrfHydroTs(self.channel_rt)
 
-        if len(list(sim_dir.glob('*CHRTOUT_GRID1*'))) > 0:
-            self.channel_rt_grid = sort_files_by_time(list(sim_dir.glob('*CHRTOUT_GRID1*')))
+        if len(list(sim_dir.glob('*CHRTOUT_GRID*'))) > 0:
+            self.channel_rt_grid = sort_files_by_time(list(sim_dir.glob('*CHRTOUT_GRID*')))
             self.channel_rt_grid = WrfHydroTs(self.channel_rt_grid)
 
         if len(list(sim_dir.glob('*CHANOBS*'))) > 0:
@@ -383,6 +387,22 @@ class SimulationOutput(object):
         if len(list(sim_dir.glob('*GWOUT*'))) > 0:
             self.gwout = sort_files_by_time(list(sim_dir.glob('*GWOUT*')))
             self.gwout = WrfHydroTs(self.gwout)
+
+        # Get rtout files
+        if len(list(sim_dir.glob('*.RTOUT_*'))) > 0:
+            self.rtout = sort_files_by_time(list(sim_dir.glob('*.RTOUT_*')))
+            self.rtout = WrfHydroTs(self.rtout)
+
+        # Get ldasout files
+        if len(list(sim_dir.glob('*LDASOUT*'))) > 0:
+            if len(list(sim_dir.glob('*LDASOUT*'))) > 1:
+                # The [1:] in the next line is a side effect of NoahMP always
+                # outputting a file at t0.
+                self.ldasout = sort_files_by_time(list(sim_dir.glob('*LDASOUT*')))[1:]
+            else:
+                self.ldasout = sort_files_by_time(list(sim_dir.glob('*LDASOUT*')))
+
+            self.ldasout = WrfHydroTs(self.ldasout)
 
         # Get restart files and sort by modified time
         # Hydro restarts

@@ -364,7 +364,7 @@ class Job(object):
 
                 # Format - 2011082600 - no minutes
                 lsm_restart_basename = 'RESTART.' + \
-                                       self._restart_file_time_hrldas.strftime('%Y%m%d%H') + '_DOMAIN1'
+                    self._restart_file_time_hrldas.strftime('%Y%m%d%H') + '_DOMAIN1'
 
                 lsm_restart_file = str(pathlib.Path(lsm_restart_dirname) / lsm_restart_basename)
 

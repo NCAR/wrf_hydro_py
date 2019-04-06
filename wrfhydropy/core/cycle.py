@@ -44,24 +44,25 @@ def translate_special_paths(cast):
     # restart_dirs:
     if cast.restart_dir == pathlib.Path(''):
         hydro_rst_file = \
-            cast.domain.hydro_namelist_patches['hydro_nlist']['restart_file']
+            cast.base_hydro_namelist_patches['hydro_nlist']['restart_file']
         lsm_rst_file = \
-            cast.domain.hrldas_namelist_patches['noahlsm_offline']['restart_filename_requested']
+            cast.base_hrldas_namelist_patches['noahlsm_offline']['restart_filename_requested']
         # TODO: check that these match.
         cast.restart_dir = pathlib.Path(hydro_rst_file).parent
 
     elif cast.restart_dir.exists():
-        cast.domain.hydro_namelist_patches['hydro_nlist']['restart_file'] = \
+        print(cast.restart_dir)
+        cast.base_hydro_namelist['hydro_nlist']['restart_file'] = \
             str(cast.restart_dir / cast.init_time.strftime('HYDRO_RST.%Y-%m-%d_%H:00_DOMAIN1'))
-        cast.domain.hrldas_namelist_patches['noahlsm_offline']['restart_filename_requested'] = \
+        cast.base_hrldas_namelist['noahlsm_offline']['restart_filename_requested'] = \
             str(cast.restart_dir / cast.init_time.strftime('RESTART.%Y%m%d%H_DOMAIN1'))
 
     elif int(str(cast.restart_dir)) < 0:
         forcing_cast_time = cast.init_time + datetime.timedelta(hours=int(str(cast.restart_dir)))
         cast.restart_dir = pathlib.Path('../cast_' + forcing_cast_time.strftime('%Y%m%d%H'))
-        cast.domain.hydro_namelist_patches['hydro_nlist']['restart_file'] = \
+        castbase_.hydro_namelist['hydro_nlist']['restart_file'] = \
             str(cast.restart_dir / cast.init_time.strftime('HYDRO_RST.%Y-%m-%d_%H:00_DOMAIN1'))
-        cast.domain.hrldas_namelist_patches['noahlsm_offline']['restart_filename_requested'] = \
+        cast.base_hrldas_namelist['noahlsm_offline']['restart_filename_requested'] = \
             str(cast.restart_dir / cast.init_time.strftime('RESTART.%Y%m%d%H_DOMAIN1'))
 
     else:

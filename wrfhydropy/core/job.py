@@ -26,7 +26,8 @@ class Job(object):
             restart_freq_hr: Union[int, dict]=None,
             output_freq_hr: Union[int, dict]=None,
             restart: bool=True,
-            restart_file_time: Union[str,pd.datetime, dict]=None,
+            restart_file_time: Union[str, pd.datetime, dict]=None,
+            restart_dir: Union[str, pathlib.Path, dict]=None,
             exe_cmd: str=None,
             entry_cmd: str=None,
             exit_cmd: str=None
@@ -90,6 +91,20 @@ class Job(object):
         elif isinstance(self.restart_file_time, dict):
             self._restart_file_time_hydro = pd.to_datetime(self.restart_file_time['hydro'])
             self._restart_file_time_hrldas = pd.to_datetime(self.restart_file_time['hrldas'])
+        else:
+            raise ValueError("restart_file_time is an in appropriate type.")
+
+        self.restart_dir = restart_dir
+        if self.restart_dir is None:
+            self._restart_dir_hydro = None
+            self._restart_dir_hrldas = None
+        elif isinstance(self.restart_dir, str)  or \
+             isinstance(self.restart_dir, pathlib.Path):
+            self._restart_dir_hydro = pathlib.Path(self.restart_dir)
+            self._restart_dir_hrldas = pathlib.Path(self.restart_dir)
+        elif isinstance(self.restart_dir, dict):
+            self._restart_dir_hydro = pathlib.Path(self.restart_file_time['hydro'])
+            self._restart_dir_hrldas = pathlib.Path(self.restart_file_time['hrldas'])
         else:
             raise ValueError("restart_file_time is an in appropriate type.")
 
@@ -356,11 +371,14 @@ class Job(object):
             self._hrldas_times['noahlsm_offline']['start_min'] = int(self._model_start_time.minute)
 
             if self.restart:
-                noah_nlst = self._hrldas_namelist['noahlsm_offline']
-                if noah_nlst['restart_filename_requested'] is not None:
-                    lsm_restart_dirname = os.path.dirname(noah_nlst['restart_filename_requested'])
+                if self._restart_dir_hrldas is not None:
+                    lsm_restart_dirname = self._restart_dir_hrldas
                 else:
-                    lsm_restart_dirname = '.'
+                    noah_nlst = self._hrldas_namelist['noahlsm_offline']
+                    if noah_nlst['restart_filename_requested'] is not None:
+                        lsm_restart_dirname = os.path.dirname(noah_nlst['restart_filename_requested'])
+                    else:
+                        lsm_restart_dirname = '.'
 
                 # Format - 2011082600 - no minutes
                 lsm_restart_basename = 'RESTART.' + \
@@ -396,11 +414,14 @@ class Job(object):
         """Private method to set model run times in the hydro namelist"""
 
         if self._model_start_time is not None and self.restart:
-            hydro_nlst = self._hydro_namelist['hydro_nlist']
-            if hydro_nlst['restart_file'] is not None:
-                hydro_restart_dirname = os.path.dirname(hydro_nlst['restart_file'])
+            if self._restart_dir_hydro is not None:
+                hydro_restart_dirname = self._restart_dir_hydro
             else:
-                hydro_restart_dirname = '.'
+                hydro_nlst = self._hydro_namelist['hydro_nlist']
+                if hydro_nlst['restart_file'] is not None:
+                    hydro_restart_dirname = os.path.dirname(hydro_nlst['restart_file'])
+                else:
+                    hydro_restart_dirname = '.'
 
             # Format - 2011-08-26_00_00 - minutes
             hydro_restart_basename = \

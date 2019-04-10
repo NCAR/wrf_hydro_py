@@ -324,6 +324,7 @@ def job_restart():
         model_start_time='1984-10-14',
         model_end_time='2017-01-04',
         restart=True,
+        restart_file_time='2013-10-13',
         exe_cmd='./wrf_hydro.exe',
         entry_cmd='bogus entry cmd',
         exit_cmd='bogus exit cmd'
@@ -353,13 +354,17 @@ def sim_output(tmpdir, ds_1d, ds_1d_has_nans, ds_2d):
     sim_out_dir.mkdir(parents=True)
 
     # Make a list of DOMAIN filenames to create
-    file_names = ['CHRTOUT_DOMAIN1_TEST',
-                  'CHRTOUT_GRID1_TEST'
-                  'CHANOBS_TEST',
-                  'LAKEOUT_TEST',
-                  'HYDRO_RST_TEST',
-                  'RESTART_TEST',
-                  'nudgingLastObs_TEST']
+    file_names = [
+        'CHRTOUT_DOMAIN1_TEST',
+        'CHRTOUT_GRID1_TEST'
+        'CHANOBS_TEST',
+        'LAKEOUT_TEST',
+        'HYDRO_RST_TEST',
+        'RESTART_TEST',
+        'nudgingLastObs_TEST',
+        '.RTOUT_',
+        'LDASOUT'
+    ]
 
     for counter in range(3):
         for file in file_names:

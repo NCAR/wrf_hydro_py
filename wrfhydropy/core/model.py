@@ -186,6 +186,8 @@ class Model(object):
 
         self.compile_dir = pathlib.Path(compile_dir).absolute()
 
+        self.modules = subprocess.run('module list', shell=True, stderr=subprocess.PIPE).stderr
+        
         # check compile directory.
         if not self.compile_dir.is_dir():
             warnings.warn(str(self.compile_dir.absolute()) + ' directory does not exist, creating')
@@ -215,11 +217,12 @@ class Model(object):
         compile_cmd += '"'
         compile_cmd = shlex.split(compile_cmd)
 
-        self.compile_log = subprocess.run(compile_cmd,
-                                          stdout=subprocess.PIPE,
-                                          stderr=subprocess.PIPE,
-                                          cwd=str(self.source_dir.absolute())
-                                          )
+        self.compile_log = subprocess.run(
+            compile_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd=str(self.source_dir.absolute())
+        )
 
         # Add in unique ID file to match this object to prevent assosciating
         # this directory with another object

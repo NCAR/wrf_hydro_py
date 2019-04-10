@@ -31,14 +31,6 @@ def scheduler_shared():
     return scheduler
 
 
-def test_schedulers_pbs_regular_init(scheduler_regular):
-    assert scheduler_regular._exe_cmd == 'mpiexec_mpt ./wrf_hydro.exe'
-
-
-def test_schedulers_pbs_shared_init(scheduler_shared):
-    assert scheduler_shared._exe_cmd == 'mpirun -np 216 ./wrf_hydro.exe'
-
-
 def test_schedulers_pbs_solve_nodes(scheduler_regular):
 
     assert scheduler_regular.ppn == 36
@@ -108,6 +100,7 @@ def test_schedulers_pbs_schedule(scheduler_regular,capfd):
     except:
         out, err = capfd.readouterr()
         pass
-    assert out == '/bin/bash -c "job_test_job_1=`qsub -h job_test_job_1/job_test_job_1.pbs`;' \
-                  'job_test_job_1=`qsub -W depend=afterok:$job_test_job_1 ' \
-                  'job_test_job_1/job_test_job_1.pbs`;qrls \$job_test_job_1;"\n'
+    assert out == "qsub_str:  /bin/bash -c 'job_test_job_1=`qsub -h job_test_job_1/job_test_job_1.pbs`;" \
+                  "job_test_job_1=`qsub -W depend=afterok:${job_test_job_1} " \
+                  "job_test_job_1/job_test_job_1.pbs`;qrls ${job_test_job_1};'" \
+                  '\n'

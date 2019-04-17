@@ -397,7 +397,7 @@ class WrfHydroTs(list):
         return check_file_nas(nc_dataset)
 
 
-class WrfHydroStatic(pathlib.PosixPath):
+class WrfHydroStatic(pathlib.Path):
     """WRF-Hydro static data class"""
     def open(self):
         """Open a WrfHydroStatic object
@@ -471,7 +471,7 @@ def check_input_files(
     def visit_str_posix_exists(path, key, value):
         if type(value) is dict:
             return True
-        return key, (sim_dir / pathlib.PosixPath(value)).exists()
+        return key, (sim_dir / pathlib.Path(value)).exists()
 
     def remap_nlst(nlst):
         # The outer remap removes empty dicts

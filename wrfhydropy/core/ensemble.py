@@ -213,7 +213,7 @@ class EnsembleSimulation(object):
             if imem == 0:
                 continue
             mem_ii_ref_dict = dictify(mem)
-            diff = DeepDiffEq(mem_0_ref_dict, mem_ii_ref_dict, eq_types={pathlib.PosixPath})
+            diff = DeepDiffEq(mem_0_ref_dict, mem_ii_ref_dict, eq_types={pathlib.Path})
 
             unexpected_diffs = set(diff.keys()) - set(['values_changed'])
             if len(unexpected_diffs):

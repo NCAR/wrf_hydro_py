@@ -219,7 +219,7 @@ class CycleSimulation(object):
         Args:
             forcing_dirs: a list of str objects.
         """
-        if not all([type(ff) in [str, pathlib.Path, pathlib.PosixPath] for ff in forcing_dirs]):
+        if not all([type(ff) in [str, pathlib.Path] for ff in forcing_dirs]):
             raise ValueError('List object not all str or pathlib.Path objects, as expected.')
         if self._init_times != [] and len(forcing_dirs) > 1:
             if len(self._init_times) != len(forcing_dirs):
@@ -231,7 +231,7 @@ class CycleSimulation(object):
         Args:
             restart_dirs: a list of str objects.
         """
-        if not all([type(ff) in [str, pathlib.Path, pathlib.PosixPath] for ff in restart_dirs]):
+        if not all([type(ff) in [str, pathlib.Path] for ff in restart_dirs]):
             raise ValueError('List object not all str or pathlib.Path objects, as expected')
         if self._init_times != [] and len(restart_dirs) > 1:
             if len(self._init_times) != len(restart_dirs):

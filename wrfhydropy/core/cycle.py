@@ -44,9 +44,9 @@ def translate_special_paths(cast):
     # restart_dirs:
     if cast.restart_dir == pathlib.Path(''):
         hydro_rst_file = \
-            cast.base_hydro_namelist_patches['hydro_nlist']['restart_file']
+            cast.base_hydro_namelist['hydro_nlist']['restart_file']
         lsm_rst_file = \
-            cast.base_hrldas_namelist_patches['noahlsm_offline']['restart_filename_requested']
+            cast.base_hrldas_namelist['noahlsm_offline']['restart_filename_requested']
         # TODO: check that these match.
         cast.restart_dir = pathlib.Path(hydro_rst_file).parent
 
@@ -60,7 +60,7 @@ def translate_special_paths(cast):
     elif int(str(cast.restart_dir)) < 0:
         forcing_cast_time = cast.init_time + datetime.timedelta(hours=int(str(cast.restart_dir)))
         cast.restart_dir = pathlib.Path('../cast_' + forcing_cast_time.strftime('%Y%m%d%H'))
-        castbase_.hydro_namelist['hydro_nlist']['restart_file'] = \
+        cast.base_hydro_namelist['hydro_nlist']['restart_file'] = \
             str(cast.restart_dir / cast.init_time.strftime('HYDRO_RST.%Y-%m-%d_%H:00_DOMAIN1'))
         cast.base_hrldas_namelist['noahlsm_offline']['restart_filename_requested'] = \
             str(cast.restart_dir / cast.init_time.strftime('RESTART.%Y%m%d%H_DOMAIN1'))
@@ -313,7 +313,7 @@ class CycleSimulation(object):
 
         # Set the ensemble jobs on the casts before composing (this is a loop over the jobs).
         if self.ncores == 1:
-            
+
             self.casts = [
                 parallel_compose_casts(
                     {'simulation': self._simulation,
@@ -330,7 +330,7 @@ class CycleSimulation(object):
                 )
             ]
 
-        else: 
+        else:
 
             # Set the pool for the following parallelizable operations
             with multiprocessing.Pool(self.ncores, initializer=mute) as pool:
@@ -350,7 +350,7 @@ class CycleSimulation(object):
                         self._forcing_dirs
                     )
                     )
-                )            
+                )
 
         # Return from indivdual compose.
         os.chdir(self.cycle_dir)

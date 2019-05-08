@@ -10,6 +10,7 @@ from .ensemble_tools import mute
 from .job import Job
 from .schedulers import Scheduler
 from .simulation import Simulation
+from .ensemble import EnsembleSimulation
 
 
 def translate_special_paths(cast):
@@ -130,7 +131,7 @@ class CycleSimulation(object):
         forcing_dirs: list=[],
         ncores: int=1
     ):
-        """ Instantiates an EnsembleSimulation object. """
+        """ Instantiates an CycleSimulation object. """
 
         self.casts = []
         """list: a list of 'casts' which are the individual simulations in the cycle object."""
@@ -186,13 +187,16 @@ class CycleSimulation(object):
         self,
         obj: Union[Simulation, Scheduler, Job]
     ):
-        """Add an approparite object to an EnsembleSimulation, such as a Simulation, Job, or
+        """Add an approparite object to an CycleSimulation, such as a Simulation, Job, or
         Scheduler.
         Args:
             obj: the object to add.
         """
+
         if isinstance(obj, Simulation):
             self._addsimulation(obj)
+        elif isinstance(obj, EnsembleSimulation):
+            self._addensemble(obj)
         elif issubclass(type(obj), Scheduler):
             self._addscheduler(obj)
         elif isinstance(obj, Job):
@@ -239,14 +243,14 @@ class CycleSimulation(object):
         self._restart_dirs = [pathlib.Path(ff) for ff in restart_dirs]
 
     def _addscheduler(self, scheduler: Scheduler):
-        """Private method to add a Scheduler to an EnsembleSimulation
+        """Private method to add a Scheduler to an CycleSimulation
         Args:
             scheduler: The Scheduler to add
         """
         self._scheduler = copy.deepcopy(scheduler)
 
     def _addjob(self, job: Job):
-        """Private method to add a job to an EnsembleSimulation
+        """Private method to add a job to an CycleSimulation
         Args:
             job: The job to add
         """
@@ -263,11 +267,11 @@ class CycleSimulation(object):
         """
 
         if type(sim) is not Simulation:
-            raise ValueError("A non-simulation object can not be "
+            raise ValueError("A non-Simulation object can not be "
                              "added to the cycle object as a simulation.")
 
         if sim.model.compile_log is None:
-            raise ValueError("Only simulations with compiled model objects "
+            raise ValueError("Only Simulations with compiled model objects "
                              "can be added to an ensemble simulation.")
 
         sim_copy = copy.deepcopy(sim)
@@ -278,6 +282,27 @@ class CycleSimulation(object):
 
         self._simulation = sim_copy
 
+    def _addensemble(
+        self,
+        ens: EnsembleSimulation
+    ):
+        """Private method to add a Simulation to an EnsembleSimulation
+        Args:
+            model: The Model to add
+        """
+
+        if type(ens) is not EnsembleSimulation:
+            raise ValueError("A non-EnsembleSimulation object can not be "
+                             "added to the cycle object as a simulation.")
+
+        ens_copy = copy.deepcopy(ens)
+
+        # Ensure that the jobs and scheduler are empty and None
+        ens_copy.jobs = []
+        ens_copy.scheduler = None
+
+        self._ensemble = ens_copy
+
     def compose(
         self,
         symlink_domain: bool=True,
@@ -285,7 +310,7 @@ class CycleSimulation(object):
         check_nlst_warn: bool=False,
         rm_casts_from_memory: bool=True
     ):
-        """Ensemble compose simulation directories and files
+        """Cycle compose simulation directories and files
         Args:
             symlink_domain: Symlink the domain files rather than copy
             force: Compose into directory even if not empty. This is considered bad practice but

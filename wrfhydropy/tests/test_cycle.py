@@ -9,6 +9,7 @@ import string
 import timeit
 
 from wrfhydropy.core.simulation import Simulation
+from wrfhydropy.core.ensemble import EnsembleSimulation
 from wrfhydropy.core.cycle import CycleSimulation
 
 
@@ -38,6 +39,13 @@ def simulation_compiled(model, domain, job_restart, tmpdir):
     os.chdir(sim_dir)
     sim.compose()
     return sim
+
+
+@pytest.fixture(scope='function')
+def ensemble(model, domain, simulation_compiled):
+    ens = EnsembleSimulation()
+    ens.add(simulation_compiled)
+    return ens
 
 
 def test_cycle_init(init_times):
@@ -79,7 +87,8 @@ def test_cycle_addsimulation(
         cy1.add([sim_compiled])
 
     cy1.add(sim_compiled)
-
+    assert isinstance(cy1._simulation, Simulation)
+    
     # add a sim with job and make sure it is deleted.
     sim_compiled.add(job_restart)
     sim_compiled.add(scheduler)
@@ -88,12 +97,40 @@ def test_cycle_addsimulation(
         restart_dirs=['.'] * len(init_times)
     )
     cy2.add(sim_compiled)
+    assert cy2._simulation.jobs == []
+    assert cy2._simulation.scheduler == None
 
-    assert all([len(cc.jobs) == 0 for cc in cy2.casts])
-    assert all([cc.scheduler is None for cc in cy2.casts])
+
+def test_cycle_addensemble(
+    ensemble,
+    job_restart,
+    scheduler,
+    init_times    
+):
+    # The ensemble necessarily has a compiled model (unlike a Simulation).
+    # That is a separate test.
+    
+    ens = ensemble
+    cy1 = CycleSimulation(
+        init_times=init_times,
+        restart_dirs=['.'] * len(init_times)
+    )
+    cy1.add(ensemble)
+    assert isinstance(cy1._ensemble, EnsembleSimulation)
+    
+    # add an ens with a job and make sure it is deleted.
+    ens.add(job_restart)
+    ens.add(scheduler)
+    cy2 = CycleSimulation(
+        init_times=init_times,
+        restart_dirs=['.'] * len(init_times)
+    )
+    cy2.add(ensemble)
+    assert cy2._ensemble.jobs == []
+    assert cy2._ensemble.scheduler == None
 
 
-def test_cycle_addjob(simulation, job_restart, init_times):
+def test_cycle_addjob(job_restart, init_times):
     cy1 = CycleSimulation(init_times=init_times, restart_dirs=['.'] * len(init_times))
     cy1.add(job_restart)
     assert deepdiff.DeepDiff(cy1._job, job_restart) == {}
@@ -103,11 +140,7 @@ def test_cycle_addjob(simulation, job_restart, init_times):
     assert deepdiff.DeepDiff(cy1._job, job_restart) == {}
 
 
-def test_cycle_addscheduler(
-    simulation,
-    scheduler,
-    init_times
-):
+def test_cycle_addscheduler(scheduler, init_times):
     cy1 = CycleSimulation(init_times=init_times, restart_dirs=['.'] * len(init_times))
     cy1.add(scheduler)
     assert deepdiff.DeepDiff(cy1._scheduler, scheduler) == {}

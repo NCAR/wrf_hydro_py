@@ -21,11 +21,19 @@ def translate_special_paths(cast):
     # 3) A negative integer is units hours, pointing to a previous cast in the cycle.
     # 4) Other wise, value error raised.
 
+    # Since casts can be simulations or EnsembleSimulations, need a way to
+    # propigate cast-level to members if this is an EnsembleSimuation.
+    if isinstance(cast, Simulation):
+        members = [cast]  # fun with mutables
+    else:
+        members = cast.members
+    
     # forcing_dirs:
     if cast.forcing_dir == pathlib.Path(''):
-        cast.forcing_dir = cast.base_hrldas_namelist['noahlsm_offline']['indir']
+        cast.forcing_dir = members[0].base_hrldas_namelist['noahlsm_offline']['indir']
     elif cast.forcing_dir.exists():
-        cast.base_hrldas_namelist['noahlsm_offline']['indir'] = str(cast.forcing_dir)
+        for mem in members:
+            mem.base_hrldas_namelist['noahlsm_offline']['indir'] = str(cast.forcing_dir)
     elif int(str(cast.forcing_dir)) < 0:
         forcing_cast_time = cast.init_time + datetime.timedelta(hours=int(str(cast.forcing_dir)))
         # The last line is a bit hacky.
@@ -33,11 +41,12 @@ def translate_special_paths(cast):
             '../cast_' +
             forcing_cast_time.strftime('%Y%m%d%H') +
             '/' +
-            pathlib.Path(cast.base_hrldas_namelist['noahlsm_offline']['indir']).name
+            pathlib.Path(members[0].base_hrldas_namelist['noahlsm_offline']['indir']).name
         )
         # cant check that it exists... or that this is a cast. does this happen at
         # compose time? will there be an error if run in parallel?
-        cast.base_hrldas_namelist['noahlsm_offline']['indir'] = str(cast.forcing_dir)
+        for mem in members:
+            mem.base_hrldas_namelist['noahlsm_offline']['indir'] = str(cast.forcing_dir)
     else:
         raise ValueError("No such forcing directory. Note that non-negative integers are not"
                          " allowed when specifying forcing_dirs.")
@@ -45,26 +54,28 @@ def translate_special_paths(cast):
     # restart_dirs:
     if cast.restart_dir == pathlib.Path(''):
         hydro_rst_file = \
-            cast.base_hydro_namelist['hydro_nlist']['restart_file']
+            members[0].base_hydro_namelist['hydro_nlist']['restart_file']
         lsm_rst_file = \
-            cast.base_hrldas_namelist['noahlsm_offline']['restart_filename_requested']
+            members[0].base_hrldas_namelist['noahlsm_offline']['restart_filename_requested']
         # TODO: check that these match.
         cast.restart_dir = pathlib.Path(hydro_rst_file).parent
 
     elif cast.restart_dir.exists():
-        print(cast.restart_dir)
-        cast.base_hydro_namelist['hydro_nlist']['restart_file'] = \
-            str(cast.restart_dir / cast.init_time.strftime('HYDRO_RST.%Y-%m-%d_%H:00_DOMAIN1'))
-        cast.base_hrldas_namelist['noahlsm_offline']['restart_filename_requested'] = \
-            str(cast.restart_dir / cast.init_time.strftime('RESTART.%Y%m%d%H_DOMAIN1'))
+        #print(cast.restart_dir)
+        for mem in members:
+            mem.base_hydro_namelist['hydro_nlist']['restart_file'] = \
+                str(cast.restart_dir / cast.init_time.strftime('HYDRO_RST.%Y-%m-%d_%H:00_DOMAIN1'))
+            mem.base_hrldas_namelist['noahlsm_offline']['restart_filename_requested'] = \
+                str(cast.restart_dir / cast.init_time.strftime('RESTART.%Y%m%d%H_DOMAIN1'))
 
     elif int(str(cast.restart_dir)) < 0:
         forcing_cast_time = cast.init_time + datetime.timedelta(hours=int(str(cast.restart_dir)))
         cast.restart_dir = pathlib.Path('../cast_' + forcing_cast_time.strftime('%Y%m%d%H'))
-        cast.base_hydro_namelist['hydro_nlist']['restart_file'] = \
-            str(cast.restart_dir / cast.init_time.strftime('HYDRO_RST.%Y-%m-%d_%H:00_DOMAIN1'))
-        cast.base_hrldas_namelist['noahlsm_offline']['restart_filename_requested'] = \
-            str(cast.restart_dir / cast.init_time.strftime('RESTART.%Y%m%d%H_DOMAIN1'))
+        for mem in members:
+            mem.base_hydro_namelist['hydro_nlist']['restart_file'] = \
+                str(cast.restart_dir / cast.init_time.strftime('HYDRO_RST.%Y-%m-%d_%H:00_DOMAIN1'))
+            mem.base_hrldas_namelist['noahlsm_offline']['restart_filename_requested'] = \
+                str(cast.restart_dir / cast.init_time.strftime('RESTART.%Y%m%d%H_DOMAIN1'))
 
     else:
         raise ValueError("No such forcing directory. Note that non-negative integers are not"
@@ -74,7 +85,7 @@ def translate_special_paths(cast):
 def parallel_compose_casts(arg_dict):
     """Parallelizable function to compose casts of a CycleSimulation."""
 
-    cast = copy.deepcopy(arg_dict['simulation'])
+    cast = copy.deepcopy(arg_dict['prototype'])
     cast.init_time = arg_dict['init_time']
     cast.run_dir = str(pathlib.Path('cast_' + cast.init_time.strftime('%Y%m%d%H')))
     cast.forcing_dir = arg_dict['forcing_dir']
@@ -96,9 +107,13 @@ def parallel_compose_casts(arg_dict):
     os.chdir(cast.run_dir)
     cast.compose()
 
-    del cast.model
-    del cast.domain
-    del cast.output
+    # The Simulation object clean up.
+    if 'model' in dir(cast):
+        del cast.model
+    if 'domain' in dir(cast):
+        del cast.domain
+    if 'output' in dir(cast):
+        del cast.output
 
     cast.pickle('WrfHydroSim.pkl')
     os.chdir(orig_dir)
@@ -310,7 +325,7 @@ class CycleSimulation(object):
         check_nlst_warn: bool=False,
         rm_casts_from_memory: bool=True
     ):
-        """Cycle compose simulation directories and files
+        """Cycle compose (directories and files to disk)
         Args:
             symlink_domain: Symlink the domain files rather than copy
             force: Compose into directory even if not empty. This is considered bad practice but
@@ -321,6 +336,13 @@ class CycleSimulation(object):
             This is also not great practice, but necessary in certain circumstances.
         """
 
+        if '_simulation' in dir(self):
+            cast_prototype = '_simulation'
+        else:
+            if '_ensemble' not in dir(self):
+                raise ValueError("The cycle does not contain a _simulation or an _ensemble.")
+            cast_prototype = '_ensemble'
+        
         if len(self) < 1:
             raise ValueError("There are no casts (init_times) to compose.")
 
@@ -332,16 +354,18 @@ class CycleSimulation(object):
         if len(self._forcing_dirs) == 1:
             self._forcing_dirs = [self._forcing_dirs[0] for ii in self._init_times]
 
-        # compile the model (once) before setting up the casts.
-        if self._simulation.model.compile_log is None:
-            self._simulation.model.compile()
+        # An ensemble must have a compiled model.
+        if cast_prototype == '_simulation':
+            # compile the model (once) before setting up the casts. 
+            if self._simulation.model.compile_log is None:
+                self._simulation.model.compile()
 
         # Set the ensemble jobs on the casts before composing (this is a loop over the jobs).
         if self.ncores == 1:
 
             self.casts = [
                 parallel_compose_casts(
-                    {'simulation': self._simulation,
+                    {'prototype': self.__dict__[cast_prototype],
                      'init_time': init_time,
                      'restart_dir': restart_dir,
                      'forcing_dir': forcing_dir,
@@ -363,7 +387,7 @@ class CycleSimulation(object):
                 self.casts = pool.map(
                     parallel_compose_casts,
                     ({
-                        'simulation': self._simulation,
+                        'prototype': self.__dict__[cast_prototype],
                         'init_time': init_time,
                         'restart_dir': restart_dir,
                         'forcing_dir': forcing_dir,
@@ -386,7 +410,10 @@ class CycleSimulation(object):
             self.rm_casts()
 
         # Remove bloaty atts
-        del self._simulation
+        if '_simulation' in dir(self):
+            del self._simulation
+        if '_ensemble' in dir(self):
+            del self._ensemble
         del self._job
 
     def rm_casts(self):

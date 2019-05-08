@@ -45,6 +45,7 @@ def simulation_compiled(model, domain, job_restart, tmpdir):
 def ensemble(model, domain, simulation_compiled):
     ens = EnsembleSimulation()
     ens.add(simulation_compiled)
+    ens.replicate_member(2)
     return ens
 
 
@@ -175,7 +176,7 @@ def test_cycle_parallel_compose(
     cy = CycleSimulation(
         init_times=init_times,
         restart_dirs=['.'] * len(init_times),
-        ncores=2
+        ncores=1 ## PUT BACK TO 2
     )
     cy.add(job_restart)
     # Adding the scheduler ruins the run in CI.
@@ -190,6 +191,169 @@ def test_cycle_parallel_compose(
     cy_check_casts = copy.deepcopy(cy)
 
     compose_dir = pathlib.Path(tmpdir).joinpath('cycle_compose')
+    os.mkdir(str(compose_dir))
+    os.chdir(str(compose_dir))
+    cy.compose()
+
+    cy_run_success = cy.run()
+    assert cy_run_success
+    cy.pickle(str(pathlib.Path(tmpdir) / 'cycle_compose/WrfHydroCycleSim.pkl'))
+
+    # The cycle-in-memory version for checking the casts.
+    compose_dir = pathlib.Path(tmpdir).joinpath('cycle_compose_check_casts')
+    os.mkdir(str(compose_dir))
+    os.chdir(str(compose_dir))
+    cy_check_casts.compose(rm_casts_from_memory=False)
+
+    # The job gets heavily modified on compose.
+    answer = {
+        '_entry_cmd': 'bogus entry cmd',
+        '_exe_cmd': './wrf_hydro.exe',
+        '_exit_cmd': 'bogus exit cmd',
+        '_hrldas_namelist': {
+            'noahlsm_offline': {
+                'btr_option': 1,
+                'canopy_stomatal_resistance_option': 1,
+                'hrldas_setup_file': './NWM/DOMAIN/wrfinput_d01.nc',
+                'indir': './FORCING',
+                'output_timestep': 86400,
+                'restart_filename_requested': './NWM/RESTART/RESTART.2011082600_DOMAIN1',
+                'restart_frequency_hours': 24
+            },
+            'wrf_hydro_offline': {
+                'forc_typ': 1
+            }
+        },
+        '_hrldas_times': {
+            'noahlsm_offline': {
+                'khour': 282480,
+                'restart_frequency_hours': 24,
+                'output_timestep': 86400,
+                'restart_filename_requested': 'NWM/RESTART/RESTART.2013101300_DOMAIN1',
+                'start_day': 12,
+                'start_hour': 00,
+                'start_min': 00,
+                'start_month': 12,
+                'start_year': 2012
+            }
+        },
+        '_hydro_namelist': {
+            'hydro_nlist': {
+                'aggfactrt': 4,
+                'channel_option': 2,
+                'chanobs_domain': 0,
+                'chanrtswcrt': 1,
+                'chrtout_domain': 1,
+                'geo_static_flnm': './NWM/DOMAIN/geo_em.d01.nc',
+                'restart_file': './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
+                'udmp_opt': 1,
+                'rst_dt': 1440,
+                'out_dt': 1440
+            },
+            'nudging_nlist': {
+                'maxagepairsbiaspersist': 3,
+                'minnumpairsbiaspersist': 1,
+                'nudginglastobsfile': './NWM/RESTART/nudgingLastObs.2011-08-26_00:00:00.nc'
+            }
+        },
+        '_hydro_times': {
+            'hydro_nlist': {
+                'out_dt': 1440,
+                'rst_dt': 1440,
+                'restart_file': 'NWM/RESTART/HYDRO_RST.2013-10-13_00:00_DOMAIN1'
+            },
+            'nudging_nlist': {
+                'nudginglastobsfile': 'NWM/RESTART/nudgingLastObs.2013-10-13_00:00:00.nc'
+            }
+        },
+        '_job_end_time': None,
+        '_job_start_time': None,
+        '_job_submission_time': None,
+        '_model_end_time': pandas.Timestamp('2045-03-04 00:00:00'),
+        '_model_start_time': pandas.Timestamp('2012-12-12 00:00:00'),
+        'exit_status': None,
+        'job_id': 'test_job_1',
+        'restart_freq_hr_hydro': None,
+        'restart_freq_hr_hrldas': None,
+        'output_freq_hr_hydro': None,
+        'output_freq_hr_hrldas': None,
+        'restart': True,
+        'restart_dir': None,
+        '_restart_dir_hydro': None,
+        '_restart_dir_hrldas': None,
+        'restart_file_time': '2013-10-13',
+        '_restart_file_time_hydro': pandas.Timestamp('2013-10-13 00:00:00'),
+        '_restart_file_time_hrldas': pandas.Timestamp('2013-10-13 00:00:00')
+    }
+
+    # For the cycle where the compse retains the casts...
+
+    # This fails:
+    # deepdiff.DeepDiff(answer, cy.casts[0].jobs[0].__dict__)
+    # Instead, iterate on keys to "declass":
+    for kk in cy_check_casts.casts[0].jobs[0].__dict__.keys():
+        assert cy_check_casts.casts[0].jobs[0].__dict__[kk] == answer[kk]
+    # Check the scheduler too
+    #assert cy_check_casts.casts[0].scheduler.__dict__ == scheduler.__dict__
+
+    # For the cycle where the compse removes the casts...
+
+    # Check that the casts are all now simply pathlib objects
+    assert all([type(mm) is str for mm in cy.casts])
+
+    # the tmpdir gets nuked after the test... ?
+    # Test the cast pickle size in terms of load speed.
+    # Note that the deletion of the model, domain, and output objects are
+    # done for the casts regardless of not removing the casts
+    # from memory (currently).
+    os.chdir(str(pathlib.Path(tmpdir) / 'cycle_compose/cast_2012121200'))
+    time_taken = timeit.timeit(
+        setup='import pickle',
+        stmt='pickle.load(open("WrfHydroSim.pkl","rb"))',
+        number=10000
+    )
+    # If your system is busy, this could take longer... and spuriously fail the test.
+    # Notes(JLM): OSX spinning disk is < .5, cheyenne scratch is < 1.2
+    assert time_taken < 1.2
+
+    # Test the cycle pickle size in terms of load speed.
+    os.chdir(str(pathlib.Path(tmpdir) / 'cycle_compose/'))
+    time_taken = timeit.timeit(
+        setup='import pickle',
+        stmt='pickle.load(open("WrfHydroCycleSim.pkl","rb"))',
+        number=10000
+    )
+    # If your system is busy, this could take longer...
+    # Notes(JLM): .6 seems to work on OSX spinning disk and chyenne scratch.
+    assert time_taken < .6
+
+
+def test_cycle_ensemble_parallel_compose(
+    ensemble,
+    job_restart,
+    scheduler,
+    tmpdir,
+    init_times
+):
+    ens = ensemble
+    cy = CycleSimulation(
+        init_times=init_times,
+        restart_dirs=['.'] * len(init_times),
+        ncores=1 ## FIX THIS!! 
+    )
+    cy.add(job_restart)
+    # Adding the scheduler ruins the run in CI.
+    #cy.add(scheduler)
+
+    with pytest.raises(Exception) as e_info:
+        cy.compose()
+
+    cy.add(ens)
+
+    # Make a copy where we keep the casts in memory for checking.
+    cy_check_casts = copy.deepcopy(cy)
+
+    compose_dir = pathlib.Path(tmpdir).joinpath('cycle_ensemble_compose')
     os.mkdir(str(compose_dir))
     os.chdir(str(compose_dir))
     cy.compose()

@@ -21,6 +21,15 @@ def init_times():
 
 
 @pytest.fixture(scope='function')
+def restart_dirs(init_times):
+    restart_dirs = ['.'] * len(init_times)
+    return restart_dirs
+
+
+# JLM todo: restart_dirs, restart_dirs_ensemble, forcing_dirs, forcing_dirs_ensemble
+
+
+@pytest.fixture(scope='function')
 def simulation(model, domain):
     sim = Simulation()
     sim.add(model)
@@ -49,10 +58,10 @@ def ensemble(model, domain, simulation_compiled):
     return ens
 
 
-def test_cycle_init(init_times):
+def test_cycle_init(init_times, restart_dirs):
     cycle = CycleSimulation(
         init_times=init_times,
-        restart_dirs=['.'] * len(init_times)
+        restart_dirs=restart_dirs
     )
     assert type(cycle) is CycleSimulation
     # Not sure why this dosent vectorize well.
@@ -69,12 +78,13 @@ def test_cycle_addsimulation(
     job_restart,
     scheduler,
     simulation_compiled,
-    init_times    
+    init_times,
+    restart_dirs
 ):
     sim = simulation
     cy1 = CycleSimulation(
         init_times=init_times,
-        restart_dirs=['.'] * len(init_times)
+        restart_dirs=restart_dirs
     )
 
     # This sim does not have the required pre-compiled model
@@ -95,7 +105,7 @@ def test_cycle_addsimulation(
     sim_compiled.add(scheduler)
     cy2 = CycleSimulation(
         init_times=init_times,
-        restart_dirs=['.'] * len(init_times)
+        restart_dirs=restart_dirs
     )
     cy2.add(sim_compiled)
     assert cy2._simulation.jobs == []
@@ -106,7 +116,8 @@ def test_cycle_addensemble(
     ensemble,
     job_restart,
     scheduler,
-    init_times    
+    init_times,
+    restart_dirs
 ):
     # The ensemble necessarily has a compiled model (unlike a Simulation).
     # That is a separate test.
@@ -114,7 +125,7 @@ def test_cycle_addensemble(
     ens = ensemble
     cy1 = CycleSimulation(
         init_times=init_times,
-        restart_dirs=['.'] * len(init_times)
+        restart_dirs=restart_dirs
     )
     cy1.add(ensemble)
     assert isinstance(cy1._ensemble, EnsembleSimulation)
@@ -124,15 +135,15 @@ def test_cycle_addensemble(
     ens.add(scheduler)
     cy2 = CycleSimulation(
         init_times=init_times,
-        restart_dirs=['.'] * len(init_times)
+        restart_dirs=restart_dirs
     )
     cy2.add(ensemble)
     assert cy2._ensemble.jobs == []
     assert cy2._ensemble.scheduler == None
 
 
-def test_cycle_addjob(job_restart, init_times):
-    cy1 = CycleSimulation(init_times=init_times, restart_dirs=['.'] * len(init_times))
+def test_cycle_addjob(job_restart, init_times, restart_dirs):
+    cy1 = CycleSimulation(init_times=init_times, restart_dirs=restart_dirs)
     cy1.add(job_restart)
     assert deepdiff.DeepDiff(cy1._job, job_restart) == {}
 
@@ -141,8 +152,8 @@ def test_cycle_addjob(job_restart, init_times):
     assert deepdiff.DeepDiff(cy1._job, job_restart) == {}
 
 
-def test_cycle_addscheduler(scheduler, init_times):
-    cy1 = CycleSimulation(init_times=init_times, restart_dirs=['.'] * len(init_times))
+def test_cycle_addscheduler(scheduler, init_times, restart_dirs):
+    cy1 = CycleSimulation(init_times=init_times, restart_dirs=restart_dirs)
     cy1.add(scheduler)
     assert deepdiff.DeepDiff(cy1._scheduler, scheduler) == {}
 
@@ -154,10 +165,11 @@ def test_cycle_addscheduler(scheduler, init_times):
 
 def test_cycle_length(
     simulation_compiled,
-    init_times
+    init_times,
+    restart_dirs
 ):
     sim = simulation_compiled
-    cy1 = CycleSimulation(init_times=init_times, restart_dirs=['.'] * len(init_times))
+    cy1 = CycleSimulation(init_times=init_times, restart_dirs=restart_dirs)
     cy1.add(sim)
     assert len(cy1) == len(init_times)
     assert cy1.N == len(init_times)
@@ -170,12 +182,13 @@ def test_cycle_parallel_compose(
     job_restart,
     scheduler,
     tmpdir,
-    init_times
+    init_times,
+    restart_dirs
 ):
     sim = simulation_compiled
     cy = CycleSimulation(
         init_times=init_times,
-        restart_dirs=['.'] * len(init_times),
+        restart_dirs=restart_dirs,
         ncores=1 ## PUT BACK TO 2
     )
     cy.add(job_restart)
@@ -333,12 +346,13 @@ def test_cycle_ensemble_parallel_compose(
     job_restart,
     scheduler,
     tmpdir,
-    init_times
+    init_times,
+    restart_dirs
 ):
     ens = ensemble
     cy = CycleSimulation(
         init_times=init_times,
-        restart_dirs=['.'] * len(init_times),
+        restart_dirs=restart_dirs,
         ncores=1 ## FIX THIS!! 
     )
     cy.add(job_restart)
@@ -497,7 +511,8 @@ def test_cycle_run(
     scheduler,
     tmpdir,
     capfd,
-    init_times
+    init_times,
+    restart_dirs
 ):
 
     sim = simulation_compiled
@@ -507,8 +522,6 @@ def test_cycle_run(
     for dir in forcing_dirs:
         dir.mkdir()
 
-    restart_dirs = ['.'] *len(init_times)
-        
     cy = CycleSimulation(
         init_times=init_times,
         restart_dirs=restart_dirs,

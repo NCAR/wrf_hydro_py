@@ -26,7 +26,15 @@ def restart_dirs(init_times):
     return restart_dirs
 
 
-# JLM todo: restart_dirs, restart_dirs_ensemble, forcing_dirs, forcing_dirs_ensemble
+@pytest.fixture(scope='function')
+def restart_dirs_ensemble(init_times):
+    n_members = 3
+    mem_dirs = ['member_' + "{:03d}".format(mm) for mm in range(n_members)]
+    restart_dirs_ensemble = [mem_dirs for _ in range(len(init_times))]
+    return restart_dirs_ensemble
+
+
+# JLM todo: forcing_dirs, forcing_dirs_ensemble
 
 
 @pytest.fixture(scope='function')

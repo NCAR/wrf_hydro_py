@@ -125,7 +125,7 @@ def test_cycle_addensemble(
     job_restart,
     scheduler,
     init_times,
-    restart_dirs
+    restart_dirs_ensemble
 ):
     # The ensemble necessarily has a compiled model (unlike a Simulation).
     # That is a separate test.
@@ -133,7 +133,7 @@ def test_cycle_addensemble(
     ens = ensemble
     cy1 = CycleSimulation(
         init_times=init_times,
-        restart_dirs=restart_dirs
+        restart_dirs=restart_dirs_ensemble
     )
     cy1.add(ensemble)
     assert isinstance(cy1._ensemble, EnsembleSimulation)
@@ -143,7 +143,7 @@ def test_cycle_addensemble(
     ens.add(scheduler)
     cy2 = CycleSimulation(
         init_times=init_times,
-        restart_dirs=restart_dirs
+        restart_dirs=restart_dirs_ensemble
     )
     cy2.add(ensemble)
     assert cy2._ensemble.jobs == []
@@ -180,7 +180,6 @@ def test_cycle_length(
     cy1 = CycleSimulation(init_times=init_times, restart_dirs=restart_dirs)
     cy1.add(sim)
     assert len(cy1) == len(init_times)
-    assert cy1.N == len(init_times)
     # How to assert an error?
     # assert cy1.replicate_member(4) == "WTF mate?"
 
@@ -355,12 +354,12 @@ def test_cycle_ensemble_parallel_compose(
     scheduler,
     tmpdir,
     init_times,
-    restart_dirs
+    restart_dirs_ensemble
 ):
     ens = ensemble
     cy = CycleSimulation(
         init_times=init_times,
-        restart_dirs=restart_dirs,
+        restart_dirs=restart_dirs_ensemble,
         ncores=1 ## FIX THIS!! 
     )
     cy.add(job_restart)

@@ -146,7 +146,7 @@ class CycleSimulation(object):
         forcing_dirs: list=[],
         ncores: int=1
     ):
-        """ Instantiates an CycleSimulation object. """
+        """ Instantiate a Cycle object. """
 
         self.casts = []
         """list: a list of 'casts' which are the individual simulations in the cycle object."""
@@ -187,17 +187,19 @@ class CycleSimulation(object):
     def __len__(self):
         return(len(self._init_times))
 
-    # The "canonical" name for len
-    @property
-    def N(self):
-        return(self.__len__())
+    # # The "canonical" name for len
+    # @property
+    # def N(self):
+    #     return(self.__len__())
 
     # Metadata to store with the "cast" simulations, conceptually this
     # data belongs to the casts:
     # 1) cast time
     # 2) cast directory
     # 3) cast forcing directory
-
+    # 4) restart dirs?
+    # 4) JLM check/revise this... 
+    
     def add(
         self,
         obj: Union[Simulation, Scheduler, Job]
@@ -248,14 +250,28 @@ class CycleSimulation(object):
     def _addrestartdirs(self, restart_dirs: list):
         """Private method to add init times to a CycleSimulation
         Args:
-            restart_dirs: a list of str objects.
+            restart_dirs: deterministic cycle takes a list of str objects, an
+            ensemble cycle takes a list (for each cycle) of lists of str objects (for the 
+            ensemble).
         """
-        if not all([type(ff) in [str, pathlib.Path, pathlib.PosixPath] for ff in restart_dirs]):
-            raise ValueError('List object not all str or pathlib.Path objects, as expected')
+        deterministic_types = [str, pathlib.Path, pathlib.PosixPath]
+        ensemble_types = [list]
+        if not all([type(ff) in deterministic_types + ensemble_types for ff in restart_dirs]):
+            raise ValueError(
+                'restart_dirs argument not as expected for a deterministic cycle ('
+                '' + repr(deterministic_types) + ') or ensemble cycle ('
+                '' + repr(ensemble_types) + ').'
+            )
+
+        if all([type(ff) in deterministic_types for ff in restart_dirs]):
+            self._restart_dirs = [pathlib.Path(cc) for cc in restart_dirs]
+        else:
+            self._restart_dirs = [([pathlib.Path(ee) for ee in cc]) for cc in restart_dirs]
+
+        # Check the length
         if self._init_times != [] and len(restart_dirs) > 1:
             if len(self._init_times) != len(restart_dirs):
                 raise ValueError("Length of restart_dirs does not match that of self._init_times.")
-        self._restart_dirs = [pathlib.Path(ff) for ff in restart_dirs]
 
     def _addscheduler(self, scheduler: Scheduler):
         """Private method to add a Scheduler to an CycleSimulation
@@ -278,7 +294,7 @@ class CycleSimulation(object):
     ):
         """Private method to add a Simulation to an EnsembleSimulation
         Args:
-            model: The Model to add
+            sim: The Simulation to add
         """
 
         if type(sim) is not Simulation:
@@ -303,12 +319,16 @@ class CycleSimulation(object):
     ):
         """Private method to add a Simulation to an EnsembleSimulation
         Args:
-            model: The Model to add
+            ens: The EnsembleSimulation to add
         """
 
         if type(ens) is not EnsembleSimulation:
             raise ValueError("A non-EnsembleSimulation object can not be "
                              "added to the cycle object as a simulation.")
+
+        if not all([isinstance(ii, list) for ii in self._restart_dirs]):
+            raise ValueError("An ensemble cycle simulation requires the restart_dirs to be "
+                             "a list of lists.")
 
         ens_copy = copy.deepcopy(ens)
 

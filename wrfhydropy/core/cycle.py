@@ -13,31 +13,21 @@ from .simulation import Simulation
 from .ensemble import EnsembleSimulation
 
 
-def translate_special_paths(cast):
+def translate_forcing_dirs(forcing_dir, member, init_time):
     # Rules for both forcing_dirs and restart_dirs:
     # 1) A dot or a null string (are identical pathlib.Path objects and) mean "do nothing"
     #    with respect to the default path in the domain.
     # 2) An existing path/file is kept.
     # 3) A negative integer is units hours, pointing to a previous cast in the cycle.
     # 4) Other wise, value error raised.
-
-    # Since casts can be simulations or EnsembleSimulations, need a way to
-    # propigate cast-level to members if this is an EnsembleSimuation.
-    if isinstance(cast, Simulation):
-        members = [cast]  # fun with mutables
-    else:
-        members = cast.members
-    
-    # forcing_dirs:
-    if cast.forcing_dir == pathlib.Path(''):
-        cast.forcing_dir = members[0].base_hrldas_namelist['noahlsm_offline']['indir']
-    elif cast.forcing_dir.exists():
-        for mem in members:
-            mem.base_hrldas_namelist['noahlsm_offline']['indir'] = str(cast.forcing_dir)
-    elif int(str(cast.forcing_dir)) < 0:
-        forcing_cast_time = cast.init_time + datetime.timedelta(hours=int(str(cast.forcing_dir)))
+    if forcing_dir == pathlib.Path(''):
+        forcing_dir = member.base_hrldas_namelist['noahlsm_offline']['indir']
+    elif forcing_dir.exists():
+        member.base_hrldas_namelist['noahlsm_offline']['indir'] = str(forcing_dir)
+    elif int(str(forcing_dir)) < 0:
+        forcing_cast_time = init_time + datetime.timedelta(hours=int(str(forcing_dir)))
         # The last line is a bit hacky.
-        cast.forcing_dir = pathlib.Path(
+        forcing_dir = pathlib.Path(
             '../cast_' +
             forcing_cast_time.strftime('%Y%m%d%H') +
             '/' +
@@ -45,41 +35,47 @@ def translate_special_paths(cast):
         )
         # cant check that it exists... or that this is a cast. does this happen at
         # compose time? will there be an error if run in parallel?
-        for mem in members:
-            mem.base_hrldas_namelist['noahlsm_offline']['indir'] = str(cast.forcing_dir)
+        member.base_hrldas_namelist['noahlsm_offline']['indir'] = str(forcing_dir)
     else:
         raise ValueError("No such forcing directory. Note that non-negative integers are not"
                          " allowed when specifying forcing_dirs.")
+    return None
 
-    # restart_dirs:
-    if cast.restart_dir == pathlib.Path(''):
+
+def translate_restart_dirs(restart_dir, member, init_time):
+    # Rules for both forcing_dirs and restart_dirs:
+    # 1) A dot or a null string (are identical pathlib.Path objects and) mean "do nothing"
+    #    with respect to the default path in the domain.
+    # 2) An existing path/file is kept.
+    # 3) A negative integer is units hours, pointing to a previous cast in the cycle.
+    # 4) Other wise, value error raised.
+    if restart_dir == pathlib.Path(''):
         hydro_rst_file = \
-            members[0].base_hydro_namelist['hydro_nlist']['restart_file']
+            member.base_hydro_namelist['hydro_nlist']['restart_file']
         lsm_rst_file = \
-            members[0].base_hrldas_namelist['noahlsm_offline']['restart_filename_requested']
+            member.base_hrldas_namelist['noahlsm_offline']['restart_filename_requested']
         # TODO: check that these match.
-        cast.restart_dir = pathlib.Path(hydro_rst_file).parent
+        restart_dir = pathlib.Path(hydro_rst_file).parent
 
-    elif cast.restart_dir.exists():
-        #print(cast.restart_dir)
-        for mem in members:
-            mem.base_hydro_namelist['hydro_nlist']['restart_file'] = \
-                str(cast.restart_dir / cast.init_time.strftime('HYDRO_RST.%Y-%m-%d_%H:00_DOMAIN1'))
-            mem.base_hrldas_namelist['noahlsm_offline']['restart_filename_requested'] = \
-                str(cast.restart_dir / cast.init_time.strftime('RESTART.%Y%m%d%H_DOMAIN1'))
+    elif restart_dir.exists():
+        member.base_hydro_namelist['hydro_nlist']['restart_file'] = \
+            str(restart_dir / init_time.strftime('HYDRO_RST.%Y-%m-%d_%H:00_DOMAIN1'))
+        member.base_hrldas_namelist['noahlsm_offline']['restart_filename_requested'] = \
+            str(restart_dir / init_time.strftime('RESTART.%Y%m%d%H_DOMAIN1'))
 
-    elif int(str(cast.restart_dir)) < 0:
-        forcing_cast_time = cast.init_time + datetime.timedelta(hours=int(str(cast.restart_dir)))
-        cast.restart_dir = pathlib.Path('../cast_' + forcing_cast_time.strftime('%Y%m%d%H'))
+    elif int(str(restart_dir)) < 0:
+        forcing_cast_time = init_time + datetime.timedelta(hours=int(str(restart_dir)))
+        restart_dir = pathlib.Path('../cast_' + forcing_cast_time.strftime('%Y%m%d%H'))
         for mem in members:
-            mem.base_hydro_namelist['hydro_nlist']['restart_file'] = \
-                str(cast.restart_dir / cast.init_time.strftime('HYDRO_RST.%Y-%m-%d_%H:00_DOMAIN1'))
-            mem.base_hrldas_namelist['noahlsm_offline']['restart_filename_requested'] = \
-                str(cast.restart_dir / cast.init_time.strftime('RESTART.%Y%m%d%H_DOMAIN1'))
+            member.base_hydro_namelist['hydro_nlist']['restart_file'] = \
+                str(restart_dir / init_time.strftime('HYDRO_RST.%Y-%m-%d_%H:00_DOMAIN1'))
+            member.base_hrldas_namelist['noahlsm_offline']['restart_filename_requested'] = \
+                str(restart_dir / init_time.strftime('RESTART.%Y%m%d%H_DOMAIN1'))
 
     else:
         raise ValueError("No such forcing directory. Note that non-negative integers are not"
                          " allowed when specifying restart_dirs.")
+    return None
 
 
 def parallel_compose_casts(arg_dict):
@@ -91,7 +87,13 @@ def parallel_compose_casts(arg_dict):
     cast.forcing_dir = arg_dict['forcing_dir']
     cast.restart_dir = arg_dict['restart_dir']
 
-    translate_special_paths(cast)
+    if isinstance(cast, Simulation):
+        translate_forcing_dirs(cast.forcing_dir, cast, cast.init_time)
+        translate_restart_dirs(cast.forcing_dir, cast, cast.init_time)
+    else:
+        for forcing_dir, member in zip(cast.forcing_dir, cast.members):
+            translate_forcing_dirs(forcing_dir, member, cast.init_time)
+            translate_restart_dirs(forcing_dir, member, cast.init_time)
 
     job = copy.deepcopy(arg_dict['job'])
     khour = job.model_end_time - job.model_start_time
@@ -115,7 +117,11 @@ def parallel_compose_casts(arg_dict):
     if 'output' in dir(cast):
         del cast.output
 
-    cast.pickle('WrfHydroSim.pkl')
+    if isinstance(arg_dict['prototype'], Simulation):
+        cast.pickle('WrfHydroSim.pkl')
+    else:
+        cast.pickle('WrfHydroEns.pkl')
+
     os.chdir(orig_dir)
 
     return cast
@@ -127,12 +133,17 @@ def parallel_run_casts(arg_dict):
         os.chdir(str(pathlib.Path(arg_dict['cycle_dir']) / arg_dict['cast']))
     else:
         os.chdir(str(pathlib.Path(arg_dict['cycle_dir']) / arg_dict['cast'].run_dir))
-    cast_pkl = pickle.load(open("WrfHydroSim.pkl", "rb"))
-    cast_pkl.run()
-    return cast_pkl.jobs[0].exit_status
+
+    pkl_file = pathlib.Path("WrfHydroSim.pkl")
+    if not pkl_file.exists():
+        pkl_file = pathlib.Path("WrfHydroEns.pkl")
+
+    cast_pkl = pickle.load(pkl_file.open("rb"))
+    exit_status = cast_pkl.run()
+
+    return exit_status
 
 
-# Classes for constructing and running a wrf_hydro simulation
 class CycleSimulation(object):
     """Class for a WRF-Hydro CycleSimulation object. The Cycle Simulation object is used to
     orchestrate a set of 'N' WRF-Hydro simulations, referred to as 'casts', which only differ
@@ -202,7 +213,7 @@ class CycleSimulation(object):
     
     def add(
         self,
-        obj: Union[Simulation, Scheduler, Job]
+        obj: Union[Simulation, EnsembleSimulation, Scheduler, Job]
     ):
         """Add an approparite object to an CycleSimulation, such as a Simulation, Job, or
         Scheduler.
@@ -236,7 +247,7 @@ class CycleSimulation(object):
         self._init_times = copy.deepcopy(init_times)
 
     def _addforcingdirs(self, forcing_dirs: list):
-        """Private method to add init times to a CycleSimulation
+        """Private method to add forcing dirs to a Cycle.
         Args:
             forcing_dirs: a list of str objects.
         """
@@ -370,7 +381,12 @@ class CycleSimulation(object):
 
         # Allowing forcing_dirs to be optional or scalar.
         if self._forcing_dirs == []:
-            self._forcing_dirs = [pathlib.Path('.')] * len(self)
+            if cast_prototype == '_simulation':
+                self._forcing_dirs = [pathlib.Path('.')] * len(self)
+            else:
+                self._forcing_dirs = \
+                    [([pathlib.Path('.') for _ in range(len(self.__dict__[cast_prototype]))])
+                     for cc in range(len(self))]
         if len(self._forcing_dirs) == 1:
             self._forcing_dirs = [self._forcing_dirs[0] for ii in self._init_times]
 
@@ -445,7 +461,7 @@ class CycleSimulation(object):
         self,
         n_concurrent: int=1
     ):
-        """Run the ensemble of simulations."""
+        """Run the cycle of simulations."""
         #ens_dir = os.getcwd()
 
         if n_concurrent > 1:

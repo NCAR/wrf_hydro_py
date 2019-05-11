@@ -23,7 +23,7 @@ setup(
         'requests',
         'dask[bag]'
     ],
-    author='Ryan Cabell',
-    author_email='rcabell@ucar.edu',
+    author='James McCreight',
+    author_email='jamesmcc@ucar.edu',
     description='Crude API for the WRF-Hydro model',
 )

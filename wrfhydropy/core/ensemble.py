@@ -388,7 +388,7 @@ class EnsembleSimulation(object):
         # Return to the ensemble dir.
         os.chdir(ens_dir)
 
-        return all([ee == 0 for ee in exit_codes])
+        return int(not all([ee == 0 for ee in exit_codes]))
 
     def pickle(self, path: str):
         """Pickle ensemble sim object to specified file path

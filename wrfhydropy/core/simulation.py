@@ -147,6 +147,8 @@ class Simulation(object):
         path = current_dir.joinpath('WrfHydroSim.pkl')
         self.pickle(str(path))
 
+        return int(not all(jj.exit_status == 0 for jj in self.jobs))
+
     def collect(self):
         """Collect simulation output after a run"""
 

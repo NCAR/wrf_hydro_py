@@ -107,7 +107,10 @@ def parallel_compose_casts(arg_dict):
     orig_dir = os.getcwd()
     os.mkdir(cast.run_dir)
     os.chdir(cast.run_dir)
-    cast.compose()
+    if isinstance(cast, Simulation):
+        cast.compose()
+    else:
+        cast.compose(rm_members_from_memory=arg_dict['rm_members_from_memory'])
 
     # The Simulation object clean up.
     if 'model' in dir(cast):
@@ -209,8 +212,8 @@ class CycleSimulation(object):
     # 2) cast directory
     # 3) cast forcing directory
     # 4) restart dirs?
-    # 4) JLM check/revise this... 
-    
+    # JLM todo: check/revise this...
+
     def add(
         self,
         obj: Union[Simulation, EnsembleSimulation, Scheduler, Job]
@@ -262,7 +265,7 @@ class CycleSimulation(object):
         """Private method to add init times to a CycleSimulation
         Args:
             restart_dirs: deterministic cycle takes a list of str objects, an
-            ensemble cycle takes a list (for each cycle) of lists of str objects (for the 
+            ensemble cycle takes a list (for each cycle) of lists of str objects (for the
             ensemble).
         """
         deterministic_types = [str, pathlib.Path, pathlib.PosixPath]
@@ -354,7 +357,8 @@ class CycleSimulation(object):
         symlink_domain: bool=True,
         force: bool=False,
         check_nlst_warn: bool=False,
-        rm_casts_from_memory: bool=True
+        rm_casts_from_memory: bool=True,
+        rm_members_from_memory: bool=True
     ):
         """Cycle compose (directories and files to disk)
         Args:
@@ -373,7 +377,7 @@ class CycleSimulation(object):
             if '_ensemble' not in dir(self):
                 raise ValueError("The cycle does not contain a _simulation or an _ensemble.")
             cast_prototype = '_ensemble'
-        
+
         if len(self) < 1:
             raise ValueError("There are no casts (init_times) to compose.")
 
@@ -392,7 +396,7 @@ class CycleSimulation(object):
 
         # An ensemble must have a compiled model.
         if cast_prototype == '_simulation':
-            # compile the model (once) before setting up the casts. 
+            # compile the model (once) before setting up the casts.
             if self._simulation.model.compile_log is None:
                 self._simulation.model.compile()
 
@@ -407,6 +411,7 @@ class CycleSimulation(object):
                      'forcing_dir': forcing_dir,
                      'job': self._job,
                      'scheduler': self._scheduler,
+                     'rm_members_from_memory': rm_members_from_memory,
                     }
                 ) for init_time, restart_dir, forcing_dir in zip(
                     self._init_times,
@@ -429,6 +434,7 @@ class CycleSimulation(object):
                         'forcing_dir': forcing_dir,
                         'job': self._job,
                         'scheduler': self._scheduler,
+                        'rm_members_from_memory': rm_members_from_memory,
                     } for init_time, restart_dir, forcing_dir in zip(
                         self._init_times,
                         self._restart_dirs,

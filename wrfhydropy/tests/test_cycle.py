@@ -107,7 +107,7 @@ def test_cycle_addsimulation(
 
     cy1.add(sim_compiled)
     assert isinstance(cy1._simulation, Simulation)
-    
+
     # add a sim with job and make sure it is deleted.
     sim_compiled.add(job_restart)
     sim_compiled.add(scheduler)
@@ -129,7 +129,7 @@ def test_cycle_addensemble(
 ):
     # The ensemble necessarily has a compiled model (unlike a Simulation).
     # That is a separate test.
-    
+
     ens = ensemble
     cy1 = CycleSimulation(
         init_times=init_times,
@@ -137,7 +137,7 @@ def test_cycle_addensemble(
     )
     cy1.add(ensemble)
     assert isinstance(cy1._ensemble, EnsembleSimulation)
-    
+
     # add an ens with a job and make sure it is deleted.
     ens.add(job_restart)
     ens.add(scheduler)
@@ -360,11 +360,11 @@ def test_cycle_ensemble_parallel_compose(
     cy = CycleSimulation(
         init_times=init_times,
         restart_dirs=restart_dirs_ensemble,
-        ncores=1 ## FIX THIS!! 
+        ncores=1  # FIX THIS!!
     )
     cy.add(job_restart)
     # Adding the scheduler ruins the run in CI.
-    #cy.add(scheduler)
+    # cy.add(scheduler)
 
     with pytest.raises(Exception) as e_info:
         cy.compose()
@@ -382,13 +382,13 @@ def test_cycle_ensemble_parallel_compose(
     cy_run_success = cy.run()
     assert cy_run_success
     cy.pickle(str(pathlib.Path(tmpdir) / 'cycle_ensemble_compose/WrfHydroCycleEns.pkl'))
-    ## Is this pickle used? 
-    
+    # Is this pickle used?
+
     # The cycle-in-memory version for checking the casts.
     compose_dir = pathlib.Path(tmpdir).joinpath('cycle_compose_check_casts')
     os.mkdir(str(compose_dir))
     os.chdir(str(compose_dir))
-    cy_check_casts.compose(rm_casts_from_memory=False)
+    cy_check_casts.compose(rm_casts_from_memory=False, rm_members_from_memory=False)
 
     # The job gets heavily modified on compose.
     answer = {
@@ -476,8 +476,12 @@ def test_cycle_ensemble_parallel_compose(
     # This fails:
     # deepdiff.DeepDiff(answer, cy.casts[0].jobs[0].__dict__)
     # Instead, iterate on keys to "declass":
-    for kk in cy_check_casts.casts[0].jobs[0].__dict__.keys():
-        assert cy_check_casts.casts[0].jobs[0].__dict__[kk] == answer[kk]
+    # Just check the first ensemble cast.
+    for cc in [cy_check_casts.casts[0]]:
+        for mm in cc.members:
+            for kk in mm.jobs[0].__dict__.keys():
+                assert mm.jobs[0].__dict__[kk] == answer[kk]
+
     # Check the scheduler too
     #assert cy_check_casts.casts[0].scheduler.__dict__ == scheduler.__dict__
 
@@ -491,10 +495,10 @@ def test_cycle_ensemble_parallel_compose(
     # Note that the deletion of the model, domain, and output objects are
     # done for the casts regardless of not removing the casts
     # from memory (currently).
-    os.chdir(str(pathlib.Path(tmpdir) / 'cycle_compose/cast_2012121200'))
+    os.chdir(str(pathlib.Path(tmpdir) / 'cycle_ensemble_compose/cast_2012121200'))
     time_taken = timeit.timeit(
         setup='import pickle',
-        stmt='pickle.load(open("WrfHydroSim.pkl","rb"))',
+        stmt='pickle.load(open("WrfHydroEns.pkl","rb"))',
         number=10000
     )
     # If your system is busy, this could take longer... and spuriously fail the test.
@@ -502,15 +506,15 @@ def test_cycle_ensemble_parallel_compose(
     assert time_taken < 1.2
 
     # Test the cycle pickle size in terms of load speed.
-    os.chdir(str(pathlib.Path(tmpdir) / 'cycle_compose/'))
+    os.chdir(str(pathlib.Path(tmpdir) / 'cycle_ensemble_compose/'))
     time_taken = timeit.timeit(
         setup='import pickle',
-        stmt='pickle.load(open("WrfHydroCycleSim.pkl","rb"))',
+        stmt='pickle.load(open("WrfHydroCycleEns.pkl","rb"))',
         number=10000
     )
     # If your system is busy, this could take longer...
     # Notes(JLM): .6 seems to work on OSX spinning disk and chyenne scratch.
-    assert time_taken < .6
+    assert time_taken < 1
 
 
 def test_cycle_run(

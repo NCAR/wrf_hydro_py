@@ -381,8 +381,9 @@ def test_cycle_ensemble_parallel_compose(
 
     cy_run_success = cy.run()
     assert cy_run_success
-    cy.pickle(str(pathlib.Path(tmpdir) / 'cycle_compose/WrfHydroCycleSim.pkl'))
-
+    cy.pickle(str(pathlib.Path(tmpdir) / 'cycle_ensemble_compose/WrfHydroCycleEns.pkl'))
+    ## Is this pickle used? 
+    
     # The cycle-in-memory version for checking the casts.
     compose_dir = pathlib.Path(tmpdir).joinpath('cycle_compose_check_casts')
     os.mkdir(str(compose_dir))

@@ -503,7 +503,7 @@ def test_cycle_ensemble_parallel_compose(
     )
     # If your system is busy, this could take longer... and spuriously fail the test.
     # Notes(JLM): OSX spinning disk is < .5, cheyenne scratch is < 1.2
-    assert time_taken < 1.2
+    assert time_taken < 1.5
 
     # Test the cycle pickle size in terms of load speed.
     os.chdir(str(pathlib.Path(tmpdir) / 'cycle_ensemble_compose/'))

@@ -484,6 +484,7 @@ class EnsembleSimulation(object):
         ens_dir = os.getcwd()
 
         if isinstance(teams_dict, dict):
+            
             with multiprocessing.Pool(len(teams_dict), initializer=mute) as pool:
                 exit_codes = pool.map(
                     parallel_teams_run,
@@ -499,20 +500,19 @@ class EnsembleSimulation(object):
             #     for (key, team_dict) in teams_dict.items()
             # ]
 
-            # Return to the ensemble dir.
             os.chdir(ens_dir)
-            return all([list(ee.values())[0] == 0 for ee in exit_codes])
+            return int(not all([list(ee.values())[0] == 0 for ee in exit_codes]))
 
         elif n_concurrent > 1:
+
             with multiprocessing.Pool(n_concurrent, initializer=mute) as pool:
                 exit_codes = pool.map(
                     parallel_run,
                     ({'member': mm, 'ens_dir': ens_dir} for mm in self.members)
                 )
 
-            # Return to the ensemble dir.
             os.chdir(ens_dir)
-            return all([ee == 0 for ee in exit_codes])
+            return int(not all([ee == 0 for ee in exit_codes]))
 
         else:
             # Keep the following for debugging: Run it without pool.map
@@ -520,10 +520,8 @@ class EnsembleSimulation(object):
                 parallel_run({'member': mm, 'ens_dir': ens_dir}) for mm in self.members
             ]
 
-        # Return to the ensemble dir.
-        os.chdir(ens_dir)
-
-        return int(not all([ee == 0 for ee in exit_codes]))
+            os.chdir(ens_dir)
+            return int(not all([ee == 0 for ee in exit_codes]))
 
     def pickle(self, path: str):
         """Pickle ensemble sim object to specified file path

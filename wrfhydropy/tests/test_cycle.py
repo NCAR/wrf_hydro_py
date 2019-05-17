@@ -12,6 +12,8 @@ from wrfhydropy.core.simulation import Simulation
 from wrfhydropy.core.ensemble import EnsembleSimulation
 from wrfhydropy.core.cycle import CycleSimulation
 
+def sub_tmpdir(the_string, tmpdir, pattern='<<tmpdir>>'):
+    return the_string.replace(pattern, str(tmpdir))
 
 @pytest.fixture(scope='function')
 def init_times():
@@ -29,8 +31,9 @@ def restart_dirs(init_times):
 @pytest.fixture(scope='function')
 def restart_dirs_ensemble(init_times):
     n_members = 3
-    mem_dirs = ['member_' + "{:03d}".format(mm) for mm in range(n_members)]
-    restart_dirs_ensemble = [mem_dirs for _ in range(len(init_times))]
+    restart_dirs_ensemble = [
+        ['.', '.', '.'], ['-72'] * n_members, ['dummy_extant_dir'] * n_members
+    ]
     return restart_dirs_ensemble
 
 
@@ -118,6 +121,87 @@ def test_cycle_addsimulation(
     cy2.add(sim_compiled)
     assert cy2._simulation.jobs == []
     assert cy2._simulation.scheduler == None
+
+
+@pytest.mark.parametrize(
+    ['restart_dirs', 'expected'],
+    [(
+        ['.'] * 3,
+        {'lsm': ['./NWM/RESTART/RESTART.2011082600_DOMAIN1',
+                 './NWM/RESTART/RESTART.2011082600_DOMAIN1',
+                 './NWM/RESTART/RESTART.2011082600_DOMAIN1'],
+         'hyd': ['./NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
+                 './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
+                 './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1']
+        }
+     ),
+     (
+        ['0', '-72', '-72'],
+        {'lsm': ['../cast_2012121200/RESTART.2012121200_DOMAIN1',
+                  '../cast_2012121200/RESTART.2012121500_DOMAIN1',
+                 '../cast_2012121500/RESTART.2012121800_DOMAIN1'],
+         'hyd': ['../cast_2012121200/HYDRO_RST.2012-12-12_00:00_DOMAIN1',
+                 '../cast_2012121200/HYDRO_RST.2012-12-15_00:00_DOMAIN1',
+                 '../cast_2012121500/HYDRO_RST.2012-12-18_00:00_DOMAIN1'],
+        }
+     ),
+     (
+        ['.', '-72', 'dummy_extant_dir'],
+        {'lsm': ['./NWM/RESTART/RESTART.2011082600_DOMAIN1',
+                 '../cast_2012121200/RESTART.2012121500_DOMAIN1',
+                 '<<tmpdir>>/compose/dummy_extant_dir/RESTART.2012121800_DOMAIN1'],
+         'hyd': ['./NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
+                 '../cast_2012121200/HYDRO_RST.2012-12-15_00:00_DOMAIN1',
+                 '<<tmpdir>>/compose/dummy_extant_dir/HYDRO_RST.2012-12-18_00:00_DOMAIN1']
+        }
+     ),
+     (
+        ['/foo/bar', '-72', '-72'],
+        ["invalid literal for int() with base 10: '/foo/bar'"]
+     )
+    ]
+)
+def test_cycle_addsimulation_translate(
+    restart_dirs,
+    expected,
+    init_times,
+    simulation_compiled,
+    job_restart,
+    tmpdir
+):
+    os.chdir(tmpdir)
+    sim = simulation
+    cy1 = CycleSimulation(
+        init_times=init_times,
+        restart_dirs=restart_dirs
+    )
+
+    sim_compiled = simulation_compiled
+    cy1.add(sim_compiled)
+    cy1.add(job_restart)
+
+    # translation happens on compose.
+    try:
+        os.mkdir(tmpdir / 'compose')
+        os.chdir(tmpdir / 'compose')
+        # This may be use in some of the tests
+        pathlib.Path('dummy_extant_dir').touch()
+        cy1.compose(rm_casts_from_memory=False)
+        lsm_keys=['noahlsm_offline', 'restart_filename_requested']
+        hyd_keys=['hydro_nlist', 'restart_file']
+        result = {
+            'lsm': [cast.base_hrldas_namelist[lsm_keys[0]][lsm_keys[1]] for cast in cy1.casts],
+            'hyd': [cast.base_hydro_namelist[hyd_keys[0]][hyd_keys[1]] for cast in cy1.casts]
+        }
+    except Exception as e:
+        result = [str(e)]  # Cludgy but it works
+
+    if isinstance(expected, dict):
+        for key, v_list in expected.items():
+            for ii, path in enumerate(v_list):
+                expected[key][ii] = sub_tmpdir(path, tmpdir)
+
+    assert result == expected
 
 
 def test_cycle_addensemble(
@@ -377,6 +461,7 @@ def test_cycle_ensemble_parallel_compose(
     compose_dir = pathlib.Path(tmpdir).joinpath('cycle_ensemble_compose')
     os.mkdir(str(compose_dir))
     os.chdir(str(compose_dir))
+    pathlib.Path('dummy_extant_dir').touch()
     cy.compose()
 
     cy_run_success = cy.run()
@@ -388,6 +473,7 @@ def test_cycle_ensemble_parallel_compose(
     compose_dir = pathlib.Path(tmpdir).joinpath('cycle_compose_check_casts')
     os.mkdir(str(compose_dir))
     os.chdir(str(compose_dir))
+    pathlib.Path('dummy_extant_dir').touch()
     cy_check_casts.compose(rm_casts_from_memory=False, rm_members_from_memory=False)
 
     # The job gets heavily modified on compose.
@@ -471,22 +557,115 @@ def test_cycle_ensemble_parallel_compose(
         '_restart_file_time_hrldas': pandas.Timestamp('2013-10-13 00:00:00')
     }
 
-    # For the cycle where the compse retains the casts...
+    # These answer patches respond to the variety of things in restart_dirs_ensemble
+    dum_ext = str(tmpdir) + '/cycle_compose_check_casts/dummy_extant_dir/'
+    answer_patches = {
+        'cast_index': [0, 1, 2],
+        'start_time_patch': [
+            pandas.Timestamp('2012-12-12 00:00:00'),
+            pandas.Timestamp('2012-12-15 00:00:00'),
+            pandas.Timestamp('2012-12-18 00:00:00')
+        ],
+        'end_time_patch': [
+            pandas.Timestamp('2045-03-04 00:00:00'),
+            pandas.Timestamp('2045-03-07 00:00:00'),
+            pandas.Timestamp('2045-03-10 00:00:00')
+        ],
 
+        # These "time patches" reveal the awkwardness of that construct.
+        'lsm_times_patch': [
+            'NWM/RESTART/RESTART.2013101300_DOMAIN1',
+            '../../cast_2012121200/member_000/RESTART.2013101300_DOMAIN1',
+            dum_ext + 'RESTART.2013101300_DOMAIN1'
+        ],
+        'hydro_times_patch': [
+            'NWM/RESTART/HYDRO_RST.2013-10-13_00:00_DOMAIN1',
+            '../../cast_2012121200/member_000/HYDRO_RST.2013-10-13_00:00_DOMAIN1',
+            dum_ext + 'HYDRO_RST.2013-10-13_00:00_DOMAIN1'
+        ],
+        'ndg_times_patch': [
+            'NWM/RESTART/nudgingLastObs.2013-10-13_00:00:00.nc',
+            '../../cast_2012121200/member_000/nudgingLastObs.2013-10-13_00:00:00.nc',
+            dum_ext + 'nudgingLastObs.2013-10-13_00:00:00.nc'
+        ],
+
+        # These namelist patches are consistent with the model times except in the
+        # first "do nothing" case which leaves the start time != restart file time
+        'lsm_nlst_patch': [
+            './NWM/RESTART/RESTART.2011082600_DOMAIN1',
+            '../../cast_2012121200/member_000/RESTART.2012121500_DOMAIN1',
+            dum_ext + 'RESTART.2012121800_DOMAIN1'
+        ],
+        'hydro_nlst_patch': [
+            './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
+            '../../cast_2012121200/member_000/HYDRO_RST.2012-12-15_00:00_DOMAIN1',
+            dum_ext + 'HYDRO_RST.2012-12-18_00:00_DOMAIN1'
+        ],
+        'ndg_nlst_patch': [
+            './NWM/RESTART/nudgingLastObs.2011-08-26_00:00:00.nc',
+            '../../cast_2012121200/member_000/nudgingLastObs.2012-12-15_00:00:00.nc',
+            dum_ext + 'nudgingLastObs.2012-12-18_00:00:00.nc'
+        ]
+
+    }
+
+    # Check a cycle where the compse retains the casts (otherwise nothing in memory).
     # This fails:
     # deepdiff.DeepDiff(answer, cy.casts[0].jobs[0].__dict__)
     # Instead, iterate on keys to "declass":
     # Just check the first ensemble cast.
-    for cc in [cy_check_casts.casts[0]]:
-        for mm in cc.members:
-            for kk in mm.jobs[0].__dict__.keys():
-                assert mm.jobs[0].__dict__[kk] == answer[kk]
+    def sub_member(the_string, replace_num, find_num=0):
+        replace = "member_{:03d}".format(replace_num)
+        find = "member_{:03d}".format(find_num)
+        return the_string.replace(find, replace)
+
+    for ii in answer_patches['cast_index']:
+        cc = cy_check_casts.casts[ii]
+
+        for mm, member in enumerate(cc.members):
+
+            answer['_model_start_time'] = answer_patches['start_time_patch'][ii]
+            answer['_model_end_time'] = answer_patches['end_time_patch'][ii]
+
+            keys = ['noahlsm_offline', 'restart_filename_requested']
+            answer['_hrldas_namelist'][keys[0]][keys[1]] = \
+                sub_member(answer_patches['lsm_nlst_patch'][ii], mm)
+            answer['_hrldas_times'][keys[0]][keys[1]] = \
+                sub_member(answer_patches['lsm_times_patch'][ii], mm)
+
+            keys = ['_hydro_namelist', 'hydro_nlist', 'restart_file']
+            answer[keys[0]][keys[1]][keys[2]] = \
+                sub_member(answer_patches['hydro_nlst_patch'][ii], mm)
+
+            keys = ['_hydro_namelist', 'nudging_nlist', 'nudginglastobsfile']
+            answer[keys[0]][keys[1]][keys[2]] = \
+                sub_member(answer_patches['ndg_nlst_patch'][ii], mm)
+
+            keys = ['_hydro_times', 'hydro_nlist', 'restart_file']
+            answer[keys[0]][keys[1]][keys[2]] =\
+                sub_member(answer_patches['hydro_times_patch'][ii], mm)
+
+            keys = ['_hydro_times', 'nudging_nlist', 'nudginglastobsfile']
+            answer[keys[0]][keys[1]][keys[2]] = \
+                sub_member(answer_patches['ndg_times_patch'][ii], mm)
+
+            # hrldas times
+            fmt_keys = {
+                '%Y': 'start_year', '%m': 'start_month',
+                '%d': 'start_day', '%H': 'start_hour'
+            }
+            the_mutable = answer['_hrldas_times']['noahlsm_offline']
+            for fmt, key in fmt_keys.items():
+                the_mutable[key] = int(answer['_model_start_time'].strftime(fmt))
+
+            # Actually check
+            for kk in member.jobs[0].__dict__.keys():
+                assert member.jobs[0].__dict__[kk] == answer[kk]
 
     # Check the scheduler too
     #assert cy_check_casts.casts[0].scheduler.__dict__ == scheduler.__dict__
 
     # For the cycle where the compse removes the casts...
-
     # Check that the casts are all now simply pathlib objects
     assert all([type(mm) is str for mm in cy.casts])
 

@@ -129,7 +129,9 @@ class Simulation(object):
         print('Simulation successfully composed')
 
     def run(self):
-        """Run the composed simulation"""
+        """Run the composed simulation.
+        Returns: 0 for success.
+        """
         current_dir = pathlib.Path(os.curdir)
 
         # Save the object out to the compile directory before run
@@ -146,6 +148,8 @@ class Simulation(object):
         # Overwrite the object after run if successfull
         path = current_dir.joinpath('WrfHydroSim.pkl')
         self.pickle(str(path))
+
+        return int(not all(jj.exit_status == 0 for jj in self.jobs))
 
     def collect(self):
         """Collect simulation output after a run"""

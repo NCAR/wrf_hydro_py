@@ -300,7 +300,7 @@ def test_ens_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     os.chdir(str(ens_dir))
     ens_serial.compose(rm_members_from_memory=False)
     serial_run_success = ens_serial.run()
-    assert serial_run_success, \
+    assert serial_run_success == 0, \
         "Some serial ensemble members did not run successfully."
 
     # Parallel test
@@ -312,7 +312,7 @@ def test_ens_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     ens_parallel.compose()
 
     ens_run_success = ens_parallel.run(n_concurrent=2)
-    assert ens_run_success, \
+    assert ens_run_success == 0, \
         "Some parallel ensemble members did not run successfully."
 
     # Parallel test with ensemble in memory
@@ -323,5 +323,5 @@ def test_ens_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     os.chdir(str(ens_dir))
     ens_parallel.compose(rm_members_from_memory=False)
     ens_run_mem_success = ens_parallel.run(n_concurrent=2)
-    assert ens_run_mem_success, \
+    assert ens_run_mem_success == 0, \
         "Some parallel ensemble members in memory did not run successfully."

@@ -60,41 +60,45 @@ def parallel_run(arg_dict):
 
 
 def parallel_teams_run(arg_dict):
-    """Parallelizable function for teams to run an EnsembleSimuation."""
+    """Parallelizable function for teams to run an EnsembleSimuation.
 
-    # This function is called (in parallel) for each team.
-    # This function sequentially runs (loops over) the ensemble members for which
-    # the team is responsible.
-    # The information require comes from the arg_dict.
-    # arg_dict.keys() == [
-    #   'ens_dir',  # = the ensemble run directory full path, where the member dirs are found
-    #   'team_dict' # = the information needed for the team, see below
-    # ]
-    #
-    # team_dict.keys() == [
-    #     'members',   # = the strings for the member dirs to run
-    #     'nodes',     # = the nodes previously parsed from something like $PBS_NODEFILE
-    #     'entry_cmd', # = the entry cmd to be run
-    #     'exe_cmd',   # = the model invokation command
-    #     'exit_cmd',  # = exit cmd to be run
-    #     'env'        # = the environment dict in which to run all the commands, may be None or 'None'
-    # ]
-    #
-    # The "exe_cmd" is a form of invocation for the distribution of MPI to be used. For
-    # openmpi, for example, this is
-    #     exe_cmd: 'mpirun --host {hostname} -np {nproc} {cmd}'
-    # The variables in brackets are expanded
-    #
-    # The "entry_cmd" and "exit_cmd"
-    #   1) can be semicolon-separated commands which will be separated
-    #   2) and run serially on the first node listed in "nodes"
-    #
-    # The model command substitutes the wrfhydropy 'wrf_hydro.exe' convention for {cmd}
-    # and applies the full set of "nodes" for {hostname} which provides the length for
-    # determining {nproc}.
-    #
-    # Currently this is working/tested with openmpi.
-    # MPT requires MPI_SHEPERD env variable and it's performance is not satisfactory so far.
+    This function is called (in parallel) once for each team. (First level of parallelism
+    is from python multiprocessing.
+    This function (a team) sequentially runs (loops over) the ensemble members for which
+    the team is responsible.
+    This function (a team) makes a system call using MPI. (The second level of parallelism).
+
+    Arguments:
+        arg_dict:
+            arg_dict.keys() == [
+               'ens_dir'  : <the ensemble run dir full path, where the member dirs are found>,
+               'team_dict': <the information needed for the team, see below>
+            ]
+            where
+            team_dict.keys() == [
+                'members',   : <the strings for the member dirs to run>,
+                'nodes',     : <the nodes previously parsed from something like $PBS_NODEFILE>,
+                'entry_cmd', : <the entry cmd to be run>,
+                'exe_cmd',   : <the MPI-specific model invokation command>,
+                'exit_cmd',  : <exit cmd to be run>,
+                'env'        : <the env dict in which to run the cmds, may be None or 'None'>
+            ]
+
+            The 'exe_cmd' is a form of invocation for the distribution of MPI to be used. For
+            openmpi, for example for OpenMPI, this is
+                exe_cmd: 'mpirun --host {hostname} -np {nproc} {cmd}'
+            The variables in brackets are expanded by internal variables. The 'exe_cmd'
+            command substitutes the wrfhydropy of 'wrf_hydro.exe' convention for {cmd}.
+
+            The "entry_cmd" and "exit_cmd"
+              1) can be semicolon-separated commands
+              2) where these are run depends on MPI. OpenMPI, for example, handles these
+                 on the same processor set as the model runs.
+
+    Notes:
+        Currently this is working/tested with openmpi.
+        MPT requires MPI_SHEPERD env variable and it's performance is not satisfactory so far.
+    """
 
     ens_dir = arg_dict['ens_dir']
     team_dict = arg_dict['team_dict']

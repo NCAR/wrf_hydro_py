@@ -417,7 +417,7 @@ def test_cycle_parallel_compose(
         number=10000
     )
     # If your system is busy, this could take longer... and spuriously fail the test.
-    # Notes(JLM): OSX spinning disk is < .5, cheyenne scratch is < 1.2
+    # Notes(JLM): docker CI is the limiting factor.
     assert time_taken < 1.2
 
     # Test the cycle pickle size in terms of load speed.
@@ -428,7 +428,7 @@ def test_cycle_parallel_compose(
         number=10000
     )
     # If your system is busy, this could take longer...
-    # Notes(JLM): .6 seems to work on OSX spinning disk and chyenne scratch.
+    # Notes(JLM): docker CI is the limiting factor.
     assert time_taken < .6
 
 
@@ -681,7 +681,7 @@ def test_cycle_ensemble_parallel_compose(
         number=10000
     )
     # If your system is busy, this could take longer... and spuriously fail the test.
-    # Notes(JLM): OSX spinning disk is < .5, cheyenne scratch is < 1.2
+    # Notes(JLM): docker CI is the limiting factor here.
     assert time_taken < 1.5
 
     # Test the cycle pickle size in terms of load speed.
@@ -692,8 +692,8 @@ def test_cycle_ensemble_parallel_compose(
         number=10000
     )
     # If your system is busy, this could take longer...
-    # Notes(JLM): .6 seems to work on OSX spinning disk and chyenne scratch.
-    assert time_taken < 1
+    # Notes(JLM): docker CI is the limiting factor here.
+    assert time_taken < 1.2
 
 
 def test_cycle_run(

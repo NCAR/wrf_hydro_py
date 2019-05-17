@@ -300,7 +300,7 @@ def test_cycle_parallel_compose(
     cy.compose()
 
     cy_run_success = cy.run()
-    assert cy_run_success
+    assert cy_run_success == 0
     cy.pickle(str(pathlib.Path(tmpdir) / 'cycle_compose/WrfHydroCycleSim.pkl'))
 
     # The cycle-in-memory version for checking the casts.
@@ -465,7 +465,7 @@ def test_cycle_ensemble_parallel_compose(
     cy.compose()
 
     cy_run_success = cy.run()
-    assert cy_run_success
+    assert cy_run_success == 0
     cy.pickle(str(pathlib.Path(tmpdir) / 'cycle_ensemble_compose/WrfHydroCycleEns.pkl'))
     # Is this pickle used?
 
@@ -730,7 +730,7 @@ def test_cycle_run(
     cy_serial.compose(rm_casts_from_memory=False)
 
     serial_run_success = cy_serial.run()
-    assert serial_run_success, \
+    assert serial_run_success == 0, \
         "Some serial cycle casts did not run successfully."
 
     # Parallel test
@@ -742,7 +742,7 @@ def test_cycle_run(
     cy_parallel.compose()
 
     cy_run_success = cy_parallel.run(n_concurrent=2)
-    assert cy_run_success, \
+    assert cy_run_success == 0, \
         "Some parallel cycle casts did not run successfully."
 
     # Parallel test with ensemble in memory
@@ -753,7 +753,7 @@ def test_cycle_run(
     os.chdir(str(cy_dir))
     cy_parallel.compose(rm_casts_from_memory=False)
     cy_run_mem_success = cy_parallel.run(n_concurrent=2)
-    assert cy_run_mem_success, \
+    assert cy_run_mem_success == 0, \
         "Some parallel cycle casts in memory did not run successfully."
 
 
@@ -782,7 +782,7 @@ def test_cycle_self_dependent_run(
     os.chdir(str(cy_dir))
     cy_serial.compose(rm_casts_from_memory=False)
     serial_run_success = cy_serial.run()
-    assert serial_run_success, \
+    assert serial_run_success == 0, \
         "Some serial cycle casts did not run successfully."
 
     # Parallel test
@@ -795,5 +795,5 @@ def test_cycle_self_dependent_run(
     # cy_parallel.compose()
 
     # cy_run_success = cy_parallel.run(n_concurrent=2)
-    # assert cy_run_success, \
+    # assert cy_run_success == 0, \
     #     "Some parallel cycle casts did not run successfully."

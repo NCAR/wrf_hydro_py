@@ -370,7 +370,11 @@ class EnsembleSimulation(object):
         self,
         n_concurrent: int=1
     ):
-        """Run the ensemble of simulations."""
+        """Run the ensemble of simulations.
+        Args:
+            n_concurrent: The number of ensemble members to run or schedule simultaneously.
+        Returns: 0 for success.
+        """
         ens_dir = os.getcwd()
 
         if n_concurrent > 1:

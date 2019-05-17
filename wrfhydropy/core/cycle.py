@@ -534,8 +534,12 @@ class CycleSimulation(object):
         self,
         n_concurrent: int=1
     ):
-        """Run the cycle of simulations."""
-        #ens_dir = os.getcwd()
+        """Run the cycle of simulations.
+        Args:
+            n_concurrent: The number of cycle casts to run or schedule simultaneously.
+        Returns: 0 for success.
+        """
+
 
         if n_concurrent > 1:
             with multiprocessing.Pool(n_concurrent, initializer=mute) as pool:
@@ -552,7 +556,7 @@ class CycleSimulation(object):
         # Return to the cycle dir.
         os.chdir(self.cycle_dir)
 
-        return all([ee == 0 for ee in exit_codes])
+        return int(not all([ee == 0 for ee in exit_codes]))
 
     def pickle(self, path: str):
         """Pickle ensemble sim object to specified file path

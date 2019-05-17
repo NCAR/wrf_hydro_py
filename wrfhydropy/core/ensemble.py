@@ -476,7 +476,11 @@ class EnsembleSimulation(object):
         teams_dict: dict=None,
         env: dict=None
     ):
-        """Run the ensemble of simulations."""
+        """Run the ensemble of simulations.
+        Args:
+            n_concurrent: The number of ensemble members to run or schedule simultaneously.
+        Returns: 0 for success.
+        """
         ens_dir = os.getcwd()
 
         if isinstance(teams_dict, dict):
@@ -516,9 +520,10 @@ class EnsembleSimulation(object):
                 parallel_run({'member': mm, 'ens_dir': ens_dir}) for mm in self.members
             ]
 
-            # Return to the ensemble dir.
-            os.chdir(ens_dir)
-            return all([ee == 0 for ee in exit_codes])
+        # Return to the ensemble dir.
+        os.chdir(ens_dir)
+
+        return int(not all([ee == 0 for ee in exit_codes]))
 
     def pickle(self, path: str):
         """Pickle ensemble sim object to specified file path

@@ -9,14 +9,35 @@ import string
 import timeit
 
 from wrfhydropy.core.simulation import Simulation
+from wrfhydropy.core.ensemble import EnsembleSimulation
 from wrfhydropy.core.cycle import CycleSimulation
 
+def sub_tmpdir(the_string, tmpdir, pattern='<<tmpdir>>'):
+    return the_string.replace(pattern, str(tmpdir))
 
 @pytest.fixture(scope='function')
 def init_times():
     some_time = datetime.datetime(2012, 12, 12, 0, 0)
     init_times = [some_time + datetime.timedelta(dd) for dd in range(0, 9, 3)]
     return init_times
+
+
+@pytest.fixture(scope='function')
+def restart_dirs(init_times):
+    restart_dirs = ['.'] * len(init_times)
+    return restart_dirs
+
+
+@pytest.fixture(scope='function')
+def restart_dirs_ensemble(init_times):
+    n_members = 3
+    restart_dirs_ensemble = [
+        ['.', '.', '.'], ['-72'] * n_members, ['dummy_extant_dir'] * n_members
+    ]
+    return restart_dirs_ensemble
+
+
+# JLM todo: forcing_dirs, forcing_dirs_ensemble
 
 
 @pytest.fixture(scope='function')
@@ -40,10 +61,18 @@ def simulation_compiled(model, domain, job_restart, tmpdir):
     return sim
 
 
-def test_cycle_init(init_times):
+@pytest.fixture(scope='function')
+def ensemble(model, domain, simulation_compiled):
+    ens = EnsembleSimulation()
+    ens.add(simulation_compiled)
+    ens.replicate_member(2)
+    return ens
+
+
+def test_cycle_init(init_times, restart_dirs):
     cycle = CycleSimulation(
         init_times=init_times,
-        restart_dirs=['.'] * len(init_times)
+        restart_dirs=restart_dirs
     )
     assert type(cycle) is CycleSimulation
     # Not sure why this dosent vectorize well.
@@ -60,12 +89,13 @@ def test_cycle_addsimulation(
     job_restart,
     scheduler,
     simulation_compiled,
-    init_times    
+    init_times,
+    restart_dirs
 ):
     sim = simulation
     cy1 = CycleSimulation(
         init_times=init_times,
-        restart_dirs=['.'] * len(init_times)
+        restart_dirs=restart_dirs
     )
 
     # This sim does not have the required pre-compiled model
@@ -79,22 +109,133 @@ def test_cycle_addsimulation(
         cy1.add([sim_compiled])
 
     cy1.add(sim_compiled)
+    assert isinstance(cy1._simulation, Simulation)
 
     # add a sim with job and make sure it is deleted.
     sim_compiled.add(job_restart)
     sim_compiled.add(scheduler)
     cy2 = CycleSimulation(
         init_times=init_times,
-        restart_dirs=['.'] * len(init_times)
+        restart_dirs=restart_dirs
     )
     cy2.add(sim_compiled)
+    assert cy2._simulation.jobs == []
+    assert cy2._simulation.scheduler == None
 
-    assert all([len(cc.jobs) == 0 for cc in cy2.casts])
-    assert all([cc.scheduler is None for cc in cy2.casts])
+
+@pytest.mark.parametrize(
+    ['restart_dirs', 'expected'],
+    [(
+        ['.'] * 3,
+        {'lsm': ['./NWM/RESTART/RESTART.2011082600_DOMAIN1',
+                 './NWM/RESTART/RESTART.2011082600_DOMAIN1',
+                 './NWM/RESTART/RESTART.2011082600_DOMAIN1'],
+         'hyd': ['./NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
+                 './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
+                 './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1']
+        }
+     ),
+     (
+        ['0', '-72', '-72'],
+        {'lsm': ['../cast_2012121200/RESTART.2012121200_DOMAIN1',
+                  '../cast_2012121200/RESTART.2012121500_DOMAIN1',
+                 '../cast_2012121500/RESTART.2012121800_DOMAIN1'],
+         'hyd': ['../cast_2012121200/HYDRO_RST.2012-12-12_00:00_DOMAIN1',
+                 '../cast_2012121200/HYDRO_RST.2012-12-15_00:00_DOMAIN1',
+                 '../cast_2012121500/HYDRO_RST.2012-12-18_00:00_DOMAIN1'],
+        }
+     ),
+     (
+        ['.', '-72', 'dummy_extant_dir'],
+        {'lsm': ['./NWM/RESTART/RESTART.2011082600_DOMAIN1',
+                 '../cast_2012121200/RESTART.2012121500_DOMAIN1',
+                 '<<tmpdir>>/compose/dummy_extant_dir/RESTART.2012121800_DOMAIN1'],
+         'hyd': ['./NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
+                 '../cast_2012121200/HYDRO_RST.2012-12-15_00:00_DOMAIN1',
+                 '<<tmpdir>>/compose/dummy_extant_dir/HYDRO_RST.2012-12-18_00:00_DOMAIN1']
+        }
+     ),
+     (
+        ['/foo/bar', '-72', '-72'],
+        ["invalid literal for int() with base 10: '/foo/bar'"]
+     )
+    ]
+)
+def test_cycle_addsimulation_translate(
+    restart_dirs,
+    expected,
+    init_times,
+    simulation_compiled,
+    job_restart,
+    tmpdir
+):
+    os.chdir(tmpdir)
+    sim = simulation
+    cy1 = CycleSimulation(
+        init_times=init_times,
+        restart_dirs=restart_dirs
+    )
+
+    sim_compiled = simulation_compiled
+    cy1.add(sim_compiled)
+    cy1.add(job_restart)
+
+    # translation happens on compose.
+    try:
+        os.mkdir(tmpdir / 'compose')
+        os.chdir(tmpdir / 'compose')
+        # This may be use in some of the tests
+        pathlib.Path('dummy_extant_dir').touch()
+        cy1.compose(rm_casts_from_memory=False)
+        lsm_keys=['noahlsm_offline', 'restart_filename_requested']
+        hyd_keys=['hydro_nlist', 'restart_file']
+        result = {
+            'lsm': [cast.base_hrldas_namelist[lsm_keys[0]][lsm_keys[1]] for cast in cy1.casts],
+            'hyd': [cast.base_hydro_namelist[hyd_keys[0]][hyd_keys[1]] for cast in cy1.casts]
+        }
+    except Exception as e:
+        result = [str(e)]  # Cludgy but it works
+
+    if isinstance(expected, dict):
+        for key, v_list in expected.items():
+            for ii, path in enumerate(v_list):
+                expected[key][ii] = sub_tmpdir(path, tmpdir)
+
+    assert result == expected
 
 
-def test_cycle_addjob(simulation, job_restart, init_times):
-    cy1 = CycleSimulation(init_times=init_times, restart_dirs=['.'] * len(init_times))
+def test_cycle_addensemble(
+    ensemble,
+    job_restart,
+    scheduler,
+    init_times,
+    restart_dirs_ensemble
+):
+    # The ensemble necessarily has a compiled model (unlike a Simulation).
+    # That is a separate test.
+
+    ens = ensemble
+    cy1 = CycleSimulation(
+        init_times=init_times,
+        restart_dirs=restart_dirs_ensemble
+    )
+    cy1.add(ensemble)
+    assert isinstance(cy1._ensemble, EnsembleSimulation)
+
+    # add an ens with a job and make sure it is deleted.
+    ens.add(job_restart)
+    ens.add(scheduler)
+    cy2 = CycleSimulation(
+        init_times=init_times,
+        restart_dirs=restart_dirs_ensemble
+    )
+    cy2.add(ensemble)
+    assert cy2._ensemble.jobs == []
+    assert cy2._ensemble.scheduler == None
+
+
+def test_cycle_addjob(job_restart, init_times, restart_dirs):
+    cy1 = CycleSimulation(init_times=init_times, restart_dirs=restart_dirs)
     cy1.add(job_restart)
     assert deepdiff.DeepDiff(cy1._job, job_restart) == {}
 
@@ -103,12 +244,8 @@ def test_cycle_addjob(simulation, job_restart, init_times):
     assert deepdiff.DeepDiff(cy1._job, job_restart) == {}
 
 
-def test_cycle_addscheduler(
-    simulation,
-    scheduler,
-    init_times
-):
-    cy1 = CycleSimulation(init_times=init_times, restart_dirs=['.'] * len(init_times))
+def test_cycle_addscheduler(scheduler, init_times, restart_dirs):
+    cy1 = CycleSimulation(init_times=init_times, restart_dirs=restart_dirs)
     cy1.add(scheduler)
     assert deepdiff.DeepDiff(cy1._scheduler, scheduler) == {}
 
@@ -120,13 +257,13 @@ def test_cycle_addscheduler(
 
 def test_cycle_length(
     simulation_compiled,
-    init_times
+    init_times,
+    restart_dirs
 ):
     sim = simulation_compiled
-    cy1 = CycleSimulation(init_times=init_times, restart_dirs=['.'] * len(init_times))
+    cy1 = CycleSimulation(init_times=init_times, restart_dirs=restart_dirs)
     cy1.add(sim)
     assert len(cy1) == len(init_times)
-    assert cy1.N == len(init_times)
     # How to assert an error?
     # assert cy1.replicate_member(4) == "WTF mate?"
 
@@ -136,13 +273,14 @@ def test_cycle_parallel_compose(
     job_restart,
     scheduler,
     tmpdir,
-    init_times
+    init_times,
+    restart_dirs
 ):
     sim = simulation_compiled
     cy = CycleSimulation(
         init_times=init_times,
-        restart_dirs=['.'] * len(init_times),
-        ncores=2
+        restart_dirs=restart_dirs,
+        ncores=1 ## PUT BACK TO 2
     )
     cy.add(job_restart)
     # Adding the scheduler ruins the run in CI.
@@ -162,7 +300,7 @@ def test_cycle_parallel_compose(
     cy.compose()
 
     cy_run_success = cy.run()
-    assert cy_run_success
+    assert cy_run_success == 0
     cy.pickle(str(pathlib.Path(tmpdir) / 'cycle_compose/WrfHydroCycleSim.pkl'))
 
     # The cycle-in-memory version for checking the casts.
@@ -244,6 +382,9 @@ def test_cycle_parallel_compose(
         'output_freq_hr_hydro': None,
         'output_freq_hr_hrldas': None,
         'restart': True,
+        'restart_dir': None,
+        '_restart_dir_hydro': None,
+        '_restart_dir_hrldas': None,
         'restart_file_time': '2013-10-13',
         '_restart_file_time_hydro': pandas.Timestamp('2013-10-13 00:00:00'),
         '_restart_file_time_hrldas': pandas.Timestamp('2013-10-13 00:00:00')
@@ -276,7 +417,7 @@ def test_cycle_parallel_compose(
         number=10000
     )
     # If your system is busy, this could take longer... and spuriously fail the test.
-    # Notes(JLM): OSX spinning disk is < .5, cheyenne scratch is < 1.2
+    # Notes(JLM): docker CI is the limiting factor.
     assert time_taken < 1.2
 
     # Test the cycle pickle size in terms of load speed.
@@ -287,8 +428,272 @@ def test_cycle_parallel_compose(
         number=10000
     )
     # If your system is busy, this could take longer...
-    # Notes(JLM): .6 seems to work on OSX spinning disk and chyenne scratch.
+    # Notes(JLM): docker CI is the limiting factor.
     assert time_taken < .6
+
+
+def test_cycle_ensemble_parallel_compose(
+    ensemble,
+    job_restart,
+    scheduler,
+    tmpdir,
+    init_times,
+    restart_dirs_ensemble
+):
+    ens = ensemble
+    cy = CycleSimulation(
+        init_times=init_times,
+        restart_dirs=restart_dirs_ensemble,
+        ncores=1  # FIX THIS!!
+    )
+    cy.add(job_restart)
+    # Adding the scheduler ruins the run in CI.
+    # cy.add(scheduler)
+
+    with pytest.raises(Exception) as e_info:
+        cy.compose()
+
+    cy.add(ens)
+
+    # Make a copy where we keep the casts in memory for checking.
+    cy_check_casts = copy.deepcopy(cy)
+
+    compose_dir = pathlib.Path(tmpdir).joinpath('cycle_ensemble_compose')
+    os.mkdir(str(compose_dir))
+    os.chdir(str(compose_dir))
+    pathlib.Path('dummy_extant_dir').touch()
+    cy.compose()
+
+    cy_run_success = cy.run()
+    assert cy_run_success == 0
+    cy.pickle(str(pathlib.Path(tmpdir) / 'cycle_ensemble_compose/WrfHydroCycleEns.pkl'))
+    # Is this pickle used?
+
+    # The cycle-in-memory version for checking the casts.
+    compose_dir = pathlib.Path(tmpdir).joinpath('cycle_compose_check_casts')
+    os.mkdir(str(compose_dir))
+    os.chdir(str(compose_dir))
+    pathlib.Path('dummy_extant_dir').touch()
+    cy_check_casts.compose(rm_casts_from_memory=False, rm_members_from_memory=False)
+
+    # The job gets heavily modified on compose.
+    answer = {
+        '_entry_cmd': 'bogus entry cmd',
+        '_exe_cmd': './wrf_hydro.exe',
+        '_exit_cmd': 'bogus exit cmd',
+        '_hrldas_namelist': {
+            'noahlsm_offline': {
+                'btr_option': 1,
+                'canopy_stomatal_resistance_option': 1,
+                'hrldas_setup_file': './NWM/DOMAIN/wrfinput_d01.nc',
+                'indir': './FORCING',
+                'output_timestep': 86400,
+                'restart_filename_requested': './NWM/RESTART/RESTART.2011082600_DOMAIN1',
+                'restart_frequency_hours': 24
+            },
+            'wrf_hydro_offline': {
+                'forc_typ': 1
+            }
+        },
+        '_hrldas_times': {
+            'noahlsm_offline': {
+                'khour': 282480,
+                'restart_frequency_hours': 24,
+                'output_timestep': 86400,
+                'restart_filename_requested': 'NWM/RESTART/RESTART.2013101300_DOMAIN1',
+                'start_day': 12,
+                'start_hour': 00,
+                'start_min': 00,
+                'start_month': 12,
+                'start_year': 2012
+            }
+        },
+        '_hydro_namelist': {
+            'hydro_nlist': {
+                'aggfactrt': 4,
+                'channel_option': 2,
+                'chanobs_domain': 0,
+                'chanrtswcrt': 1,
+                'chrtout_domain': 1,
+                'geo_static_flnm': './NWM/DOMAIN/geo_em.d01.nc',
+                'restart_file': './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
+                'udmp_opt': 1,
+                'rst_dt': 1440,
+                'out_dt': 1440
+            },
+            'nudging_nlist': {
+                'maxagepairsbiaspersist': 3,
+                'minnumpairsbiaspersist': 1,
+                'nudginglastobsfile': './NWM/RESTART/nudgingLastObs.2011-08-26_00:00:00.nc'
+            }
+        },
+        '_hydro_times': {
+            'hydro_nlist': {
+                'out_dt': 1440,
+                'rst_dt': 1440,
+                'restart_file': 'NWM/RESTART/HYDRO_RST.2013-10-13_00:00_DOMAIN1'
+            },
+            'nudging_nlist': {
+                'nudginglastobsfile': 'NWM/RESTART/nudgingLastObs.2013-10-13_00:00:00.nc'
+            }
+        },
+        '_job_end_time': None,
+        '_job_start_time': None,
+        '_job_submission_time': None,
+        '_model_end_time': pandas.Timestamp('2045-03-04 00:00:00'),
+        '_model_start_time': pandas.Timestamp('2012-12-12 00:00:00'),
+        'exit_status': None,
+        'job_id': 'test_job_1',
+        'restart_freq_hr_hydro': None,
+        'restart_freq_hr_hrldas': None,
+        'output_freq_hr_hydro': None,
+        'output_freq_hr_hrldas': None,
+        'restart': True,
+        'restart_dir': None,
+        '_restart_dir_hydro': None,
+        '_restart_dir_hrldas': None,
+        'restart_file_time': '2013-10-13',
+        '_restart_file_time_hydro': pandas.Timestamp('2013-10-13 00:00:00'),
+        '_restart_file_time_hrldas': pandas.Timestamp('2013-10-13 00:00:00')
+    }
+
+    # These answer patches respond to the variety of things in restart_dirs_ensemble
+    dum_ext = str(tmpdir) + '/cycle_compose_check_casts/dummy_extant_dir/'
+    answer_patches = {
+        'cast_index': [0, 1, 2],
+        'start_time_patch': [
+            pandas.Timestamp('2012-12-12 00:00:00'),
+            pandas.Timestamp('2012-12-15 00:00:00'),
+            pandas.Timestamp('2012-12-18 00:00:00')
+        ],
+        'end_time_patch': [
+            pandas.Timestamp('2045-03-04 00:00:00'),
+            pandas.Timestamp('2045-03-07 00:00:00'),
+            pandas.Timestamp('2045-03-10 00:00:00')
+        ],
+
+        # These "time patches" reveal the awkwardness of that construct.
+        'lsm_times_patch': [
+            'NWM/RESTART/RESTART.2013101300_DOMAIN1',
+            '../../cast_2012121200/member_000/RESTART.2013101300_DOMAIN1',
+            dum_ext + 'RESTART.2013101300_DOMAIN1'
+        ],
+        'hydro_times_patch': [
+            'NWM/RESTART/HYDRO_RST.2013-10-13_00:00_DOMAIN1',
+            '../../cast_2012121200/member_000/HYDRO_RST.2013-10-13_00:00_DOMAIN1',
+            dum_ext + 'HYDRO_RST.2013-10-13_00:00_DOMAIN1'
+        ],
+        'ndg_times_patch': [
+            'NWM/RESTART/nudgingLastObs.2013-10-13_00:00:00.nc',
+            '../../cast_2012121200/member_000/nudgingLastObs.2013-10-13_00:00:00.nc',
+            dum_ext + 'nudgingLastObs.2013-10-13_00:00:00.nc'
+        ],
+
+        # These namelist patches are consistent with the model times except in the
+        # first "do nothing" case which leaves the start time != restart file time
+        'lsm_nlst_patch': [
+            './NWM/RESTART/RESTART.2011082600_DOMAIN1',
+            '../../cast_2012121200/member_000/RESTART.2012121500_DOMAIN1',
+            dum_ext + 'RESTART.2012121800_DOMAIN1'
+        ],
+        'hydro_nlst_patch': [
+            './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
+            '../../cast_2012121200/member_000/HYDRO_RST.2012-12-15_00:00_DOMAIN1',
+            dum_ext + 'HYDRO_RST.2012-12-18_00:00_DOMAIN1'
+        ],
+        'ndg_nlst_patch': [
+            './NWM/RESTART/nudgingLastObs.2011-08-26_00:00:00.nc',
+            '../../cast_2012121200/member_000/nudgingLastObs.2012-12-15_00:00:00.nc',
+            dum_ext + 'nudgingLastObs.2012-12-18_00:00:00.nc'
+        ]
+
+    }
+
+    # Check a cycle where the compse retains the casts (otherwise nothing in memory).
+    # This fails:
+    # deepdiff.DeepDiff(answer, cy.casts[0].jobs[0].__dict__)
+    # Instead, iterate on keys to "declass":
+    # Just check the first ensemble cast.
+    def sub_member(the_string, replace_num, find_num=0):
+        replace = "member_{:03d}".format(replace_num)
+        find = "member_{:03d}".format(find_num)
+        return the_string.replace(find, replace)
+
+    for ii in answer_patches['cast_index']:
+        cc = cy_check_casts.casts[ii]
+
+        for mm, member in enumerate(cc.members):
+
+            answer['_model_start_time'] = answer_patches['start_time_patch'][ii]
+            answer['_model_end_time'] = answer_patches['end_time_patch'][ii]
+
+            keys = ['noahlsm_offline', 'restart_filename_requested']
+            answer['_hrldas_namelist'][keys[0]][keys[1]] = \
+                sub_member(answer_patches['lsm_nlst_patch'][ii], mm)
+            answer['_hrldas_times'][keys[0]][keys[1]] = \
+                sub_member(answer_patches['lsm_times_patch'][ii], mm)
+
+            keys = ['_hydro_namelist', 'hydro_nlist', 'restart_file']
+            answer[keys[0]][keys[1]][keys[2]] = \
+                sub_member(answer_patches['hydro_nlst_patch'][ii], mm)
+
+            keys = ['_hydro_namelist', 'nudging_nlist', 'nudginglastobsfile']
+            answer[keys[0]][keys[1]][keys[2]] = \
+                sub_member(answer_patches['ndg_nlst_patch'][ii], mm)
+
+            keys = ['_hydro_times', 'hydro_nlist', 'restart_file']
+            answer[keys[0]][keys[1]][keys[2]] =\
+                sub_member(answer_patches['hydro_times_patch'][ii], mm)
+
+            keys = ['_hydro_times', 'nudging_nlist', 'nudginglastobsfile']
+            answer[keys[0]][keys[1]][keys[2]] = \
+                sub_member(answer_patches['ndg_times_patch'][ii], mm)
+
+            # hrldas times
+            fmt_keys = {
+                '%Y': 'start_year', '%m': 'start_month',
+                '%d': 'start_day', '%H': 'start_hour'
+            }
+            the_mutable = answer['_hrldas_times']['noahlsm_offline']
+            for fmt, key in fmt_keys.items():
+                the_mutable[key] = int(answer['_model_start_time'].strftime(fmt))
+
+            # Actually check
+            for kk in member.jobs[0].__dict__.keys():
+                assert member.jobs[0].__dict__[kk] == answer[kk]
+
+    # Check the scheduler too
+    #assert cy_check_casts.casts[0].scheduler.__dict__ == scheduler.__dict__
+
+    # For the cycle where the compse removes the casts...
+    # Check that the casts are all now simply pathlib objects
+    assert all([type(mm) is str for mm in cy.casts])
+
+    # the tmpdir gets nuked after the test... ?
+    # Test the cast pickle size in terms of load speed.
+    # Note that the deletion of the model, domain, and output objects are
+    # done for the casts regardless of not removing the casts
+    # from memory (currently).
+    os.chdir(str(pathlib.Path(tmpdir) / 'cycle_ensemble_compose/cast_2012121200'))
+    time_taken = timeit.timeit(
+        setup='import pickle',
+        stmt='pickle.load(open("WrfHydroEns.pkl","rb"))',
+        number=10000
+    )
+    # If your system is busy, this could take longer... and spuriously fail the test.
+    # Notes(JLM): docker CI is the limiting factor here.
+    assert time_taken < 1.5
+
+    # Test the cycle pickle size in terms of load speed.
+    os.chdir(str(pathlib.Path(tmpdir) / 'cycle_ensemble_compose/'))
+    time_taken = timeit.timeit(
+        setup='import pickle',
+        stmt='pickle.load(open("WrfHydroCycleEns.pkl","rb"))',
+        number=10000
+    )
+    # If your system is busy, this could take longer...
+    # Notes(JLM): docker CI is the limiting factor here.
+    assert time_taken < 1.2
 
 
 def test_cycle_run(
@@ -297,7 +702,8 @@ def test_cycle_run(
     scheduler,
     tmpdir,
     capfd,
-    init_times
+    init_times,
+    restart_dirs
 ):
 
     sim = simulation_compiled
@@ -307,8 +713,6 @@ def test_cycle_run(
     for dir in forcing_dirs:
         dir.mkdir()
 
-    restart_dirs = ['.'] *len(init_times)
-        
     cy = CycleSimulation(
         init_times=init_times,
         restart_dirs=restart_dirs,
@@ -326,7 +730,7 @@ def test_cycle_run(
     cy_serial.compose(rm_casts_from_memory=False)
 
     serial_run_success = cy_serial.run()
-    assert serial_run_success, \
+    assert serial_run_success == 0, \
         "Some serial cycle casts did not run successfully."
 
     # Parallel test
@@ -338,7 +742,7 @@ def test_cycle_run(
     cy_parallel.compose()
 
     cy_run_success = cy_parallel.run(n_concurrent=2)
-    assert cy_run_success, \
+    assert cy_run_success == 0, \
         "Some parallel cycle casts did not run successfully."
 
     # Parallel test with ensemble in memory
@@ -349,7 +753,7 @@ def test_cycle_run(
     os.chdir(str(cy_dir))
     cy_parallel.compose(rm_casts_from_memory=False)
     cy_run_mem_success = cy_parallel.run(n_concurrent=2)
-    assert cy_run_mem_success, \
+    assert cy_run_mem_success == 0, \
         "Some parallel cycle casts in memory did not run successfully."
 
 
@@ -378,7 +782,7 @@ def test_cycle_self_dependent_run(
     os.chdir(str(cy_dir))
     cy_serial.compose(rm_casts_from_memory=False)
     serial_run_success = cy_serial.run()
-    assert serial_run_success, \
+    assert serial_run_success == 0, \
         "Some serial cycle casts did not run successfully."
 
     # Parallel test
@@ -391,5 +795,5 @@ def test_cycle_self_dependent_run(
     # cy_parallel.compose()
 
     # cy_run_success = cy_parallel.run(n_concurrent=2)
-    # assert cy_run_success, \
+    # assert cy_run_success == 0, \
     #     "Some parallel cycle casts did not run successfully."

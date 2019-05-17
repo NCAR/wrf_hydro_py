@@ -70,25 +70,30 @@ def parallel_teams_run(arg_dict):
 
     Arguments:
         arg_dict:
-            arg_dict.keys() == [
-               'ens_dir'  : <the ensemble run dir full path, where the member dirs are found>,
-               'team_dict': <the information needed for the team, see below>
-            ]
+            arg_dict == {
+               'ens_dir'  : <pathlib.Path absolute path to the ensemble run dir path, 
+                             where the member dirs are found>,
+               'team_dict': <dict: the information needed for the team, see below>
+            }
             where
-            team_dict.keys() == [
-                'members',   : <the strings for the member dirs to run>,
-                'nodes',     : <the nodes previously parsed from something like $PBS_NODEFILE>,
-                'entry_cmd', : <the entry cmd to be run>,
-                'exe_cmd',   : <the MPI-specific model invokation command>,
-                'exit_cmd',  : <exit cmd to be run>,
-                'env'        : <the env dict in which to run the cmds, may be None or 'None'>
-            ]
+            team_dict == {
+                'members'  : <list: length n_team, groups of member run_dirs>
+                'nodes'    : <list: the nodes previously parsed from something like 
+                              $PBS_NODEFILE>,
+                'entry_cmd': <string: the entry cmd to be run>,
+                'exe_cmd'  : <string: the MPI-specific model invokation command>,
+                'exit_cmd' : <string: exit cmd to be run>,
+                'env'      : <dict: containging the environment in which to run the 
+                              cmds, may be None or 'None'>
+            }
 
             The 'exe_cmd' is a form of invocation for the distribution of MPI to be used. For
             openmpi, for example for OpenMPI, this is
-                exe_cmd: 'mpirun --host {hostname} -np {nproc} {cmd}'
+                exe_cmd: 'mpirun --host {hostnames} -np {nproc} {cmd}'
             The variables in brackets are expanded by internal variables. The 'exe_cmd'
             command substitutes the wrfhydropy of 'wrf_hydro.exe' convention for {cmd}.
+            The {nproc} argument is the length of the list passed in the nodes argument, 
+            and the {hostnames} are the comma separated arguments in that list.
 
             The "entry_cmd" and "exit_cmd"
               1) can be semicolon-separated commands
@@ -483,11 +488,52 @@ class EnsembleSimulation(object):
         """Run the ensemble of simulations.
         Args:
             n_concurrent: The number of ensemble members to run or schedule simultaneously.
+            teams_dict: a dict, of the following form
+                teams_dict = {
+                    '0': {
+                        'members'  : ['member_000', 'member_002'],
+                        'nodes'    : ['hostname0', 'hostname0'],
+                        'entry_cmd': 'pwd',
+                        'exe_cmd'  : './wrf_hydro.exe {hostnames} {nproc}',
+                        'exit_cmd' : './bogus_cmd',
+                    },
+                    '1': {
+                        'members'  : ['member_001', 'member_003'],
+                        'nodes'    : ['hostname1', 'hostname1'],
+                        'entry_cmd': 'pwd',
+                        'exe_cmd'  : './wrf_hydro.exe {hostnames} {nproc}',
+                        'exit_cmd' : './bogus_cmd',
+                    }
+                }
+                The keys are the numbers of the teams, starting with zero.
+                'members': list: This is a four member ensemble (member_000 - member_004).
+                'nodes': list: Node names parsed from something like a $PBS_NODEFILE. The
+                    length of this list is translated to {nproc}.
+                'entry_cmd': string:
+                    The 'exe_cmd' is a form of invocation for the distribution of MPI to be
+                    used. For openmpi, for example, this is
+                        exe_cmd: 'mpirun --host {hostnames} -np {nproc} {cmd}'
+                    The variables in brackets are expanded by internal variables. The 'exe_cmd'
+                    command substitutes the wrfhydropy of 'wrf_hydro.exe' convention for {cmd}.
+                    The {nproc} argument is the length of the list passed in the nodes
+                    argument, and the {hostnames} are the comma separated arguments in that
+                    list.
+                'exe_cmd': string:
+                'exit_cmd': string:
+                    The "entry_cmd" and "exit_cmd"
+                      1) can be semicolon-separated commands
+                      2) where these are run depends on MPI. OpenMPI, for example, handles
+                         these on the same processor set as the model runs.
+
         Returns: 0 for success.
         """
         ens_dir = os.getcwd()
 
         if isinstance(teams_dict, dict):
+
+            # Add the env to all the teams
+            for key, value in teams_dict.items():
+                value.update(env=env)
             
             with multiprocessing.Pool(len(teams_dict), initializer=mute) as pool:
                 exit_codes = pool.map(

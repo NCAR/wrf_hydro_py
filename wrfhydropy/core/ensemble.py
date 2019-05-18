@@ -535,20 +535,20 @@ class EnsembleSimulation(object):
             for key, value in teams_dict.items():
                 value.update(env=env)
             
-            with multiprocessing.Pool(len(teams_dict), initializer=mute) as pool:
-                exit_codes = pool.map(
-                    parallel_teams_run,
-                    (
-                        {'team_dict': team_dict , 'ens_dir': ens_dir, 'env': env}
-                        for (key, team_dict) in teams_dict.items()
-                    )
-                )
+            # with multiprocessing.Pool(len(teams_dict), initializer=mute) as pool:
+            #     exit_codes = pool.map(
+            #         parallel_teams_run,
+            #         (
+            #             {'team_dict': team_dict , 'ens_dir': ens_dir, 'env': env}
+            #             for (key, team_dict) in teams_dict.items()
+            #         )
+            #     )
 
-            # # Keep around for serial testing/debugging
-            # exit_codes = [
-            #     parallel_teams_run({'team_dict': team_dict, 'ens_dir': ens_dir, 'env': env})
-            #     for (key, team_dict) in teams_dict.items()
-            # ]
+            # Keep around for serial testing/debugging
+            exit_codes = [
+                parallel_teams_run({'team_dict': team_dict, 'ens_dir': ens_dir, 'env': env})
+                for (key, team_dict) in teams_dict.items()
+            ]
 
             os.chdir(ens_dir)
             return int(not all([list(ee.values())[0] == 0 for ee in exit_codes]))

@@ -7,6 +7,14 @@ from typing import Union
 import os
 import pickle
 
+# For testing coverage reports
+try:
+    from pytest_cov.embed import cleanup_on_sigterm
+except ImportError:
+    pass
+else:
+    cleanup_on_sigterm()
+
 from .ensemble_tools import DeepDiffEq, dictify, get_sub_objs, mute
 from .job import Job
 from .schedulers import Scheduler
@@ -414,21 +422,38 @@ class EnsembleSimulation(object):
         if len(self) < 1:
             raise ValueError("There are no member simulations to compose.")
 
-        # Set the pool for the following parallelizable operations
-        with multiprocessing.Pool(processes=self.ncores, initializer=mute) as pool:
+        if self.ncores > 1:
+            # Set the pool for the following parallelizable operations
+            with multiprocessing.Pool(processes=self.ncores, initializer=mute) as pool:
 
-            # Set the ensemble jobs on the members before composing (this is a loop over the jobs).
-            self.members = pool.map(
-                parallel_compose_addjobs,
-                ({'member': mm, 'jobs': self.jobs} for mm in self.members)
-            )
+                # Set the ensemble jobs on the members before composing (this is a loop
+                # over the jobs).
+                self.members = pool.map(
+                    parallel_compose_addjobs,
+                    ({'member': mm, 'jobs': self.jobs} for mm in self.members)
+                )
+
+                # Set the ensemble scheduler (not a loop)
+                if self.scheduler is not None:
+                    self.members = pool.map(
+                        parallel_compose_addscheduler,
+                        ({'member': mm, 'scheduler': self.scheduler} for mm in self.members)
+                    )
+
+        else:
+            # Set the ensemble jobs on the members before composing (this is a loop
+            # over the jobs).
+            self.members = [
+                parallel_compose_addjobs({'member': mm, 'jobs': self.jobs})
+                for mm in self.members
+            ]
 
             # Set the ensemble scheduler (not a loop)
             if self.scheduler is not None:
-                self.members = pool.map(
-                    parallel_compose_addscheduler,
-                    ({'member': mm, 'scheduler': self.scheduler} for mm in self.members)
-                )
+                self.members = [
+                    parallel_compose_addscheduler({'member': mm, 'scheduler': self.scheduler})
+                    for mm in self.members
+                ]
 
         # Ensemble compose
         ens_dir = pathlib.Path(os.getcwd())

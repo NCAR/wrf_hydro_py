@@ -1,4 +1,5 @@
 import copy
+import datetime
 import deepdiff
 import os
 import pathlib
@@ -8,6 +9,7 @@ import timeit
 
 from wrfhydropy.core.simulation import Simulation
 from wrfhydropy.core.ensemble import EnsembleSimulation
+from wrfhydropy.core.ensemble_tools import get_ens_dotfile_end_datetime
 
 
 @pytest.fixture(scope='function')
@@ -164,7 +166,7 @@ def test_ens_parallel_compose(simulation_compiled, job_restart, scheduler, tmpdi
 
     # Why pickle?
     ens.pickle(str(pathlib.Path(tmpdir) / 'ensemble_compose/WrfHydroEnsSim.pkl'))
-
+    
     # The ensemble-in-memory version for checking the members.
     compose_dir = pathlib.Path(tmpdir).joinpath('ensemble_compose_check_members')
     os.mkdir(str(compose_dir))
@@ -272,8 +274,8 @@ def test_ens_parallel_compose(simulation_compiled, job_restart, scheduler, tmpdi
         number=10000
     )
     # If your system is busy, this could take longer... and spuriously fail the test.
-    # Notes(JLM):  cheyenne scratch is < 1
-    assert time_taken < 1
+    # Notes(JLM): coverage is the limiting factor here.
+    assert time_taken < 1.25
 
     # Test the ensemble pickle size in terms of load speed.
     os.chdir(str(pathlib.Path(tmpdir) / 'ensemble_compose/'))
@@ -303,7 +305,8 @@ def test_ens_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     serial_run_success = ens_serial.run()
     assert serial_run_success == 0, \
         "Some serial ensemble members did not run successfully."
-
+    assert get_ens_dotfile_end_datetime(ens_dir) == datetime.datetime(2017, 1, 4, 0, 0)
+    
     # Parallel test
     ens_parallel = copy.deepcopy(ens)
     ens_dir = pathlib.Path(tmpdir).joinpath('ens_parallel_run')
@@ -315,7 +318,8 @@ def test_ens_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     ens_run_success = ens_parallel.run(n_concurrent=2)
     assert ens_run_success == 0, \
         "Some parallel ensemble members did not run successfully."
-
+    assert get_ens_dotfile_end_datetime(ens_dir) == datetime.datetime(2017, 1, 4, 0, 0)
+    
     # Parallel test with ensemble in memory
     ens_parallel = copy.deepcopy(ens)
     ens_dir = pathlib.Path(tmpdir).joinpath('ens_parallel_run_ens_in_memory')
@@ -326,7 +330,7 @@ def test_ens_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     ens_run_mem_success = ens_parallel.run(n_concurrent=2)
     assert ens_run_mem_success == 0, \
         "Some parallel ensemble members in memory did not run successfully."
-
+    assert get_ens_dotfile_end_datetime(ens_dir) == datetime.datetime(2017, 1, 4, 0, 0)
 
 def test_ens_teams_run(simulation_compiled, job, scheduler, tmpdir, capfd):
 

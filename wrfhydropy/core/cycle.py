@@ -6,6 +6,14 @@ from typing import Union
 import os
 import pickle
 
+# For testing coverage reports
+try:
+    from pytest_cov.embed import cleanup_on_sigterm
+except ImportError:
+    pass
+else:
+    cleanup_on_sigterm()
+
 from .ensemble_tools import mute
 from .job import Job
 from .schedulers import Scheduler
@@ -283,11 +291,6 @@ class CycleSimulation(object):
         """
         if not all([isinstance(ii, datetime.datetime) for ii in init_times]):
             raise ValueError('List object not all datetime.datetime objects, as expected')
-
-        if self._forcing_dirs != [] and len(init_times) > 1:
-            if len(self._forcing_dirs) != len(init_times):
-                raise ValueError("Length of init_times does not match that of self._forcing_dirs.")
-
         self._init_times = copy.deepcopy(init_times)
 
     def _addforcingdirs(self, forcing_dirs: list):
@@ -309,46 +312,36 @@ class CycleSimulation(object):
             ensemble cycle takes a list (for each cycle) of lists of str objects (for the
             ensemble).
         """
-        deterministic_types = [str, pathlib.Path, pathlib.PosixPath]
-        ensemble_types = [list]
-        if not all([type(ff) in deterministic_types + ensemble_types for ff in restart_dirs]):
-            raise ValueError(
-                'restart_dirs argument not as expected for a deterministic cycle ('
-                '' + repr(deterministic_types) + ') or ensemble cycle ('
-                '' + repr(ensemble_types) + ').'
-            )
-
-        def int_to_str(the_list):
-            if all(type(ii) is int for ii in the_list):
-                return [str(ii) for ii in the_list]
-            else:
-                return the_list
-
-        def homogeneous_type(the_list):
-            type0 = type(the_list[0])
-            if not all(type(ii) is type0 for ii in the_list):
-                raise ValueError('Supplied restart_dirs argument is heterogeneous')
-            if type0 is int:
-                for ii, vv in enumerate(the_list):
-                    the_list[ii] = str(vv)
-            if all([type(ii) in deterministic_types for ii in the_list]):
-                return 'deterministic'
-            elif all([type(ii) in ensemble_types for ii in the_list]):
-                return 'ensemble'
-            else:
-                raise ValueError("Types in restart_dirs argument are not appropriate.")
-
-        if homogeneous_type(restart_dirs) == 'deterministic':
-            self._restart_dirs = [pathlib.Path(cc) for cc in restart_dirs]
-        elif homogeneous_type(restart_dirs) == 'ensemble':
-            for rr in restart_dirs:
-                if homogeneous_type(rr) == 'deterministic':
-                    self._restart_dirs.append([pathlib.Path(cc) for cc in rr])
 
         # Check the length
-        if self._init_times != [] and len(restart_dirs) > 1:
-            if len(self._init_times) != len(restart_dirs):
-                raise ValueError("Length of restart_dirs does not match that of self._init_times.")
+        def check_len(the_list): 
+            if len(self._init_times) != len(the_list):
+                raise ValueError("Length of restart_dirs does not match that of init_times.")
+
+        deterministic_types = [str, int, pathlib.Path, pathlib.PosixPath]
+        ensemble_types = [list]
+
+        def int_to_str(var):
+            if type(var) is int:
+                return str(var)
+            return var
+
+        if all([type(ii) in deterministic_types for ii in restart_dirs]):
+            check_len(restart_dirs)
+            self._restart_dirs = [pathlib.Path(int_to_str(cc)) for cc in restart_dirs]
+            
+        elif all([type(ii) in ensemble_types for ii in restart_dirs]):
+            for rr in restart_dirs:
+                check_len(rr)
+                if all([type(ii) in deterministic_types for ii in rr]):
+                    self._restart_dirs.append([pathlib.Path(int_to_str(cc)) for cc in rr])
+                else:
+                    raise ValueError("Types in ensemble restart_dirs argument "
+                                     "are not appropriate.")
+
+        else:
+            raise ValueError("Types in restart_dirs argument are not appropriate.")
+
 
     def _addscheduler(self, scheduler: Scheduler):
         """Private method to add a Scheduler to an CycleSimulation

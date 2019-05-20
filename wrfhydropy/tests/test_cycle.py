@@ -69,6 +69,72 @@ def ensemble(model, domain, simulation_compiled):
     return ens
 
 
+base_time = datetime.datetime(2012, 12, 12, 0, 0)
+@pytest.mark.parametrize(
+    ['init_times', 'expected'],
+    [([base_time + datetime.timedelta(dd) for dd in range(0, 9, 3)],
+      [base_time + datetime.timedelta(dd) for dd in range(0, 9, 3)]),
+     ([base_time, base_time , 'nondatetime object'],
+      ["List object not all datetime.datetime objects, as expected"]),
+     ([base_time , base_time],
+      ['Length of forcing_dirs does not match that of self._init_times.'])]
+)
+def test_add_init_times(
+    init_times,
+    expected,
+    restart_dirs
+):
+    try:
+        cycle = CycleSimulation(
+            init_times=init_times,
+            restart_dirs=restart_dirs,
+            forcing_dirs=['.', '.', '.']
+        )
+        result = cycle._init_times
+    except Exception as e:
+        result = [str(e)]  # Cludgy but it works
+
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    ['restart_dirs', 'expected'],
+    [(['.', '.', '.'],  # normal
+      [pathlib.PosixPath('.')] * 3),
+     (['.', '/foo/bar', -1],  # mixed, should pass
+      [pathlib.PosixPath('.'), pathlib.PosixPath('/foo/bar'), pathlib.PosixPath('-1')]),
+     (['.', '.', ['.']],  # improper mix, should not pass
+      ['Types in restart_dirs argument are not appropriate.']),
+     (['.', '.'],  # wrong length
+      ['Length of restart_dirs does not match that of init_times.']),
+     ([['.', '.', '.'], ['.', '.', '/foo/bar'], ['.', '.', '-1']],  # Ensemble, should pass
+      [[pathlib.PosixPath('.')] * 3,
+       [pathlib.PosixPath('.'), pathlib.PosixPath('.'), pathlib.PosixPath('/foo/bar')],
+       [pathlib.PosixPath('.'), pathlib.PosixPath('.'), pathlib.PosixPath('-1')]]),
+     ([['.', '.', ['.']], ['.', '.', '/foo/bar'], ['.', '.', '-1']],  # improper mix, fails
+      ['Types in ensemble restart_dirs argument are not appropriate.']),
+     ([['.', '.', '.'], ['.', '.', '/foo/bar'], ['.', '-1']],  # ensemble wrong lengths
+      ['Length of restart_dirs does not match that of init_times.'])
+    ]
+)
+def test_add_restart_dirs(
+    restart_dirs,
+    expected,
+    init_times
+):
+    try:
+        cycle = CycleSimulation(
+            init_times=init_times,
+            restart_dirs=restart_dirs,
+            forcing_dirs=['.', '.', '.']
+        )
+        result = cycle._restart_dirs
+    except Exception as e:
+        result = [str(e)]  # Cludgy but it works
+
+    assert result == expected
+
+
 def test_cycle_init(init_times, restart_dirs):
     cycle = CycleSimulation(
         init_times=init_times,
@@ -158,6 +224,10 @@ def test_cycle_addsimulation(
      (
         ['/foo/bar', '-72', '-72'],
         ["invalid literal for int() with base 10: '/foo/bar'"]
+     ),
+     (
+        ['dummy_extant_dir', '-72', '72'],
+        ['No such restart directory. Note that non-negative integers are not allowed when specifying restart_dirs.']
      )
     ]
 )
@@ -417,8 +487,8 @@ def test_cycle_parallel_compose(
         number=10000
     )
     # If your system is busy, this could take longer... and spuriously fail the test.
-    # Notes(JLM): docker CI is the limiting factor.
-    assert time_taken < 1.2
+    # Notes(JLM): coverage is the limiting factor
+    assert time_taken < 1.5
 
     # Test the cycle pickle size in terms of load speed.
     os.chdir(str(pathlib.Path(tmpdir) / 'cycle_compose/'))
@@ -428,8 +498,8 @@ def test_cycle_parallel_compose(
         number=10000
     )
     # If your system is busy, this could take longer...
-    # Notes(JLM): docker CI is the limiting factor.
-    assert time_taken < .6
+    # Notes(JLM): coverage is the limiting factor.
+    assert time_taken < .8
 
 
 def test_cycle_ensemble_parallel_compose(
@@ -444,32 +514,33 @@ def test_cycle_ensemble_parallel_compose(
     cy = CycleSimulation(
         init_times=init_times,
         restart_dirs=restart_dirs_ensemble,
-        ncores=1  # FIX THIS!!
+        ncores=2
     )
     cy.add(job_restart)
     # Adding the scheduler ruins the run in CI.
     # cy.add(scheduler)
 
+    # Make a copy where we keep the casts in memory for checking.
+    cy_check_casts = copy.deepcopy(cy)
+    cy_ens_compose = copy.deepcopy(cy)
+
     with pytest.raises(Exception) as e_info:
         cy.compose()
 
-    cy.add(ens)
-
-    # Make a copy where we keep the casts in memory for checking.
-    cy_check_casts = copy.deepcopy(cy)
-
+    cy_ens_compose.add(ens)
     compose_dir = pathlib.Path(tmpdir).joinpath('cycle_ensemble_compose')
     os.mkdir(str(compose_dir))
     os.chdir(str(compose_dir))
     pathlib.Path('dummy_extant_dir').touch()
-    cy.compose()
-
-    cy_run_success = cy.run()
+    cy_ens_compose.compose()
+    
+    cy_run_success = cy_ens_compose.run()
     assert cy_run_success == 0
     cy.pickle(str(pathlib.Path(tmpdir) / 'cycle_ensemble_compose/WrfHydroCycleEns.pkl'))
     # Is this pickle used?
 
     # The cycle-in-memory version for checking the casts.
+    cy_check_casts.add(ens)
     compose_dir = pathlib.Path(tmpdir).joinpath('cycle_compose_check_casts')
     os.mkdir(str(compose_dir))
     os.chdir(str(compose_dir))
@@ -681,7 +752,7 @@ def test_cycle_ensemble_parallel_compose(
         number=10000
     )
     # If your system is busy, this could take longer... and spuriously fail the test.
-    # Notes(JLM): docker CI is the limiting factor here.
+    # Notes(JLM): coverage makes this slow
     assert time_taken < 1.5
 
     # Test the cycle pickle size in terms of load speed.
@@ -692,8 +763,8 @@ def test_cycle_ensemble_parallel_compose(
         number=10000
     )
     # If your system is busy, this could take longer...
-    # Notes(JLM): docker CI is the limiting factor here.
-    assert time_taken < 1.2
+    # Notes(JLM): coveage makes this slow
+    assert time_taken < 1.5
 
 
 def test_cycle_run(

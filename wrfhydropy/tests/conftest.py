@@ -251,6 +251,7 @@ def model_dir(tmpdir):
         "# dummy compile \n"
         "mkdir Run \n"
         "echo '#!/bin/bash \n"
+        "echo $@ \n"
         "echo \'The model finished successfully.......\' >  diag_hydro.00000\n"
         "exit 0' > Run/wrf_hydro.exe\n"
         "touch Run/DUMMY.TBL \n"

@@ -230,7 +230,10 @@ class Job(object):
         with path.open(mode='wb') as f:
             pickle.dump(self, f, 2)
 
-    def _run(self):
+    def _run(
+        self,
+        env: dict=None
+    ):
         """Private method to run a job"""
 
         # Create curent dir path to use for all operations. Needed so that everything can be run
@@ -294,11 +297,19 @@ class Job(object):
 
         self.job_start_time = str(datetime.datetime.now())
 
-        self._proc_log = subprocess.run(
-            cmd_string,
-            shell = True,
-            cwd=str(current_dir)
-        )
+        if env is None or env == 'None':
+            self._proc_log = subprocess.run(
+                cmd_string,
+                shell=True,
+                cwd=str(current_dir)
+            )
+        else:
+            self._proc_log = subprocess.run(
+                cmd_string,
+                shell=True,
+                cwd=str(current_dir),
+                env=env
+            )
 
         self.job_end_time = str(datetime.datetime.now())
         

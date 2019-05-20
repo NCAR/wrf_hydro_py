@@ -1,4 +1,5 @@
 import copy
+import datetime
 import deepdiff
 import os
 import pathlib
@@ -8,6 +9,7 @@ import timeit
 
 from wrfhydropy.core.simulation import Simulation
 from wrfhydropy.core.ensemble import EnsembleSimulation
+from wrfhydropy.core.ensemble_tools import get_ens_dotfile_end_datetime
 
 
 @pytest.fixture(scope='function')
@@ -136,27 +138,35 @@ def test_ens_parallel_compose(simulation_compiled, job_restart, scheduler, tmpdi
     sim = simulation_compiled
     ens = EnsembleSimulation()
     ens.add(job_restart)
-    ens.add(scheduler)
 
     with pytest.raises(Exception) as e_info:
         ens.compose()
 
     ens.add([sim, sim])
 
-    # Make a copy where we keep the members in memory for checking.
-    ens_check_members = copy.deepcopy(ens)
+    # Check the scheduler upon compose (dont run with scheduler)
+    ens_w_sched = copy.deepcopy(ens)
+    ens_w_sched.add(scheduler)
+    compose_dir = pathlib.Path(tmpdir).joinpath('ensemble_compose_sched')
+    os.mkdir(str(compose_dir))
+    os.chdir(str(compose_dir))
+    ens_w_sched.compose(rm_members_from_memory=False)
+    assert ens_w_sched.members[0].scheduler.__dict__ == scheduler.__dict__
 
+    # Test a run where the members were not kept in memory
+    ens_check_members = copy.deepcopy(ens)
     compose_dir = pathlib.Path(tmpdir).joinpath('ensemble_compose')
     os.mkdir(str(compose_dir))
     os.chdir(str(compose_dir))
     ens.compose()
+    ens_run_success = ens.run()
+    assert ens_run_success == 0
+    # Check that the members are all now simply pathlib objects
+    assert all([type(mm) is str for mm in ens.members])
 
-    # TODO(JLM): test the run here
-    # ens_run_success = ens.run()
-    # assert ens_run_success
-
+    # Why pickle?
     ens.pickle(str(pathlib.Path(tmpdir) / 'ensemble_compose/WrfHydroEnsSim.pkl'))
-
+    
     # The ensemble-in-memory version for checking the members.
     compose_dir = pathlib.Path(tmpdir).joinpath('ensemble_compose_check_members')
     os.mkdir(str(compose_dir))
@@ -251,13 +261,6 @@ def test_ens_parallel_compose(simulation_compiled, job_restart, scheduler, tmpdi
     # Instead, iterate on keys to "declass":
     for kk in ens_check_members.members[0].jobs[0].__dict__.keys():
         assert ens_check_members.members[0].jobs[0].__dict__[kk] == answer[kk]
-    # Check the scheduler too
-    assert ens_check_members.members[0].scheduler.__dict__ == scheduler.__dict__
-
-    # For the ensemble where the compse removes the members...
-
-    # Check that the members are all now simply pathlib objects
-    assert all([type(mm) is str for mm in ens.members])
 
     # The tmpdir gets nuked after the test... ?
     # Test the member pickle size in terms of load speed.
@@ -271,8 +274,8 @@ def test_ens_parallel_compose(simulation_compiled, job_restart, scheduler, tmpdi
         number=10000
     )
     # If your system is busy, this could take longer... and spuriously fail the test.
-    # Notes(JLM): OSX spinning disk is < .5, cheyenne scratch is < .8
-    assert time_taken < .8
+    # Notes(JLM): coverage is the limiting factor here.
+    assert time_taken < 1.25
 
     # Test the ensemble pickle size in terms of load speed.
     os.chdir(str(pathlib.Path(tmpdir) / 'ensemble_compose/'))
@@ -282,7 +285,7 @@ def test_ens_parallel_compose(simulation_compiled, job_restart, scheduler, tmpdi
         number=10000
     )
     # If your system is busy, this could take longer...
-    # Notes(JLM): .7 seems to work on OSX spinning disk and chyenne scratch.
+    # Notes(JLM): chyenne scratch is slow sometimes. so is CI
     assert time_taken < .7
 
 
@@ -302,7 +305,8 @@ def test_ens_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     serial_run_success = ens_serial.run()
     assert serial_run_success == 0, \
         "Some serial ensemble members did not run successfully."
-
+    assert get_ens_dotfile_end_datetime(ens_dir) == datetime.datetime(2017, 1, 4, 0, 0)
+    
     # Parallel test
     ens_parallel = copy.deepcopy(ens)
     ens_dir = pathlib.Path(tmpdir).joinpath('ens_parallel_run')
@@ -314,7 +318,8 @@ def test_ens_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     ens_run_success = ens_parallel.run(n_concurrent=2)
     assert ens_run_success == 0, \
         "Some parallel ensemble members did not run successfully."
-
+    assert get_ens_dotfile_end_datetime(ens_dir) == datetime.datetime(2017, 1, 4, 0, 0)
+    
     # Parallel test with ensemble in memory
     ens_parallel = copy.deepcopy(ens)
     ens_dir = pathlib.Path(tmpdir).joinpath('ens_parallel_run_ens_in_memory')
@@ -325,3 +330,47 @@ def test_ens_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     ens_run_mem_success = ens_parallel.run(n_concurrent=2)
     assert ens_run_mem_success == 0, \
         "Some parallel ensemble members in memory did not run successfully."
+    assert get_ens_dotfile_end_datetime(ens_dir) == datetime.datetime(2017, 1, 4, 0, 0)
+
+def test_ens_teams_run(simulation_compiled, job, scheduler, tmpdir, capfd):
+
+    ens_dir = pathlib.Path(tmpdir).joinpath('ens_teams_run')
+
+    teams_dict = {
+        '0': {
+            'members'  : ['member_000', 'member_002'],
+            'nodes'    : ['hostname0'],
+            'entry_cmd': 'echo',
+            'exe_cmd'  : './wrf_hydro.exe {hostname} {nproc}',
+            'exit_cmd' : './bogus_cmd'
+        },
+        '1': {
+            'members'  : ['member_001', 'member_003'],
+            'nodes'    : ['hostname1', 'hostname1'],
+             'entry_cmd': 'pwd',
+            'exe_cmd'  : './wrf_hydro.exe {hostname} {nproc}',
+            'exit_cmd' : './bogus_cmd'
+        }
+    }
+
+    sim = simulation_compiled
+    ens = EnsembleSimulation()
+    ens.add(job)
+    ens.add([sim, sim, sim, sim])
+
+    ens_parallel = copy.deepcopy(ens)
+    os.mkdir(str(ens_dir))
+    os.chdir(str(ens_dir))
+    ens_parallel.compose()
+    ens_run_success = ens_parallel.run(teams_dict=teams_dict)
+
+    assert ens_run_success == 0, \
+        "Some teams ensemble members did not run successfully."
+
+    answers = ['hostname0 1\n', 'hostname1,hostname1 2\n',
+               'hostname0 1\n', 'hostname1,hostname1 2\n']
+    for answer, std_out_file in zip(
+            answers,
+            sorted(ens_dir.glob('member_00*/job*/test_job*stdout'))
+    ):
+        assert answer == std_out_file.open('r').readline()

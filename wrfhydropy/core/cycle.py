@@ -6,11 +6,27 @@ from typing import Union
 import os
 import pickle
 
+# For testing coverage reports
+try:
+    from pytest_cov.embed import cleanup_on_sigterm
+except ImportError:
+    pass
+else:
+    cleanup_on_sigterm()
+
 from .ensemble_tools import mute
 from .job import Job
 from .schedulers import Scheduler
 from .simulation import Simulation
 from .ensemble import EnsembleSimulation
+
+def integer_coercable(val): 
+    try: 
+        int(str(val))
+        integer_coercable = True
+    except ValueError: 
+        integer_coercable = False
+    return integer_coercable
 
 
 def translate_forcing_dirs(forcing_dir, member, init_time):
@@ -20,13 +36,10 @@ def translate_forcing_dirs(forcing_dir, member, init_time):
     # 2) An existing path/file is kept.
     # 3) A negative integer is units hours, pointing to a previous cast in the cycle.
     # 4) Other wise, value error raised.
-    if forcing_dir == pathlib.Path(''):
-        return None
+    if integer_coercable(forcing_dir):
+        if int(str(forcing_dir)) > 0:
+            raise ValueError('Only non-negative integers can be used to specify forcing_dirs')
 
-    elif forcing_dir.exists():
-        forcing_dir = forcing_dir.resolve()
-
-    elif int(str(forcing_dir)) <= 0:
         forcing_cast_time = init_time + datetime.timedelta(hours=int(str(forcing_dir)))
         # The last line is a bit hacky.
         if not hasattr(member, 'number'):
@@ -36,6 +49,7 @@ def translate_forcing_dirs(forcing_dir, member, init_time):
                 '/' +
                 pathlib.Path(member.base_hrldas_namelist['noahlsm_offline']['indir']).name
             )
+
         else:
             forcing_dir = pathlib.Path(
                 '../../cast_' +
@@ -45,8 +59,12 @@ def translate_forcing_dirs(forcing_dir, member, init_time):
             )
 
     else:
-        raise ValueError("No such forcing directory. Note that non-negative integers are not"
-                         " allowed when specifying forcing_dirs.")
+        if forcing_dir == pathlib.Path(''):
+            return None
+        elif forcing_dir.exists():
+            forcing_dir = forcing_dir.resolve()
+        else:
+            raise ValueError("No such forcing directory: " + str(forcing_dir))
 
     member.base_hrldas_namelist['noahlsm_offline']['indir'] = str(forcing_dir)
 
@@ -60,13 +78,10 @@ def translate_restart_dirs(restart_dir, member, init_time):
     # 2) An existing path/file is used/kept (a non-existent path is not, should give error).
     # 3) A negative integer is units hours, pointing to a previous cast in the cycle.
     # 4) Other wise, value error raised.
-    if restart_dir == pathlib.Path(''):
-        return None
-
-    elif restart_dir.exists():
-        restart_dir = restart_dir.resolve()
-
-    elif int(str(restart_dir)) <= 0:
+    if integer_coercable(restart_dir):
+        if int(str(restart_dir)) > 0:
+            raise ValueError('Only non-negative integers can be used to specify restart_dirs')
+        
         forcing_cast_time = init_time + datetime.timedelta(hours=int(str(restart_dir)))
         if not hasattr(member, 'number'):
             restart_dir = pathlib.Path('../cast_' + forcing_cast_time.strftime('%Y%m%d%H'))
@@ -76,8 +91,12 @@ def translate_restart_dirs(restart_dir, member, init_time):
             )
 
     else:
-        raise ValueError("No such restart directory. Note that non-negative integers are not"
-                         " allowed when specifying restart_dirs.")
+        if restart_dir == pathlib.Path(''):
+            return None
+        elif restart_dir.exists():
+            restart_dir = restart_dir.resolve()
+        else:
+            raise ValueError("No such restart directory: " + str(restart_dir))
 
     member.base_hrldas_namelist['noahlsm_offline']['restart_filename_requested'] = \
         str(restart_dir / init_time.strftime('RESTART.%Y%m%d%H_DOMAIN1'))
@@ -196,8 +215,7 @@ class CycleSimulation(object):
             forcing_dirs: optional
                 Deterministic: list of either strings or pathlib.Path objects
                 Ensemble: A list of lists, as for restart_dirs.
-                See restart_dirs for usage rules. ??Unlike restart_dirs, may be a
-                scalar applied to each cast in the cycle.??
+                See restart_dirs for usage rules.
             ncores: integer number of cores for running parallelizable methods (not the
                 casts themselves). For an ensemble cycle, setting this value > 1 will
                 force the ensemble.ncores = 1.
@@ -222,8 +240,7 @@ class CycleSimulation(object):
 
         self._forcing_dirs = []
         """list: optional list of either strings or pathlib.Path objects. See
-        _restart_dirs for usage rules. Unlike _restart_dirs, may be a scalar applied to
-        each cast in the cycle."""
+        _restart_dirs for usage rules."""
 
         self._job = None
         """list: a list containing Job objects"""
@@ -274,7 +291,7 @@ class CycleSimulation(object):
         elif isinstance(obj, Job):
             self._addjob(obj)
         else:
-            raise TypeError('obj is not of a type expected for a EnsembleSimulation')
+            raise TypeError('Object is not of a type expected for a CycleSimulation.')
 
     def _addinittimes(self, init_times: list):
         """Private method to add init times to a CycleSimulation
@@ -283,24 +300,56 @@ class CycleSimulation(object):
         """
         if not all([isinstance(ii, datetime.datetime) for ii in init_times]):
             raise ValueError('List object not all datetime.datetime objects, as expected')
-
-        if self._forcing_dirs != [] and len(init_times) > 1:
-            if len(self._forcing_dirs) != len(init_times):
-                raise ValueError("Length of init_times does not match that of self._forcing_dirs.")
-
         self._init_times = copy.deepcopy(init_times)
+
+    def _add_restart_forcing_dirs(self, dirs_list, identifier):
+        """Private method to common to adding forcing and restart directories
+        Args:
+            dirs_list: deterministic: a list of dirs,  ensemble: a list of lists of dirs
+            identifier: string for error messages to identify if restart or forcing dirs 
+                are problematic.
+        """
+        # Check the length
+        def check_len_init(the_list): 
+            if len(self._init_times) != len(the_list):
+                raise ValueError("Length of " + identifier + " does not match that of init_times.")
+
+        def int_to_str(var):
+            if type(var) is int:
+                return str(var)
+            return var
+
+        deterministic_types = [str, int, pathlib.Path, pathlib.PosixPath]
+        ensemble_types = [list]
+
+        if all([type(ii) in deterministic_types for ii in dirs_list]):
+            check_len_init(dirs_list)
+            return_list = [pathlib.Path(int_to_str(cc)) for cc in dirs_list]
+            
+        elif all([type(ii) in ensemble_types for ii in dirs_list]):
+            check_len_init(dirs_list)
+            return_list = []
+            for rr in dirs_list:
+                if len(rr) != len(dirs_list[0]):
+                    raise ValueError("Inconsistent ensemble length by implied by " + identifier)
+                # The ensemble length is unknown, it's implied by len(rr)
+                if all([type(ii) in deterministic_types for ii in rr]):
+                    return_list.append([pathlib.Path(int_to_str(cc)) for cc in rr])
+                else:
+                    raise ValueError("Types in ensemble " + identifier + " argument "
+                                     "are not appropriate.")
+
+        else:
+            raise ValueError("Types in " + identifier + " argument are not appropriate.")
+
+        return return_list
 
     def _addforcingdirs(self, forcing_dirs: list):
         """Private method to add forcing dirs to a Cycle.
         Args:
             forcing_dirs: a list of str objects.
         """
-        if not all([type(ff) in [str, pathlib.Path, pathlib.PosixPath] for ff in forcing_dirs]):
-            raise ValueError('List object not all str or pathlib.Path objects, as expected.')
-        if self._init_times != [] and len(forcing_dirs) > 1:
-            if len(self._init_times) != len(forcing_dirs):
-                raise ValueError("Length of forcing_dirs does not match that of self._init_times.")
-        self._forcing_dirs = [pathlib.Path(ff) for ff in forcing_dirs]
+        self._forcing_dirs = self._add_restart_forcing_dirs(forcing_dirs, 'forcing_dirs')
 
     def _addrestartdirs(self, restart_dirs: list):
         """Private method to add init times to a CycleSimulation
@@ -309,46 +358,8 @@ class CycleSimulation(object):
             ensemble cycle takes a list (for each cycle) of lists of str objects (for the
             ensemble).
         """
-        deterministic_types = [str, pathlib.Path, pathlib.PosixPath]
-        ensemble_types = [list]
-        if not all([type(ff) in deterministic_types + ensemble_types for ff in restart_dirs]):
-            raise ValueError(
-                'restart_dirs argument not as expected for a deterministic cycle ('
-                '' + repr(deterministic_types) + ') or ensemble cycle ('
-                '' + repr(ensemble_types) + ').'
-            )
+        self._restart_dirs = self._add_restart_forcing_dirs(restart_dirs, 'restart_dirs')
 
-        def int_to_str(the_list):
-            if all(type(ii) is int for ii in the_list):
-                return [str(ii) for ii in the_list]
-            else:
-                return the_list
-
-        def homogeneous_type(the_list):
-            type0 = type(the_list[0])
-            if not all(type(ii) is type0 for ii in the_list):
-                raise ValueError('Supplied restart_dirs argument is heterogeneous')
-            if type0 is int:
-                for ii, vv in enumerate(the_list):
-                    the_list[ii] = str(vv)
-            if all([type(ii) in deterministic_types for ii in the_list]):
-                return 'deterministic'
-            elif all([type(ii) in ensemble_types for ii in the_list]):
-                return 'ensemble'
-            else:
-                raise ValueError("Types in restart_dirs argument are not appropriate.")
-
-        if homogeneous_type(restart_dirs) == 'deterministic':
-            self._restart_dirs = [pathlib.Path(cc) for cc in restart_dirs]
-        elif homogeneous_type(restart_dirs) == 'ensemble':
-            for rr in restart_dirs:
-                if homogeneous_type(rr) == 'deterministic':
-                    self._restart_dirs.append([pathlib.Path(cc) for cc in rr])
-
-        # Check the length
-        if self._init_times != [] and len(restart_dirs) > 1:
-            if len(self._init_times) != len(restart_dirs):
-                raise ValueError("Length of restart_dirs does not match that of self._init_times.")
 
     def _addscheduler(self, scheduler: Scheduler):
         """Private method to add a Scheduler to an CycleSimulation
@@ -373,21 +384,10 @@ class CycleSimulation(object):
         Args:
             sim: The Simulation to add
         """
-
-        if type(sim) is not Simulation:
-            raise ValueError("A non-Simulation object can not be "
-                             "added to the cycle object as a simulation.")
-
-        if sim.model.compile_log is None:
-            raise ValueError("Only Simulations with compiled model objects "
-                             "can be added to an ensemble simulation.")
-
         sim_copy = copy.deepcopy(sim)
-
         # Ensure that the jobs and scheduler are empty and None
         sim_copy.jobs = []
         sim_copy.scheduler = None
-
         self._simulation = sim_copy
 
     def _addensemble(
@@ -398,25 +398,23 @@ class CycleSimulation(object):
         Args:
             ens: The EnsembleSimulation to add
         """
-
-        if type(ens) is not EnsembleSimulation:
-            raise ValueError("A non-EnsembleSimulation object can not be "
-                             "added to the cycle object as a simulation.")
-
-        if not all([isinstance(ii, list) for ii in self._restart_dirs]):
+        if not all([isinstance(ii, list) for ii in self._restart_dirs]) or \
+           not all([isinstance(ii, list) for ii in self._forcing_dirs]):
             raise ValueError("An ensemble cycle simulation requires the restart_dirs to be "
                              "a list of lists.")
+        common_msg = "Ensemble to add has inconsistent length with existing cycle"
+        if len(self._restart_dirs) > 0 and len(ens) != len(self._restart_dirs[0]):
+            raise ValueError(common_msg + " restart_dirs")
+        if len(self._forcing_dirs) > 0 and len(ens) != len(self._forcing_dirs[0]):
+            raise ValueError(common_msg + " forcing_dirs")
 
         ens_copy = copy.deepcopy(ens)
-
         # Ensure that the jobs and scheduler are empty and None
         ens_copy.jobs = []
         ens_copy.scheduler = None
-
         # Dont let multiprocessing use multiprocessing.
         if self.ncores > 1:
             ens_copy.ncores = 1
-
         self._ensemble = ens_copy
 
     def compose(
@@ -437,6 +435,11 @@ class CycleSimulation(object):
             check_nlst_warn: Allow the namelist checking/validation to only result in warnings.
             This is also not great practice, but necessary in certain circumstances.
         """
+        current_dir = pathlib.Path(os.getcwd())
+        current_dir_files = list(current_dir.rglob('*'))
+        if len(current_dir_files) > 0 and force is False:
+            raise FileExistsError('Unable to compose, current working directory is not empty. \n'
+                                  'Change working directory to an empty directory with os.chdir()')
 
         if '_simulation' in dir(self):
             cast_prototype = '_simulation'
@@ -448,9 +451,9 @@ class CycleSimulation(object):
         if len(self) < 1:
             raise ValueError("There are no casts (init_times) to compose.")
 
-        self.cycle_dir = os.getcwd()
+        self.cycle_dir = pathlib.Path(os.getcwd())
 
-        # Allowing forcing_dirs to be optional or scalar.
+        # Allowing forcing_dirs to be optional.
         if self._forcing_dirs == []:
             if cast_prototype == '_simulation':
                 self._forcing_dirs = [pathlib.Path('.')] * len(self)
@@ -458,14 +461,13 @@ class CycleSimulation(object):
                 self._forcing_dirs = \
                     [([pathlib.Path('.') for _ in range(len(self.__dict__[cast_prototype]))])
                      for cc in range(len(self))]
-        if len(self._forcing_dirs) == 1:
-            self._forcing_dirs = [self._forcing_dirs[0] for ii in self._init_times]
 
         # An ensemble must have a compiled model.
         if cast_prototype == '_simulation':
             # compile the model (once) before setting up the casts.
             if self._simulation.model.compile_log is None:
-                self._simulation.model.compile()
+                comp_dir = self.cycle_dir / 'compile'
+                self._simulation.model.compile(comp_dir)
 
         # Set the ensemble jobs on the casts before composing (this is a loop over the jobs).
         if self.ncores == 1:

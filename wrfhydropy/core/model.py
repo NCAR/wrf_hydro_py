@@ -45,15 +45,18 @@ class Model(object):
     """Class for a WRF-Hydro model, which consitutes the model source code and compiled binary.
     """
 
-    def __init__(self,
-                 source_dir: str,
-                 model_config: str,
-                 hydro_namelist_config_file: str=None,
-                 hrldas_namelist_config_file: str=None,
-                 compile_options_config_file: str=None,
-                 compiler: str = 'gfort',
-                 pre_compile_cmd: str = None,
-                 compile_options: dict = None):
+    def __init__(
+        self,
+        source_dir: str,
+        model_config: str,
+        hydro_namelist_config_file: str=None,
+        hrldas_namelist_config_file: str=None,
+        compile_options_config_file: str=None,
+        compiler: str = 'gfort',
+        pre_compile_cmd: str = None,
+        compile_options: dict = None
+    ):
+
         """Instantiate a Model object.
         Args:
             source_dir: Directory containing the source code, e.g.

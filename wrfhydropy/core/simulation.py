@@ -128,7 +128,10 @@ class Simulation(object):
 
         print('Simulation successfully composed')
 
-    def run(self):
+    def run(
+        self,
+        env: dict=None
+    ):
         """Run the composed simulation.
         Returns: 0 for success.
         """
@@ -139,9 +142,8 @@ class Simulation(object):
             pickle.dump(self, f, 2)
 
         if self.scheduler is None:
-
             for job in self.jobs:
-                job._run()
+                job._run(env=env)
         else:
             self.scheduler.schedule(jobs=self.jobs)
 

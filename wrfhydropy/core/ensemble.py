@@ -79,19 +79,19 @@ def parallel_teams_run(arg_dict):
     Arguments:
         arg_dict:
             arg_dict == {
-               'ens_dir'  : <pathlib.Path absolute path to the ensemble run dir path, 
+               'ens_dir'  : <pathlib.Path absolute path to the ensemble run dir path,
                              where the member dirs are found>,
                'team_dict': <dict: the information needed for the team, see below>
             }
             where
             team_dict == {
                 'members'  : <list: length n_team, groups of member run_dirs>
-                'nodes'    : <list: the nodes previously parsed from something like 
+                'nodes'    : <list: the nodes previously parsed from something like
                               $PBS_NODEFILE>,
                 'entry_cmd': <string: the entry cmd to be run>,
                 'exe_cmd'  : <string: the MPI-specific model invokation command>,
                 'exit_cmd' : <string: exit cmd to be run>,
-                'env'      : <dict: containging the environment in which to run the 
+                'env'      : <dict: containging the environment in which to run the
                               cmds, may be None or 'None'>
             }
 
@@ -100,7 +100,7 @@ def parallel_teams_run(arg_dict):
                 exe_cmd: 'mpirun --host {hostnames} -np {nproc} {cmd}'
             The variables in brackets are expanded by internal variables. The 'exe_cmd'
             command substitutes the wrfhydropy of 'wrf_hydro.exe' convention for {cmd}.
-            The {nproc} argument is the length of the list passed in the nodes argument, 
+            The {nproc} argument is the length of the list passed in the nodes argument,
             and the {hostnames} are the comma separated arguments in that list.
 
             The "entry_cmd" and "exit_cmd"
@@ -136,7 +136,7 @@ def parallel_teams_run(arg_dict):
                         team_dict['exe_cmd'].format(
                             **{
                                 'cmd': cmd,
-                                'hostname': team_dict['nodes'][0], #only use one task
+                                'hostname': team_dict['nodes'][0],  # only use one task
                                 'nproc': 1
                             }
                         )
@@ -154,7 +154,7 @@ def parallel_teams_run(arg_dict):
                         team_dict['exe_cmd'].format(
                             **{
                                 'cmd': cmd,
-                                'hostname': team_dict['nodes'][0], #only use one task
+                                'hostname': team_dict['nodes'][0],  # only use one task
                                 'nproc': 1
                             }
                         )
@@ -189,7 +189,7 @@ class EnsembleSimulation(object):
 
     def __init__(
         self,
-        ncores: int=1
+        ncores: int = 1
     ):
         """ Instantiates an EnsembleSimulation object. """
 
@@ -284,7 +284,7 @@ class EnsembleSimulation(object):
             # the detector for all ensemble metadata.
             mm_copy = copy.deepcopy(mm)
             if hasattr(mm, 'number'):
-                    delattr(mm_copy, 'number')
+                delattr(mm_copy, 'number')
 
             # Ensure that the jobs and scheduler are empty and None
             mm_copy.jobs = []
@@ -302,7 +302,7 @@ class EnsembleSimulation(object):
     def replicate_member(
         self,
         N: int,
-        copy_members: bool=True
+        copy_members: bool = True
     ):
         if self.N > 1:
             raise ValueError('The ensemble must only have one member to replicate.')
@@ -403,10 +403,10 @@ class EnsembleSimulation(object):
 
     def compose(
         self,
-        symlink_domain: bool=True,
-        force: bool=False,
-        check_nlst_warn: bool=False,
-        rm_members_from_memory: bool=True
+        symlink_domain: bool = True,
+        force: bool = False,
+        check_nlst_warn: bool = False,
+        rm_members_from_memory: bool = True
     ):
         """Ensemble compose simulation directories and files
         Args:
@@ -482,14 +482,17 @@ class EnsembleSimulation(object):
             # Keep the following for debugging: Run it without pool.map
             self.members = [
                 parallel_compose(
-                    {'member': mm,
-                     'ens_dir': ens_dir,
-                     'args': {
-                         'symlink_domain': symlink_domain,
-                         'force': force,
-                         'check_nlst_warn': check_nlst_warn
-                     }
-                    }) for mm in self.members]
+                    {
+                        'member': mm,
+                        'ens_dir': ens_dir,
+                        'args': {
+                            'symlink_domain': symlink_domain,
+                            'force': force,
+                            'check_nlst_warn': check_nlst_warn
+                        }
+                    }
+                ) for mm in self.members
+            ]
 
         # Return to the ensemble dir.
         os.chdir(ens_dir)
@@ -506,9 +509,9 @@ class EnsembleSimulation(object):
 
     def run(
         self,
-        n_concurrent: int=1,
-        teams_dict: dict=None,
-        env: dict=None
+        n_concurrent: int = 1,
+        teams_dict: dict = None,
+        env: dict = None
     ):
         """Run the ensemble of simulations.
         Args:
@@ -559,7 +562,7 @@ class EnsembleSimulation(object):
             # Add the env to all the teams
             for key, value in teams_dict.items():
                 value.update(env=env)
-            
+
             # with multiprocessing.Pool(len(teams_dict), initializer=mute) as pool:
             #     exit_codes = pool.map(
             #         parallel_teams_run,

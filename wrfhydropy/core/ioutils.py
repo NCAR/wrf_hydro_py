@@ -20,6 +20,7 @@ import time
 import warnings
 import xarray as xr
 
+a = 4
 
 def is_not_none(x):
     return x is not None

@@ -19,7 +19,7 @@ Failure to adhere to contributing standards may result in your Pull Request bein
 
 ### pep8speaks
 All pull requests will be linted automatically by pep8speaks and reported as a comment into the pull request. The pep8speaks configuration is specified in .pep8speaks.yml. All pull requests must satisfy pep8speaks.  
-Local linting can be performed by [pycodestyle](https://github.com/PyCQA/pycodestyle) in addition to updating pull requests.
+Local linting can be performed after a `pip install` of [pycodestyle](https://github.com/PyCQA/pycodestyle). Pep8speaks linting reports also update with updated pull requests.
 
 ### Additional Style Guidelines
 * Max line length: 100 chars.

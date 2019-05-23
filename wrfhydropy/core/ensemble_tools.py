@@ -6,6 +6,7 @@ import os
 import pathlib
 import sys
 
+
 def is_sub_obj(obj):
     """Test if an object is has a __dict__ (may not be the best definition of an object,
     but it works for classes in wrfhydropy)."""
@@ -47,9 +48,9 @@ class DeepDiffEq(DeepDiff):
                  report_repetition=False,
                  significant_digits=None,
                  exclude_paths=set(),
-                 #exclude_regex_paths=set(),
+                 # exclude_regex_paths=set(),
                  exclude_types=set(),
-                 #include_string_type_changes=False,
+                 # include_string_type_changes=False,
                  verbose_level=1,
                  view='text',
                  **kwargs):
@@ -63,9 +64,9 @@ class DeepDiffEq(DeepDiff):
                          report_repetition=False,
                          significant_digits=None,
                          exclude_paths=set(),
-                         #exclude_regex_paths=set(),
+                         # exclude_regex_paths=set(),
                          exclude_types=set(),
-                         #include_string_type_changes=False,
+                         # include_string_type_changes=False,
                          verbose_level=1,
                          view='text',
                          **kwargs)
@@ -82,8 +83,11 @@ class DeepDiffEq(DeepDiff):
                 self._DeepDiff__report_result('values_changed', level)
                 return
 
-        super(DeepDiffEq, self)._DeepDiff__diff_obj(level, parents_ids=frozenset({}),
-                                           is_namedtuple=False)
+        super(DeepDiffEq, self)._DeepDiff__diff_obj(
+            level,
+            parents_ids=frozenset({}),
+            is_namedtuple=False
+        )
 
 
 # def get_ens_file_last_restart_datetime(run_dir):

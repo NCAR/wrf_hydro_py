@@ -32,7 +32,7 @@ class Domain(object):
             hrldas namelist
         """
 
-        ###Instantiate arguments to object
+        # Instantiate arguments to object
         # Make file paths
         self.domain_top_dir = pathlib.Path(domain_top_dir).absolute()
         """pathlib.Path: pathlib.Paths to *.TBL files generated at compile-time."""
@@ -48,10 +48,10 @@ class Domain(object):
             try:
                 with self.domain_top_dir.joinpath('.version').open() as f:
                     self.compatible_version = f.read()
-            except:
+            except FileNotFoundError:
                 raise FileNotFoundError('file .version not found in directory ' +
                                         str(self.domain_top_dir) + ' and compatible_version not '
-                                                              'specified')
+                                        'specified')
 
         # Load namelist patches
         hydro_namelist_patch_file = self.domain_top_dir.joinpath(hydro_namelist_patch_file)
@@ -64,7 +64,6 @@ class Domain(object):
         self.hrldas_namelist_patches = JSONNamelist(str(hrldas_namelist_patch_file))
         """Namelist: Domain-specific hrldas namelist settings."""
         self.hrldas_namelist_patches = self.hrldas_namelist_patches.get_config(self.domain_config)
-
 
         self.hydro_files = list()
         """list: Files specified in hydro_nlist section of the domain namelist patches"""
@@ -124,7 +123,7 @@ class Domain(object):
 
         self.forcing_data = WrfHydroTs(self.forcing_dir.glob('*'))
 
-    def copy_files(self,dest_dir: str,symlink: bool=True):
+    def copy_files(self, dest_dir: str, symlink: bool = True):
         """Copy domain files to a new directory
         Args:
             dir: The destination directory for domain files
@@ -145,7 +144,7 @@ class Domain(object):
         if symlink:
             to_dir.symlink_to(from_dir, target_is_directory=True)
         else:
-            shutil.copytree(str(from_dir),str(to_dir))
+            shutil.copytree(str(from_dir), str(to_dir))
 
         # create DOMAIN directory and symlink in files
         # Symlink in hydro_files
@@ -159,7 +158,7 @@ class Domain(object):
             if symlink:
                 to_path.symlink_to(from_path)
             else:
-                shutil.copy(str(from_path),str(to_path))
+                shutil.copy(str(from_path), str(to_path))
 
         # Symlink in nudging files
 
@@ -171,7 +170,7 @@ class Domain(object):
             if symlink:
                 to_dir.symlink_to(from_dir, target_is_directory=True)
             else:
-                shutil.copy(str(from_dir),str(to_dir))
+                shutil.copy(str(from_dir), str(to_dir))
 
         for from_path in self.nudging_files:
             # Get new file path for run directory, relative to the top-level domain directory
@@ -181,11 +180,10 @@ class Domain(object):
                 to_path = dest_dir.joinpath(relative_path)
                 if to_path.parent.is_dir() is False:
                     to_path.parent.mkdir(parents=True)
-                print(from_path)
                 if symlink:
                     to_path.symlink_to(from_path)
                 else:
-                    shutil.copy(str(from_path),str(to_path))
+                    shutil.copy(str(from_path), str(to_path))
 
         # Symlink in lsm files
         for from_path in self.lsm_files:
@@ -198,7 +196,7 @@ class Domain(object):
             if symlink:
                 to_path.symlink_to(from_path)
             else:
-                shutil.copy(str(from_path),str(to_path))
+                shutil.copy(str(from_path), str(to_path))
 
         model_files = [*self.hydro_files,
                        *self.nudging_files,
@@ -210,16 +208,16 @@ class Domain(object):
                     if symlink:
                         to_path.symlink_to(ff)
                     else:
-                        shutil.copy(str(ff),str(to_path))
+                        shutil.copy(str(ff), str(to_path))
                 if 'HYDRO_RST' in str(ff.name):
                     to_path = dest_dir.joinpath(ff.name).absolute()
                     if symlink:
                         to_path.symlink_to(ff)
                     else:
-                        shutil.copy(str(ff),str(to_path))
+                        shutil.copy(str(ff), str(to_path))
                 if 'nudgingLastObs' in str(ff.name):
                     to_path = dest_dir.joinpath(ff.name).absolute()
                     if symlink:
                         to_path.symlink_to(ff)
                     else:
-                        shutil.copy(str(ff),str(to_path))
+                        shutil.copy(str(ff), str(to_path))

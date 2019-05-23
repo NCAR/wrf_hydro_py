@@ -1086,11 +1086,11 @@ def test_cycle_run(
     os.mkdir(str(cy_dir))
     os.chdir(str(cy_dir))
     cy_serial.compose(rm_casts_from_memory=False)
-
     serial_run_success = cy_serial.run()
     assert serial_run_success == 0, \
         "Some serial cycle casts did not run successfully."
-
+    assert cy_dir.joinpath("WrfHydroCycle.pkl").exists()
+    
     # Parallel test
     cy_parallel = copy.deepcopy(cy)
     cy_dir = pathlib.Path(tmpdir).joinpath('cycle_parallel_run')
@@ -1098,10 +1098,10 @@ def test_cycle_run(
     os.mkdir(str(cy_dir))
     os.chdir(str(cy_dir))
     cy_parallel.compose()
-
     cy_run_success = cy_parallel.run(n_concurrent=2)
     assert cy_run_success == 0, \
         "Some parallel cycle casts did not run successfully."
+    assert cy_dir.joinpath("WrfHydroCycle.pkl").exists()    
 
     # Parallel test with ensemble in memory
     cy_parallel = copy.deepcopy(cy)
@@ -1113,7 +1113,7 @@ def test_cycle_run(
     cy_run_mem_success = cy_parallel.run(n_concurrent=2)
     assert cy_run_mem_success == 0, \
         "Some parallel cycle casts in memory did not run successfully."
-
+    assert cy_dir.joinpath("WrfHydroCycle.pkl").exists()    
 
 def test_cycle_self_dependent_run(
     simulation_compiled,

@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# # Ensemble Cycle For Testing wrfhydropy Collects
-
 import datetime
 import os
 import pathlib
@@ -12,9 +10,7 @@ import sys
 import wrfhydropy
 import xarray as xa
 
-
-# ## Configuration
-
+# Configuration
 scratch_dir = pathlib.Path('/glade/scratch/jamesmcc/')
 work_dir = pathlib.Path('/glade/work/jamesmcc/')
 home_dir = pathlib.Path('/glade/u/home/jamesmcc/')
@@ -36,7 +32,6 @@ ens_ana_dir = experiment_dir / "ens_ana"
 # ## Data
 
 # Set up the experiment directory and pull the croton domain:
-
 if not experiment_dir.exists():
     os.mkdir(experiment_dir)
 
@@ -172,5 +167,5 @@ print(return_code)
 
 get_ipython().run_cell_magic('bash', '', 'cd /glade/scratch/jamesmcc/ens_cycle_example/\nrm croton_NY.tar.gz\n\nrm compile/wrf_hydro.exe\n\ncd croton_NY\nrm -rf Gridded Gridded_no_lakes/ Reach/ supplemental/\nrm USGS_obs.csv  Readme.txt  hydro_namelist_patches.json hrldas_namelist_patches.json study_map.PNG\nrm example_case  hydro_namelist_patches.json~ hrldas_namelist_patches.json~ \n\ncd NWM\nrm -rf DOMAIN_LR/ RESTART_LR/ referenceSim/\nrm hydro.namelist namelist.hrldas \n\ncd nudgingTimeSliceObs\nrm 2011-09*.usgsTimeSlice.ncdf 2011-08-3*.usgsTimeSlice.ncdf 2011-08-2[7-9]*.usgsTimeSlice.ncdf \nrm 2011-08-26_[1-2]*.usgsTimeSlice.ncdf 2011-08-26_0[6-9]*.usgsTimeSlice.ncdf 2011-08-25*.usgsTimeSlice.ncdf\n\ncd ../../FORCING/\nrm 201109*LDASIN_DOMAIN1 2011083*.LDASIN_DOMAIN1 2011082[7-9]*.LDASIN_DOMAIN1\nrm 20110826[1-2]*.LDASIN_DOMAIN1 201108260[6-9]*.LDASIN_DOMAIN1\nrm 2011082600.LDASIN_DOMAIN1')
 
-get_ipython().run_cell_magic('bash', '', 'cd /glade/scratch/jamesmcc/\nmv ens_cycle_example wrfhydropy_io_collect_data\ntar czf wrfhydropy_io_collect_data.tar.gz wrfhydropy_io_collect_data')
+get_ipython().run_cell_magic('bash', '', 'cd /glade/scratch/jamesmcc/\nmv ens_cycle_example collection_data\ntar czf collection_data.tar.gz collection_data')
 

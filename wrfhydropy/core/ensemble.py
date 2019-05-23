@@ -491,7 +491,8 @@ class EnsembleSimulation(object):
                             'check_nlst_warn': check_nlst_warn
                         }
                     }
-                ) for mm in self.members]
+                ) for mm in self.members
+            ]
 
         # Return to the ensemble dir.
         os.chdir(ens_dir)

@@ -20,11 +20,12 @@ from .schedulers import Scheduler
 from .simulation import Simulation
 from .ensemble import EnsembleSimulation
 
-def integer_coercable(val): 
-    try: 
+
+def integer_coercable(val):
+    try:
         int(str(val))
         integer_coercable = True
-    except ValueError: 
+    except ValueError:
         integer_coercable = False
     return integer_coercable
 
@@ -81,7 +82,7 @@ def translate_restart_dirs(restart_dir, member, init_time):
     if integer_coercable(restart_dir):
         if int(str(restart_dir)) > 0:
             raise ValueError('Only non-negative integers can be used to specify restart_dirs')
-        
+
         forcing_cast_time = init_time + datetime.timedelta(hours=int(str(restart_dir)))
         if not hasattr(member, 'number'):
             restart_dir = pathlib.Path('../cast_' + forcing_cast_time.strftime('%Y%m%d%H'))
@@ -191,8 +192,8 @@ class CycleSimulation(object):
         self,
         init_times: list,
         restart_dirs: list,
-        forcing_dirs: list=[],
-        ncores: int=1
+        forcing_dirs: list = [],
+        ncores: int = 1
     ):
         """ Instantiate a Cycle object.
         Args:
@@ -225,7 +226,7 @@ class CycleSimulation(object):
         """list: a list of 'casts' which are the individual simulations in the cycle object."""
 
         self._init_times = []
-        """list: required list of datetime.datetime objects which specify the restart time of 
+        """list: required list of datetime.datetime objects which specify the restart time of
         each cast in the cycle."""
 
         self._restart_dirs = []
@@ -306,11 +307,11 @@ class CycleSimulation(object):
         """Private method to common to adding forcing and restart directories
         Args:
             dirs_list: deterministic: a list of dirs,  ensemble: a list of lists of dirs
-            identifier: string for error messages to identify if restart or forcing dirs 
+            identifier: string for error messages to identify if restart or forcing dirs
                 are problematic.
         """
         # Check the length
-        def check_len_init(the_list): 
+        def check_len_init(the_list):
             if len(self._init_times) != len(the_list):
                 raise ValueError("Length of " + identifier + " does not match that of init_times.")
 
@@ -325,7 +326,7 @@ class CycleSimulation(object):
         if all([type(ii) in deterministic_types for ii in dirs_list]):
             check_len_init(dirs_list)
             return_list = [pathlib.Path(int_to_str(cc)) for cc in dirs_list]
-            
+
         elif all([type(ii) in ensemble_types for ii in dirs_list]):
             check_len_init(dirs_list)
             return_list = []
@@ -359,7 +360,6 @@ class CycleSimulation(object):
             ensemble).
         """
         self._restart_dirs = self._add_restart_forcing_dirs(restart_dirs, 'restart_dirs')
-
 
     def _addscheduler(self, scheduler: Scheduler):
         """Private method to add a Scheduler to an CycleSimulation
@@ -419,11 +419,11 @@ class CycleSimulation(object):
 
     def compose(
         self,
-        symlink_domain: bool=True,
-        force: bool=False,
-        check_nlst_warn: bool=False,
-        rm_casts_from_memory: bool=True,
-        rm_members_from_memory: bool=True
+        symlink_domain: bool = True,
+        force: bool = False,
+        check_nlst_warn: bool = False,
+        rm_casts_from_memory: bool = True,
+        rm_members_from_memory: bool = True
     ):
         """Cycle compose (directories and files to disk)
         Args:
@@ -474,13 +474,14 @@ class CycleSimulation(object):
 
             self.casts = [
                 parallel_compose_casts(
-                    {'prototype': self.__dict__[cast_prototype],
-                     'init_time': init_time,
-                     'restart_dir': restart_dir,
-                     'forcing_dir': forcing_dir,
-                     'job': self._job,
-                     'scheduler': self._scheduler,
-                     'rm_members_from_memory': rm_members_from_memory,
+                    {
+                        'prototype': self.__dict__[cast_prototype],
+                        'init_time': init_time,
+                        'restart_dir': restart_dir,
+                        'forcing_dir': forcing_dir,
+                        'job': self._job,
+                        'scheduler': self._scheduler,
+                        'rm_members_from_memory': rm_members_from_memory,
                     }
                 ) for init_time, restart_dir, forcing_dir in zip(
                     self._init_times,
@@ -534,7 +535,7 @@ class CycleSimulation(object):
 
     def run(
         self,
-        n_concurrent: int=1
+        n_concurrent: int = 1
     ):
         """Run the cycle of simulations.
         Args:

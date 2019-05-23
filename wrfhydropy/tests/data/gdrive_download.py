@@ -2,6 +2,7 @@ from argparse import ArgumentParser
 import requests
 import tarfile
 
+
 def download_file_from_google_drive(id, destination):
     print('downloading google drive file id ' + id + ' to ' + destination)
     URL = "https://docs.google.com/uc?export=download"
@@ -16,7 +17,6 @@ def download_file_from_google_drive(id, destination):
         response = session.get(URL, params=params, stream=True)
 
     save_response_content(response, destination)
-
 
 
 def get_confirm_token(response):
@@ -44,7 +44,7 @@ def untar(fname):
     elif (fname.endswith("tar")):
         tar = tarfile.open(fname, "r:")
         tar.extractall()
-        tar.close()                
+        tar.close()
 
 
 def main():
@@ -62,6 +62,7 @@ def main():
     dest_file = args.dest_file
 
     download_file_from_google_drive(file_id, dest_file)
+
 
 if __name__ == "__main__":
     main()

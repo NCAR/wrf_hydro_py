@@ -22,7 +22,6 @@ import xarray as xr
 
 
 def is_not_none(x):
-    a = 1+ 1
     return x is not None
 
 

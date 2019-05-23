@@ -780,7 +780,7 @@ def test_cycle_ensemble_compose(
         ]
     )
     cy.add(job_restart)
-    cy.add(ensemble)24
+    cy.add(ensemble)
 
     compose_dir = pathlib.Path(tmpdir).joinpath('cycle_forc_dir_fail_2_compose')
     os.mkdir(str(compose_dir))

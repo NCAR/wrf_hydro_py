@@ -557,29 +557,34 @@ class EnsembleSimulation(object):
         """
         ens_dir = os.getcwd()
 
+        # Save the ensemble object out to the ensemble directory before run
+        # The object does not change with the run.
+        path = pathlib.Path(ens_dir).joinpath('WrfHydroEns.pkl')
+        self.pickle(path)
+
         if isinstance(teams_dict, dict):
 
             # Add the env to all the teams
             for key, value in teams_dict.items():
                 value.update(env=env)
 
-            # with multiprocessing.Pool(len(teams_dict), initializer=mute) as pool:
-            #     exit_codes = pool.map(
-            #         parallel_teams_run,
-            #         (
-            #             {'team_dict': team_dict , 'ens_dir': ens_dir, 'env': env}
-            #             for (key, team_dict) in teams_dict.items()
-            #         )
-            #     )
+            with multiprocessing.Pool(len(teams_dict), initializer=mute) as pool:
+                exit_codes = pool.map(
+                    parallel_teams_run,
+                    (
+                        {'team_dict': team_dict, 'ens_dir': ens_dir, 'env': env}
+                        for (key, team_dict) in teams_dict.items()
+                    )
+                )
 
-            # Keep around for serial testing/debugging
-            exit_codes = [
-                parallel_teams_run({'team_dict': team_dict, 'ens_dir': ens_dir, 'env': env})
-                for (key, team_dict) in teams_dict.items()
-            ]
+            # # Keep around for serial testing/debugging
+            # exit_codes = [
+            #     parallel_teams_run({'team_dict': team_dict, 'ens_dir': ens_dir, 'env': env})
+            #     for (key, team_dict) in teams_dict.items()
+            # ]
 
             os.chdir(ens_dir)
-            return int(not all([list(ee.values())[0] == 0 for ee in exit_codes]))
+            exit_code = int(not all([list(ee.values())[0] == 0 for ee in exit_codes]))
 
         elif n_concurrent > 1:
 
@@ -590,16 +595,19 @@ class EnsembleSimulation(object):
                 )
 
             os.chdir(ens_dir)
-            return int(not all([ee == 0 for ee in exit_codes]))
+            exit_code = int(not all([ee == 0 for ee in exit_codes]))
 
         else:
+
             # Keep the following for debugging: Run it without pool.map
             exit_codes = [
                 parallel_run({'member': mm, 'ens_dir': ens_dir}) for mm in self.members
             ]
 
             os.chdir(ens_dir)
-            return int(not all([ee == 0 for ee in exit_codes]))
+            exit_code = int(not all([ee == 0 for ee in exit_codes]))
+
+        return exit_code
 
     def pickle(self, path: str):
         """Pickle ensemble sim object to specified file path

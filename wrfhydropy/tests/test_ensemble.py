@@ -332,6 +332,7 @@ def test_ens_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
         "Some parallel ensemble members in memory did not run successfully."
     assert get_ens_dotfile_end_datetime(ens_dir) == datetime.datetime(2017, 1, 4, 0, 0)
 
+    
 def test_ens_teams_run(simulation_compiled, job, scheduler, tmpdir, capfd):
 
     ens_dir = pathlib.Path(tmpdir).joinpath('ens_teams_run')

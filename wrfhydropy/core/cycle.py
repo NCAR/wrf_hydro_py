@@ -542,6 +542,10 @@ class CycleSimulation(object):
         Returns: 0 for success.
         """
 
+        # Save the ensemble object out to the ensemble directory before run
+        # The object does not change with the run.
+        path = pathlib.Path(self.cycle_dir).joinpath('WrfHydroCycle.pkl')
+        self.pickle(path)
 
         if n_concurrent > 1:
             with multiprocessing.Pool(n_concurrent, initializer=mute) as pool:

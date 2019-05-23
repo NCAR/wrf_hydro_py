@@ -1,7 +1,6 @@
 from argparse import ArgumentParser
-
 import requests
-
+import tarfile
 
 def download_file_from_google_drive(id, destination):
     print('downloading google drive file id ' + id + ' to ' + destination)
@@ -35,6 +34,17 @@ def save_response_content(response, destination):
         for chunk in response.iter_content(CHUNK_SIZE):
             if chunk:  # filter out keep-alive new chunks
                 f.write(chunk)
+
+
+def untar(fname):
+    if (fname.endswith("tar.gz")):
+        tar = tarfile.open(fname, "r:gz")
+        tar.extractall()
+        tar.close()
+    elif (fname.endswith("tar")):
+        tar = tarfile.open(fname, "r:")
+        tar.extractall()
+        tar.close()                
 
 
 def main():

@@ -35,19 +35,25 @@ ens_ana_dir = experiment_dir / "ens_ana"
 if not experiment_dir.exists():
     os.mkdir(experiment_dir)
 
-# This will hang/fail on a cheyenne compute node... 
+# This will hang/fail on a cheyenne compute node...
 if not domain_dir.exists():
     file_id = "1xFYB--zm9f8bFHESzgP5X5i7sZryQzJe"
     download_script = model_dir / 'tests/local/utils/gdrive_download.py'
     function_name = "download_file_from_google_drive"
     sys.path.insert(0, str(download_script.parent))
     download_file_from_google_drive = getattr(
-        __import__(str(download_script.stem), fromlist=[function_name]), 
+        __import__(str(download_script.stem), fromlist=[function_name]),
         function_name
     )
     download_file_from_google_drive(file_id, str(experiment_dir / 'croton_NY.tar.gz'))
 
-    get_ipython().run_cell_magic('bash', '', 'cd /glade/scratch/jamesmcc/ens_cycle_example/ ;\ntar xzf croton_NY.tar.gz ;\nmv example_case croton_NY')
+    get_ipython().run_cell_magic(
+        'bash',
+        '',
+        'cd /glade/scratch/jamesmcc/ens_cycle_example/ ;\n' +
+        'tar xzf croton_NY.tar.gz ;\n' +
+        'mv example_case croton_NY'
+    )
 
 
 # ## Building Blocks
@@ -62,11 +68,8 @@ domain = wrfhydropy.Domain(
 # ### Model
 
 model = wrfhydropy.Model(
-    source_dir=model_dir / 'trunk/NDHMS', 
+    source_dir=model_dir / 'trunk/NDHMS',
     model_config=configuration,
-    #hydro_namelist_config_file=domain_dir / 'hydro_namelists.json',
-    #hrldas_namelist_config_file=domain_dir / 'hrldas_namelists.json',
-    #compile_options_config_file=domain_dir / 'compile_options.json',
     compiler='ifort'
 )
 
@@ -83,12 +86,12 @@ else:
 model_start_time = datetime.datetime(2018, 8, 1, 0)
 model_end_time = model_start_time + datetime.timedelta(hours=2)
 job = wrfhydropy.Job(
-    job_id = 'flo_sim', 
+    job_id='flo_sim',
     model_start_time=model_start_time,
     model_end_time=model_end_time,
     output_freq_hr=1,
     restart_freq_hr=1,
-    exe_cmd = 'mpirun -np 1 ./wrf_hydro.exe'
+    exe_cmd='mpirun -np 1 ./wrf_hydro.exe'
 )
 
 
@@ -103,7 +106,7 @@ sim.add(job)
 
 ens = wrfhydropy.EnsembleSimulation()
 ens.add(sim)
-ens.add(job) # if the job is not present, member diffs are messed up!
+ens.add(job)
 ens.replicate_member(3)
 
 
@@ -115,19 +118,18 @@ mannings_n = routelink['n']
 
 if not ens_routelink_dir.exists():
     ens_routelink_dir.mkdir(parents=True)
-deltas = [ .3, 1.0, 1.7]
+deltas = [.3, 1.0, 1.7]
 for delta in deltas:
     out_file = ens_routelink_dir / ('Route_Link_edit_' + str(delta) + '.nc')
-    values_dict = { 'n' : mannings_n + delta }
+    values_dict = {'n': mannings_n + delta}
     result = pywrfhydro.routelink_edit(values_df=values_dict, in_file=rl_file, out_file=out_file)
     print(result)
 routelink_files = [str(ff) for ff in sorted(ens_routelink_dir.glob("Route_Link*.nc"))]
 print(routelink_files)
 ens.set_member_diffs(
     att_tuple=('base_hydro_namelist', 'hydro_nlist', 'route_link_f'),
-    values = routelink_files
+    values=routelink_files
 )
-
 
 ens.member_diffs
 
@@ -135,7 +137,7 @@ ens.member_diffs
 # ## Ensemble Cycle
 
 init_times = [
-    datetime.datetime(2011, 8, 26, 0), 
+    datetime.datetime(2011, 8, 26, 0),
     datetime.datetime(2011, 8, 26, 1),
     datetime.datetime(2011, 8, 26, 2),
     datetime.datetime(2011, 8, 26, 3)
@@ -146,7 +148,7 @@ restart_dirs = [['.'] * n_members, [-1] * n_members, ['-1'] * n_members, ['-1'] 
 
 ens_ana = wrfhydropy.CycleSimulation(
     init_times=init_times,
-    restart_dirs=restart_dirs, 
+    restart_dirs=restart_dirs,
     ncores=1
 )
 

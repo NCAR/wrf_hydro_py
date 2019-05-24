@@ -11,39 +11,39 @@ def is_not_none(x):
     return x is not None
 
 
-def group_lead_time(ds: xr.Dataset)-> int:
+def group_lead_time(ds: xr.Dataset) -> int:
     return ds.lead_time.item(0)
 
 
-def group_member_lead_time(ds: xr.Dataset)-> str:
+def group_member_lead_time(ds: xr.Dataset) -> str:
     return str(ds.member.item(0)) + '-' + str(ds.lead_time.item(0))
 
 
-def group_member(ds: xr.Dataset)-> int:
+def group_member(ds: xr.Dataset) -> int:
     return ds.member.item(0)
 
 
-def merge_reference_time(ds_list: list)-> xr.Dataset:
+def merge_reference_time(ds_list: list) -> xr.Dataset:
     return xr.concat(ds_list, dim='reference_time', coords='minimal')
 
 
-def merge_member(ds_list: list)-> xr.Dataset:
+def merge_member(ds_list: list) -> xr.Dataset:
     return xr.concat(ds_list, dim='member', coords='minimal')
 
 
-def merge_lead_time(ds_list: list)-> xr.Dataset:
+def merge_lead_time(ds_list: list) -> xr.Dataset:
     return xr.concat(ds_list, dim='lead_time', coords='minimal')
 
 
-def merge_time(ds_list: list)-> xr.Dataset:
+def merge_time(ds_list: list) -> xr.Dataset:
     return xr.concat(ds_list, dim='time', coords='minimal')
 
 
 def preprocess_ensemble_data(
     path,
-    spatial_indices: list=None,
-    drop_variables: list=None
-)->xr.Dataset:
+    spatial_indices: list = None,
+    drop_variables: list = None
+) -> xr.Dataset:
     try:
         ds = xr.open_dataset(path)
     except OSError:
@@ -64,7 +64,7 @@ def preprocess_ensemble_data(
         member = None
 
     if member is not None:
-        ds.coords['member'] =  member
+        ds.coords['member'] = member
 
     ds = ds.drop('reference_time')
 
@@ -77,15 +77,15 @@ def preprocess_ensemble_data(
 
 def open_ensemble_dataset(
     paths: list,
-    chunks: dict=None,
-    attrs_keep: list=['featureType', 'proj4',
-                      'station_dimension', 'esri_pe_string',
-                      'Conventions', 'model_version'],
-    spatial_indices: list=None,
-    drop_variables: list=None,
-    npartitions: int=None,
-    profile: int=False
-)-> xr.Dataset:
+    chunks: dict = None,
+    attrs_keep: list = ['featureType', 'proj4',
+                        'station_dimension', 'esri_pe_string',
+                        'Conventions', 'model_version'],
+    spatial_indices: list = None,
+    drop_variables: list = None,
+    npartitions: int = None,
+    profile: int = False
+) -> xr.Dataset:
 
     if profile:
         then = timesince()
@@ -98,18 +98,18 @@ def open_ensemble_dataset(
     paths_bag = dask.bag.from_sequence(paths, npartitions=npartitions)
 
     if profile:
-        then=timesince(then)
+        then = timesince(then)
         print('after paths_bag')
 
     ds_list = paths_bag.map(
         preprocess_ensemble_data,
-        #chunks=chunks,
+        # chunks=chunks,
         spatial_indices=spatial_indices,
         drop_variables=drop_variables
     ).filter(is_not_none).compute()
 
     if profile:
-        then=timesince(then)
+        then = timesince(then)
         print("after ds_list preprocess/filter")
 
     # Group by and merge by choices
@@ -130,29 +130,29 @@ def open_ensemble_dataset(
     for group, merge in zip(group_list, merge_list):
 
         if profile:
-            then=timesince(then)
+            then = timesince(then)
             print('before sort')
 
         the_sort = sorted(ds_list, key=group)
 
         if profile:
-            then=timesince(then)
+            then = timesince(then)
             print('after sort, before group')
-            
-        ds_groups =[list(it) for k, it in itertools.groupby(the_sort, group)]
-        
+
+        ds_groups = [list(it) for k, it in itertools.groupby(the_sort, group)]
+
         if profile:
-            then=timesince(then)
+            then = timesince(then)
             print('after group, before merge')
 
-        #npartitons = len(ds_groups)
+        # npartitons = len(ds_groups)
         group_bag = dask.bag.from_sequence(ds_groups, npartitions=npartitions)
         ds_list = group_bag.map(merge).compute()
-        
+
         if profile:
-            then=timesince(then)
+            then = timesince(then)
             print('after merge')
-        
+
         del group_bag, ds_groups, the_sort
 
     if have_lead_time:
@@ -184,7 +184,7 @@ def open_ensemble_dataset(
         for key, value in nwm_dataset.attrs.items():
             if key in attrs_keep:
                 new_attrs[key] = nwm_dataset.attrs[key]
-                
+
     nwm_dataset.attrs = new_attrs
 
     # Break into chunked dask array
@@ -203,10 +203,10 @@ def open_ensemble_dataset(
     return nwm_dataset
 
 
-def collect_ensemble_dataset(files, n_cores: int=1):
-    import sys 
+def collect_ensemble_dataset(files, n_cores: int = 1):
+    import sys
     import os
-    the_pool=Pool(n_cores)
+    the_pool = Pool(n_cores)
     with dask.config.set(scheduler='processes', pool=the_pool):
         ens_ds = open_ensemble_dataset(files)
     the_pool.close()

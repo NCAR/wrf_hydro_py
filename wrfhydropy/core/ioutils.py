@@ -665,6 +665,15 @@ def sort_files_by_time(file_list: list):
     return file_list_sorted
 
 
+# Not sure this translation is possible or even necessary...  some of the info is in the files
+# nwm_to_wrf_hydro_dict = {
+#     '%Y%m%d%H%M.CHRTOUT_DOMAIN{dom}': 'nwm.t{init}z.{tag}.channel_rt.t{lead}.{domain}.nc',
+#     '%Y%m%d%H%M.LDASOUT_DOMAIN{dom}': 'nwm.t{init}z.{tag}.land.t{lead}.{domain}.nc',
+#     '%Y%m%d%H%M.LAKEOUT_DOMAIN{dom}': 'nwm.t00z.analysis_assim.reservoir.tm00.conus.nc'
+#     # 'LSMOUT', 'CHANOBS'
+# }
+
+
 def nwm_forcing_to_ldasin(
     nwm_forcing_dir: Union[pathlib.Path, str],
     ldasin_dir: Union[pathlib.Path, str],

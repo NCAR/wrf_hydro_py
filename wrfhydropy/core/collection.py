@@ -1,6 +1,7 @@
 import collections
 import dask
 import dask.bag
+from datetime import datetime
 import xarray as xr
 import pathlib
 import itertools
@@ -55,6 +56,18 @@ def preprocess_ensemble_data(
         if to_drop != set():
             ds = ds.drop(to_drop)
 
+    # Exception for RESTART.YYMMDDHHMM_DOMAIN1 files
+    if 'RESTART.' in str(path):
+        ds = ds.assign_coords(Time=ds.Times)   
+        ds = ds.rename({'Time': 'time'})
+        ds = ds.drop('Times')
+
+    # Exception for HYDRO_RST.YY-MM-DD_HH:MM:SS_DOMAIN1 files
+    if 'HYDRO_RST.' in str(path):
+        time = datetime.strptime(ds.attrs['Restart_Time'], '%Y-%m-%d_%H:%M:%S')
+        ds = ds.assign_coords(time=time)
+        ds = ds.expand_dims('time')
+        
     # Member preprocess
     # Assumption is that parent dir is member_mmm
     filename_info = pathlib.Path(path).parent.name
@@ -66,7 +79,8 @@ def preprocess_ensemble_data(
     if member is not None:
         ds.coords['member'] = member
 
-    ds = ds.drop('reference_time')
+    if 'reference_time' in ds.variables:
+        ds = ds.drop('reference_time')
 
     # Spatial subsetting
     if spatial_indices is not None:

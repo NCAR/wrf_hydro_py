@@ -1,9 +1,17 @@
+import os
 import pathlib
 import pytest
 from wrfhydropy import open_ensemble_dataset
+from .data.collection_data_download import download
 
 # The answer reprs are found here.
 from .data.collection_data_answer_reprs import *
+
+# The data are found here.
+if not pathlib.Path('data/collection_data').exists():
+    os.chdir('data')
+    download()
+    os.chdir('..')
 
 # Issues raised by these tests
 # https://github.com/NCAR/wrf_hydro_nwm_public/issues/301
@@ -16,7 +24,6 @@ version = version_file.open('r').read().split('-')[0]
 @pytest.mark.parametrize(
     ['file_glob', 'expected'],
     [
-        ('*/RESTART.*_DOMAIN1', ensemble_answer_reprs[version]['*/RESTART.*_DOMAIN1']),
         ('*/*CHRTOUT_DOMAIN1', ensemble_answer_reprs[version]['*/*CHRTOUT_DOMAIN1']),
         ('*/*LAKEOUT_DOMAIN1', ensemble_answer_reprs[version]['*/*LAKEOUT_DOMAIN1']),
         ('*/*CHANOBS_DOMAIN1', ensemble_answer_reprs[version]['*/*CHANOBS_DOMAIN1']),
@@ -24,6 +31,7 @@ version = version_file.open('r').read().split('-')[0]
         ('*/*[0-9].RTOUT_DOMAIN1', ensemble_answer_reprs[version]['*/*RTOUT_DOMAIN1']),
         ('*/*LDASOUT_DOMAIN1', ensemble_answer_reprs[version]['*/*LDASOUT_DOMAIN1']),
         ('*/*LSMOUT_DOMAIN', ensemble_answer_reprs[version]['*/*LSMOUT_DOMAIN']),
+        ('*/RESTART.*_DOMAIN1', ensemble_answer_reprs[version]['*/RESTART.*_DOMAIN1']),
         ('*/HYDRO_RST.*_DOMAIN1', ensemble_answer_reprs[version]['*/HYDRO_RST.*_DOMAIN1']),
     ]
 )

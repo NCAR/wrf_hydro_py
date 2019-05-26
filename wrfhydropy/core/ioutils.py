@@ -5,6 +5,7 @@ import collections
 import dask
 import dask.bag
 import datetime
+import hashlib
 import io
 import itertools
 import numpy as np
@@ -779,3 +780,11 @@ def nwm_forcing_to_ldasin(
                     ldasin_file_name.symlink_to(forcing_file)
 
     return
+
+
+def md5(fname):
+    hash_md5 = hashlib.md5()
+    with open(fname, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()

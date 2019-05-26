@@ -5,6 +5,7 @@ import collections
 import dask
 import dask.bag
 import datetime
+import hashlib
 import io
 import itertools
 import numpy as np
@@ -35,39 +36,39 @@ def timesince(when=None):
         return time.time()
 
 
-def group_lead_time(ds: xr.Dataset)-> int:
+def group_lead_time(ds: xr.Dataset) -> int:
     return ds.lead_time.item(0)
 
 
-def group_member_lead_time(ds: xr.Dataset)-> int:
+def group_member_lead_time(ds: xr.Dataset) -> int:
     return str(ds.member.item(0)) + '-' + str(ds.lead_time.item(0))
 
 
-def group_member(ds: xr.Dataset)-> int:
+def group_member(ds: xr.Dataset) -> int:
     return ds.member.item(0)
 
 
-def merge_reference_time(ds_list: list)-> xr.Dataset:
+def merge_reference_time(ds_list: list) -> xr.Dataset:
     return xr.concat(ds_list, dim='reference_time', coords='minimal')
 
 
-def merge_member(ds_list: list)-> xr.Dataset:
+def merge_member(ds_list: list) -> xr.Dataset:
     return xr.concat(ds_list, dim='member', coords='minimal')
 
 
-def merge_lead_time(ds_list: list)-> xr.Dataset:
+def merge_lead_time(ds_list: list) -> xr.Dataset:
     return xr.concat(ds_list, dim='lead_time', coords='minimal')
 
 
-def merge_time(ds_list: list)-> xr.Dataset:
+def merge_time(ds_list: list) -> xr.Dataset:
     return xr.concat(ds_list, dim='time', coords='minimal')
 
 
 def preprocess_nwm_data(
     path,
-    spatial_indices: list=None,
-    drop_variables: list=None
-)->xr.Dataset:
+    spatial_indices: list = None,
+    drop_variables: list = None
+) -> xr.Dataset:
 
     try:
         ds = xr.open_dataset(path)
@@ -82,7 +83,7 @@ def preprocess_nwm_data(
 
     # TODO JLM? Check range (e.g. "medium_range")
     # TODO JLM? Check file type (e.g "channel_rt")
-    
+
     # Member preprocess
     filename_info = pathlib.Path(path).name.split('.')
     try:
@@ -91,13 +92,13 @@ def preprocess_nwm_data(
         member = None
 
     if member is not None:
-        ds.coords['member'] =  member
-    
+        ds.coords['member'] = member
+
     # Lead time preprocess
     ds.coords['lead_time'] = np.array(
-        ds.time.values - ds.reference_time.values, 
+        ds.time.values - ds.reference_time.values,
         dtype='timedelta64[ns]'
-    )    
+    )
     ds = ds.drop('time')
 
     # Spatial subsetting
@@ -109,15 +110,15 @@ def preprocess_nwm_data(
 
 def open_nwm_dataset(
     paths: list,
-    chunks: dict=None,
-    attrs_keep: list=['featureType', 'proj4',
-                      'station_dimension', 'esri_pe_string',
-                      'Conventions', 'model_version'],
-    spatial_indices: list=None,
-    drop_variables: list=None,
-    npartitions: int=None,
-    profile: int=False
-)-> xr.Dataset:
+    chunks: dict = None,
+    attrs_keep: list = ['featureType', 'proj4',
+                        'station_dimension', 'esri_pe_string',
+                        'Conventions', 'model_version'],
+    spatial_indices: list = None,
+    drop_variables: list = None,
+    npartitions: int = None,
+    profile: int = False
+) -> xr.Dataset:
 
     if profile:
         then = timesince()
@@ -130,7 +131,7 @@ def open_nwm_dataset(
     paths_bag = dask.bag.from_sequence(paths, npartitions=npartitions)
 
     if profile:
-        then=timesince(then)
+        then = timesince(then)
         print('after paths_bag')
 
     ds_list = paths_bag.map(
@@ -141,7 +142,7 @@ def open_nwm_dataset(
     ).filter(is_not_none).compute()
 
     if profile:
-        then=timesince(then)
+        then = timesince(then)
         print("after ds_list preprocess/filter")
 
     # Group by and merge by choices
@@ -152,33 +153,33 @@ def open_nwm_dataset(
     else:
         group_list = [group_lead_time]
         merge_list = [merge_reference_time]
-    
+
     for group, merge in zip(group_list, merge_list):
 
         if profile:
-            then=timesince(then)
+            then = timesince(then)
             print('before sort')
-            
+
         the_sort = sorted(ds_list, key=group)
 
         if profile:
-            then=timesince(then)
+            then = timesince(then)
             print('after sort, before group')
-            
-        ds_groups =[list(it) for k, it in itertools.groupby(the_sort, group)]
-        
+
+        ds_groups = [list(it) for k, it in itertools.groupby(the_sort, group)]
+
         if profile:
-            then=timesince(then)
+            then = timesince(then)
             print('after group, before merge')
 
-        #npartitons = len(ds_groups)
+        # npartitons = len(ds_groups)
         group_bag = dask.bag.from_sequence(ds_groups, npartitions=npartitions)
         ds_list = group_bag.map(merge).compute()
-        
+
         if profile:
-            then=timesince(then)
+            then = timesince(then)
             print('after merge')
-        
+
         del group_bag, ds_groups, the_sort
 
     nwm_dataset = merge_lead_time(ds_list)
@@ -205,32 +206,32 @@ def open_nwm_dataset(
         for key, value in nwm_dataset.attrs.items():
             if key in attrs_keep:
                 new_attrs[key] = nwm_dataset.attrs[key]
-                
+
     nwm_dataset.attrs = new_attrs
 
     # Break into chunked dask array
     if chunks is not None:
         nwm_dataset = nwm_dataset.chunk(chunks=chunks)
-    
+
     return nwm_dataset
 
 
 def preprocess_dart_data(
     path,
-    chunks: dict=None,
-    spatial_indices: list=None,
-    drop_variables: list=None
-)->xr.Dataset:
+    chunks: dict = None,
+    spatial_indices: list = None,
+    drop_variables: list = None
+) -> xr.Dataset:
 
     # This non-optional is different from preprocess_nwm_data
-    ## I kinda dont think this should be optional for dart experiment/run collection.
+    # I kinda dont think this should be optional for dart experiment/run collection.
     # try:
     ds = xr.open_dataset(path)
     # except OSError:
     #    print("Skipping file, unable to open: ", path)
     #    return None
 
-    # May need to add time... do this before changing any dimensions. 
+    # May need to add time... do this before changing any dimensions.
     for key in ds.variables.keys():
         if 'time' not in ds[key].dims:
             ds[key] = ds[key].expand_dims('time')
@@ -255,12 +256,12 @@ def preprocess_dart_data(
 
 def open_dart_dataset(
     paths: list,
-    chunks: dict=None,
-    spatial_indices: list=None,
-    drop_variables: list=None,
-    npartitions: int=None,
-    attrs_keep: list=None
-)-> xr.Dataset:
+    chunks: dict = None,
+    spatial_indices: list = None,
+    drop_variables: list = None,
+    npartitions: int = None,
+    attrs_keep: list = None
+) -> xr.Dataset:
     """Open a multi-file ensemble wrf-hydro output dataset
     Args:
 paths: List ,iterable, or generator of file paths to wrf-hydro netcdf output files
@@ -276,7 +277,7 @@ paths: List ,iterable, or generator of file paths to wrf-hydro netcdf output fil
     # Explanation:
     # Xarray currently first requires concatenation along existing dimensions (e.g. time)
     # over the individual member groups, then it allows concatenation along the member
-    # dimensions. 
+    # dimensions.
 
     # Set partitions
     # This is arbitrary
@@ -293,8 +294,8 @@ paths: List ,iterable, or generator of file paths to wrf-hydro netcdf output fil
     ).filter(is_not_none).compute()
 
     the_sort = sorted(ds_list, key=group_member)
-    ds_groups =[list(it) for k, it in itertools.groupby(the_sort, group_member)]
-    group_bag = dask.bag.from_sequence(ds_groups) #, npartitions=npartitions)
+    ds_groups = [list(it) for k, it in itertools.groupby(the_sort, group_member)]
+    group_bag = dask.bag.from_sequence(ds_groups)  # , npartitions=npartitions)
     ds_list = group_bag.map(merge_time).compute()
     del group_bag, ds_groups, the_sort
     dart_dataset = merge_member(ds_list)
@@ -311,12 +312,12 @@ paths: List ,iterable, or generator of file paths to wrf-hydro netcdf output fil
         for key, value in dart_dataset.attrs.items():
             if key in attrs_keep:
                 new_attrs[key] = dart_dataset.attrs[key]
-                
+
     dart_dataset.attrs = new_attrs
 
-    # The existing DART convention. 
+    # The existing DART convention.
     dart_dataset = dart_dataset.transpose('time', 'member', 'links')
-    
+
     # Break into chunked dask array
     if chunks is not None:
         dart_dataset = dart_dataset.chunk(chunks=chunks)
@@ -325,7 +326,7 @@ paths: List ,iterable, or generator of file paths to wrf-hydro netcdf output fil
 
 
 def open_wh_dataset(paths: list,
-                    chunks: dict=None,
+                    chunks: dict = None,
                     forecast: bool = True) -> xr.Dataset:
     """Open a multi-file wrf-hydro output dataset
     Args:
@@ -365,15 +366,17 @@ def open_wh_dataset(paths: list,
                                        coords='minimal'))
 
     # Concatenate along reference_time axis for all forecasts
-    wh_dataset = xr.concat(forecast_list,
-                            dim='reference_time',
-                            coords='minimal')
+    wh_dataset = xr.concat(
+        forecast_list,
+        dim='reference_time',
+        coords='minimal'
+    )
 
     # Break into chunked dask array
     if chunks is not None:
         wh_dataset = wh_dataset.chunk(chunks=chunks)
 
-    return wh_dataset 
+    return wh_dataset
 
 
 def preprocess_dart_member(ds):
@@ -384,10 +387,10 @@ def preprocess_dart_member(ds):
 
 def open_ensemble_dataset(
     paths: list,
-    chunks: dict=None,
-    preprocess_member: callable=preprocess_dart_member,
-    attrs_keep: list=None
-)-> xr.Dataset:
+    chunks: dict = None,
+    preprocess_member: callable = preprocess_dart_member,
+    attrs_keep: list = None
+) -> xr.Dataset:
     """Open a multi-file ensemble wrf-hydro output dataset
     Args:
         paths: List ,iterable, or generator of file paths to wrf-hydro netcdf output files
@@ -408,24 +411,26 @@ def open_ensemble_dataset(
     # dimensions. A dictionary is built wherein the member groups are identified/kept as
     # lists of data sets (per member). Once this dictionary is complete, each list in
     # the dict is concatenated along time. Once all members are concatenated along time,
-    # the all the members can be concatenated along "member". 
-   
+    # the all the members can be concatenated along "member".
+
     paths_bag = dask.bag.from_sequence(paths)
     ds_all = paths_bag.map(xr.open_dataset, chunks=chunks).compute()
     all_bag = dask.bag.from_sequence(ds_all)
-    
+
     def member_grouper(ds):
         return preprocess_member(ds).member.item(0)
+
     def concat_time(total, x):
         return xr.concat([total, x], dim='time', coords='minimal')
+
     # Foldby returns a tuple of (member_number, xarray.Dataset), strip off the member number.
     ds_members = [tup[1] for tup in all_bag.foldby(member_grouper, concat_time).compute()]
     del all_bag
-    
+
     ens_dataset = xr.concat(ds_members, dim='member', coords='minimal')
     del ds_members
 
-    # Xarray sets nan as the fill value. 
+    # Xarray sets nan as the fill value.
     for key, val in ens_dataset.variables.items():
         ens_dataset[key].encoding.update({'_FillValue': None})
 
@@ -446,7 +451,7 @@ def open_ensemble_dataset(
 
 class WrfHydroTs(list):
     """WRF-Hydro netcdf timeseries data class"""
-    def open(self, chunks: dict = None, forecast: bool=True):
+    def open(self, chunks: dict = None, forecast: bool = True):
         """Open a WrfHydroTs object
         Args:
             self
@@ -514,8 +519,8 @@ def check_input_files(
     hydro_namelist: dict,
     hrldas_namelist: dict,
     sim_dir: str,
-    ignore_restarts: bool=False,
-    check_nlst_warn: bool=False
+    ignore_restarts: bool = False,
+    check_nlst_warn: bool = False
 ):
     """Given hydro and hrldas namelists and a directory, check that all files listed in the
     namelist exist in the specified directory.
@@ -543,7 +548,7 @@ def check_input_files(
 
     def remap_nlst(nlst):
         # The outer remap removes empty dicts
-        files = iterutils.remap(nlst,  visit=visit_is_file)
+        files = iterutils.remap(nlst, visit=visit_is_file)
         files = iterutils.remap(files, visit=visit_not_none)
         exists = iterutils.remap(files, visit=visit_str_posix_exists)
         return exists
@@ -580,7 +585,7 @@ def check_input_files(
     def check_nlst(
         nlst,
         file_dict,
-        warn: bool=False
+        warn: bool = False
     ):
         """
         Check the paths in the namelist.
@@ -643,7 +648,7 @@ def check_file_nas(dataset_path: Union[str, pathlib.Path]) -> str:
 
         # Open stringio object as pandas dataframe
         try:
-            nccmp_out = pd.read_table(output,delimiter=':',header=None)
+            nccmp_out = pd.read_table(output, delimiter=':', header=None)
             return nccmp_out
         except:
             warnings.warn('Problem reading nccmp output to pandas dataframe,'
@@ -669,7 +674,7 @@ def nwm_forcing_to_ldasin(
     nwm_forcing_dir: Union[pathlib.Path, str],
     ldasin_dir: Union[pathlib.Path, str],
     range: str,
-    copy: bool=False,
+    copy: bool = False,
     forc_type=1
 ):
     """Convert nwm dir and naming format to wrf-hydro read format.
@@ -738,8 +743,8 @@ def nwm_forcing_to_ldasin(
             re_range = range
             if '_hawaii' in range:
                 re_range = range.split('_hawaii')[0]
-                
-            if forc_type == 9 or forc_type ==10:
+
+            if forc_type == 9 or forc_type == 10:
                 forcing_files = member_dir.glob('*' + re_range + '.channel_rt.*')
             else:
                 forcing_files = member_dir.glob('*' + re_range + '.forcing.*')
@@ -767,7 +772,7 @@ def nwm_forcing_to_ldasin(
                     fmt = '%Y%m%d%H.LDASIN_DOMAIN1'
                 elif forc_type == 2:
                     fmt = '%Y%m%d%H00.LDASIN_DOMAIN1'
-                elif forc_type == 9 or forc_type ==10:
+                elif forc_type == 9 or forc_type == 10:
                     fmt = '%Y%m%d%H00.CHRTOUT_DOMAIN1'
                 else:
                     raise ValueError("Only forc_types 1, 2, 9, & 10 are supported.")
@@ -779,3 +784,11 @@ def nwm_forcing_to_ldasin(
                     ldasin_file_name.symlink_to(forcing_file)
 
     return
+
+
+def md5(fname):
+    hash_md5 = hashlib.md5()
+    with open(fname, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()

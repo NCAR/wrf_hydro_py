@@ -167,6 +167,43 @@ print(return_code)
 # ## Wrap up
 # Clean up unnecessary items in the experiment directory. Then package it up.
 
-get_ipython().run_cell_magic('bash', '', 'cd /glade/scratch/jamesmcc/ens_cycle_example/\nrm croton_NY.tar.gz\n\nrm compile/wrf_hydro.exe\n\ncd croton_NY\nrm -rf Gridded Gridded_no_lakes/ Reach/ supplemental/\nrm USGS_obs.csv  Readme.txt  hydro_namelist_patches.json hrldas_namelist_patches.json study_map.PNG\nrm example_case  hydro_namelist_patches.json~ hrldas_namelist_patches.json~ \n\ncd NWM\nrm -rf DOMAIN_LR/ RESTART_LR/ referenceSim/\nrm hydro.namelist namelist.hrldas \n\ncd nudgingTimeSliceObs\nrm 2011-09*.usgsTimeSlice.ncdf 2011-08-3*.usgsTimeSlice.ncdf 2011-08-2[7-9]*.usgsTimeSlice.ncdf \nrm 2011-08-26_[1-2]*.usgsTimeSlice.ncdf 2011-08-26_0[6-9]*.usgsTimeSlice.ncdf 2011-08-25*.usgsTimeSlice.ncdf\n\ncd ../../FORCING/\nrm 201109*LDASIN_DOMAIN1 2011083*.LDASIN_DOMAIN1 2011082[7-9]*.LDASIN_DOMAIN1\nrm 20110826[1-2]*.LDASIN_DOMAIN1 201108260[6-9]*.LDASIN_DOMAIN1\nrm 2011082600.LDASIN_DOMAIN1')
+# Resolve all symlinks to be relative symlinks.
+top = experiment_dir.resolve()
+files = top.glob('**/*')
+links = [ff for ff in files if ff.is_symlink()]
+for ll in links:
+    target = os.path.relpath(str(ll.resolve()), start=str(ll.parent))
+    ll.unlink()
+    ll.symlink_to(target)
 
-get_ipython().run_cell_magic('bash', '', 'cd /glade/scratch/jamesmcc/\nmv ens_cycle_example collection_data\ntar czf collection_data.tar.gz collection_data')
+get_ipython().run_cell_magic(
+    'bash',
+    '',
+    'cd /glade/scratch/jamesmcc/ens_cycle_example/\nrm croton_NY.tar.gz\n'
+    'rm compile/wrf_hydro.exe\n'
+    'cd croton_NY\n'
+    'rm -rf Gridded Gridded_no_lakes/ Reach/ supplemental/\n'
+    'rm USGS_obs.csv  Readme.txt   study_map.PNG\n'
+    'rm hydro_namelist_patches.json hrldas_namelist_patches.json\n'
+    'rm example_case  hydro_namelist_patches.json~ hrldas_namelist_patches.json~ \n'
+    'cd NWM\n'
+    'rm -rf DOMAIN_LR/ RESTART_LR/ referenceSim/\n'
+    'rm hydro.namelist namelist.hrldas \n'
+    'cd nudgingTimeSliceObs\n'
+    'rm 2011-09*.usgsTimeSlice.ncdf 2011-08-3*.usgsTimeSlice.ncdf \n'
+    'rm 2011-08-2[7-9]*.usgsTimeSlice.ncdf \n'
+    'rm 2011-08-26_[1-2]*.usgsTimeSlice.ncdf 2011-08-26_0[6-9]*.usgsTimeSlice.ncdf \n'
+    'rm 2011-08-25*.usgsTimeSlice.ncdf\n'
+    'cd ../../FORCING/\n'
+    'rm 201109*LDASIN_DOMAIN1 2011083*.LDASIN_DOMAIN1 2011082[7-9]*.LDASIN_DOMAIN1\n'
+    'rm 20110826[1-2]*.LDASIN_DOMAIN1 201108260[6-9]*.LDASIN_DOMAIN1\n'
+    'rm 2011082600.LDASIN_DOMAIN1'
+)
+
+get_ipython().run_cell_magic(
+    'bash',
+    '',
+    'cd /glade/scratch/jamesmcc/\n'
+    'mv ens_cycle_example collection_data\n'
+    'tar czf collection_data.tar.gz collection_data'
+)

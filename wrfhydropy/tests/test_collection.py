@@ -2,22 +2,21 @@ import os
 import pathlib
 import pytest
 from wrfhydropy import open_ensemble_dataset
-from .data.collection_data_download import download
+from .data import collection_data_download
 
 # The answer reprs are found here.
 from .data.collection_data_answer_reprs import *
 
+test_dir = pathlib.Path(os.path.dirname(os.path.realpath(__file__)))
+
 # The data are found here.
-if not pathlib.Path('data/collection_data').exists():
-    os.chdir('data')
-    download()
-    os.chdir('..')
+collection_data_download.download()
 
 # Issues raised by these tests
 # https://github.com/NCAR/wrf_hydro_nwm_public/issues/301
 # https://github.com/NCAR/wrf_hydro_nwm_public/issues/302
 
-version_file = pathlib.Path('data/collection_data/croton_NY/.version')
+version_file = test_dir.joinpath('data/collection_data/croton_NY/.version')
 version = version_file.open('r').read().split('-')[0]
 
 
@@ -39,7 +38,7 @@ def test_collect_ensemble(
     file_glob,
     expected
 ):
-    sim_path = pathlib.Path('data/collection_data/ens_ana/cast_2011082600/')
+    sim_path = test_dir.joinpath('data/collection_data/ens_ana/cast_2011082600/')
     files = sorted(sim_path.glob(file_glob))
     ens_ds = open_ensemble_dataset(files)
     # This checks everything about the metadata.

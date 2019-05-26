@@ -32,6 +32,17 @@ version = version_file.open('r').read().split('-')[0]
         ('*/*LSMOUT_DOMAIN', ensemble_answer_reprs[version]['*/*LSMOUT_DOMAIN']),
         ('*/RESTART.*_DOMAIN1', ensemble_answer_reprs[version]['*/RESTART.*_DOMAIN1']),
         ('*/HYDRO_RST.*_DOMAIN1', ensemble_answer_reprs[version]['*/HYDRO_RST.*_DOMAIN1']),
+    ],
+    ids=[
+        'ensemble-CHRTOUT_DOMAIN1',
+        'ensemble-LAKEOUT_DOMAIN1',
+        'ensemble-CHANOBS_DOMAIN1',
+        'ensemble-GWOUT_DOMAIN1',
+        'ensemble-RTOUT_DOMAIN1',
+        'ensemble-LDASOUT_DOMAIN1',
+        'ensemble-SMOUT_DOMAIN',
+        'ensemble-RESTART.*_DOMAIN1',
+        'ensemble-HYDRO_RST.*_DOMAIN1'
     ]
 )
 def test_collect_ensemble(

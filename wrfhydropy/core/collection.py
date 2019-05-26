@@ -58,7 +58,7 @@ def preprocess_ensemble_data(
 
     # Exception for RESTART.YYMMDDHHMM_DOMAIN1 files
     if 'RESTART.' in str(path):
-        ds = ds.assign_coords(Time=ds.Times)   
+        ds = ds.assign_coords(Time=ds.Times)
         ds = ds.rename({'Time': 'time'})
         ds = ds.drop('Times')
 
@@ -67,7 +67,7 @@ def preprocess_ensemble_data(
         time = datetime.strptime(ds.attrs['Restart_Time'], '%Y-%m-%d_%H:%M:%S')
         ds = ds.assign_coords(time=time)
         ds = ds.expand_dims('time')
-        
+
     # Member preprocess
     # Assumption is that parent dir is member_mmm
     filename_info = pathlib.Path(path).parent.name

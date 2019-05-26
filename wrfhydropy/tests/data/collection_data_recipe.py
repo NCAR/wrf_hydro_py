@@ -171,10 +171,10 @@ print(return_code)
 top = experiment_dir.resolve()
 files = top.glob('**/*')
 links = [ff for ff in files if ff.is_symlink()]
-for ll in links: 
-    target = os.path.relpath(str(ll.resolve()), start=str(ll.parent)) 
+for ll in links:
+    target = os.path.relpath(str(ll.resolve()), start=str(ll.parent))
     ll.unlink()
-    ll.symlink_to(target) 
+    ll.symlink_to(target)
 
 get_ipython().run_cell_magic(
     'bash',
@@ -207,4 +207,3 @@ get_ipython().run_cell_magic(
     'mv ens_cycle_example collection_data\n'
     'tar czf collection_data.tar.gz collection_data'
 )
-

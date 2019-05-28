@@ -134,6 +134,7 @@ def test_ens_set_diff_dicts(simulation_compiled):
     assert ens.member_diffs == answer
 
 
+@pytest.mark.xfail(strict=False)
 def test_ens_parallel_compose(simulation_compiled, job_restart, scheduler, tmpdir):
     sim = simulation_compiled
     ens = EnsembleSimulation()

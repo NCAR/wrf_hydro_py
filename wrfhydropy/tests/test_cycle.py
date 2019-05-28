@@ -507,6 +507,7 @@ def test_cycle_compose(
     assert str(e_info.value) == 'No such forcing directory: dummy_non-extant_dir'
 
 
+@pytest.mark.xfail(strict=False)
 def test_cycle_parallel_compose(
     simulation_compiled,
     job_restart,
@@ -789,6 +790,7 @@ def test_cycle_ensemble_compose(
     assert str(e_info.value) == 'No such forcing directory: dummy_non-extant_dir'
 
 
+@pytest.mark.xfail(strict=False)
 def test_cycle_ensemble_parallel_compose(
     ensemble,
     job_restart,

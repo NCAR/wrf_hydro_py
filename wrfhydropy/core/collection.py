@@ -24,6 +24,10 @@ def group_member(ds: xr.Dataset) -> int:
     return ds.member.item(0)
 
 
+def group_identity(ds: xr.Dataset) -> int:
+    return 1
+
+
 def merge_reference_time(ds_list: list) -> xr.Dataset:
     return xr.concat(ds_list, dim='reference_time', coords='minimal')
 
@@ -140,6 +144,9 @@ def open_ensemble_dataset(
         if have_members:
             group_list = [group_member]
             merge_list = [merge_time]
+        else:
+            group_list = [group_identity]
+            merge_list = [merge_time]
 
     for group, merge in zip(group_list, merge_list):
 
@@ -171,8 +178,10 @@ def open_ensemble_dataset(
 
     if have_lead_time:
         nwm_dataset = merge_lead_time(ds_list)
-    else:
+    elif have_members:
         nwm_dataset = merge_member(ds_list)
+    else:
+        nwm_dataset = ds_list[0]
 
     del ds_list
 

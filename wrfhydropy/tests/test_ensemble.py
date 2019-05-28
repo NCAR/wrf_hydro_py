@@ -134,6 +134,7 @@ def test_ens_set_diff_dicts(simulation_compiled):
     assert ens.member_diffs == answer
 
 
+@pytest.mark.xfail(strict=False)
 def test_ens_parallel_compose(simulation_compiled, job_restart, scheduler, tmpdir):
     sim = simulation_compiled
     ens = EnsembleSimulation()
@@ -333,6 +334,7 @@ def test_ens_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
         "Some parallel ensemble members in memory did not run successfully."
     assert get_ens_dotfile_end_datetime(ens_dir) == datetime.datetime(2017, 1, 4, 0, 0)
     assert ens_dir.joinpath("WrfHydroEns.pkl").exists()
+
 
 
 def test_ens_teams_run(simulation_compiled, job, scheduler, tmpdir, capfd):

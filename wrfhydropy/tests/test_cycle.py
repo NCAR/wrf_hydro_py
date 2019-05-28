@@ -72,14 +72,24 @@ def ensemble(model, domain, simulation_compiled):
 
 
 base_time = datetime.datetime(2012, 12, 12, 0, 0)
+
+
 @pytest.mark.parametrize(
     ['init_times', 'expected'],
-    [([base_time + datetime.timedelta(dd) for dd in range(0, 9, 3)],
-      [base_time + datetime.timedelta(dd) for dd in range(0, 9, 3)]),
-     ([base_time, base_time , 'nondatetime object'],
-      ["List object not all datetime.datetime objects, as expected"]),
-     ([base_time , base_time],
-      ['Length of forcing_dirs does not match that of init_times.'])]
+    [
+        (
+            [base_time + datetime.timedelta(dd) for dd in range(0, 9, 3)],
+            [base_time + datetime.timedelta(dd) for dd in range(0, 9, 3)]
+        ),
+        (
+            [base_time, base_time, 'nondatetime object'],
+            ["List object not all datetime.datetime objects, as expected"]
+        ),
+        (
+            [base_time, base_time],
+            ['Length of forcing_dirs does not match that of init_times.']
+        )
+    ]
 )
 def test_add_init_times(
     init_times,
@@ -205,25 +215,25 @@ def test_cycle_addsimulation(
     with pytest.raises(Exception) as e_info:
         cy1.add(sim)
     assert str(e_info.value) == 'Object is not of a type expected for a CycleSimulation.'
-    
+
     sim = simulation
     cy1 = CycleSimulation(
         init_times=init_times,
         restart_dirs=restart_dirs
     )
     # This sim does not have the required pre-compiled model
-    #with pytest.raises(Exception) as e_info:
+    # with pytest.raises(Exception) as e_info:
     cy1.add(sim)
-    #assert str(e_info.value) == \
+    # assert str(e_info.value) == \
     #    'Only Simulations with compiled model objects can be added to an ensemble simulation.'
-    
+
     sim_compiled = simulation_compiled
 
     # cant add a list, even if pre-compiled
     with pytest.raises(Exception) as e_info:
         cy1.add([sim_compiled])
     assert str(e_info.value) == 'Object is not of a type expected for a CycleSimulation.'
-        
+
     cy1.add(sim_compiled)
     assert isinstance(cy1._simulation, Simulation)
 
@@ -236,7 +246,7 @@ def test_cycle_addsimulation(
     )
     cy2.add(sim_compiled)
     assert cy2._simulation.jobs == []
-    assert cy2._simulation.scheduler == None
+    assert cy2._simulation.scheduler is None
 
 
 @pytest.mark.parametrize(
@@ -254,7 +264,7 @@ def test_cycle_addsimulation(
      (
         ['0', '-72', '-72'],
         {'lsm': ['../cast_2012121200/RESTART.2012121200_DOMAIN1',
-                  '../cast_2012121200/RESTART.2012121500_DOMAIN1',
+                 '../cast_2012121200/RESTART.2012121500_DOMAIN1',
                  '../cast_2012121500/RESTART.2012121800_DOMAIN1'],
          'hyd': ['../cast_2012121200/HYDRO_RST.2012-12-12_00:00_DOMAIN1',
                  '../cast_2012121200/HYDRO_RST.2012-12-15_00:00_DOMAIN1',
@@ -307,8 +317,8 @@ def test_cycle_addsimulation_translate(
         # This may be use in some of the tests
         pathlib.Path('../dummy_extant_dir').touch()
         cy1.compose(rm_casts_from_memory=False)
-        lsm_keys=['noahlsm_offline', 'restart_filename_requested']
-        hyd_keys=['hydro_nlist', 'restart_file']
+        lsm_keys = ['noahlsm_offline', 'restart_filename_requested']
+        hyd_keys = ['hydro_nlist', 'restart_file']
         result = {
             'lsm': [cast.base_hrldas_namelist[lsm_keys[0]][lsm_keys[1]] for cast in cy1.casts],
             'hyd': [cast.base_hydro_namelist[hyd_keys[0]][hyd_keys[1]] for cast in cy1.casts]
@@ -329,7 +339,7 @@ def test_cycle_addensemble(
     job_restart,
     scheduler,
     init_times,
-    restart_dirs, 
+    restart_dirs,
     restart_dirs_ensemble
 ):
     # The ensemble necessarily has a compiled model (unlike a Simulation).
@@ -361,7 +371,7 @@ def test_cycle_addensemble(
     )
     cy2.add(ensemble)
     assert cy2._ensemble.jobs == []
-    assert cy2._ensemble.scheduler == None
+    assert cy2._ensemble.scheduler is None
 
 
 def test_cycle_addjob(job_restart, init_times, restart_dirs):
@@ -399,7 +409,7 @@ def test_cycle_length(
 
 
 # @pytest.mark.parametrize when https://github.com/pytest-dev/pytest/issues/349
-# Looks like it is close... 
+# Looks like it is close...
 def test_cycle_compose(
     simulation,
     simulation_compiled,
@@ -409,8 +419,7 @@ def test_cycle_compose(
     init_times,
     restart_dirs
 ):
-    # These might be parametizable. 
-
+    # These might be parametizable.
     # Compose without adding a simulation.
     cy = CycleSimulation(
         init_times=init_times,
@@ -419,11 +428,13 @@ def test_cycle_compose(
     )
     cy.add(job_restart)
     # Adding the scheduler ruins the run in CI.
-    #cy.add(scheduler)
+    # cy.add(scheduler)
     with pytest.raises(Exception) as e_info:
         cy.compose()
     assert str(e_info.value) == \
-        'Unable to compose, current working directory is not empty. \nChange working directory to an empty directory with os.chdir()'
+        'Unable to compose, current working directory is not empty. \n' + \
+        'Change working directory to an empty directory with os.chdir()'
+
     compose_dir = pathlib.Path(tmpdir).joinpath('cycle_no_sim_compose')
     os.mkdir(str(compose_dir))
     os.chdir(str(compose_dir))
@@ -445,7 +456,7 @@ def test_cycle_compose(
     with pytest.raises(Exception) as e_info:
         cy.compose()
     assert str(e_info.value) == "There are no casts (init_times) to compose."
-    
+
     # This simultion is not compiled. It compiles and composes successfully.
     cy = CycleSimulation(
         init_times=init_times,
@@ -453,7 +464,7 @@ def test_cycle_compose(
         ncores=1
     )
     cy.add(job_restart)
-    cy.add(simulation)    
+    cy.add(simulation)
     compose_dir = pathlib.Path(tmpdir).joinpath('cycle_uncompiled_compose')
     os.mkdir(str(compose_dir))
     os.chdir(str(compose_dir))
@@ -467,7 +478,7 @@ def test_cycle_compose(
         forcing_dirs=['.', -72, '../dummy_extant_dir']
     )
     cy.add(job_restart)
-    cy.add(simulation)    
+    cy.add(simulation)
     compose_dir = pathlib.Path(tmpdir).joinpath('cycle_forc_dir_compose')
     os.mkdir(str(compose_dir))
     os.chdir(str(compose_dir))
@@ -482,14 +493,14 @@ def test_cycle_compose(
         forcing_dirs=['.', 72, '../dummy_extant_dir']
     )
     cy.add(job_restart)
-    cy.add(simulation)    
+    cy.add(simulation)
     compose_dir = pathlib.Path(tmpdir).joinpath('cycle_forc_dir_fail_2_compose')
     os.mkdir(str(compose_dir))
     os.chdir(str(compose_dir))
     with pytest.raises(Exception) as e_info:
         cy.compose()
     assert str(e_info.value) == 'Only non-negative integers can be used to specify forcing_dirs'
-    
+
     # In valid force dir exercise.
     cy = CycleSimulation(
         init_times=init_times,
@@ -498,7 +509,7 @@ def test_cycle_compose(
         forcing_dirs=['.', 'dummy_non-extant_dir', -72]
     )
     cy.add(job_restart)
-    cy.add(simulation)    
+    cy.add(simulation)
     compose_dir = pathlib.Path(tmpdir).joinpath('cycle_forc_dir_fail_compose')
     os.mkdir(str(compose_dir))
     os.chdir(str(compose_dir))
@@ -633,7 +644,7 @@ def test_cycle_parallel_compose(
     for kk in cy_check_casts.casts[0].jobs[0].__dict__.keys():
         assert cy_check_casts.casts[0].jobs[0].__dict__[kk] == answer[kk]
     # Check the scheduler too
-    #assert cy_check_casts.casts[0].scheduler.__dict__ == scheduler.__dict__
+    # assert cy_check_casts.casts[0].scheduler.__dict__ == scheduler.__dict__
 
     # For the cycle where the compse removes the casts...
 
@@ -668,7 +679,7 @@ def test_cycle_parallel_compose(
 
 
 # @pytest.mark.parametrize when https://github.com/pytest-dev/pytest/issues/349
-# Looks like it is close... 
+# Looks like it is close...
 def test_cycle_ensemble_compose(
     ensemble,
     job_restart,
@@ -677,7 +688,7 @@ def test_cycle_ensemble_compose(
     init_times,
     restart_dirs_ensemble
 ):
-    # These might be parametizable. 
+    # These might be parametizable.
 
     # Length zero cycle compose.
     cy = CycleSimulation(
@@ -710,7 +721,7 @@ def test_cycle_ensemble_compose(
         cy.add(ensemble)
     assert str(e_info.value) == \
         "Ensemble to add has inconsistent length with existing cycle forcing_dirs"
-    
+
     # Inconsistent forcing dir length and ensemble length
     cy = CycleSimulation(
         init_times=init_times,
@@ -727,7 +738,7 @@ def test_cycle_ensemble_compose(
         cy.add(ensemble)
     assert str(e_info.value) == \
         "Ensemble to add has inconsistent length with existing cycle restart_dirs"
-    
+
     # Valid force dir exercise.
     cy = CycleSimulation(
         init_times=init_times,
@@ -740,7 +751,7 @@ def test_cycle_ensemble_compose(
         ]
     )
     cy.add(job_restart)
-    cy.add(ensemble)    
+    cy.add(ensemble)
     compose_dir = pathlib.Path(tmpdir).joinpath('cycle_forc_dir_compose')
     os.mkdir(str(compose_dir))
     os.chdir(str(compose_dir))
@@ -759,7 +770,7 @@ def test_cycle_ensemble_compose(
         ]
     )
     cy.add(job_restart)
-    cy.add(ensemble)    
+    cy.add(ensemble)
     compose_dir = pathlib.Path(tmpdir).joinpath('cycle_forc_dir_fail_1_compose')
     os.mkdir(str(compose_dir))
     os.chdir(str(compose_dir))
@@ -767,7 +778,7 @@ def test_cycle_ensemble_compose(
     with pytest.raises(Exception) as e_info:
         cy.compose()
     assert str(e_info.value) == 'Only non-negative integers can be used to specify forcing_dirs'
-    
+
     # In valid force dir exercise.
     cy = CycleSimulation(
         init_times=init_times,
@@ -780,7 +791,7 @@ def test_cycle_ensemble_compose(
         ]
     )
     cy.add(job_restart)
-    cy.add(ensemble)    
+    cy.add(ensemble)
     compose_dir = pathlib.Path(tmpdir).joinpath('cycle_forc_dir_fail_2_compose')
     os.mkdir(str(compose_dir))
     os.chdir(str(compose_dir))
@@ -822,7 +833,7 @@ def test_cycle_ensemble_parallel_compose(
     os.chdir(str(compose_dir))
     pathlib.Path('../dummy_extant_dir').touch()
     cy_ens_compose.compose()
-    
+
     cy_run_success = cy_ens_compose.run()
     assert cy_run_success == 0
     cy.pickle(str(pathlib.Path(tmpdir) / 'cycle_ensemble_compose/WrfHydroCycleEns.pkl'))
@@ -1023,7 +1034,7 @@ def test_cycle_ensemble_parallel_compose(
                 assert member.jobs[0].__dict__[kk] == answer[kk]
 
     # Check the scheduler too
-    #assert cy_check_casts.casts[0].scheduler.__dict__ == scheduler.__dict__
+    # assert cy_check_casts.casts[0].scheduler.__dict__ == scheduler.__dict__
 
     # For the cycle where the compse removes the casts...
     # Check that the casts are all now simply pathlib objects

@@ -167,7 +167,7 @@ def test_ens_parallel_compose(simulation_compiled, job_restart, scheduler, tmpdi
 
     # Why pickle?
     ens.pickle(str(pathlib.Path(tmpdir) / 'ensemble_compose/WrfHydroEnsSim.pkl'))
-    
+
     # The ensemble-in-memory version for checking the members.
     compose_dir = pathlib.Path(tmpdir).joinpath('ensemble_compose_check_members')
     os.mkdir(str(compose_dir))
@@ -307,7 +307,7 @@ def test_ens_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     assert serial_run_success == 0, \
         "Some serial ensemble members did not run successfully."
     assert get_ens_dotfile_end_datetime(ens_dir) == datetime.datetime(2017, 1, 4, 0, 0)
-    
+
     # Parallel test
     ens_parallel = copy.deepcopy(ens)
     ens_dir = pathlib.Path(tmpdir).joinpath('ens_parallel_run')
@@ -320,7 +320,7 @@ def test_ens_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     assert ens_run_success == 0, \
         "Some parallel ensemble members did not run successfully."
     assert get_ens_dotfile_end_datetime(ens_dir) == datetime.datetime(2017, 1, 4, 0, 0)
-    
+
     # Parallel test with ensemble in memory
     ens_parallel = copy.deepcopy(ens)
     ens_dir = pathlib.Path(tmpdir).joinpath('ens_parallel_run_ens_in_memory')
@@ -333,24 +333,25 @@ def test_ens_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
         "Some parallel ensemble members in memory did not run successfully."
     assert get_ens_dotfile_end_datetime(ens_dir) == datetime.datetime(2017, 1, 4, 0, 0)
 
+
 def test_ens_teams_run(simulation_compiled, job, scheduler, tmpdir, capfd):
 
     ens_dir = pathlib.Path(tmpdir).joinpath('ens_teams_run')
 
     teams_dict = {
         '0': {
-            'members'  : ['member_000', 'member_002'],
-            'nodes'    : ['hostname0'],
+            'members': ['member_000', 'member_002'],
+            'nodes': ['hostname0'],
             'entry_cmd': 'echo',
-            'exe_cmd'  : './wrf_hydro.exe {hostname} {nproc}',
-            'exit_cmd' : './bogus_cmd'
+            'exe_cmd': './wrf_hydro.exe {hostname} {nproc}',
+            'exit_cmd': './bogus_cmd'
         },
         '1': {
-            'members'  : ['member_001', 'member_003'],
-            'nodes'    : ['hostname1', 'hostname1'],
-             'entry_cmd': 'pwd',
-            'exe_cmd'  : './wrf_hydro.exe {hostname} {nproc}',
-            'exit_cmd' : './bogus_cmd'
+            'members': ['member_001', 'member_003'],
+            'nodes': ['hostname1', 'hostname1'],
+            'entry_cmd': 'pwd',
+            'exe_cmd': './wrf_hydro.exe {hostname} {nproc}',
+            'exit_cmd': './bogus_cmd'
         }
     }
 

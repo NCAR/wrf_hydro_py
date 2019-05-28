@@ -2,10 +2,11 @@ import collections
 import dask
 import dask.bag
 from datetime import datetime
-import xarray as xr
-import pathlib
 import itertools
 from multiprocessing.pool import Pool
+import numpy as np
+import pathlib
+import xarray as xr
 
 
 def is_not_none(x):
@@ -72,19 +73,26 @@ def preprocess_ensemble_data(
         ds = ds.assign_coords(time=time)
         ds = ds.expand_dims('time')
 
+    filename_info = pathlib.Path(path).parent.name
+        
     # Member preprocess
     # Assumption is that parent dir is member_mmm
-    filename_info = pathlib.Path(path).parent.name
-    try:
+    #member = None
+    if 'member' in filename_info:
         member = int(filename_info.split('_')[-1])
-    except ValueError:
-        member = None
-
-    if member is not None:
         ds.coords['member'] = member
 
-    if 'reference_time' in ds.variables:
-        ds = ds.drop('reference_time')
+    # Lead time preprocess
+    # Assumption is that parent dir is cast_yymmddHH
+    if 'cast_' in filename_info: 
+        ds.coords['lead_time'] = np.array(
+            ds.time.values - ds.reference_time.values,
+            dtype='timedelta64[ns]'
+        )
+        ds = ds.drop('time')
+    else:
+        if 'reference_time' in ds.variables:
+            ds = ds.drop('reference_time')
 
     # Spatial subsetting
     if spatial_indices is not None:

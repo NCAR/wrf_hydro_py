@@ -126,8 +126,7 @@ def test_add_init_times(
      ([['.', ['.']], ['.', '/foo/bar'], ['.', '-1']],  # improper mix, fails
       ['Types in ensemble restart_dirs argument are not appropriate.']),
      ([['.', '.'], ['.', '/foo/bar'], ['.', '-1', '.']],  # ensemble wrong lengths
-      ['Inconsistent ensemble length by implied by restart_dirs'])
-    ]
+      ['Inconsistent ensemble length by implied by restart_dirs'])]
 )
 def test_add_restart_dirs(
     restart_dirs,
@@ -163,8 +162,7 @@ def test_add_restart_dirs(
      ([['.', '.', ['.']], ['.', '.', '/foo/bar'], ['.', '.', '-1']],  # improper mix, fails
       ['Types in ensemble forcing_dirs argument are not appropriate.']),
      ([['.', '.', '.'], ['.', '.', '/foo/bar'], ['.', '-1']],  # ensemble wrong lengths
-      ['Inconsistent ensemble length by implied by forcing_dirs'])
-    ]
+      ['Inconsistent ensemble length by implied by forcing_dirs'])]
 )
 def test_add_forcing_dirs(
     forcing_dirs,
@@ -420,6 +418,7 @@ def test_cycle_compose(
     restart_dirs
 ):
     # These might be parametizable.
+
     # Compose without adding a simulation.
     cy = CycleSimulation(
         init_times=init_times,
@@ -1099,10 +1098,10 @@ def test_cycle_run(
     os.mkdir(str(cy_dir))
     os.chdir(str(cy_dir))
     cy_serial.compose(rm_casts_from_memory=False)
-
     serial_run_success = cy_serial.run()
     assert serial_run_success == 0, \
         "Some serial cycle casts did not run successfully."
+    assert cy_dir.joinpath("WrfHydroCycle.pkl").exists()
 
     # Parallel test
     cy_parallel = copy.deepcopy(cy)
@@ -1111,10 +1110,10 @@ def test_cycle_run(
     os.mkdir(str(cy_dir))
     os.chdir(str(cy_dir))
     cy_parallel.compose()
-
     cy_run_success = cy_parallel.run(n_concurrent=2)
     assert cy_run_success == 0, \
         "Some parallel cycle casts did not run successfully."
+    assert cy_dir.joinpath("WrfHydroCycle.pkl").exists()
 
     # Parallel test with ensemble in memory
     cy_parallel = copy.deepcopy(cy)
@@ -1126,6 +1125,7 @@ def test_cycle_run(
     cy_run_mem_success = cy_parallel.run(n_concurrent=2)
     assert cy_run_mem_success == 0, \
         "Some parallel cycle casts in memory did not run successfully."
+    assert cy_dir.joinpath("WrfHydroCycle.pkl").exists()
 
 
 def test_cycle_self_dependent_run(

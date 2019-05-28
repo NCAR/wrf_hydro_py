@@ -11,7 +11,7 @@ setup(
         'pandas',
         'f90nml',
         'netCDF4',
-        'deepdiff',
+        'deepdiff==3.3.0',
         'pathlib',
         'xarray',
         'datetime',

@@ -181,6 +181,9 @@ get_ipython().run_cell_magic(
     '',
     'cd /glade/scratch/jamesmcc/ens_cycle_example/\nrm croton_NY.tar.gz\n'
     'rm compile/wrf_hydro.exe\n'
+    'rm ens_ana/cast_201108260*/member_*/HYDRO_RST.2011-08-26_00:00_DOMAIN1\n'
+    'rm ens_ana/cast_201108260*/member_*/RESTART.2011082600_DOMAIN1\n'
+    'rm ens_ana/cast_201108260*/member_*/nudgingLastObs.2011-08-26_00:00:00.nc\n'
     'cd croton_NY\n'
     'rm -rf Gridded Gridded_no_lakes/ Reach/ supplemental/\n'
     'rm USGS_obs.csv  Readme.txt   study_map.PNG\n'

@@ -45,7 +45,7 @@ def merge_time(ds_list: list) -> xr.Dataset:
     return xr.concat(ds_list, dim='time', coords='minimal')
 
 
-def preprocess_ensemble_data(
+def preprocess_whp_data(
     path,
     spatial_indices: list = None,
     drop_variables: list = None
@@ -63,15 +63,15 @@ def preprocess_ensemble_data(
 
     # Exception for RESTART.YYMMDDHHMM_DOMAIN1 files
     if 'RESTART.' in str(path):
-        ds = ds.assign_coords(Time=ds.Times)
-        ds = ds.rename({'Time': 'time'})
-        ds = ds.drop('Times')
+        time = datetime.strptime(ds.Times.values[0].decode('utf-8'), '%Y-%m-%d_%H:%M:%S')
+        ds = ds.squeeze('Time')
+        ds = ds.drop(['Times'])
+        ds = ds.assign_coords(time=time)
 
     # Exception for HYDRO_RST.YY-MM-DD_HH:MM:SS_DOMAIN1 files
     if 'HYDRO_RST.' in str(path):
         time = datetime.strptime(ds.attrs['Restart_Time'], '%Y-%m-%d_%H:%M:%S')
         ds = ds.assign_coords(time=time)
-        ds = ds.expand_dims('time')
 
     filename_info = pathlib.Path(path).parent.name
         
@@ -85,11 +85,16 @@ def preprocess_ensemble_data(
     # Lead time preprocess
     # Assumption is that parent dir is cast_yymmddHH
     if 'cast_' in filename_info: 
+        # Exception for cast HYDRO_RST.YY-MM-DD_HH:MM:SS_DOMAIN1 and
+        # RESTART.YYMMDDHHMM_DOMAIN1 files
+        if 'HYDRO_RST.' in str(path) or 'RESTART' in str(path):
+            ds.coords['reference_time'] = datetime.strptime(filename_info, 'cast_%Y%m%d%H')
         ds.coords['lead_time'] = np.array(
             ds.time.values - ds.reference_time.values,
             dtype='timedelta64[ns]'
         )
         ds = ds.drop('time')
+
     else:
         if 'reference_time' in ds.variables:
             ds = ds.drop('reference_time')
@@ -101,7 +106,7 @@ def preprocess_ensemble_data(
     return ds
 
 
-def open_ensemble_dataset(
+def open_whp_dataset(
     paths: list,
     chunks: dict = None,
     attrs_keep: list = ['featureType', 'proj4',
@@ -117,8 +122,8 @@ def open_ensemble_dataset(
         then = timesince()
 
     # This is totally arbitrary be seems to work ok.
-#    if npartitions is None:
-#        npartitions = dask.config.get('pool')._processes * 4
+    # if npartitions is None:
+    #     npartitions = dask.config.get('pool')._processes * 4
     # This choice does not seem to work well or at all, error?
     # npartitions = len(sorted(paths))
     paths_bag = dask.bag.from_sequence(paths, npartitions=npartitions)
@@ -128,7 +133,7 @@ def open_ensemble_dataset(
         print('after paths_bag')
 
     ds_list = paths_bag.map(
-        preprocess_ensemble_data,
+        preprocess_whp_data,
         # chunks=chunks,
         spatial_indices=spatial_indices,
         drop_variables=drop_variables
@@ -234,11 +239,11 @@ def open_ensemble_dataset(
     return nwm_dataset
 
 
-def collect_ensemble_dataset(files, n_cores: int = 1):
+def collect_whp_dataset(files, n_cores: int = 1):
     import sys
     import os
     the_pool = Pool(n_cores)
     with dask.config.set(scheduler='processes', pool=the_pool):
-        ens_ds = open_ensemble_dataset(files)
+        ens_ds = open_whp_dataset(files)
     the_pool.close()
     return ens_ds

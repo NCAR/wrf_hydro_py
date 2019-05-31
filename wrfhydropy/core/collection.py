@@ -94,7 +94,10 @@ def preprocess_whp_data(
             dtype='timedelta64[ns]'
         )
         ds = ds.drop('time')
-        ds['valid_time'] = np.datetime64(int(ds.lead_time) + int(ds.reference_time), 'ns')
+
+        # Could create a valid time variable here, but I'm guessing it's more efficient
+        # after all the data are collected.
+        # ds['valid_time'] = np.datetime64(int(ds.lead_time) + int(ds.reference_time), 'ns')
 
     else:
         if 'reference_time' in ds.variables:
@@ -199,18 +202,17 @@ def open_whp_dataset(
 
     del ds_list
 
-    # Create a valid_time variable.
-    # Right now this calculation is happening in preprocess. It may be more efficient to
-    # do here. I'm keeping the code here until doubts about that are resolved.
-    # def calc_valid_time(ref, lead):
-    #     return np.datetime64(int(ref) + int(lead), 'ns')
-    # if have_lead_time:
-    #     nwm_dataset['valid_time'] = xr.apply_ufunc(
-    #         calc_valid_time,
-    #         nwm_dataset['reference_time'],
-    #         nwm_dataset['lead_time'],
-    #         vectorize=True
-    #     )
+    # Create a valid_time variable. I'm estimating that doing it here is more efficient
+    # than adding more data to the collection processes.
+    def calc_valid_time(ref, lead):
+        return np.datetime64(int(ref) + int(lead), 'ns')
+    if have_lead_time:
+        nwm_dataset['valid_time'] = xr.apply_ufunc(
+            calc_valid_time,
+            nwm_dataset['reference_time'],
+            nwm_dataset['lead_time'],
+            vectorize=True
+        ).transpose()  # Not sure this is consistently anti-transposed.
 
     # Xarray sets nan as the fill value when there is none. Dont allow that...
     for key, val in nwm_dataset.variables.items():

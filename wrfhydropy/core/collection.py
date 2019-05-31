@@ -73,22 +73,34 @@ def preprocess_whp_data(
         time = datetime.strptime(ds.attrs['Restart_Time'], '%Y-%m-%d_%H:%M:%S')
         ds = ds.assign_coords(time=time)
 
-    filename_info = pathlib.Path(path).parent.name
+    filename_parent = pathlib.Path(path).parent
+    filename_grandparent = pathlib.Path(path).parent.parent
 
     # Member preprocess
     # Assumption is that parent dir is member_mmm
     # member = None
-    if 'member' in filename_info:
-        member = int(filename_info.split('_')[-1])
+    if 'member' in filename_parent.name:
+        # This is a double check that this convention is because of wrf_hydro_py
+        assert filename_parent.parent.joinpath('WrfHydroEns.pkl').exists()
+        member = int(filename_parent.name.split('_')[-1])
         ds.coords['member'] = member
 
     # Lead time preprocess
     # Assumption is that parent dir is cast_yymmddHH
-    if 'cast_' in filename_info:
+    if 'cast_' in filename_parent.name or 'cast_' in filename_grandparent.name:
         # Exception for cast HYDRO_RST.YY-MM-DD_HH:MM:SS_DOMAIN1 and
         # RESTART.YYMMDDHHMM_DOMAIN1 files
         if 'HYDRO_RST.' in str(path) or 'RESTART' in str(path):
-            ds.coords['reference_time'] = datetime.strptime(filename_info, 'cast_%Y%m%d%H')
+            cast_fmt = 'cast_%Y%m%d%H'
+            if 'cast_' in filename_parent.name:
+                # This is a double check that this convention is because of wrf_hydro_py
+                assert filename_parent.parent.joinpath('WrfHydroCycle.pkl').exists()
+                ds.coords['reference_time'] = datetime.strptime(filename_parent.name, cast_fmt)
+            elif 'cast_' in filename_grandparent.name:
+                # This is a double check that this convention is because of wrf_hydro_py
+                assert filename_grandparent.parent.joinpath('WrfHydroCycle.pkl').exists()
+                ds.coords['reference_time'] = \
+                    datetime.strptime(filename_grandparent.name, cast_fmt)
         ds.coords['lead_time'] = np.array(
             ds.time.values - ds.reference_time.values,
             dtype='timedelta64[ns]'

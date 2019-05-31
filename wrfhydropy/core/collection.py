@@ -74,17 +74,17 @@ def preprocess_whp_data(
         ds = ds.assign_coords(time=time)
 
     filename_info = pathlib.Path(path).parent.name
-        
+
     # Member preprocess
     # Assumption is that parent dir is member_mmm
-    #member = None
+    # member = None
     if 'member' in filename_info:
         member = int(filename_info.split('_')[-1])
         ds.coords['member'] = member
 
     # Lead time preprocess
     # Assumption is that parent dir is cast_yymmddHH
-    if 'cast_' in filename_info: 
+    if 'cast_' in filename_info:
         # Exception for cast HYDRO_RST.YY-MM-DD_HH:MM:SS_DOMAIN1 and
         # RESTART.YYMMDDHHMM_DOMAIN1 files
         if 'HYDRO_RST.' in str(path) or 'RESTART' in str(path):

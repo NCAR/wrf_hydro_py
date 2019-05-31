@@ -119,9 +119,10 @@ def test_collect_cycle(
     from pprint import pprint
     assert repr(cycle_ds) == expected
 
-# =============================================================================    
+
 # Ensemble
-    
+
+
 @pytest.mark.parametrize(
     ['file_glob', 'expected'],
     [

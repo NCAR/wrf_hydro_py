@@ -6,6 +6,7 @@ import itertools
 from multiprocessing.pool import Pool
 import numpy as np
 import pathlib
+from wrfhydropy.core.ioutils import timesince
 import xarray as xr
 
 
@@ -47,7 +48,7 @@ def merge_time(ds_list: list) -> xr.Dataset:
 
 def preprocess_whp_data(
     path,
-    spatial_indices: list = None,
+    isel: dict = None,
     drop_variables: list = None
 ) -> xr.Dataset:
     try:
@@ -116,8 +117,8 @@ def preprocess_whp_data(
             ds = ds.drop('reference_time')
 
     # Spatial subsetting
-    if spatial_indices is not None:
-        ds = ds.isel(feature_id=spatial_indices)
+    if isel is not None:
+        ds = ds.isel(isel)
 
     return ds
 
@@ -128,7 +129,7 @@ def open_whp_dataset_inner(
     attrs_keep: list = ['featureType', 'proj4',
                         'station_dimension', 'esri_pe_string',
                         'Conventions', 'model_version'],
-    spatial_indices: list = None,
+    isel: dict = None,
     drop_variables: list = None,
     npartitions: int = None,
     profile: int = False
@@ -150,8 +151,7 @@ def open_whp_dataset_inner(
 
     ds_list = paths_bag.map(
         preprocess_whp_data,
-        # chunks=chunks,
-        spatial_indices=spatial_indices,
+        isel=isel,
         drop_variables=drop_variables
     ).filter(is_not_none).compute()
 
@@ -256,11 +256,31 @@ def open_whp_dataset_inner(
     return nwm_dataset
 
 
-def open_whp_dataset(files, n_cores: int = 1):
+def open_whp_dataset(
+    paths: list,
+    chunks: dict = None,
+    attrs_keep: list = ['featureType', 'proj4',
+                        'station_dimension', 'esri_pe_string',
+                        'Conventions', 'model_version'],
+    isel: dict = None,
+    drop_variables: list = None,
+    npartitions: int = None,
+    profile: int = False,
+    n_cores: int = 1
+) -> xr.Dataset:
+
     import sys
     import os
     the_pool = Pool(n_cores)
     with dask.config.set(scheduler='processes', pool=the_pool):
-        whp_ds = open_whp_dataset_inner(files)
+        whp_ds = open_whp_dataset_inner(
+            paths,
+            chunks,
+            attrs_keep,
+            isel,
+            drop_variables,
+            npartitions,
+            profile
+        )
     the_pool.close()
     return whp_ds

@@ -122,7 +122,7 @@ def preprocess_whp_data(
     return ds
 
 
-def open_whp_dataset(
+def open_whp_dataset_inner(
     paths: list,
     chunks: dict = None,
     attrs_keep: list = ['featureType', 'proj4',
@@ -256,11 +256,11 @@ def open_whp_dataset(
     return nwm_dataset
 
 
-def collect_whp_dataset(files, n_cores: int = 1):
+def open_whp_dataset(files, n_cores: int = 1):
     import sys
     import os
     the_pool = Pool(n_cores)
     with dask.config.set(scheduler='processes', pool=the_pool):
-        ens_ds = open_whp_dataset(files)
+        whp_ds = open_whp_dataset_inner(files)
     the_pool.close()
-    return ens_ds
+    return whp_ds

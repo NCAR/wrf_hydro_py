@@ -23,6 +23,83 @@ version_file = test_dir.joinpath('data/collection_data/croton_NY/.version')
 version = version_file.open('r').read().split('-')[0]
 
 
+
+
+# Missing/bogus files.
+# Do this for ensemble cycle.
+# Make a sim dir to a single simulation.
+miss_ens_cycle_dir = test_dir / 'data/collection_data/miss_ens_cycle'
+if miss_ens_cycle_dir.exists():
+    shutil.rmtree(str(miss_ens_cycle_dir))
+miss_ens_cycle_dir.mkdir()
+os.chdir(str(miss_ens_cycle_dir))
+orig_dir = test_dir / 'data/collection_data/ens_ana/'
+casts = sorted(orig_dir.glob('cast_*'))
+pkl_file = sorted(orig_dir.glob("*.pkl"))[0]
+pathlib.Path(pkl_file.name).symlink_to(pkl_file)
+for cc in casts:
+    pathlib.Path(cc.name).symlink_to(cc)
+# Break the last one.
+pathlib.Path(cc.name).unlink()
+pathlib.Path(cc.name).mkdir()
+os.chdir(cc.name)
+member_dirs = \
+    sorted((test_dir / ('data/collection_data/ens_ana/' + cc.name)).glob('member_*'))
+for mm in member_dirs:
+    pathlib.Path(mm.name).symlink_to(mm)
+# Break the last one.
+pathlib.Path(mm.name).unlink()
+pathlib.Path(mm.name).mkdir()
+orig_ens_dir = test_dir / ('data/collection_data/ens_ana/' + cc.name)
+orig_sim_dir = orig_ens_dir / mm.name
+pkl_file = sorted(orig_ens_dir.glob("*.pkl"))[0]
+pathlib.Path(pkl_file.name).symlink_to(pkl_file)
+os.chdir(mm.name)
+chrtout_files = sorted(orig_sim_dir.glob('*CHRTOUT*'))
+for cc in chrtout_files:
+    pathlib.Path(cc.name).symlink_to(cc)
+pathlib.Path(cc.name).unlink()
+pathlib.Path(cc.name).symlink_to('/foo/bar')
+
+@pytest.mark.parametrize(
+    ['file_glob', 'expected', 'n_cores'],
+    [
+        (
+            '*/*/*CHRTOUT_DOMAIN1',
+            miss_ens_cycle_answer_reprs[version]['*/*/*CHRTOUT_DOMAIN1'],
+            1
+        ),
+        (
+            '*/*/RESTART.*_DOMAIN1',
+            miss_ens_cycle_answer_reprs[version]['*/*/RESTART.*_DOMAIN1'],
+            2
+        ),
+        (
+            '*/*/HYDRO_RST.*_DOMAIN1',
+            miss_ens_cycle_answer_reprs[version]['*/*/HYDRO_RST.*_DOMAIN1'],
+            3
+        )
+    ],
+    ids=[
+        'missing_ens_cycle-CHRTOUT_DOMAIN1',
+        'missing_ens_cycle-RESTART.*_DOMAIN1',
+        'missing_ens_cycle-HYDRO_RST.*_DOMAIN1'
+    ]
+)
+def test_collect_missing_ens_cycle(
+    file_glob,
+    expected,
+    n_cores
+):
+    miss_ens_cycle_path = test_dir.joinpath(miss_ens_cycle_dir)
+    files = sorted(miss_ens_cycle_path.glob(file_glob))
+    ens_cycle_ds = open_whp_dataset(files, n_cores=n_cores)
+    # This checks everything about the metadata.
+    assert repr(ens_cycle_ds) == expected
+
+
+
+
 # Simulation
 # Make a sim dir to a single simulation.
 sim_dir = test_dir / 'data/collection_data/simulation'
@@ -32,17 +109,17 @@ sim_dir.symlink_to(test_dir / 'data/collection_data/ens_ana/cast_2011082600/memb
 
 
 @pytest.mark.parametrize(
-    ['file_glob', 'expected'],
+    ['file_glob', 'expected', 'n_cores'],
     [
-        ('*CHRTOUT_DOMAIN1', simulation_answer_reprs[version]['*CHRTOUT_DOMAIN1']),
-        ('*LAKEOUT_DOMAIN1', simulation_answer_reprs[version]['*LAKEOUT_DOMAIN1']),
-        ('*CHANOBS_DOMAIN1', simulation_answer_reprs[version]['*CHANOBS_DOMAIN1']),
-        ('*GWOUT_DOMAIN1', simulation_answer_reprs[version]['*GWOUT_DOMAIN1']),
-        ('*[0-9].RTOUT_DOMAIN1', simulation_answer_reprs[version]['*RTOUT_DOMAIN1']),
-        ('*LDASOUT_DOMAIN1', simulation_answer_reprs[version]['*LDASOUT_DOMAIN1']),
-        ('*LSMOUT_DOMAIN', simulation_answer_reprs[version]['*LSMOUT_DOMAIN']),
-        ('RESTART.*_DOMAIN1', simulation_answer_reprs[version]['RESTART.*_DOMAIN1']),
-        ('HYDRO_RST.*_DOMAIN1', simulation_answer_reprs[version]['HYDRO_RST.*_DOMAIN1']),
+        ('*CHRTOUT_DOMAIN1', simulation_answer_reprs[version]['*CHRTOUT_DOMAIN1'], 1),
+        ('*LAKEOUT_DOMAIN1', simulation_answer_reprs[version]['*LAKEOUT_DOMAIN1'], 1),
+        ('*CHANOBS_DOMAIN1', simulation_answer_reprs[version]['*CHANOBS_DOMAIN1'], 1),
+        ('*GWOUT_DOMAIN1', simulation_answer_reprs[version]['*GWOUT_DOMAIN1'], 1),
+        ('*[0-9].RTOUT_DOMAIN1', simulation_answer_reprs[version]['*RTOUT_DOMAIN1'], 2),
+        ('*LDASOUT_DOMAIN1', simulation_answer_reprs[version]['*LDASOUT_DOMAIN1'], 3),
+        ('*LSMOUT_DOMAIN', simulation_answer_reprs[version]['*LSMOUT_DOMAIN'], 2),
+        ('RESTART.*_DOMAIN1', simulation_answer_reprs[version]['RESTART.*_DOMAIN1'], 2),
+        ('HYDRO_RST.*_DOMAIN1', simulation_answer_reprs[version]['HYDRO_RST.*_DOMAIN1'], 3),
     ],
     ids=[
         'simulation-CHRTOUT_DOMAIN1',
@@ -58,11 +135,12 @@ sim_dir.symlink_to(test_dir / 'data/collection_data/ens_ana/cast_2011082600/memb
 )
 def test_collect_simulation(
     file_glob,
-    expected
+    expected,
+    n_cores
 ):
     sim_path = test_dir.joinpath(sim_dir)
     files = sorted(sim_path.glob(file_glob))
-    sim_ds = open_whp_dataset(files)
+    sim_ds = open_whp_dataset(files, n_cores=n_cores)
     # This checks everything about the metadata.
     assert repr(sim_ds) == expected
 
@@ -84,17 +162,17 @@ for cast in test_dir.joinpath('data/collection_data/ens_ana').glob('cast_*'):
 
 
 @pytest.mark.parametrize(
-    ['file_glob', 'expected'],
+    ['file_glob', 'expected', 'n_cores'],
     [
-        ('*/*CHRTOUT_DOMAIN1', cycle_answer_reprs[version]['*/*CHRTOUT_DOMAIN1']),
-        ('*/*LAKEOUT_DOMAIN1', cycle_answer_reprs[version]['*/*LAKEOUT_DOMAIN1']),
-        ('*/*CHANOBS_DOMAIN1', cycle_answer_reprs[version]['*/*CHANOBS_DOMAIN1']),
-        ('*/*GWOUT_DOMAIN1', cycle_answer_reprs[version]['*/*GWOUT_DOMAIN1']),
-        ('*/*[0-9].RTOUT_DOMAIN1', cycle_answer_reprs[version]['*/*RTOUT_DOMAIN1']),
-        ('*/*LDASOUT_DOMAIN1', cycle_answer_reprs[version]['*/*LDASOUT_DOMAIN1']),
-        ('*/*LSMOUT_DOMAIN', cycle_answer_reprs[version]['*/*LSMOUT_DOMAIN']),
-        ('*/RESTART.*_DOMAIN1', cycle_answer_reprs[version]['*/RESTART.*_DOMAIN1']),
-        ('*/HYDRO_RST.*_DOMAIN1', cycle_answer_reprs[version]['*/HYDRO_RST.*_DOMAIN1'])
+        ('*/*CHRTOUT_DOMAIN1', cycle_answer_reprs[version]['*/*CHRTOUT_DOMAIN1'], 1),
+        ('*/*LAKEOUT_DOMAIN1', cycle_answer_reprs[version]['*/*LAKEOUT_DOMAIN1'], 1),
+        ('*/*CHANOBS_DOMAIN1', cycle_answer_reprs[version]['*/*CHANOBS_DOMAIN1'], 1),
+        ('*/*GWOUT_DOMAIN1', cycle_answer_reprs[version]['*/*GWOUT_DOMAIN1'], 1),
+        ('*/*[0-9].RTOUT_DOMAIN1', cycle_answer_reprs[version]['*/*RTOUT_DOMAIN1'], 2),
+        ('*/*LDASOUT_DOMAIN1', cycle_answer_reprs[version]['*/*LDASOUT_DOMAIN1'], 3),
+        ('*/*LSMOUT_DOMAIN', cycle_answer_reprs[version]['*/*LSMOUT_DOMAIN'], 2),
+        ('*/RESTART.*_DOMAIN1', cycle_answer_reprs[version]['*/RESTART.*_DOMAIN1'], 3),
+        ('*/HYDRO_RST.*_DOMAIN1', cycle_answer_reprs[version]['*/HYDRO_RST.*_DOMAIN1'], 3)
     ],
     ids=[
         'cycle-CHRTOUT_DOMAIN1',
@@ -110,11 +188,12 @@ for cast in test_dir.joinpath('data/collection_data/ens_ana').glob('cast_*'):
 )
 def test_collect_cycle(
     file_glob,
-    expected
+    expected,
+    n_cores
 ):
     cycle_path = test_dir.joinpath(cycle_dir)
     files = sorted(cycle_path.glob(file_glob))
-    cycle_ds = open_whp_dataset(files)
+    cycle_ds = open_whp_dataset(files, n_cores=n_cores)
     # This checks everything about the metadata.
     from pprint import pprint
     assert repr(cycle_ds) == expected
@@ -130,17 +209,17 @@ ens_dir.symlink_to(test_dir / 'data/collection_data/ens_ana/cast_2011082600')
 
 
 @pytest.mark.parametrize(
-    ['file_glob', 'expected'],
+    ['file_glob', 'expected', 'n_cores'],
     [
-        ('*/*CHRTOUT_DOMAIN1', ensemble_answer_reprs[version]['*/*CHRTOUT_DOMAIN1']),
-        ('*/*LAKEOUT_DOMAIN1', ensemble_answer_reprs[version]['*/*LAKEOUT_DOMAIN1']),
-        ('*/*CHANOBS_DOMAIN1', ensemble_answer_reprs[version]['*/*CHANOBS_DOMAIN1']),
-        ('*/*GWOUT_DOMAIN1', ensemble_answer_reprs[version]['*/*GWOUT_DOMAIN1']),
-        ('*/*[0-9].RTOUT_DOMAIN1', ensemble_answer_reprs[version]['*/*RTOUT_DOMAIN1']),
-        ('*/*LDASOUT_DOMAIN1', ensemble_answer_reprs[version]['*/*LDASOUT_DOMAIN1']),
-        ('*/*LSMOUT_DOMAIN', ensemble_answer_reprs[version]['*/*LSMOUT_DOMAIN']),
-        ('*/RESTART.*_DOMAIN1', ensemble_answer_reprs[version]['*/RESTART.*_DOMAIN1']),
-        ('*/HYDRO_RST.*_DOMAIN1', ensemble_answer_reprs[version]['*/HYDRO_RST.*_DOMAIN1']),
+        ('*/*CHRTOUT_DOMAIN1', ensemble_answer_reprs[version]['*/*CHRTOUT_DOMAIN1'], 1),
+        ('*/*LAKEOUT_DOMAIN1', ensemble_answer_reprs[version]['*/*LAKEOUT_DOMAIN1'], 1),
+        ('*/*CHANOBS_DOMAIN1', ensemble_answer_reprs[version]['*/*CHANOBS_DOMAIN1'], 1),
+        ('*/*GWOUT_DOMAIN1', ensemble_answer_reprs[version]['*/*GWOUT_DOMAIN1'], 1),
+        ('*/*[0-9].RTOUT_DOMAIN1', ensemble_answer_reprs[version]['*/*RTOUT_DOMAIN1'], 2),
+        ('*/*LDASOUT_DOMAIN1', ensemble_answer_reprs[version]['*/*LDASOUT_DOMAIN1'], 3),
+        ('*/*LSMOUT_DOMAIN', ensemble_answer_reprs[version]['*/*LSMOUT_DOMAIN'], 2),
+        ('*/RESTART.*_DOMAIN1', ensemble_answer_reprs[version]['*/RESTART.*_DOMAIN1'], 3),
+        ('*/HYDRO_RST.*_DOMAIN1', ensemble_answer_reprs[version]['*/HYDRO_RST.*_DOMAIN1'], 3),
     ],
     ids=[
         'ensemble-CHRTOUT_DOMAIN1',
@@ -156,11 +235,12 @@ ens_dir.symlink_to(test_dir / 'data/collection_data/ens_ana/cast_2011082600')
 )
 def test_collect_ensemble(
     file_glob,
-    expected
+    expected,
+    n_cores
 ):
     ens_path = test_dir.joinpath(ens_dir)
     files = sorted(ens_path.glob(file_glob))
-    ens_ds = open_whp_dataset(files)
+    ens_ds = open_whp_dataset(files, n_cores=n_cores)
     # This checks everything about the metadata.
     assert repr(ens_ds) == expected
 
@@ -169,19 +249,51 @@ def test_collect_ensemble(
 
 
 @pytest.mark.parametrize(
-    ['file_glob', 'expected'],
+    ['file_glob', 'expected', 'n_cores'],
     [
-        ('*/*/*CHRTOUT_DOMAIN1', ensemble_cycle_answer_reprs[version]['*/*/*CHRTOUT_DOMAIN1']),
-        ('*/*/*LAKEOUT_DOMAIN1', ensemble_cycle_answer_reprs[version]['*/*/*LAKEOUT_DOMAIN1']),
-        ('*/*/*CHANOBS_DOMAIN1', ensemble_cycle_answer_reprs[version]['*/*/*CHANOBS_DOMAIN1']),
-        ('*/*/*GWOUT_DOMAIN1', ensemble_cycle_answer_reprs[version]['*/*/*GWOUT_DOMAIN1']),
-        ('*/*/*[0-9].RTOUT_DOMAIN1', ensemble_cycle_answer_reprs[version]['*/*/*RTOUT_DOMAIN1']),
-        ('*/*/*LDASOUT_DOMAIN1', ensemble_cycle_answer_reprs[version]['*/*/*LDASOUT_DOMAIN1']),
-        ('*/*/*LSMOUT_DOMAIN', ensemble_cycle_answer_reprs[version]['*/*/*LSMOUT_DOMAIN']),
-        ('*/*/RESTART.*_DOMAIN1', ensemble_cycle_answer_reprs[version]['*/*/RESTART.*_DOMAIN1']),
+        (
+            '*/*/*CHRTOUT_DOMAIN1',
+            ensemble_cycle_answer_reprs[version]['*/*/*CHRTOUT_DOMAIN1'],
+            1
+        ),
+        (
+            '*/*/*LAKEOUT_DOMAIN1',
+            ensemble_cycle_answer_reprs[version]['*/*/*LAKEOUT_DOMAIN1'],
+            2
+        ),
+        (
+            '*/*/*CHANOBS_DOMAIN1',
+            ensemble_cycle_answer_reprs[version]['*/*/*CHANOBS_DOMAIN1'],
+            1
+        ),
+        (
+            '*/*/*GWOUT_DOMAIN1',
+            ensemble_cycle_answer_reprs[version]['*/*/*GWOUT_DOMAIN1'],
+            1
+        ),
+        (
+            '*/*/*[0-9].RTOUT_DOMAIN1',
+            ensemble_cycle_answer_reprs[version]['*/*/*RTOUT_DOMAIN1'],
+            1),
+        (
+            '*/*/*LDASOUT_DOMAIN1',
+            ensemble_cycle_answer_reprs[version]['*/*/*LDASOUT_DOMAIN1'],
+            3
+        ),
+        (
+            '*/*/*LSMOUT_DOMAIN',
+            ensemble_cycle_answer_reprs[version]['*/*/*LSMOUT_DOMAIN'],
+            2
+        ),
+        (
+            '*/*/RESTART.*_DOMAIN1',
+            ensemble_cycle_answer_reprs[version]['*/*/RESTART.*_DOMAIN1'],
+            3
+        ),
         (
             '*/*/HYDRO_RST.*_DOMAIN1',
-            ensemble_cycle_answer_reprs[version]['*/*/HYDRO_RST.*_DOMAIN1']
+            ensemble_cycle_answer_reprs[version]['*/*/HYDRO_RST.*_DOMAIN1'],
+            3
         ),
     ],
     ids=[
@@ -198,15 +310,20 @@ def test_collect_ensemble(
 )
 def test_collect_ensemble_cycle(
     file_glob,
-    expected
+    expected,
+    n_cores
 ):
     ens_cycle_path = test_dir.joinpath('data/collection_data/ens_ana')
     files = sorted(ens_cycle_path.glob(file_glob))
-    ens_cycle_ds = open_whp_dataset(files)
+    ens_cycle_ds = open_whp_dataset(files, n_cores=n_cores)
     # This checks everything about the metadata.
     assert repr(ens_cycle_ds) == expected
 
 
+
+
 # Test dropping/keeping variables
+
+
 # Test spatial index selection
-# Test when files are missing or bogus
+

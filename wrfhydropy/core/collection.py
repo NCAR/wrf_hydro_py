@@ -6,6 +6,7 @@ import itertools
 from multiprocessing.pool import Pool
 import numpy as np
 import pathlib
+from wrfhydropy.core.ioutils import timesince
 import xarray as xr
 
 
@@ -47,7 +48,7 @@ def merge_time(ds_list: list) -> xr.Dataset:
 
 def preprocess_whp_data(
     path,
-    spatial_indices: list = None,
+    isel: dict = None,
     drop_variables: list = None
 ) -> xr.Dataset:
     try:
@@ -73,22 +74,34 @@ def preprocess_whp_data(
         time = datetime.strptime(ds.attrs['Restart_Time'], '%Y-%m-%d_%H:%M:%S')
         ds = ds.assign_coords(time=time)
 
-    filename_info = pathlib.Path(path).parent.name
+    filename_parent = pathlib.Path(path).parent
+    filename_grandparent = pathlib.Path(path).parent.parent
 
     # Member preprocess
     # Assumption is that parent dir is member_mmm
     # member = None
-    if 'member' in filename_info:
-        member = int(filename_info.split('_')[-1])
+    if 'member' in filename_parent.name:
+        # This is a double check that this convention is because of wrf_hydro_py
+        assert filename_parent.parent.joinpath('WrfHydroEns.pkl').exists()
+        member = int(filename_parent.name.split('_')[-1])
         ds.coords['member'] = member
 
     # Lead time preprocess
     # Assumption is that parent dir is cast_yymmddHH
-    if 'cast_' in filename_info:
+    if 'cast_' in filename_parent.name or 'cast_' in filename_grandparent.name:
         # Exception for cast HYDRO_RST.YY-MM-DD_HH:MM:SS_DOMAIN1 and
         # RESTART.YYMMDDHHMM_DOMAIN1 files
         if 'HYDRO_RST.' in str(path) or 'RESTART' in str(path):
-            ds.coords['reference_time'] = datetime.strptime(filename_info, 'cast_%Y%m%d%H')
+            cast_fmt = 'cast_%Y%m%d%H'
+            if 'cast_' in filename_parent.name:
+                # This is a double check that this convention is because of wrf_hydro_py
+                assert filename_parent.parent.joinpath('WrfHydroCycle.pkl').exists()
+                ds.coords['reference_time'] = datetime.strptime(filename_parent.name, cast_fmt)
+            elif 'cast_' in filename_grandparent.name:
+                # This is a double check that this convention is because of wrf_hydro_py
+                assert filename_grandparent.parent.joinpath('WrfHydroCycle.pkl').exists()
+                ds.coords['reference_time'] = \
+                    datetime.strptime(filename_grandparent.name, cast_fmt)
         ds.coords['lead_time'] = np.array(
             ds.time.values - ds.reference_time.values,
             dtype='timedelta64[ns]'
@@ -104,19 +117,19 @@ def preprocess_whp_data(
             ds = ds.drop('reference_time')
 
     # Spatial subsetting
-    if spatial_indices is not None:
-        ds = ds.isel(feature_id=spatial_indices)
+    if isel is not None:
+        ds = ds.isel(isel)
 
     return ds
 
 
-def open_whp_dataset(
+def open_whp_dataset_inner(
     paths: list,
     chunks: dict = None,
     attrs_keep: list = ['featureType', 'proj4',
                         'station_dimension', 'esri_pe_string',
                         'Conventions', 'model_version'],
-    spatial_indices: list = None,
+    isel: dict = None,
     drop_variables: list = None,
     npartitions: int = None,
     profile: int = False
@@ -138,8 +151,7 @@ def open_whp_dataset(
 
     ds_list = paths_bag.map(
         preprocess_whp_data,
-        # chunks=chunks,
-        spatial_indices=spatial_indices,
+        isel=isel,
         drop_variables=drop_variables
     ).filter(is_not_none).compute()
 
@@ -244,11 +256,31 @@ def open_whp_dataset(
     return nwm_dataset
 
 
-def collect_whp_dataset(files, n_cores: int = 1):
+def open_whp_dataset(
+    paths: list,
+    chunks: dict = None,
+    attrs_keep: list = ['featureType', 'proj4',
+                        'station_dimension', 'esri_pe_string',
+                        'Conventions', 'model_version'],
+    isel: dict = None,
+    drop_variables: list = None,
+    npartitions: int = None,
+    profile: int = False,
+    n_cores: int = 1
+) -> xr.Dataset:
+
     import sys
     import os
     the_pool = Pool(n_cores)
     with dask.config.set(scheduler='processes', pool=the_pool):
-        ens_ds = open_whp_dataset(files)
+        whp_ds = open_whp_dataset_inner(
+            paths,
+            chunks,
+            attrs_keep,
+            isel,
+            drop_variables,
+            npartitions,
+            profile
+        )
     the_pool.close()
-    return ens_ds
+    return whp_ds

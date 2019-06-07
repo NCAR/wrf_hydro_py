@@ -168,9 +168,9 @@ def parallel_compose_casts(arg_dict):
 def parallel_run_casts(arg_dict):
     """Parallelizable function to run an Cycle."""
     if type(arg_dict['cast']) is str:
-        os.chdir(str(pathlib.Path(arg_dict['cycle_dir']) / arg_dict['cast']))
+        os.chdir(str(pathlib.Path(arg_dict['compose_dir']) / arg_dict['cast']))
     else:
-        os.chdir(str(pathlib.Path(arg_dict['cycle_dir']) / arg_dict['cast'].run_dir))
+        os.chdir(str(pathlib.Path(arg_dict['compose_dir']) / arg_dict['cast'].run_dir))
 
     pkl_file = pathlib.Path("WrfHydroSim.pkl")
     if not pkl_file.exists():
@@ -451,7 +451,7 @@ class CycleSimulation(object):
         if len(self) < 1:
             raise ValueError("There are no casts (init_times) to compose.")
 
-        self.cycle_dir = pathlib.Path(os.getcwd())
+        self._compose_dir = pathlib.Path(os.getcwd())
 
         # Allowing forcing_dirs to be optional.
         if self._forcing_dirs == []:
@@ -466,7 +466,7 @@ class CycleSimulation(object):
         if cast_prototype == '_simulation':
             # compile the model (once) before setting up the casts.
             if self._simulation.model.compile_log is None:
-                comp_dir = self.cycle_dir / 'compile'
+                comp_dir = self._compose_dir / 'compile'
                 self._simulation.model.compile(comp_dir)
 
         # Set the ensemble jobs on the casts before composing (this is a loop over the jobs).
@@ -514,7 +514,7 @@ class CycleSimulation(object):
                 )
 
         # Return from indivdual compose.
-        os.chdir(self.cycle_dir)
+        os.chdir(self._compose_dir)
 
         # After successful compose, delete the members from memory and replace with
         # their relative dirs, if requested
@@ -545,23 +545,23 @@ class CycleSimulation(object):
 
         # Save the ensemble object out to the ensemble directory before run
         # The object does not change with the run.
-        path = pathlib.Path(self.cycle_dir).joinpath('WrfHydroCycle.pkl')
+        path = pathlib.Path(self._compose_dir).joinpath('WrfHydroCycle.pkl')
         self.pickle(path)
 
         if n_concurrent > 1:
             with multiprocessing.Pool(n_concurrent, initializer=mute) as pool:
                 exit_codes = pool.map(
                     parallel_run_casts,
-                    ({'cast': cc, 'cycle_dir': self.cycle_dir} for cc in self.casts)
+                    ({'cast': cc, 'compose_dir': self._compose_dir} for cc in self.casts)
                 )
         else:
             # Keep the following for debugging: Run it without pool.map
             exit_codes = [
-                parallel_run_casts({'cast': cc, 'cycle_dir': self.cycle_dir}) for cc in self.casts
+                parallel_run_casts({'cast': cc, 'compose_dir': self._compose_dir}) for cc in self.casts
             ]
 
         # Return to the cycle dir.
-        os.chdir(self.cycle_dir)
+        os.chdir(self._compose_dir)
 
         return int(not all([ee == 0 for ee in exit_codes]))
 

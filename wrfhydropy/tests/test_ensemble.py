@@ -134,6 +134,46 @@ def test_ens_set_diff_dicts(simulation_compiled):
     assert ens.member_diffs == answer
 
 
+def test_ens_compose_restore(simulation_compiled, job_restart, scheduler, tmpdir):
+    sim = simulation_compiled
+    ens = EnsembleSimulation()
+    ens.add(job_restart)
+    ens.add([sim, sim])
+
+    # Do not keep the members in memory
+    ens_disk = copy.deepcopy(ens)
+    compose_dir = pathlib.Path(tmpdir).joinpath('ensemble_disk')
+    os.mkdir(str(compose_dir))
+    os.chdir(str(compose_dir))
+    ens_disk.compose()
+    ens_disk_run_success = ens_disk.run()
+    assert ens_disk_run_success == 0
+
+    # Keep the members in memory
+    compose_dir = pathlib.Path(tmpdir).joinpath('ensemble_memory')
+    os.mkdir(str(compose_dir))
+    os.chdir(str(compose_dir))
+    ens.compose(rm_members_from_memory=False)
+    ens_run_success = ens.run()
+    assert ens_run_success == 0
+
+    # Check that the members are all now simply pathlib objects
+    assert all([type(mm) is str for mm in ens_disk.members])
+    ens_disk.restore_members()
+    # Since the ens_disk has data from the run. Collect data from the run:
+    ens.collect(output=False)
+    # The members are not restored, the simultaion sub objects are:
+    ens.restore_members()
+
+    # These will never be the same for two different runs.
+    for mem, dsk in zip(ens.members, ens_disk.members):
+        del mem.jobs[0].job_end_time, mem.jobs[0].job_start_time
+        del dsk.jobs[0].job_end_time, dsk.jobs[0].job_start_time
+
+    from pprint import pprint
+    assert deepdiff.DeepDiff(ens, ens_disk) == {}
+
+
 @pytest.mark.xfail(strict=False)
 def test_ens_parallel_compose(simulation_compiled, job_restart, scheduler, tmpdir):
     sim = simulation_compiled
@@ -155,6 +195,7 @@ def test_ens_parallel_compose(simulation_compiled, job_restart, scheduler, tmpdi
     assert ens_w_sched.members[0].scheduler.__dict__ == scheduler.__dict__
 
     # Test a run where the members were not kept in memory
+    # Make a copy to test against later
     ens_check_members = copy.deepcopy(ens)
     compose_dir = pathlib.Path(tmpdir).joinpath('ensemble_compose')
     os.mkdir(str(compose_dir))
@@ -336,11 +377,8 @@ def test_ens_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     assert ens_dir.joinpath("WrfHydroEns.pkl").exists()
 
 
-
 def test_ens_teams_run(simulation_compiled, job, scheduler, tmpdir, capfd):
-
     ens_dir = pathlib.Path(tmpdir).joinpath('ens_teams_run')
-
     teams_dict = {
         '0': {
             'members': ['member_000', 'member_002'],

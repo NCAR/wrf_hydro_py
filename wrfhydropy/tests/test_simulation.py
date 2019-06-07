@@ -81,9 +81,7 @@ def test_simulation_compose(model, domain, job, capfd, tmpdir):
     sim.compose()
 
     # Doing this thrice kinda asks for function...
-
     # This compose exercises the options to compose. Gives the same result.
-    # This compose 
     compose_dir_opts = pathlib.Path(tmpdir).joinpath('sim_compose_opts')
     os.mkdir(str(compose_dir_opts))
     os.chdir(str(compose_dir_opts))
@@ -165,7 +163,6 @@ def test_simulation_compose(model, domain, job, capfd, tmpdir):
 
 
 def test_simulation_run_no_scheduler(model, domain, job, tmpdir, capfd):
-
     sim = Simulation()
     sim.add(model)
     sim.add(domain)
@@ -180,23 +177,21 @@ def test_simulation_run_no_scheduler(model, domain, job, tmpdir, capfd):
     assert sim.jobs[0].exit_status == 0, \
         "The job did not exit successfully."
 
+
 def test_simulation_collect(sim_output):
     os.chdir(sim_output)
-
     sim = Simulation()
     sim.collect()
-
     assert sim.output is not None
     assert type(sim.output.channel_rt) is WrfHydroTs
 
 
 def test_simulation_output_checknans(sim_output):
-    output=SimulationOutput()
+    output = SimulationOutput()
     output.collect_output(sim_dir=sim_output)
     public_atts = [att for att in dir(output) if not att.startswith('__')]
     for att in public_atts:
         assert getattr(output, att) is not None
-
     assert output.check_output_nas() is not None
 
 
@@ -205,7 +200,6 @@ def test_simulation_pickle(model, domain, job, tmpdir):
     sim.add(model)
     sim.add(domain)
     sim.add(job)
-
     pickle_path = pathlib.Path(tmpdir).joinpath('Sim.pkl')
     sim.pickle(pickle_path)
     sim0 = copy.deepcopy(sim)
@@ -220,14 +214,13 @@ def test_simulation_sub_obj_pickle(model, domain, job, tmpdir):
     sim.add(domain)
     sim.add(job)
 
-    domain_path = pathlib.Path(tmpdir).joinpath('Domain.pkl')
-    model_path = pathlib.Path(tmpdir).joinpath('Model.pkl')
-    sim.domain = sim.pickle_sub_obj(sim.domain, domain_path)
-    sim.model = sim.pickle_sub_obj(sim.model, model_path)
-    assert sim.domain == domain_path
-    assert sim.model == model_path
+    os.chdir(tmpdir)
+    domain_path = pathlib.Path(tmpdir).joinpath('WrfHydroDomain.pkl')
+    model_path = pathlib.Path(tmpdir).joinpath('WrfHydroModel.pkl')
+    sim.pickle_sub_objs()
+    assert sim.domain.resolve() == domain_path
+    assert sim.model.resolve() == model_path
 
-    sim.domain = sim.restore_sub_obj(sim.domain)
-    sim.model = sim.restore_sub_obj(sim.model)
+    sim.restore_sub_objs()
     assert deepdiff.DeepDiff(sim.domain, domain) == {}
     assert deepdiff.DeepDiff(sim.model, model) == {}

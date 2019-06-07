@@ -648,7 +648,7 @@ def check_file_nas(dataset_path: Union[str, pathlib.Path]) -> str:
 
         # Open stringio object as pandas dataframe
         try:
-            nccmp_out = pd.read_table(output, delimiter=':', header=None)
+            nccmp_out = pd.read_csv(output, delimiter=':', header=None)
             return nccmp_out
         except:
             warnings.warn('Problem reading nccmp output to pandas dataframe,'

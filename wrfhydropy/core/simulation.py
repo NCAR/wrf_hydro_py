@@ -67,9 +67,9 @@ class Simulation(object):
 
     def compose(
         self,
-        symlink_domain: bool=True,
-        force: bool=False,
-        check_nlst_warn: bool=False
+        symlink_domain: bool = True,
+        force: bool = False,
+        check_nlst_warn: bool = False
     ):
         """Compose simulation directories and files
         Args:
@@ -82,9 +82,10 @@ class Simulation(object):
 
         print("Composing simulation into directory:'" + os.getcwd() + "'")
         # Check that the current directory is empty
-        current_dir = pathlib.Path(os.getcwd())
-        current_dir_files = list(current_dir.rglob('*'))
-        if len(current_dir_files) > 0 and force is False:
+        compose_dir = pathlib.Path(os.getcwd())
+        self._compose_dir = compose_dir.absolute()
+        compose_dir_files = list(compose_dir.rglob('*'))
+        if len(compose_dir_files) > 0 and force is False:
             raise FileExistsError('Unable to compose, current working directory is not empty and '
                                   'force is False. '
                                   'Change working directory to an empty directory with os.chdir()')
@@ -101,7 +102,7 @@ class Simulation(object):
 
         # If the first job is a restart, set the model end time.
         if self.jobs[0].restart:
-            file_model_end_time = current_dir / '.model_end_time'
+            file_model_end_time = compose_dir / '.model_end_time'
             with file_model_end_time.open('w') as opened_file:
                 _ = opened_file.write(str(self.jobs[0]._model_start_time))
 
@@ -123,22 +124,22 @@ class Simulation(object):
         # Make copies for each TBL file (never symlink)
         for from_file in self.model.table_files:
             from_file = pathlib.Path(from_file)
-            to_file = current_dir.joinpath(from_file.name)
+            to_file = compose_dir.joinpath(from_file.name)
             shutil.copy(str(from_file), str(to_file))
 
         print('Simulation successfully composed')
 
     def run(
         self,
-        env: dict=None
+        env: dict = None
     ):
         """Run the composed simulation.
         Returns: 0 for success.
         """
-        current_dir = pathlib.Path(os.curdir)
+        compose_dir = self._compose_dir
 
         # Save the object out to the compile directory before run
-        with current_dir.joinpath('WrfHydroSim.pkl').open(mode='wb') as f:
+        with compose_dir.joinpath('WrfHydroSim.pkl').open(mode='wb') as f:
             pickle.dump(self, f, 2)
 
         if self.scheduler is None:
@@ -148,15 +149,20 @@ class Simulation(object):
             self.scheduler.schedule(jobs=self.jobs)
 
         # Overwrite the object after run if successfull
-        path = current_dir.joinpath('WrfHydroSim.pkl')
+        path = compose_dir.joinpath('WrfHydroSim.pkl')
         self.pickle(str(path))
 
         return int(not all(jj.exit_status == 0 for jj in self.jobs))
 
-    def collect(self):
+    def collect(self, sim_dir=None, output=True):
         """Collect simulation output after a run"""
 
-        current_dir = pathlib.Path(os.curdir).absolute()
+        if sim_dir is None and hasattr(self, '_compose_dir '):
+            compose_dir = self._compose_dir
+        elif sim_dir is not None:
+            compose_dir = sim_dir
+        else:
+            compose_dir = pathlib.Path('.')
 
         # Overwrite sim job objects with collected objects matched on job id
         # Create dict of index/ids so that globbed jobs match the original list order
@@ -165,14 +171,15 @@ class Simulation(object):
             id_index[item.job_id] = index
 
         # Insert collect jobs into sim job list
-        job_objs = current_dir.rglob('WrfHydroJob_postrun.pkl')
+        job_objs = compose_dir.rglob('WrfHydroJob_postrun.pkl')
         for job_obj in job_objs:
             collect_job = pickle.load(job_obj.open(mode='rb'))
             original_idx = id_index[collect_job.job_id]
             self.jobs[original_idx] = collect_job
 
-        self.output = SimulationOutput()
-        self.output.collect_output(sim_dir=os.getcwd())
+        if output:
+            self.output = SimulationOutput()
+            self.output.collect_output(sim_dir=os.getcwd())
 
     def pickle(self, path: str):
         """Pickle sim object to specified file path
@@ -183,7 +190,7 @@ class Simulation(object):
         with path.open(mode='wb') as f:
             pickle.dump(self, f, 2)
 
-    def pickle_sub_obj(
+    def _pickle_sub_obj(
         self,
         sub_obj,
         path
@@ -192,15 +199,26 @@ class Simulation(object):
         Method to reduce *composed* simulation pickle sizes for performance applications. This
         method replaces a simulation sub-object (model, domain, or output)  with it's relative
         pathlib.Path. The inverse, to bring that object back from its path is restore_obj().
-        Usage example: 
-            sim.model = sim.pickle_sub_obj(sim.model, 'WrfHydroModel.pkl')
+        Usage example:
+            sim.model = sim._pickle_sub_obj(sim.model, 'WrfHydroModel.pkl')
         """
-        path = pathlib.Path(path)
         with path.open(mode='wb') as f:
             pickle.dump(sub_obj, f, 2)
         return path
 
-    def restore_sub_obj(
+    def pickle_sub_objs(self, obj_list: list = ['model', 'domain', 'output']):
+        if hasattr(self, '_compose_dir'):
+            obj_path = self._compose_dir
+        else:
+            obj_path = pathlib.Path('.')
+        if 'model' in obj_list:
+            self.model = self._pickle_sub_obj(self.model, obj_path / 'WrfHydroModel.pkl')
+        if 'domain' in obj_list:
+            self.domain = self._pickle_sub_obj(self.domain, obj_path / 'WrfHydroDomain.pkl')
+        if 'output' in obj_list:
+            self.output = self._pickle_sub_obj(self.output, obj_path / 'WrfHydroOutput.pkl')
+
+    def _restore_sub_obj(
         self,
         attr_name: pathlib.Path
     ):
@@ -208,17 +226,24 @@ class Simulation(object):
         Method to reduce *composed* simulation pickle sizes for performance applications. This
         method restores a simulation sub-object (model, domain, or output) from it's relative
         pathlib.Path, which replaces the object in the simulation. The inverse, that pickles the
-        subobject is pickle_sub_obj().
-        Usage: 
-            sim.model = sim.restore_obj('model')
+        subobject is _pickle_sub_obj().
+        Usage:
+            sim.model = sim._restore_sub_obj(pathlib.Path('WrfHydroModel.pkl'))
         """
-        #the_attr = getattr(self, attr_name)
-        #if not isinstance(the_attr, pathlib.Path):
-        #    raise ValueError("Can only restore attributes which are pathlib.Path objects.")
-        #setattr(self, attr_name, pickle.load(open(the_attr, "rb")))
         return pickle.load(attr_name.open(mode="rb"))
 
-    # Private methods
+    def restore_sub_objs(self, obj_list: list = ['model', 'domain', 'output']):
+        if hasattr(self, '_compose_dir'):
+            obj_path = self._compose_dir
+        else:
+            obj_path = pathlib.Path('.')
+        if 'model' in obj_list:
+            self.model = self._restore_sub_obj(obj_path / 'WrfHydroModel.pkl')
+        if 'domain' in obj_list:
+            self.domain = self._restore_sub_obj(obj_path / 'WrfHydroDomain.pkl')
+        if 'output' in obj_list:
+            self.output = self._restore_sub_obj(obj_path / 'WrfHydroOutput.pkl')
+
     def _validate_model_domain(self, model, domain):
         """Private method to validate that a model and a domain are compatible"""
         if model.model_config != domain.domain_config:
@@ -239,7 +264,7 @@ class Simulation(object):
 
     def _validate_jobs(
         self,
-        check_nlst_warn: bool=False
+        check_nlst_warn: bool = False
     ):
         """Private method to check that all files are present for each job.
         Args:

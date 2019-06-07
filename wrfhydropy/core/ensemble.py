@@ -37,22 +37,13 @@ def parallel_compose_addscheduler(arg_dict):
 def parallel_compose(arg_dict):
     """Parallelizable function to compose an EnsembleSimuation."""
     os.chdir(str(arg_dict['ens_dir']))
-    os.mkdir(str(arg_dict['member'].run_dir))
-    os.chdir(str(arg_dict['member'].run_dir))
-    arg_dict['member'].compose(**arg_dict['args'])
-
-    # Experimental stuff to speed up the pickling/unpickling of the individual runs.
-    # Would be good to move this stuff to a Simulation pickle method option.
-    # arg_dict['member'].model = pickle_sub_obj(arg_dict['member'].model, 'WrfHydroModel.pkl')
-    # arg_dict['member'].domain = pickle_sub_obj(arg_dict['member'].domain, 'WrfHydroDomain.pkl')
-    # arg_dict['member'].output = pickle_sub_obj(arg_dict['member'].output, 'WrfHydroOutput.pkl')
-
-    del arg_dict['member'].model
-    del arg_dict['member'].domain
-    del arg_dict['member'].output
-
-    arg_dict['member'].pickle('WrfHydroSim.pkl')
-    return arg_dict['member']
+    mem = arg_dict['member']
+    os.mkdir(str(mem.run_dir))
+    os.chdir(str(mem.run_dir))
+    mem.compose(**arg_dict['args'])
+    mem.pickle_sub_objs()
+    mem.pickle('WrfHydroSim.pkl')
+    return mem
 
 
 def parallel_run(arg_dict):
@@ -457,6 +448,7 @@ class EnsembleSimulation(object):
 
         # Ensemble compose
         ens_dir = pathlib.Path(os.getcwd())
+        self._compose_dir = ens_dir.resolve()
         ens_dir_files = list(ens_dir.rglob('*'))
         if len(ens_dir_files) > 0 and force is False:
             raise FileExistsError(
@@ -506,6 +498,23 @@ class EnsembleSimulation(object):
         """Remove members from memory, replace with their paths."""
         run_dirs = [mm.run_dir for mm in self.members]
         self.members = run_dirs
+
+    def restore_members(self, ens_dir: pathlib.Path = None, recursive: bool = True):
+        """Restore members from disk, replace paths with the loaded pickle."""
+        if ens_dir is not None:
+            self._compose_dir = ens_dir
+        if not hasattr(self, '_compose_dir'):
+            raise ValueError('API change: please specify the ens_dir argument '
+                             'to point to the ensemble location using a pathlib.Path.')
+        if all([isinstance(mm, str) for mm in self.members]):
+            member_sims = [
+                pickle.load(self._compose_dir.joinpath(mm + '/WrfHydroSim.pkl').open('rb'))
+                for mm in self.members
+            ]
+            self.members = member_sims
+        if recursive:
+            for mm in self.members:
+                mm.restore_sub_objs()
 
     def run(
         self,
@@ -617,3 +626,7 @@ class EnsembleSimulation(object):
         path = pathlib.Path(path)
         with path.open(mode='wb') as f:
             pickle.dump(self, f, 2)
+
+    def collect(self, output=True):
+        for mm in self.members:
+            mm.collect(output=output)

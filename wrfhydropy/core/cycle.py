@@ -557,7 +557,8 @@ class CycleSimulation(object):
         else:
             # Keep the following for debugging: Run it without pool.map
             exit_codes = [
-                parallel_run_casts({'cast': cc, 'compose_dir': self._compose_dir}) for cc in self.casts
+                parallel_run_casts({'cast': cc, 'compose_dir': self._compose_dir})
+                for cc in self.casts
             ]
 
         # Return to the cycle dir.

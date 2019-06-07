@@ -160,8 +160,10 @@ def test_ens_compose_restore(simulation_compiled, job_restart, scheduler, tmpdir
     # Check that the members are all now simply pathlib objects
     assert all([type(mm) is str for mm in ens_disk.members])
     ens_disk.restore_members()
-    ens.collect(output=False)  # Since the ens_disk has data from the run. Collect data from the run.
-    ens.restore_members()  # The members are not restored, the simultaion sub objects are.
+    # Since the ens_disk has data from the run. Collect data from the run:
+    ens.collect(output=False)
+    # The members are not restored, the simultaion sub objects are:
+    ens.restore_members()
 
     # These will never be the same for two different runs.
     for mem, dsk in zip(ens.members, ens_disk.members):

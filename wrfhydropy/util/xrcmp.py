@@ -80,8 +80,9 @@ def main(
         print(key)
         if not can_ds[key].equals(ref_ds[key]):
             diff = can_ds[key].values - ref_ds[key].values
+            non_zeros = np.nonzero(diff)
             all_stats[key] = dr_to_dict(
-                stats.describe(np.nonzero(diff), axis=None, nan_policy='omit'),
+                stats.describe(non_zero, axis=None, nan_policy='omit'),
                 key
             )
             del diff

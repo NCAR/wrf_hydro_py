@@ -1,62 +1,40 @@
 #!/usr/bin/env python
 
+# Example Usage
 # ipython --pdb  xrcmp.py -- \
 #     --candidate conus_test/201806012300.RTOUT_DOMAIN1 \
 #     --reference conus_test/201806020000.RTOUT_DOMAIN1 \
 #     --log_file log.txt
 
-from math import log, ceil
-import numpy as np
+
+from math import log, ceil, sqrt
 import pathlib
-import scipy.stats as stats
 import sys
-import time
+# import time
 import xarray as xr
 
-# A decorator/closure to check timings.
-def stopwatch(the_func):
-    def the_closure(*args, **kw):
-        ts = time.time()
-        result = the_func(*args, **kw)
-        te = time.time()
-        print('Timing: ' + the_func.__name__ + ' took ', round(te - ts, 2),' seconds.')
-        return result
-    return the_closure
+
+# # A decorator/closure to check timings.
+# def stopwatch(the_func):
+#     def the_closure(*args, **kw):
+#         ts = time.time()
+#         result = the_func(*args, **kw)
+#         te = time.time()
+#         print('Timing: ' + the_func.__name__ + ' took ', round(te - ts, 2),' seconds.')
+#         return result
+#     return the_closure
 
 
-# This renames and derives some variables.
-def dr_to_dict(dr, var):
-    return {
-        'Variable': var,
-        'Count': dr.nobs,
-        'Sum': dr.mean * dr.nobs,
-        'Min': dr.minmax[0],
-        'Max': dr.minmax[-1],
-        'Range': dr.minmax[-1] - dr.minmax[0],
-        'Mean': dr.mean,
-        'StdDev': dr.variance**(1.0/2.0)
-    }
-
-
-#@stopwatch
-def main(
+# @stopwatch
+def xrcmp(
     can_file: str,
     ref_file: str,
     log_file: str,
     n_cores: int = 1
 ) -> int:
 
-    # The goal is to print something like this which is what nccmp outputs.
-    # channel_rt
-    #      Variable Group  Count       Sum  ...       Max     Range      Mean    StdDev
-    # 0  streamflow     /    162  0.003022  ...  0.003832  0.004315  0.000019  0.000361
-    # 1       nudge     /      4 -0.001094  ...  0.000093  0.001272 -0.000274  0.000605
-    # 2   q_lateral     /    170  0.000345  ...  0.000700  0.001145  0.000002  0.000086
-    # 3    velocity     /    165  0.010788  ...  0.005488  0.006231  0.000065  0.000503
-    # 4        Head     /    177  0.002717  ...  0.002662  0.003292  0.000015  0.000258
-
-    # delete log file first
-    # should write a log file that says nothing determined
+    # Delete log file first
+    # Should write a log file that says nothing yet determined?
     log_file = pathlib.Path(log_file)
     if log_file.exists():
         log_file.unlink()
@@ -69,7 +47,7 @@ def main(
     ref_vars = set([kk for kk in ref_ds.variables.keys()])
     have_same_variables = can_vars.difference(ref_vars) == set([])
 
-    # Check that the meta data matches
+    # TODO: Check that the meta data matches
     
     # This is quick if not true
     # ds_equal = can_ds.equals(re_ds)
@@ -77,53 +55,109 @@ def main(
     
     all_stats = {}
     for key, val in can_ds.items():
-        print(key)
-        if not can_ds[key].equals(ref_ds[key]):
-            diff = can_ds[key].values - ref_ds[key].values
-            non_zeros = np.nonzero(diff)
-            stats_desc = stats.describe(non_zeros, axis=None, nan_policy='omit')
-            all_stats[key] = dr_to_dict(stats_desc, key)
-            del diff
 
-    # Formatting: find the length of the fields to make fixed widths
+        # Check for variables in reference and not in candidate?
+        # Check for variables in candidate and not in reference?
+        print(key)
+        
+        if not can_ds[key].equals(ref_ds[key]):
+
+            cc = can_ds[key]
+            rr = ref_ds[key]
+            rr['time'] = cc.time ## THIS NEEDS REMOVED AFTER TESTING IS COMPLETE
+            diff_xr = cc - rr
+
+            # This threshold should be type dependent
+            nz_xr = diff_xr.where(abs(diff_xr) > 0.0000000000000, drop=True)
+
+            the_count = nz_xr.count().item()
+            the_sum = nz_xr.sum().item()
+            the_min = nz_xr.min().item()
+            the_max = nz_xr.max().item()
+            the_range = the_max - the_min
+            the_mean = the_sum / the_count
+            the_z = (nz_xr - the_mean)
+            the_std = sqrt((the_z * the_z).sum() / the_count)
+
+            all_stats[key] = {
+                'Variable': key,
+                'Count': the_count, 
+                'Sum': the_sum,
+                'Min': the_min,
+                'Max': the_max,
+                'Range': the_range,
+                'Mean':  the_mean,
+                'StdDev': the_std
+            }
+
     diff_var_names = sorted(all_stats.keys())
     if diff_var_names == []:
         return 0
+
+    # Formatting:
+
+    # The goal is to print something like this which is what nccmp outputs.
+    # channel_rt
+    #      Variable Group  Count       Sum  ...       Max     Range      Mean    StdDev
+    # 0  streamflow     /    162  0.003022  ...  0.003832  0.004315  0.000019  0.000361
+    # 1       nudge     /      4 -0.001094  ...  0.000093  0.001272 -0.000274  0.000605
+    # 2   q_lateral     /    170  0.000345  ...  0.000700  0.001145  0.000002  0.000086
+    # 3    velocity     /    165  0.010788  ...  0.005488  0.006231  0.000065  0.000503
+    # 4        Head     /    177  0.002717  ...  0.002662  0.003292  0.000015  0.000258
     
     stat_names = sorted(all_stats[diff_var_names[0]].keys())
-    stat_lens = {}
-    n_dec = 3
+    stat_lens = {}  # the length/width of each column/stat
+    n_dec = 3  # number of decimals for floats
+    n_dec_p = n_dec + 1 # plus the decimal point
 
+    # The format for each type, where full_len sepcifices the width of the field.
+    type_fmt = {
+        'str': '{{:{full_len}}}',
+        'int': '{{:{full_len}}}',
+        'float': '{{:{full_len}.' + str(n_dec) + 'f}}'
+    }
+
+    # Now solve the full_len field widths for all stats. Do this by
+    # just formatting each as it's type and finding the max (best way
+    # to handle negatives). For floats, take the integer part to find
+    # its length to the left of the decimal.
     for stat_name in stat_names:
-        # The strings are different than the numerics... have to name the string variables.
-        if stat_name in ['Variable']:
-            stat_lens[stat_name] = \
-                max([len(val[stat_name]) for key, val in all_stats.items()])
-        else:
-            the_max = max([val[stat_name] for key, val in all_stats.items()])
-            if the_max == 0:
-                stat_lens[stat_name] = 1 + n_dec + 1
+        all_lens = []
+        for key, val in all_stats.items():
+            the_type = type(val[stat_name]).__name__
+            the_fmt0 = type_fmt[the_type]
+            if the_type == 'str':
+                full_len = len(val[stat_name])
             else:
-                stat_lens[stat_name] = ceil(log(abs(the_max), 10)) + n_dec + 1
+                full_len = len(str(int(val[stat_name])))
+                if the_type == 'float':
+                    full_len = full_len + n_dec_p
+            the_fmt = the_fmt0.format(**{'full_len': full_len})
+            the_string = the_fmt.format(*[val[stat_name]])
+            all_lens.append(len(the_string))
 
-    header_string = ('{Variable:>' + str(stat_lens['Variable']) + '}  '
-                  '{Count:>' + str(stat_lens['Count']) + '}  '
-                  '{Sum:>' + str(stat_lens['Sum']) + '}  '
-                  '{Min:>' + str(stat_lens['Min']) + '}  '
-                  '{Max:>' + str(stat_lens['Max']) + '}  '
-                  '{Range:>' + str(stat_lens['Range']) + '}  '
-                  '{Mean:>' + str(stat_lens['Mean']) + '}  '
-                  '{StdDev:>' + str(stat_lens['StdDev']) + '}  \n'
+        stat_lens[stat_name] = max(all_lens)
+
+    header_string = (
+        '{Variable:>' + str(stat_lens['Variable']) + '}  '
+        '{Count:>' + str(stat_lens['Count']) + '}  '
+        '{Sum:>' + str(stat_lens['Sum']) + '}  '
+        '{Min:>' + str(stat_lens['Min']) + '}  '
+        '{Max:>' + str(stat_lens['Max']) + '}  '
+        '{Range:>' + str(stat_lens['Range']) + '}  '
+        '{Mean:>' + str(stat_lens['Mean']) + '}  '
+        '{StdDev:>' + str(stat_lens['StdDev']) + '}  \n'
     )
 
-    var_string = ('{Variable:>' + str(stat_lens['Variable']) + '}  '
-                  '{Count:>' + str(stat_lens['Count']) + '}  '
-                  '{Sum:>' + str(stat_lens['Sum']) + '.' + str(n_dec) + 'f}  '
-                  '{Min:>' + str(stat_lens['Min']) + '.' + str(n_dec) + 'f}  '
-                  '{Max:>' + str(stat_lens['Max']) + '.' + str(n_dec) + 'f}  '
-                  '{Range:>' + str(stat_lens['Range']) + '.' + str(n_dec) + 'f}  '
-                  '{Mean:>' + str(stat_lens['Mean']) + '.' + str(n_dec) + 'f}  '
-                  '{StdDev:>' + str(stat_lens['StdDev']) + '.' + str(n_dec) + 'f}  \n'
+    var_string = (
+        '{Variable:>' + str(stat_lens['Variable']) + '}  '
+        '{Count:>' + str(stat_lens['Count']) + '}  '
+        '{Sum:>' + str(stat_lens['Sum']) + '.' + str(n_dec) + 'f}  '
+        '{Min:>' + str(stat_lens['Min']) + '.' + str(n_dec) + 'f}  '
+        '{Max:>' + str(stat_lens['Max']) + '.' + str(n_dec) + 'f}  '
+        '{Range:>' + str(stat_lens['Range']) + '.' + str(n_dec) + 'f}  '
+        '{Mean:>' + str(stat_lens['Mean']) + '.' + str(n_dec) + 'f}  '
+        '{StdDev:>' + str(stat_lens['StdDev']) + '.' + str(n_dec) + 'f}  \n'
     )
 
     header_dict = {name:name for name in stat_names}
@@ -159,6 +193,6 @@ if __name__ == "__main__":
     ref_file = args.reference
     log_file = args.log_file
 
-    ret = main(can_file=can_file, ref_file=ref_file, log_file=log_file)
+    ret = xrcmp(can_file=can_file, ref_file=ref_file, log_file=log_file)
 
     sys.exit(ret)

@@ -4,6 +4,8 @@ import subprocess
 import warnings
 import pandas as pd
 import pathlib
+
+from ..util.xrcmp import xrcmp
 from .simulation import SimulationOutput
 
 
@@ -41,7 +43,13 @@ def compare_ncfiles(candidate_files: list,
         file_candidate = pathlib.Path(files[0])
         file_reference = pathlib.Path(files[1])
 
-        nccmp_out = _compare_nc_nccmp(candidate_nc=str(file_candidate),
+        # TODO: use XRCMP only when it supports metadata:
+        if ('--data' in nccmp_options) and ('--metadata' not in nccmp_options):
+            cmp_func = _compare_nc_xrcmp
+        else:
+            cmp_func = _compare_nc_nccmp
+
+        nccmp_out = cmp_func(candidate_nc=str(file_candidate),
                                       reference_nc=str(file_reference),
                                       stats_only=stats_only,
                                       nccmp_options=nccmp_options,
@@ -221,6 +229,38 @@ class OutputMetaDataDiffs(object):
                         )
                 diff_counts = sum(1 for _ in filter(None.__ne__, getattr(self,att)))
                 self.diff_counts.update({att: diff_counts})
+
+
+def _compare_nc_xrcmp(candidate_nc: str,
+                      reference_nc: str,
+                      stats_only: bool = False,
+                      nccmp_options: list = None,
+                      exclude_vars: list = None,
+                      exclude_atts: list = None,
+                      log_file_path: str = "xrcmp.log"):
+
+    # Try and set files to strings
+    candidate_nc = str(candidate_nc)
+    reference_nc = str(reference_nc)
+
+    ret = xrcmp(can_file=candidate_nc, ref_file=reference_nc, log_file=log_file_path,
+                exclude_vars=exclude_vars)
+    if ret != 0:
+        if stats_only:
+            try:
+                # First try stdout because that is where statistics are written
+                # Get stoud into stringio object
+
+                nccmp_out = pd.read_table(log_file_path, delim_whitespace=True, header=0)
+                return nccmp_out
+            except:
+                warnings.warn('Problem reading xrcmp output to pandas dataframe,'
+                              'returning error code')
+                return ret
+        else:
+            return open(log_file_path, 'r').read()
+    else:
+        return None
 
 
 def _compare_nc_nccmp(candidate_nc: str,

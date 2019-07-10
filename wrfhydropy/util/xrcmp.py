@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Example Usage
 # ipython --pdb  xrcmp.py -- \
@@ -30,7 +30,8 @@ def xrcmp(
     can_file: str,
     ref_file: str,
     log_file: str,
-    n_cores: int = 1
+    n_cores: int = 1,
+    exclude_vars: list = []
 ) -> int:
 
     # Delete log file first
@@ -52,9 +53,13 @@ def xrcmp(
     # This is quick if not true
     # ds_equal = can_ds.equals(re_ds)
     #if not ds_equal:
-    
+
     all_stats = {}
     for key, val in can_ds.items():
+
+        # ignore excluded vars
+        if key in exclude_vars:
+            continue
 
         # Check for variables in reference and not in candidate?
         # Check for variables in candidate and not in reference?

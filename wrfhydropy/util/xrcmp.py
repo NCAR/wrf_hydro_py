@@ -96,7 +96,9 @@ def xrcmp(
             }
 
     diff_var_names = sorted(all_stats.keys())
-    if diff_var_names == []:
+    if not diff_var_names:
+        with open(log_file, 'w') as opened_file:
+            opened_file.write("Files are identical\n")
         return 0
 
     # Formatting:
@@ -170,7 +172,7 @@ def xrcmp(
 
     with open(log_file, 'w') as opened_file:
         opened_file.write(the_header)
-        for key in  all_stats.keys():
+        for key in all_stats.keys():
             opened_file.write(var_string.format(**all_stats[key]))
 
     return 1

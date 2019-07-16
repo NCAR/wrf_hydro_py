@@ -630,30 +630,12 @@ def check_file_nas(dataset_path: Union[str, pathlib.Path]) -> str:
     # Set filepath to strings
     dataset_path = str(dataset_path)
 
-    # Make string to pass to subprocess, this compares the file against itself
-    # nans will not equal each other so will report nans as fails
-    command_str = 'nccmp --data --metadata --force ' + dataset_path + ' ' + dataset_path
-
-    # Run the subprocess to call nccmp
-    proc = subprocess.run(shlex.split(command_str),
-                          stdout=subprocess.PIPE,
-                          stderr=subprocess.PIPE)
-
-    # Check return code
-    if proc.returncode != 0:
-        # Get stoud into stringio object
-        output = io.StringIO()
-        output.write(proc.stderr.decode('utf-8'))
-        output.seek(0)
-
-        # Open stringio object as pandas dataframe
-        try:
-            nccmp_out = pd.read_csv(output, delimiter=':', header=None)
-            return nccmp_out
-        except:
-            warnings.warn('Problem reading nccmp output to pandas dataframe,'
-                          'returning as subprocess object')
-            return proc.stderr
+    ds = xr.open_dataset(dataset_path)
+    nans = ds.isnull().any() #.to_array().data.any()
+    if nans.to_array().data.any():
+        print(dataset_path, "has NaNs")
+        return nans
+    return None
 
 
 def sort_files_by_time(file_list: list):

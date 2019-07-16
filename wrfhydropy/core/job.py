@@ -472,7 +472,6 @@ class Job(object):
             else:
                 self._hydro_times['hydro_nlist']['out_dt'] = hydro_nlst['out_dt']
 
-
     def _make_job_dir(self):
         """Private method to make the job directory"""
         if self.job_dir.is_dir():

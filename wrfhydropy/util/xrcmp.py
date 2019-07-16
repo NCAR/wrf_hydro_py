@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Example Usage
 # ipython --pdb  xrcmp.py -- \
@@ -30,7 +30,8 @@ def xrcmp(
     can_file: str,
     ref_file: str,
     log_file: str,
-    n_cores: int = 1
+    n_cores: int = 1,
+    exclude_vars: list = []
 ) -> int:
 
     # Delete log file first
@@ -52,9 +53,13 @@ def xrcmp(
     # This is quick if not true
     # ds_equal = can_ds.equals(re_ds)
     #if not ds_equal:
-    
+
     all_stats = {}
     for key, val in can_ds.items():
+
+        # ignore excluded vars
+        if key in exclude_vars:
+            continue
 
         # Check for variables in reference and not in candidate?
         # Check for variables in candidate and not in reference?
@@ -91,7 +96,9 @@ def xrcmp(
             }
 
     diff_var_names = sorted(all_stats.keys())
-    if diff_var_names == []:
+    if not diff_var_names:
+        with open(log_file, 'w') as opened_file:
+            opened_file.write("Files are identical\n")
         return 0
 
     # Formatting:
@@ -165,7 +172,7 @@ def xrcmp(
 
     with open(log_file, 'w') as opened_file:
         opened_file.write(the_header)
-        for key in  all_stats.keys():
+        for key in all_stats.keys():
             opened_file.write(var_string.format(**all_stats[key]))
 
     return 1

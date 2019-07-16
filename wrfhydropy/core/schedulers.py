@@ -176,8 +176,12 @@ class PBSCheyenne(Scheduler):
                 f.write(jobstr)
 
             # Write the python run script for the job
-            # If the job exe uses "nproc" then apply the schedulers value.
-            job._exe_cmd = job._exe_cmd.format(**{'nproc':self.nproc})
+            if '{nproc}' in job._exe_cmd:
+                # If the job exe uses "nproc" then apply the schedulers value.
+                job._exe_cmd = job._exe_cmd.format(**{'nproc':self.nproc})
+            else:
+                # regression tests use "{0}" format, try that here too
+                job._exe_cmd = job._exe_cmd.format(self.nproc)
 
             job._write_run_script()
 

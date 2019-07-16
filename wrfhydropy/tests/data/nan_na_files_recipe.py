@@ -28,6 +28,7 @@ for name, value in all_combos.items():
     ds.encoding = {'_FillValue': the_fill}
     the_file = 'nan_na_data/' + name + '.nc'
     ds.to_netcdf(the_file)
+    # This is just an xarray based check.
     ds_in = xr.open_dataset(the_file, mask_and_scale=False)
     print('')
     print(name)

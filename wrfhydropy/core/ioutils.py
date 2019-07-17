@@ -71,7 +71,7 @@ def preprocess_nwm_data(
 ) -> xr.Dataset:
 
     try:
-        ds = xr.open_dataset(path)
+        ds = xr.open_dataset(path, mask_and_scale=False)
     except OSError:
         print("Skipping file, unable to open: ", path)
         return None
@@ -226,7 +226,7 @@ def preprocess_dart_data(
     # This non-optional is different from preprocess_nwm_data
     # I kinda dont think this should be optional for dart experiment/run collection.
     # try:
-    ds = xr.open_dataset(path)
+    ds = xr.open_dataset(path, mask_and_scale=False)
     # except OSError:
     #    print("Skipping file, unable to open: ", path)
     #    return None
@@ -344,7 +344,7 @@ def open_wh_dataset(paths: list,
     # Create dictionary of forecasts, i.e. reference times
     ds_dict = dict()
     for a_file in paths:
-        ds = xr.open_dataset(a_file, chunks=chunks)
+        ds = xr.open_dataset(a_file, chunks=chunks, mask_and_scale=False)
         # Check if forecast and set reference_time to zero if not
         if not forecast:
             ds.coords['reference_time'].values = np.array(
@@ -414,7 +414,7 @@ def open_ensemble_dataset(
     # the all the members can be concatenated along "member".
 
     paths_bag = dask.bag.from_sequence(paths)
-    ds_all = paths_bag.map(xr.open_dataset, chunks=chunks).compute()
+    ds_all = paths_bag.map(xr.open_dataset, chunks=chunks, mask_and_scale=False).compute()
     all_bag = dask.bag.from_sequence(ds_all)
 
     def member_grouper(ds):
@@ -479,7 +479,7 @@ class WrfHydroStatic(pathlib.PosixPath):
         Returns:
             An xarray dataset object.
         """
-        return xr.open_dataset(self)
+        return xr.open_dataset(self, mask_and_scale=False)
 
     def check_nas(self):
         """Return dictionary of counts of NA values for each data variable"""
@@ -619,42 +619,26 @@ def check_input_files(
     return None
 
 
-def check_file_nas(dataset_path: Union[str, pathlib.Path]) -> str:
+def check_file_nas(dataset_or_path: Union[str, pathlib.Path, xr.Dataset]) -> Union[pd.DataFrame, None]:
     """Opens the specified netcdf file and checks all data variables for NA values. NA assigned
     according to xarray __FillVal parsing. See xarray.Dataset documentation
     Args:
-        dataset_path: The path to the netcdf dataset file
+        dataset_or_path: The path to the netcdf dataset file, or a dataset itself
     Returns: string summary of nas if present
     """
 
     # Set filepath to strings
-    dataset_path = str(dataset_path)
+    if type(dataset_or_path) is not xr.Dataset:
+        ds = xr.open_dataset(str(dataset_or_path), mask_and_scale=False)
+    else:
+        ds = dataset_or_path
 
-    # Make string to pass to subprocess, this compares the file against itself
-    # nans will not equal each other so will report nans as fails
-    command_str = 'nccmp --data --metadata --force ' + dataset_path + ' ' + dataset_path
-
-    # Run the subprocess to call nccmp
-    proc = subprocess.run(shlex.split(command_str),
-                          stdout=subprocess.PIPE,
-                          stderr=subprocess.PIPE)
-
-    # Check return code
-    if proc.returncode != 0:
-        # Get stoud into stringio object
-        output = io.StringIO()
-        output.write(proc.stderr.decode('utf-8'))
-        output.seek(0)
-
-        # Open stringio object as pandas dataframe
-        try:
-            nccmp_out = pd.read_csv(output, delimiter=':', header=None)
-            return nccmp_out
-        except:
-            warnings.warn('Problem reading nccmp output to pandas dataframe,'
-                          'returning as subprocess object')
-            return proc.stderr
-
+    if ds.isnull().any().to_array().data.any():
+        print(str(dataset_or_path), "has NaNs")
+        return ds.where(ds.isnull()).to_dataframe()
+    else:
+        return None
+ 
 
 def sort_files_by_time(file_list: list):
     """Given a list of file paths, sort list by file modified time

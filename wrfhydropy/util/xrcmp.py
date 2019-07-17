@@ -5,8 +5,7 @@
 #     --candidate conus_test/201806012300.RTOUT_DOMAIN1 \
 #     --reference conus_test/201806020000.RTOUT_DOMAIN1 \
 #     --log_file log.txt
-
-
+import math
 from math import log, ceil, sqrt
 import pathlib
 import sys
@@ -40,8 +39,8 @@ def xrcmp(
     if log_file.exists():
         log_file.unlink()
     
-    can_ds = xr.open_dataset(can_file)
-    ref_ds = xr.open_dataset(ref_file)
+    can_ds = xr.open_dataset(can_file, mask_and_scale=False)
+    ref_ds = xr.open_dataset(ref_file, mask_and_scale=False)
 
     # May need to check that they have the same vars.
     can_vars = set([kk for kk in can_ds.variables.keys()])
@@ -58,6 +57,8 @@ def xrcmp(
     for key, val in can_ds.items():
 
         # ignore excluded vars
+        if exclude_vars is None:
+            exclude_vars = []
         if key in exclude_vars:
             continue
 
@@ -69,7 +70,7 @@ def xrcmp(
 
             cc = can_ds[key]
             rr = ref_ds[key]
-            rr['time'] = cc.time ## THIS NEEDS REMOVED AFTER TESTING IS COMPLETE
+            # rr['time'] = cc.time ## THIS NEEDS REMOVED AFTER TESTING IS COMPLETE
             diff_xr = cc - rr
 
             # This threshold should be type dependent
@@ -119,9 +120,9 @@ def xrcmp(
 
     # The format for each type, where full_len sepcifices the width of the field.
     type_fmt = {
-        'str': '{{:{full_len}}}',
-        'int': '{{:{full_len}}}',
-        'float': '{{:{full_len}.' + str(n_dec) + 'f}}'
+        str: '{{:{full_len}}}',
+        int: '{{:{full_len}}}',
+        float: '{{:{full_len}.' + str(n_dec) + 'f}}'
     }
 
     # Now solve the full_len field widths for all stats. Do this by
@@ -131,16 +132,19 @@ def xrcmp(
     for stat_name in stat_names:
         all_lens = []
         for key, val in all_stats.items():
-            the_type = type(val[stat_name]).__name__
+            the_val = val[stat_name]
+            the_type = type(the_val)
             the_fmt0 = type_fmt[the_type]
-            if the_type == 'str':
-                full_len = len(val[stat_name])
+            if the_type is str:
+                full_len = len(the_val)
+            elif not math.isfinite(the_val):
+                full_len = len(str(the_val))
             else:
-                full_len = len(str(int(val[stat_name])))
-                if the_type == 'float':
+                full_len = len(str(int(the_val)))
+                if the_type is float:
                     full_len = full_len + n_dec_p
             the_fmt = the_fmt0.format(**{'full_len': full_len})
-            the_string = the_fmt.format(*[val[stat_name]])
+            the_string = the_fmt.format(*[the_val])
             all_lens.append(len(the_string))
 
         stat_lens[stat_name] = max(all_lens)

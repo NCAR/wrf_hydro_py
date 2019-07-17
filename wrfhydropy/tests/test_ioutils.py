@@ -150,10 +150,10 @@ def test_nwm_forcing_to_ldasin(tmpdir):
 
     for version_name, model_version in {'para': para_url, 'prod': prod_url}.items():
 
-        forcing_dirs = url_index_anchor_regex(model_version, '^forcing_')
+        forcing_dirs = url_index_anchor_regex(model_version, r'^forcing_')
         for forcing_range in forcing_dirs:
 
-            forcing_files = url_index_anchor_regex(forcing_range, '\.nc$')
+            forcing_files = url_index_anchor_regex(forcing_range, r'\.nc$')
             for file in forcing_files:
                 the_split = file.split('/')
                 the_base = '/'.join(file.split('/')[(the_split.index(version_name)+1):])

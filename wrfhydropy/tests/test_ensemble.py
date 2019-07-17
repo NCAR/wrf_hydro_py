@@ -317,7 +317,7 @@ def test_ens_parallel_compose(simulation_compiled, job_restart, scheduler, tmpdi
     )
     # If your system is busy, this could take longer... and spuriously fail the test.
     # Notes(JLM): coverage is the limiting factor here.
-    assert time_taken < 1.25
+    assert time_taken < 2.0
 
     # Test the ensemble pickle size in terms of load speed.
     os.chdir(str(pathlib.Path(tmpdir) / 'ensemble_compose/'))
@@ -328,7 +328,7 @@ def test_ens_parallel_compose(simulation_compiled, job_restart, scheduler, tmpdi
     )
     # If your system is busy, this could take longer...
     # Notes(JLM): chyenne scratch is slow sometimes. so is CI
-    assert time_taken < .7
+    assert time_taken < 1.0
 
 
 def test_ens_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):

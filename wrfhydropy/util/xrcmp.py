@@ -38,7 +38,7 @@ def xrcmp(
     log_file = pathlib.Path(log_file)
     if log_file.exists():
         log_file.unlink()
-    
+
     can_ds = xr.open_dataset(can_file, mask_and_scale=False)
     ref_ds = xr.open_dataset(ref_file, mask_and_scale=False)
 
@@ -48,7 +48,7 @@ def xrcmp(
     have_same_variables = can_vars.difference(ref_vars) == set([])
 
     # TODO: Check that the meta data matches
-    
+
     # This is quick if not true
     # ds_equal = can_ds.equals(re_ds)
     #if not ds_equal:
@@ -65,7 +65,7 @@ def xrcmp(
         # Check for variables in reference and not in candidate?
         # Check for variables in candidate and not in reference?
         print(key)
-        
+
         if not can_ds[key].equals(ref_ds[key]):
 
             cc = can_ds[key]
@@ -87,7 +87,7 @@ def xrcmp(
 
             all_stats[key] = {
                 'Variable': key,
-                'Count': the_count, 
+                'Count': the_count,
                 'Sum': the_sum,
                 'Min': the_min,
                 'Max': the_max,
@@ -116,7 +116,7 @@ def xrcmp(
     stat_names = sorted(all_stats[diff_var_names[0]].keys())
     stat_lens = {}  # the length/width of each column/stat
     n_dec = 3  # number of decimals for floats
-    n_dec_p = n_dec + 1 # plus the decimal point
+    n_dec_p = n_dec + 1  # plus the decimal point
 
     # The format for each type, where full_len sepcifices the width of the field.
     type_fmt = {
@@ -181,8 +181,7 @@ def xrcmp(
 
     return 1
 
-
-if __name__ == "__main__":
+def parse_arguments():
 
     import argparse
     parser = argparse.ArgumentParser()
@@ -204,6 +203,11 @@ if __name__ == "__main__":
     ref_file = args.reference
     log_file = args.log_file
 
-    ret = xrcmp(can_file=can_file, ref_file=ref_file, log_file=log_file)
+    return can_file, ref_file, log_file
 
+
+if __name__ == "__main__":
+
+    can_file, ref_file, log_file = parse_arguments()
+    ret = xrcmp(can_file=can_file, ref_file=ref_file, log_file=log_file)
     sys.exit(ret)

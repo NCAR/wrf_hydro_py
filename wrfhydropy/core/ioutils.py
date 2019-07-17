@@ -628,7 +628,7 @@ def check_file_nas(dataset_or_path: Union[str, pathlib.Path, xr.Dataset]) -> Uni
     """
 
     # Set filepath to strings
-    if type(dataset_or_path) is not xr.Dataset:
+    if not isinstance(dataset_or_path,  xr.Dataset):
         ds = xr.open_dataset(str(dataset_or_path), mask_and_scale=False)
     else:
         ds = dataset_or_path

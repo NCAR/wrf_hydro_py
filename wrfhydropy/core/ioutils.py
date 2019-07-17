@@ -226,7 +226,7 @@ def preprocess_dart_data(
     # This non-optional is different from preprocess_nwm_data
     # I kinda dont think this should be optional for dart experiment/run collection.
     # try:
-    ds = xr.open_dataset(path, mask_and_scale=False)
+    ds = xr.open_dataset(path)
     # except OSError:
     #    print("Skipping file, unable to open: ", path)
     #    return None
@@ -638,7 +638,7 @@ def check_file_nas(dataset_or_path: Union[str, pathlib.Path, xr.Dataset]) -> Uni
         return ds.where(ds.isnull()).to_dataframe()
     else:
         return None
- 
+
 
 def sort_files_by_time(file_list: list):
     """Given a list of file paths, sort list by file modified time

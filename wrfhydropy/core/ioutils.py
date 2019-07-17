@@ -21,6 +21,8 @@ import time
 import warnings
 import xarray as xr
 
+from wrfhydropy.util.xrnan import xrnan
+
 
 def is_not_none(x):
     return x is not None
@@ -464,10 +466,10 @@ class WrfHydroTs(list):
         """
         return open_wh_dataset(self, chunks=chunks, forecast=forecast)
 
-    def check_nas(self):
+    def check_nans(self):
         """Return dictionary of counts of NA values for each data variable summed across files"""
         nc_dataset = self.open()
-        return check_file_nas(nc_dataset)
+        return check_file_nans(nc_dataset)
 
 
 class WrfHydroStatic(pathlib.PosixPath):
@@ -481,9 +483,9 @@ class WrfHydroStatic(pathlib.PosixPath):
         """
         return xr.open_dataset(self, mask_and_scale=False)
 
-    def check_nas(self):
+    def check_nans(self):
         """Return dictionary of counts of NA values for each data variable"""
-        return check_file_nas(self)
+        return check_file_nans(self)
 
 
 def _check_file_exist_colon(dirpath: str, file_str: str):
@@ -619,25 +621,14 @@ def check_input_files(
     return None
 
 
-def check_file_nas(dataset_or_path: Union[str, pathlib.Path, xr.Dataset]) -> Union[pd.DataFrame, None]:
+def check_file_nans(dataset_or_path: Union[str, pathlib.Path, xr.Dataset]) -> Union[pd.DataFrame, None]:
     """Opens the specified netcdf file and checks all data variables for NA values. NA assigned
     according to xarray __FillVal parsing. See xarray.Dataset documentation
     Args:
         dataset_or_path: The path to the netcdf dataset file, or a dataset itself
-    Returns: string summary of nas if present
+    Returns: string summary of nans if present
     """
-
-    # Set filepath to strings
-    if not isinstance(dataset_or_path,  xr.Dataset):
-        ds = xr.open_dataset(str(dataset_or_path), mask_and_scale=False)
-    else:
-        ds = dataset_or_path
-
-    if ds.isnull().any().to_array().data.any():
-        print(str(dataset_or_path), "has NaNs")
-        return ds.where(ds.isnull()).to_dataframe()
-    else:
-        return None
+    return xrnan(dataset_or_path)
 
 
 def sort_files_by_time(file_list: list):

@@ -98,7 +98,7 @@ def test_wrfhydrots(ds_timeseries):
     ts_obj_open = ts_obj.open()
 
     assert type(ts_obj_open) == xr.core.dataset.Dataset
-    assert type(ts_obj.check_nas()) == pd.DataFrame
+    assert type(ts_obj.check_nans()) == pd.DataFrame
 
 
 def test_wrfhydrostatic(ds_timeseries):
@@ -108,7 +108,7 @@ def test_wrfhydrostatic(ds_timeseries):
     static_obj_open = static_obj.open()
 
     assert type(static_obj_open) == xr.core.dataset.Dataset
-    assert type(static_obj.check_nas()) == pd.DataFrame
+    assert type(static_obj.check_nans()) == pd.DataFrame
 
 
 def test_check_input_files(domain_dir):

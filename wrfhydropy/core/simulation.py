@@ -12,7 +12,7 @@ from .domain import Domain
 from .ioutils import WrfHydroStatic, \
     WrfHydroTs, \
     check_input_files, \
-    check_file_nas, \
+    check_file_nans, \
     sort_files_by_time
 from .job import Job
 from .model import Model
@@ -469,7 +469,7 @@ class SimulationOutput(object):
         else:
             self.restart_nudging = None
 
-    def check_output_nas(self):
+    def check_output_nans(self):
         """Check all outputs for NA values"""
 
         # Get all the public attributes, which are the only atts of interest
@@ -484,7 +484,7 @@ class SimulationOutput(object):
             att_obj = getattr(self, att)
             if type(att_obj) is list or type(att_obj) is WrfHydroTs:
                 file = att_obj[-1]
-                na_check_result = check_file_nas(file)
+                na_check_result = check_file_nans(file)
                 if na_check_result is not None:
                     na_check_result['file'] = str(file)
                     df_list.append(na_check_result)

@@ -284,3 +284,64 @@ def open_whp_dataset(
         )
     the_pool.close()
     return whp_ds
+
+
+def open_timeslice_dataset(
+    paths: list,
+    chunks: dict = None,
+    attrs_keep: list = ['featureType', 'proj4',
+                        'station_dimension', 'esri_pe_string',
+                        'Conventions', 'model_version'],
+    isel: dict = None,
+    drop_variables: list = None,
+    npartitions: int = None,
+    profile: int = False,
+    n_cores: int = 1
+) -> xr.Dataset:
+
+
+# /Users/james/Downloads/croton/example_case/NWM/nudgingTimeSliceObs    
+# 2011-08-26_15_15_00.15min.usgsTimeSlice.ncdf stationIdInd = UNLIMITED ; // (4 currently)
+# 2011-08-26_15_30_00.15min.usgsTimeSlice.ncdf stationIdInd = UNLIMITED ; // (3 currently)
+# 2011-08-26_15_45_00.15min.usgsTimeSlice.ncdf stationIdInd = UNLIMITED ; // (4 currently)
+# 2011-08-26_16_00_00.15min.usgsTimeSlice.ncdf stationIdInd = UNLIMITED ; // (3 currently)
+# 2011-08-26_16_15_00.15min.usgsTimeSlice.ncdf stationIdInd = UNLIMITED ; // (4 currently)
+
+ts_dir = pathlib.Path('/Users/james/Downloads/croton/example_case/NWM/nudgingTimeSliceObs')
+ts_paths = [
+    ts_dir / '2011-08-26_15_15_00.15min.usgsTimeSlice.ncdf',
+    ts_dir / '2011-08-26_15_30_00.15min.usgsTimeSlice.ncdf',
+    ts_dir / '2011-08-26_15_45_00.15min.usgsTimeSlice.ncdf',
+    ts_dir / '2011-08-26_16_00_00.15min.usgsTimeSlice.ncdf',
+    ts_dir / '2011-08-26_16_15_00.15min.usgsTimeSlice.ncdf',
+]
+
+full_gage_list = ['       01374559', '       01374581', '       01374598', '     0137462010']
+full_gage_set = set(full_gage_list)
+
+# Sort by stationIdInd and drop query time.
+dss = [xr.open_dataset(pp).sortby('stationIdInd').drop('queryTime') for pp in ts_paths[0:2]]
+dss = [ds.assign_coords(stationId=ds.stationId).swap_dims({'stationIdInd': 'stationId'}) for ds in dss]
+dss = [ds.assign_coords(center_time=ds.attrs['sliceCenterTimeUTC']).expand_dims(dim='center_time') for ds in dss]
+
+# for all ds, find which sites are missing from the full gage list.
+ds = dss[1]
+
+file_gage_set = set([id.decode('utf-8') for id in list(ds.stationId.values)])
+gages_to_add = full_gage_set.difference(file_gage_set)
+
+if not gages_to_add == set():
+    for gage_add in gages_to_add:
+        #print(gage_add)
+        dum = ds.isel(stationId=0)
+        dum['stationId'] = gage_add.encode()
+        dum['discharge'] = float('nan')
+        dum['discharge_quality'] = 0
+        ds = xr.concat([ds, dum], dim='stationId')
+
+    ds = ds.sortby('stationId')
+    #enocde
+    
+dss[1] = ds
+#xr.concat(dss, dim=['stationId', 'center_time'])
+zz =xr.merge(dss)

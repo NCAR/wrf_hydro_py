@@ -3,7 +3,7 @@ f90nml==1.0.2
 netCDF4==1.4.1
 deepdiff==3.3.0
 pathlib==1.0.1
-xarray==0.10.9
+xarray==0.12.2
 DateTime==4.3
 pytest==3.9.1
 pytest-html==1.19.0

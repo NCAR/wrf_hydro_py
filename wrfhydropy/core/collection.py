@@ -307,7 +307,7 @@ def preprocess_timeslice_data(path, full_gage_list):
     # Convert time strings to proper datetimes
     time_list = ds.time.values.tolist()
     datetime_list = [datetime.strptime(tt.decode('utf-8'), time_fmt) for tt in time_list[0]]
-    ds['time'] = xr.DataArray(np.array([datetime_list]), dims=('center_time','stationId'))
+    ds['time'] = xr.DataArray(np.array([datetime_list]), dims=('center_time', 'stationId'))
 
     # Decode stationIds
     station_list = ds.stationId.values.tolist()
@@ -327,7 +327,6 @@ def preprocess_timeslice_data(path, full_gage_list):
 
     if not gages_to_add == set():
         for gage_add in gages_to_add:
-            #print(gage_add)
             dum = ds.isel(stationId=0)
             dum['stationId'] = gage_add
             dum['discharge'] = float('nan')
@@ -342,8 +341,8 @@ def preprocess_timeslice_data(path, full_gage_list):
 def open_timeslice_dataset(
     paths: list,
     full_gage_list: list,
-    n_cores: int=1,
-    npartitions: int=None
+    n_cores: int = 1,
+    npartitions: int = None
 ) -> xr.Dataset:
 
     paths_bag = dask.bag.from_sequence(paths, npartitions=npartitions)

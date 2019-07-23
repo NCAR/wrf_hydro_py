@@ -345,16 +345,20 @@ def open_timeslice_dataset(
     npartitions: int = None
 ) -> xr.Dataset:
 
-    paths_bag = dask.bag.from_sequence(paths, npartitions=npartitions)
-    ds_list = paths_bag.map(
-        preprocess_timeslice_data,
-        full_gage_list=full_gage_list,
-    ).filter(is_not_none).compute()
+    the_pool = Pool(n_cores)
+    with dask.config.set(scheduler='processes', pool=the_pool):
+        paths_bag = dask.bag.from_sequence(paths, npartitions=npartitions)
+        ds_list = paths_bag.map(
+            preprocess_timeslice_data,
+            full_gage_list=full_gage_list,
+        ).filter(is_not_none).compute()
 
-    # For debugging the above
-    # result = preprocess_timeslice_data(paths[0], full_gage_list)
+        # For debugging the above
+        # result = preprocess_timeslice_data(paths[0], full_gage_list)
+        the_sort = sorted(ds_list, key=group_center_time)
 
-    the_sort = sorted(ds_list, key=group_center_time)
+    the_pool.close()
+
     timeslice_dataset = xr.merge(the_sort)
 
     # Encode

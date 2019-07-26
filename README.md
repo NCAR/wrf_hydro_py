@@ -9,10 +9,10 @@
 **IMPORTANT:** This package is in the very early stages of development and the package API may change at any time. It is not recommended that this package be used for significant work until version 0.1
 
 ## Description
-wrfhydrpy is a Python API for the WRF-Hydro modelling system. The goal of this project is to provide a clean, feature-rich, and unified API for interacting with the many components of the WRF-Hydro modelling system.
+wrfhydropy is a Python API for the WRF-Hydro modelling system. The goal of this project is to provide a clean, feature-rich, and unified API for interacting with the many components of the WRF-Hydro modelling system. An descriptive overview of the package is found [here](xarray/README.md).
 
 ## Documentation
-Documentation is only available on-line through help(). Documentation will be forthcoming once the API becomes more stable. 
+Documentation is only available on-line through `help()` and in the source code. Documentation will be forthcoming once the API becomes more stable. Please feel free to help improve the documentation!
 
 ## Contributing standards
 Failure to adhere to contributing standards may result in your Pull Request being rejected.

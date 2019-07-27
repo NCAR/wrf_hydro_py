@@ -363,7 +363,7 @@ def open_whp_dataset(
                         'drop_variables': drop_variables,
                         'npartitions': npartitions,
                         'profile': profile
-                    } for start_ind, end_ind in file_chunk_dict.items())
+                    } for start_ind, end_ind in zip(start_list, end_list))
                 )
 
         else:

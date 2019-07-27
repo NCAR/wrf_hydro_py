@@ -256,7 +256,7 @@ def open_whp_dataset_inner(
     return nwm_dataset
 
 
-def open_whp_dataset(
+def open_whp_dataset_orig(
     paths: list,
     chunks: dict = None,
     attrs_keep: list = ['featureType', 'proj4',
@@ -283,4 +283,106 @@ def open_whp_dataset(
             profile
         )
     the_pool.close()
+    return whp_ds
+
+
+def open_whp_middle(arg_dict: dict):
+    the_pool = Pool(arg_dict['n_cores'])
+    with dask.config.set(scheduler=arg_dict['dask_sched'], pool=the_pool):
+        whp_ds = open_whp_dataset_inner(
+            paths=arg_dict['paths'],
+            chunks=arg_dict['chunks'],
+            attrs_keep=arg_dict['attrs_keep'],
+            isel=arg_dict['isel'],
+            drop_variables=arg_dict['drop_variables'],
+            npartitions=arg_dict['npartitions'],
+            profile=arg_dict['profile']
+        )
+    the_pool.close()
+    return whp_ds
+
+
+def open_whp_dataset(
+    paths: list,
+    file_chunk_size: int = None,
+    chunks: dict = None,
+    attrs_keep: list = ['featureType', 'proj4',
+                        'station_dimension', 'esri_pe_string',
+                        'Conventions', 'model_version'],
+    isel: dict = None,
+    drop_variables: list = None,
+    npartitions: int = None,
+    profile: int = False,
+    n_cores: int = 1
+) -> xr.Dataset:
+
+    import sys
+    import os
+    import math
+    import multiprocessing
+
+    n_files = len(paths)
+
+    if file_chunk_size is None:
+        file_chunk_size = n_files
+
+    if file_chunk_size >= n_files:
+
+        whp_ds = open_whp_middle(
+            {
+                'n_cores': n_cores,
+                'dask_sched': 'processes',
+                'paths': paths,
+                'chunks': chunks,
+                'attrs_keep': attrs_keep,
+                'isel': isel,
+                'drop_variables': drop_variables,
+                'npartitions': npartitions,
+                'profile': profile
+            }
+        )
+
+    else:
+
+        dask_sched = 'single-threaded'
+        n_file_chunks = math.ceil(n_files / file_chunk_size)
+        start_list = [file_chunk_size*ii for ii in range(n_file_chunks)]
+        end_list = [file_chunk_size*(ii+1)+1 for ii in range(n_file_chunks)]
+
+        if n_cores > 1:
+            with multiprocessing.Pool(processes=n_cores) as pool:  # , initializer=mute
+                ds_chunks = pool.map(
+                    open_whp_middle,
+                    ({
+                        'n_cores': 1,
+                        'dask_sched': 'single-threaded',
+                        'paths': paths[start_ind:(end_ind+1)],
+                        'chunks': chunks,
+                        'attrs_keep': attrs_keep,
+                        'isel': isel,
+                        'drop_variables': drop_variables,
+                        'npartitions': npartitions,
+                        'profile': profile
+                    } for start_ind, end_ind in file_chunk_dict.items())
+                )
+
+        else:
+            ds_chunks = [
+                open_whp_middle(
+                    {
+                        'n_cores': 1,
+                        'dask_sched': 'single-threaded',
+                        'paths': paths[start_ind:end_ind],
+                        'chunks': chunks,
+                        'attrs_keep': attrs_keep,
+                        'isel': isel,
+                        'drop_variables': drop_variables,
+                        'npartitions': npartitions,
+                        'profile': profile
+                    }
+                ) for start_ind, end_ind in zip(start_list, end_list)
+            ]
+
+        whp_ds = xr.merge(ds_chunks)
+
     return whp_ds

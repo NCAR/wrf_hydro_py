@@ -292,6 +292,8 @@ def group_center_time(ds: xr.Dataset) -> int:
 
 def preprocess_timeslice_data(path, full_gage_list):
     # Each timeslice file must have the same/consistently ordered full gage list
+    full_gage_list = [gg.decode('utf-8') if not isinstance(gg, str) else gg for gg in full_gage_list]
+    full_gage_list = [gg.rjust(15) for gg in full_gage_list]
     full_gage_set = set(full_gage_list)
 
     # Sort by stationIdInd and drop query time.

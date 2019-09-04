@@ -5,7 +5,6 @@
 #     --candidate conus_test/201806012300.RTOUT_DOMAIN1 \
 #     --reference conus_test/201806020000.RTOUT_DOMAIN1 \
 #     --log_file log.txt
-
 from math import log, ceil, sqrt
 from multiprocessing import Pool
 import pathlib
@@ -18,7 +17,7 @@ import xarray as xr
 # These are for the larger fields which need some control
 conus_chunks_dict = {
     # RTOUT variables to control
-    'SOIL_M': {},  ## with {} maxes out at < 12% memory
+    'SOIL_M': {},  ## with {} maxes out at < 12% memory when files match
     # HYDRO_RST variables: 
 }
 
@@ -121,7 +120,7 @@ def xrcmp(
     ref_ds.close()
     
     # TODO: Check that the meta data matches
-    
+
     # This is quick if not true
     # ds_equal = can_ds.equals(re_ds)
     # if not ds_equal:
@@ -160,13 +159,13 @@ def xrcmp(
     stat_names = sorted(all_stats[diff_var_names[0]].keys())
     stat_lens = {}  # the length/width of each column/stat
     n_dec = 3  # number of decimals for floats
-    n_dec_p = n_dec + 1 # plus the decimal point
+    n_dec_p = n_dec + 1  # plus the decimal point
 
     # The format for each type, where full_len sepcifices the width of the field.
     type_fmt = {
-        'str': '{{:{full_len}}}',
-        'int': '{{:{full_len}}}',
-        'float': '{{:{full_len}.' + str(n_dec) + 'f}}'
+        str: '{{:{full_len}}}',
+        int: '{{:{full_len}}}',
+        float: '{{:{full_len}.' + str(n_dec) + 'f}}'
     }
 
     # Now solve the full_len field widths for all stats. Do this by
@@ -176,16 +175,19 @@ def xrcmp(
     for stat_name in stat_names:
         all_lens = []
         for key, val in all_stats.items():
-            the_type = type(val[stat_name]).__name__
+            the_val = val[stat_name]
+            the_type = type(the_val)
             the_fmt0 = type_fmt[the_type]
-            if the_type == 'str':
-                full_len = len(val[stat_name])
+            if the_type is str:
+                full_len = len(the_val)
+            elif not math.isfinite(the_val):
+                full_len = len(str(the_val))
             else:
-                full_len = len(str(int(val[stat_name])))
-                if the_type == 'float':
+                full_len = len(str(int(the_val)))
+                if the_type is float:
                     full_len = full_len + n_dec_p
             the_fmt = the_fmt0.format(**{'full_len': full_len})
-            the_string = the_fmt.format(*[val[stat_name]])
+            the_string = the_fmt.format(*[the_val])
             all_lens.append(len(the_string))
 
         stat_lens[stat_name] = max(all_lens)
@@ -223,7 +225,7 @@ def xrcmp(
     return 1
 
 
-if __name__ == "__main__":
+def parse_arguments():
 
     import argparse
     parser = argparse.ArgumentParser()
@@ -262,6 +264,12 @@ if __name__ == "__main__":
     elif chunks is 0:
         chunks = None  # This will use the conus_chunks_dict
 
+    return can_file, ref_file, log_file, chunks, n_cores
+
+
+if __name__ == "__main__":
+
+    can_file, ref_file, log_file, chunks, n_cores = parse_arguments()
     ret = xrcmp(
         can_file=can_file,
         ref_file=ref_file,
@@ -269,5 +277,4 @@ if __name__ == "__main__":
         n_cores=n_cores,
         chunks=chunks
     )
-
     sys.exit(ret)

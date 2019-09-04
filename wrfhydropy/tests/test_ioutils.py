@@ -98,7 +98,7 @@ def test_wrfhydrots(ds_timeseries):
     ts_obj_open = ts_obj.open()
 
     assert type(ts_obj_open) == xr.core.dataset.Dataset
-    assert type(ts_obj.check_nas()) == pd.DataFrame
+    assert type(ts_obj.check_nans()) == pd.DataFrame
 
 
 def test_wrfhydrostatic(ds_timeseries):
@@ -108,7 +108,7 @@ def test_wrfhydrostatic(ds_timeseries):
     static_obj_open = static_obj.open()
 
     assert type(static_obj_open) == xr.core.dataset.Dataset
-    assert type(static_obj.check_nas()) == pd.DataFrame
+    assert type(static_obj.check_nans()) == pd.DataFrame
 
 
 def test_check_input_files(domain_dir):
@@ -150,10 +150,10 @@ def test_nwm_forcing_to_ldasin(tmpdir):
 
     for version_name, model_version in {'para': para_url, 'prod': prod_url}.items():
 
-        forcing_dirs = url_index_anchor_regex(model_version, '^forcing_')
+        forcing_dirs = url_index_anchor_regex(model_version, r'^forcing_')
         for forcing_range in forcing_dirs:
 
-            forcing_files = url_index_anchor_regex(forcing_range, '\.nc$')
+            forcing_files = url_index_anchor_regex(forcing_range, r'\.nc$')
             for file in forcing_files:
                 the_split = file.split('/')
                 the_base = '/'.join(file.split('/')[(the_split.index(version_name)+1):])

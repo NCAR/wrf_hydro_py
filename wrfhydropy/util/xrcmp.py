@@ -240,11 +240,34 @@ if __name__ == "__main__":
         help="File to log potential differences to. "
         "Existing file is clobbered."
     )
+    parser.add_argument(
+        "--n_cores", metavar="n_cores", type=int, required=False,
+        default=1,
+        help="The number of processors to use."
+    )
+    parser.add_argument(
+        "--chunks", metavar="chunks", type=int, required=False,
+        default=1,
+        help="Chunks as integer."
+    )
     args = parser.parse_args()
     can_file = args.candidate
     ref_file = args.reference
     log_file = args.log_file
+    chunks = args.chunks
+    n_cores = args.n_cores
 
-    ret = xrcmp(can_file=can_file, ref_file=ref_file, log_file=log_file)
+    if chunks is 1:
+        chunks = {}    # No chunking
+    elif chunks is 0:
+        chunks = None  # This will use the conus_chunks_dict
+
+    ret = xrcmp(
+        can_file=can_file,
+        ref_file=ref_file,
+        log_file=log_file,
+        n_cores=n_cores,
+        chunks=chunks
+    )
 
     sys.exit(ret)

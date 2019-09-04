@@ -6,12 +6,21 @@
 #     --reference conus_test/201806020000.RTOUT_DOMAIN1 \
 #     --log_file log.txt
 
-
 from math import log, ceil, sqrt
+from multiprocessing import Pool
 import pathlib
 import sys
 # import time
 import xarray as xr
+
+
+# A dictionary of chunks for various variables for CONUS testing
+# These are for the larger fields which need some control
+conus_chunks_dict = {
+    # RTOUT variables to control
+    'SOIL_M': {},  ## with {} maxes out at < 12% memory
+    # HYDRO_RST variables: 
+}
 
 
 # # A decorator/closure to check timings.
@@ -25,13 +34,73 @@ import xarray as xr
 #     return the_closure
 
 
+def calc_stats(arg_tuple):
+    key = arg_tuple[0]
+    can_file = arg_tuple[1]
+    ref_file = arg_tuple[2]
+    chunks = arg_tuple[3]
+    exclude_vars = arg_tuple[4]
+
+    # ignore excluded vars
+    if key in exclude_vars:
+        return None
+
+    if chunks is None:
+        chunks = {}  # default is no chunks
+        if key in conus_chunks_dict:
+            chunks = conus_chunks_dict[key]
+
+    can_ds = xr.open_dataset(can_file, chunks=chunks)
+    ref_ds = xr.open_dataset(ref_file, chunks=chunks)
+
+    # Check for variables in reference and not in candidate?
+    # Check for variables in candidate and not in reference?
+    print(key)
+
+    if not can_ds[key].equals(ref_ds[key]):
+
+        cc = can_ds[key]
+        rr = ref_ds[key]
+        #rr['time'] = cc.time ## THIS NEEDS REMOVED AFTER TESTING IS COMPLETE
+        diff_xr = cc - rr
+
+        # This threshold should be type dependent
+        nz_xr = diff_xr.where(abs(diff_xr) > 0.000000, drop=True)
+
+        the_count = nz_xr.count().load().item(0)
+        the_sum = nz_xr.sum().load().item(0)
+        the_min = nz_xr.min().load().item(0)
+        the_max = nz_xr.max().load().item(0)
+        the_range = the_max - the_min
+        the_mean = the_sum / the_count
+        the_z = (nz_xr - the_mean)
+        the_std = sqrt((the_z * the_z).sum() / the_count)
+        del the_z
+
+        result = {
+            'Variable': key,
+            'Count': the_count,
+            'Sum': the_sum,
+            'Min': the_min,
+            'Max': the_max,
+            'Range': the_range,
+            'Mean':  the_mean,
+            'StdDev': the_std
+        }
+        return result
+
+    else:
+        return None
+
+
 # @stopwatch
 def xrcmp(
     can_file: str,
     ref_file: str,
     log_file: str,
     n_cores: int = 1,
-    exclude_vars: list = []
+    chunks={},
+    exclude_vars: list = [],
 ) -> int:
 
     # Delete log file first
@@ -39,7 +108,8 @@ def xrcmp(
     log_file = pathlib.Path(log_file)
     if log_file.exists():
         log_file.unlink()
-    
+
+    # Dont chunk, this is just a meta-data read.
     can_ds = xr.open_dataset(can_file)
     ref_ds = xr.open_dataset(ref_file)
 
@@ -47,53 +117,28 @@ def xrcmp(
     can_vars = set([kk for kk in can_ds.variables.keys()])
     ref_vars = set([kk for kk in ref_ds.variables.keys()])
     have_same_variables = can_vars.difference(ref_vars) == set([])
-
+    can_ds.close()
+    ref_ds.close()
+    
     # TODO: Check that the meta data matches
     
     # This is quick if not true
     # ds_equal = can_ds.equals(re_ds)
-    #if not ds_equal:
+    # if not ds_equal:
 
-    all_stats = {}
-    for key, val in can_ds.items():
+    if n_cores == 1:
+        all_stats_list = []
+        for key, val in can_ds.items():
+            result = calc_stats(
+                (key, can_file, ref_file, chunks, exclude_vars))
+            all_stats_list.append(result)
+    else:
+        the_args = [
+            (key, can_file, ref_file, chunks, exclude_vars) for key in can_ds.keys()]
+        with Pool(n_cores) as pool:
+            all_stats_list = pool.map(calc_stats, the_args)
 
-        # ignore excluded vars
-        if key in exclude_vars:
-            continue
-
-        # Check for variables in reference and not in candidate?
-        # Check for variables in candidate and not in reference?
-        print(key)
-        
-        if not can_ds[key].equals(ref_ds[key]):
-
-            cc = can_ds[key]
-            rr = ref_ds[key]
-            rr['time'] = cc.time ## THIS NEEDS REMOVED AFTER TESTING IS COMPLETE
-            diff_xr = cc - rr
-
-            # This threshold should be type dependent
-            nz_xr = diff_xr.where(abs(diff_xr) > 0.0000000000000, drop=True)
-
-            the_count = nz_xr.count().item()
-            the_sum = nz_xr.sum().item()
-            the_min = nz_xr.min().item()
-            the_max = nz_xr.max().item()
-            the_range = the_max - the_min
-            the_mean = the_sum / the_count
-            the_z = (nz_xr - the_mean)
-            the_std = sqrt((the_z * the_z).sum() / the_count)
-
-            all_stats[key] = {
-                'Variable': key,
-                'Count': the_count, 
-                'Sum': the_sum,
-                'Min': the_min,
-                'Max': the_max,
-                'Range': the_range,
-                'Mean':  the_mean,
-                'StdDev': the_std
-            }
+    all_stats = {item['Variable']: item for item in all_stats_list if item is not None}
 
     diff_var_names = sorted(all_stats.keys())
     if not diff_var_names:
@@ -171,9 +216,9 @@ def xrcmp(
     the_header = header_string.format(**header_dict)
 
     with open(log_file, 'w') as opened_file:
-        opened_file.write(the_header)
-        for key in all_stats.keys():
-            opened_file.write(var_string.format(**all_stats[key]))
+       opened_file.write(the_header)
+       for key in all_stats.keys():
+           opened_file.write(var_string.format(**all_stats[key]))
 
     return 1
 

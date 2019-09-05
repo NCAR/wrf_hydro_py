@@ -9,7 +9,7 @@ class Scheduler(ABC):
         super().__init__()
 
     @abstractmethod
-    def schedule(self,jobs):
+    def schedule(self, jobs):
         pass
 
 
@@ -21,12 +21,12 @@ class PBSCheyenne(Scheduler):
             account: str,
             nproc: int,
             nnodes: int,
-            mem: int=None,
-            ppn: int=None,
-            queue: str='regular',
-            walltime: str="12:00:00",
-            email_who: str=None,
-            email_when: str='abe'
+            mem: int = None,
+            ppn: int = None,
+            queue: str = 'regular',
+            walltime: str = "12:00:00",
+            email_who: str = None,
+            email_when: str = 'abe'
     ):
         """Initialize an PBSCheyenne object.
         Args:
@@ -52,16 +52,15 @@ class PBSCheyenne(Scheduler):
         # Scheduler options dict
         # TODO: Make this more elegant than hard coding for maintenance sake
         self.scheduler_opts = {
-            'account':account,
-            'email_when':email_when,
-            'email_who':email_who,
-            'queue':queue,
-            'walltime':walltime,
+            'account': account,
+            'email_when': email_when,
+            'email_who': email_who,
+            'queue': queue,
+            'walltime': walltime,
             'mem': mem
         }
 
-
-    def schedule(self,jobs: list):
+    def schedule(self, jobs: list):
         """Schedule one or more jobs using the scheduler scheduler
             Args:
                 jobs: list of jobs to schedule
@@ -110,7 +109,7 @@ class PBSCheyenne(Scheduler):
         subprocess.run(shlex.split(qsub_str),
                        cwd=str(current_dir))
 
-    def _write_job_pbs(self,jobs):
+    def _write_job_pbs(self, jobs):
         """Private method to write bash PBS scripts for submitting each job """
         import copy
         import sys
@@ -178,7 +177,7 @@ class PBSCheyenne(Scheduler):
             # Write the python run script for the job
             if '{nproc}' in job._exe_cmd:
                 # If the job exe uses "nproc" then apply the schedulers value.
-                job._exe_cmd = job._exe_cmd.format(**{'nproc':self.nproc})
+                job._exe_cmd = job._exe_cmd.format(**{'nproc': self.nproc})
             else:
                 # regression tests use "{0}" format, try that here too
                 job._exe_cmd = job._exe_cmd.format(self.nproc)
@@ -226,4 +225,3 @@ class PBSCheyenne(Scheduler):
     @ppn.setter
     def ppn(self, value):
         self._ppn = value
-

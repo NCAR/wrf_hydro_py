@@ -21,16 +21,16 @@ class Job(object):
     def __init__(
             self,
             job_id: str,
-            model_start_time: Union[str, pd.datetime]=None,
-            model_end_time: Union[str, pd.datetime]=None,
-            restart_freq_hr: Union[int, dict]=None,
-            output_freq_hr: Union[int, dict]=None,
-            restart: bool=True,
-            restart_file_time: Union[str, pd.datetime, dict]=None,
-            restart_dir: Union[str, pathlib.Path, dict]=None,
-            exe_cmd: str=None,
-            entry_cmd: str=None,
-            exit_cmd: str=None
+            model_start_time: Union[str, pd.datetime] = None,
+            model_end_time: Union[str, pd.datetime] = None,
+            restart_freq_hr: Union[int, dict] = None,
+            output_freq_hr: Union[int, dict] = None,
+            restart: bool = True,
+            restart_file_time: Union[str, pd.datetime, dict] = None,
+            restart_dir: Union[str, pathlib.Path, dict] = None,
+            exe_cmd: str = None,
+            entry_cmd: str = None,
+            exit_cmd: str = None
     ):
 
         """Instatiate a Job object.
@@ -84,8 +84,8 @@ class Job(object):
         if self.restart_file_time is None:
             self._restart_file_time_hydro = pd.to_datetime(model_start_time)
             self._restart_file_time_hrldas = pd.to_datetime(model_start_time)
-        elif isinstance(self.restart_file_time, pd.datetime) or \
-             isinstance(self.restart_file_time, str):
+        elif (isinstance(self.restart_file_time, pd.datetime) or
+              isinstance(self.restart_file_time, str)):
             self._restart_file_time_hydro = pd.to_datetime(self.restart_file_time)
             self._restart_file_time_hrldas = pd.to_datetime(self.restart_file_time)
         elif isinstance(self.restart_file_time, dict):
@@ -98,8 +98,8 @@ class Job(object):
         if self.restart_dir is None:
             self._restart_dir_hydro = None
             self._restart_dir_hrldas = None
-        elif isinstance(self.restart_dir, str)  or \
-             isinstance(self.restart_dir, pathlib.Path):
+        elif (isinstance(self.restart_dir, str) or
+              isinstance(self.restart_dir, pathlib.Path)):
             self._restart_dir_hydro = pathlib.Path(self.restart_dir)
             self._restart_dir_hrldas = pathlib.Path(self.restart_dir)
         elif isinstance(self.restart_dir, dict):
@@ -221,7 +221,7 @@ class Job(object):
             clones.append(copy.deepcopy(self))
         return clones
 
-    def pickle(self,path: str):
+    def pickle(self, path: str):
         """Pickle sim object to specified file path
         Args:
             path: The file path for pickle
@@ -232,7 +232,7 @@ class Job(object):
 
     def _run(
         self,
-        env: dict=None
+        env: dict = None
     ):
         """Private method to run a job"""
 
@@ -259,8 +259,8 @@ class Job(object):
         # Copy namelists from job_dir to current_dir
         hydro_namelist_path = self.job_dir.joinpath('hydro.namelist')
         hrldas_namelist_path = self.job_dir.joinpath('namelist.hrldas')
-        shutil.copy(str(hydro_namelist_path),str(current_dir))
-        shutil.copy(str(hrldas_namelist_path),str(current_dir))
+        shutil.copy(str(hydro_namelist_path), str(current_dir))
+        shutil.copy(str(hrldas_namelist_path), str(current_dir))
 
         # These dont have the sched_job_id that the scheduled job output files have.
         self.stderr_file = current_dir / ("{0}.stderr".format(self.job_id))
@@ -312,12 +312,12 @@ class Job(object):
             )
 
         self.job_end_time = str(datetime.datetime.now())
-        
+
         # String match diag files or stdout for successfull run if running on gfort or intel
         # Gfort outputs it to diag, intel outputs it to stdout
         diag_file = current_dir.joinpath('diag_hydro.00000')
         if diag_file.exists():
-            #Check diag files first
+            # Check diag files first
             with diag_file.open() as f:
                 diag_file = f.read()
                 if 'The model finished successfully.......' in diag_file:
@@ -341,8 +341,8 @@ class Job(object):
                 for file in diag_files:
                     shutil.move(str(file), str(self.job_dir))
 
-                shutil.move(str(self.stdout_file),str(self.job_dir))
-                shutil.move(str(self.stderr_file),str(self.job_dir))
+                shutil.move(str(self.stdout_file), str(self.job_dir))
+                shutil.move(str(self.stderr_file), str(self.job_dir))
                 current_dir.joinpath('hydro.namelist').unlink()
                 current_dir.joinpath('namelist.hrldas').unlink()
             else:
@@ -356,7 +356,7 @@ class Job(object):
         if self.exit_status == 0:
             with file_model_end_time.open('w') as opened_file:
                 _ = opened_file.write(str(self._model_end_time))
-        
+
         self.pickle(str(self.job_dir.joinpath('WrfHydroJob_postrun.pkl')))
 
     def _write_namelists(self, mode='x'):
@@ -419,7 +419,6 @@ class Job(object):
                     the_noahlsm_offline['output_timestep'] = self.output_freq_hr_hrldas * 3600
                 else:
                     the_noahlsm_offline['output_timestep'] = noah_nlst['output_timestep']
-
 
     def _set_hydro_times(self):
         """Private method to set model run times in the hydro namelist"""
@@ -510,7 +509,7 @@ class Job(object):
         pystr += "job._run()\n"
 
         pystr_file = 'run_job.py'
-        with open(pystr_file,mode='w') as f:
+        with open(pystr_file, mode='w') as f:
             f.write(pystr)
 
     def _solve_model_start_end_times(self):
@@ -532,7 +531,7 @@ class Job(object):
 
         return model_start_time, model_end_time
 
-    def pickle(self,path: str):
+    def pickle(self, path: str):
         """Pickle job object to specified file path
         Args:
             path: The file path for pickle
@@ -540,7 +539,6 @@ class Job(object):
         path = pathlib.Path(path)
         with path.open(mode='wb') as f:
             pickle.dump(self, f, 2)
-
 
     @property
     def job_dir(self):
@@ -584,7 +582,7 @@ class Job(object):
         return self._model_start_time
 
     @model_start_time.setter
-    def model_start_time(self,value):
+    def model_start_time(self, value):
         self._model_start_time = pd.to_datetime(value)
 
     @property

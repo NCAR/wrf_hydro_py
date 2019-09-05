@@ -621,7 +621,9 @@ def check_input_files(
     return None
 
 
-def check_file_nans(dataset_or_path: Union[str, pathlib.Path, xr.Dataset]) -> Union[pd.DataFrame, None]:
+def check_file_nans(
+    dataset_or_path: Union[str, pathlib.Path, xr.Dataset]
+) -> Union[pd.DataFrame, None]:
     """Opens the specified netcdf file and checks all data variables for NA values. NA assigned
     according to xarray __FillVal parsing. See xarray.Dataset documentation
     Args:

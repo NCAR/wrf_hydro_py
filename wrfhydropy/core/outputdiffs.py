@@ -36,7 +36,7 @@ def compare_ncfiles(candidate_files: list,
     if len(candidate_files) != len(reference_files):
         raise ValueError('Length of candidate files does not match len of reference files')
 
-    file_list = zip(candidate_files,reference_files)
+    file_list = zip(candidate_files, reference_files)
 
     output_list = []
     for files in file_list:
@@ -49,23 +49,27 @@ def compare_ncfiles(candidate_files: list,
         else:
             cmp_func = _compare_nc_nccmp
 
-        nccmp_out = cmp_func(candidate_nc=str(file_candidate),
-                                      reference_nc=str(file_reference),
-                                      stats_only=stats_only,
-                                      nccmp_options=nccmp_options,
-                                      exclude_vars=exclude_vars,
-                                      exclude_atts=exclude_atts)
+        nccmp_out = cmp_func(
+            candidate_nc=str(file_candidate),
+            reference_nc=str(file_reference),
+            stats_only=stats_only,
+            nccmp_options=nccmp_options,
+            exclude_vars=exclude_vars,
+            exclude_atts=exclude_atts
+        )
         output_list.append(nccmp_out)
     return output_list
 
 
 class OutputDataDiffs(object):
-    def __init__(self,
-                 candidate_output: SimulationOutput,
-                 reference_output: SimulationOutput,
-                 nccmp_options: list = None,
-                 exclude_vars: list = None,
-                 exclude_atts: list = None):
+    def __init__(
+        self,
+        candidate_output: SimulationOutput,
+        reference_output: SimulationOutput,
+        nccmp_options: list = None,
+        exclude_vars: list = None,
+        exclude_atts: list = None
+    ):
         """Calculate Diffs between SimulationOutput objects from two WrfHydroSim objects
         Args:
             candidate_output: The candidate SimulationOutput object
@@ -126,24 +130,29 @@ class OutputDataDiffs(object):
         atts_list = ['channel_rt', 'channel_rt_grid', 'chanobs', 'lakeout', 'gwout', 'rtout',
                      'ldasout', 'restart_hydro', 'restart_lsm', 'restart_nudging']
         for att in atts_list:
-            candidate_att = getattr(candidate_output,att)
-            reference_att = getattr(reference_output,att)
+            candidate_att = getattr(candidate_output, att)
+            reference_att = getattr(reference_output, att)
 
             if candidate_att is not None and reference_att is not None:
                 # Check that files exist in both directories
                 candidate_files = candidate_att
                 reference_files = reference_att
 
-                valid_files = _check_file_lists(candidate_files,reference_files)
+                valid_files = _check_file_lists(candidate_files, reference_files)
 
-                setattr(self,att,compare_ncfiles(candidate_files=valid_files[0],
-                                                 reference_files=valid_files[1],
-                                                 stats_only=True,
-                                                 nccmp_options=nccmp_options,
-                                                 exclude_vars=exclude_vars,
-                                                 exclude_atts=exclude_atts)
-                        )
-                diff_counts = sum(1 for _ in filter(None.__ne__, getattr(self,att)))
+                setattr(
+                    self,
+                    att,
+                    compare_ncfiles(
+                        candidate_files=valid_files[0],
+                        reference_files=valid_files[1],
+                        stats_only=True,
+                        nccmp_options=nccmp_options,
+                        exclude_vars=exclude_vars,
+                        exclude_atts=exclude_atts
+                    )
+                )
+                diff_counts = sum(1 for _ in filter(None.__ne__, getattr(self, att)))
                 self.diff_counts.update({att: diff_counts})
 
 
@@ -209,25 +218,30 @@ class OutputMetaDataDiffs(object):
 
         # Create list of attributes to diff
         atts_list = ['channel_rt', 'chanobs', 'lakeout', 'gwout', 'rtout', 'ldasout',
-                     'restart_hydro','restart_lsm', 'restart_nudging']
+                     'restart_hydro', 'restart_lsm', 'restart_nudging']
         for att in atts_list:
-            candidate_att = getattr(candidate_output,att)
-            reference_att = getattr(reference_output,att)
+            candidate_att = getattr(candidate_output, att)
+            reference_att = getattr(reference_output, att)
 
             if candidate_att is not None and reference_att is not None:
                 # Check that files exist in both directories
                 candidate_files = candidate_att
                 reference_files = reference_att
 
-                valid_files = _check_file_lists(candidate_files,reference_files)
+                valid_files = _check_file_lists(candidate_files, reference_files)
 
-                setattr(self,att,compare_ncfiles(candidate_files=valid_files[0],
-                                                 reference_files=valid_files[1],
-                                                 nccmp_options=nccmp_options,
-                                                 exclude_vars=exclude_vars,
-                                                 exclude_atts=exclude_atts)
-                        )
-                diff_counts = sum(1 for _ in filter(None.__ne__, getattr(self,att)))
+                setattr(
+                    self,
+                    att,
+                    compare_ncfiles(
+                        candidate_files=valid_files[0],
+                        reference_files=valid_files[1],
+                        nccmp_options=nccmp_options,
+                        exclude_vars=exclude_vars,
+                        exclude_atts=exclude_atts
+                    )
+                )
+                diff_counts = sum(1 for _ in filter(None.__ne__, getattr(self, att)))
                 self.diff_counts.update({att: diff_counts})
 
 
@@ -243,8 +257,16 @@ def _compare_nc_xrcmp(candidate_nc: str,
     candidate_nc = str(candidate_nc)
     reference_nc = str(reference_nc)
 
-    ret = xrcmp(can_file=candidate_nc, ref_file=reference_nc, log_file=log_file_path,
-                exclude_vars=exclude_vars)
+    if '/' not in log_file_path:
+        log_file_path = pathlib.Path(candidate_nc).parent / pathlib.Path(log_file_path)
+
+        ret = xrcmp(
+            can_file=candidate_nc,
+            ref_file=reference_nc,
+            log_file=str(log_file_path),
+            exclude_vars=exclude_vars
+        )
+
     if ret != 0:
         if stats_only:
             try:
@@ -290,7 +312,7 @@ def _compare_nc_nccmp(candidate_nc: str,
     if nccmp_options is None:
         nccmp_options = ['--metadata', '--force']
 
-    #Try and set files to strings
+    # Try and set files to strings
     candidate_nc = str(candidate_nc)
     reference_nc = str(reference_nc)
 
@@ -302,26 +324,26 @@ def _compare_nc_nccmp(candidate_nc: str,
     command_str += ' -S '
 
     if exclude_vars is not None:
-        # Convert exclude_vars list into a comman separated string
+        # Convert exclude_vars list into a comma separated string
         exclude_vars = ','.join(exclude_vars)
-        #append
         command_str += '--exclude=' + exclude_vars + ' '
 
     if exclude_atts is not None:
-        # Convert exclude_vars list into a comman separated string
+        # Convert exclude_vars list into a comma separated string
         exclude_atts = ','.join(exclude_atts)
-        #append
         command_str += '--Attribute=' + exclude_atts + ' '
 
     command_str += candidate_nc + ' '
     command_str += reference_nc
 
-    #Run the subprocess to call nccmp
-    proc = subprocess.run(shlex.split(command_str),
-                          stdout=subprocess.PIPE,
-                          stderr=subprocess.PIPE)
+    # Run the subprocess to call nccmp
+    proc = subprocess.run(
+        shlex.split(command_str),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
 
-    #Check return code
+    # Check return code
     if proc.returncode != 0:
         if stats_only:
             try:
@@ -331,7 +353,7 @@ def _compare_nc_nccmp(candidate_nc: str,
                 output.write(proc.stdout.decode('utf-8'))
                 output.seek(0)
 
-                nccmp_out = pd.read_table(output,delim_whitespace=True,header=0)
+                nccmp_out = pd.read_table(output, delim_whitespace=True, header=0)
                 return nccmp_out
             except:
                 warnings.warn('Problem reading nccmp output to pandas dataframe,'
@@ -343,7 +365,7 @@ def _compare_nc_nccmp(candidate_nc: str,
         return None
 
 
-def _check_file_lists(candidate_files: list,reference_files: list) -> tuple:
+def _check_file_lists(candidate_files: list, reference_files: list) -> tuple:
     """Function to check two lists of pathlib.Paths for commonly occuring files between the two
     Args:
         candidate_files: The candidate file list

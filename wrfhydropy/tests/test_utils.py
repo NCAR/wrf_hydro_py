@@ -48,28 +48,28 @@ def test_xrcmp_eq(filename, tmpdir):
 @pytest.mark.parametrize(
     ['filename1', 'filename2'],
     [
-        ('201108260100.CHANOBS_DOMAIN1','201108260200.CHANOBS_DOMAIN1'),
-        ('201108260100.CHRTOUT_DOMAIN1','201108260200.CHRTOUT_DOMAIN1'),
-        ('201108260100.GWOUT_DOMAIN1','201108260200.GWOUT_DOMAIN1'),
-        ('201108260100.LAKEOUT_DOMAIN1','201108260200.LAKEOUT_DOMAIN1'),
-        #('201108260100.LDASOUT_DOMAIN1','201108260200.LDASOUT_DOMAIN1'),
-        #('201108260100.LSMOUT_DOMAIN','201108260200.LSMOUT_DOMAIN'),
-        #('201108260100.RTOUT_DOMAIN1','201108260200.RTOUT_DOMAIN1'),
-        ('HYDRO_RST.2011-08-26_01:00_DOMAIN1','HYDRO_RST.2011-08-26_02:00_DOMAIN1'),
-        #('nudgingLastObs.2011-08-26_01:00:00.nc','nudgingLastObs.2011-08-26_02:00:00.nc'),
-        #('RESTART.2011082601_DOMAIN1','RESTART.2011082602_DOMAIN1'),
+        ('201108260100.CHANOBS_DOMAIN1', '201108260200.CHANOBS_DOMAIN1'),
+        ('201108260100.CHRTOUT_DOMAIN1', '201108260200.CHRTOUT_DOMAIN1'),
+        ('201108260100.GWOUT_DOMAIN1', '201108260200.GWOUT_DOMAIN1'),
+        ('201108260100.LAKEOUT_DOMAIN1', '201108260200.LAKEOUT_DOMAIN1'),
+        # ('201108260100.LDASOUT_DOMAIN1', '201108260200.LDASOUT_DOMAIN1'),
+        # ('201108260100.LSMOUT_DOMAIN', '201108260200.LSMOUT_DOMAIN'),
+        # ('201108260100.RTOUT_DOMAIN1', '201108260200.RTOUT_DOMAIN1'),
+        ('HYDRO_RST.2011-08-26_01:00_DOMAIN1', 'HYDRO_RST.2011-08-26_02:00_DOMAIN1'),
+        # ('nudgingLastObs.2011-08-26_01:00:00.nc', 'nudgingLastObs.2011-08-26_02:00:00.nc'),
+        # ('RESTART.2011082601_DOMAIN1', 'RESTART.2011082602_DOMAIN1'),
     ],
     ids=[
         'xrcmp-unequal-CHANOBS',
         'xrcmp-unequal-CHRTOUT',
         'xrcmp-unequal-GWOUT',
         'xrcmp-unequal-LAKEOUT',
-        #'xrcmp-unequal-LDASOUT',
-        #'xrcmp-unequal-LSMOUT',
-        #'xrcmp-unequal-RTOUT',
+        # 'xrcmp-unequal-LDASOUT',
+        # 'xrcmp-unequal-LSMOUT',
+        # 'xrcmp-unequal-RTOUT',
         'xrcmp-unequal-HYDRO_RST',
-        #'xrcmp-unequal-nudginglastobs', # identical data is the problem
-        #'xrcmp-unequal-RESTART',
+        # 'xrcmp-unequal-nudginglastobs', # identical data is the problem
+        # 'xrcmp-unequal-RESTART',
     ]
 )
 def test_xrcmp_uneq(filename1, filename2, tmpdir):

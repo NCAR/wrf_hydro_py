@@ -26,10 +26,10 @@ for name, value in all_combos.items():
     ds = xr.Dataset()
     da = xr.DataArray(
         np.array(value),
-        coords=[np.array([0,1])],
+        coords=[np.array([0, 1])],
         dims='dim'
-        )
-    ds['some_var'] = da #np.array(value)
+    )
+    ds['some_var'] = da  # np.array(value)
     ds.encoding = {'_FillValue': the_fill}
     ds.reset_coords('some_var')
     the_file = 'nan_na_data/' + name + '.nc'

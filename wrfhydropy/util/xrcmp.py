@@ -19,8 +19,8 @@ import xarray as xr
 # These are for the larger fields which need some control
 conus_chunks_dict = {
     # RTOUT variables to control
-    'SOIL_M': {},  ## with {} maxes out at < 18% memory when files do NOT match
-    # HYDRO_RST variables: 
+    'SOIL_M': {},  # with {} maxes out at < 18% memory when files do NOT match
+    # HYDRO_RST variables: None currently
 }
 
 
@@ -51,8 +51,8 @@ def calc_stats(arg_tuple):
         if key in conus_chunks_dict:
             chunks = conus_chunks_dict[key]
 
-    can_ds = xr.open_dataset(can_file, chunks=chunks)
-    ref_ds = xr.open_dataset(ref_file, chunks=chunks)
+    can_ds = xr.open_dataset(can_file, chunks=chunks, mask_and_scale=False)
+    ref_ds = xr.open_dataset(ref_file, chunks=chunks, mask_and_scale=False)
 
     # Check for variables in reference and not in candidate?
     # Check for variables in candidate and not in reference?
@@ -61,7 +61,7 @@ def calc_stats(arg_tuple):
     if can_ds[key].equals(ref_ds[key]):
         return None
 
-    else: 
+    else:
         cc = can_ds[key]
         rr = ref_ds[key]
 
@@ -71,7 +71,7 @@ def calc_stats(arg_tuple):
             nz_xr = cc.where(cc != rr, drop=True)
             if len(nz_xr) == 0:
                 return None
-            else: 
+            else:
                 the_count = nz_xr.count().load().item(0)
                 inf = float('inf')
                 result = {
@@ -87,21 +87,20 @@ def calc_stats(arg_tuple):
                 return result
 
         else:
-
             # All non-string types
             cc = cc.astype(float)
             rr = rr.astype(float)
-            
-            if 'time' in rr.coords: ## THIS NEEDS REMOVED AFTER TESTING IS COMPLETE
-                rr['time'] = cc.time 
-            if key == 'time':
-                rr.values = cc.values
+
+            # THIS NEEDS REMOVED AFTER TESTING IS COMPLETE
+            # FOR convenience of comparing two files at different times.
+            # if 'time' in rr.coords:
+            #    rr['time'] = cc.time
+            # if key == 'time':
+            #    rr.values = cc.values
 
             diff_xr = cc - rr
-
-            # This threshold should be type dependent
+            # TODO: This threshold should be type dependent
             nz_xr = diff_xr.where(abs(diff_xr) > 0.000000, drop=True)
-
             if len(nz_xr) == 0:
                 return None
 
@@ -138,6 +137,9 @@ def xrcmp(
     exclude_vars: list = [],
 ) -> int:
 
+    if exclude_vars is None:
+        exclude_vars = []
+
     # Delete log file first
     # Should write a log file that says nothing yet determined?
     log_file = pathlib.Path(log_file)
@@ -154,7 +156,7 @@ def xrcmp(
     have_same_variables = can_vars.difference(ref_vars) == set([])
     can_ds.close()
     ref_ds.close()
-    
+
     # TODO: Check that the meta data matches
 
     # This is quick if not true
@@ -191,7 +193,7 @@ def xrcmp(
     # 2   q_lateral     /    170  0.000345  ...  0.000700  0.001145  0.000002  0.000086
     # 3    velocity     /    165  0.010788  ...  0.005488  0.006231  0.000065  0.000503
     # 4        Head     /    177  0.002717  ...  0.002662  0.003292  0.000015  0.000258
-    
+
     stat_names = sorted(all_stats[diff_var_names[0]].keys())
     stat_lens = {}  # the length/width of each column/stat
     n_dec = 3  # number of decimals for floats
@@ -250,13 +252,13 @@ def xrcmp(
         '{StdDev:>' + str(stat_lens['StdDev']) + '.' + str(n_dec) + 'f}  \n'
     )
 
-    header_dict = {name:name for name in stat_names}
+    header_dict = {name: name for name in stat_names}
     the_header = header_string.format(**header_dict)
 
     with open(log_file, 'w') as opened_file:
-       opened_file.write(the_header)
-       for key in all_stats.keys():
-           opened_file.write(var_string.format(**all_stats[key]))
+        opened_file.write(the_header)
+        for key in all_stats.keys():
+            opened_file.write(var_string.format(**all_stats[key]))
 
     return 1
 

@@ -134,8 +134,8 @@ def test_check_input_files(domain_dir):
 
 
 def test_nwm_forcing_to_ldasin(tmpdir):
-
     tmpdir = pathlib.Path(tmpdir)
+
     def url_index_anchor_regex(url, regex=''):
         page = requests.get(url).text
         soup = BeautifulSoup(page, 'html.parser')
@@ -160,7 +160,6 @@ def test_nwm_forcing_to_ldasin(tmpdir):
                 the_file = tmpdir.joinpath(version_name).joinpath(the_base)
                 the_file.parent.mkdir(exist_ok=True, parents=True)
                 the_file.touch()
-
 
             # The argument to nwm_forcing_dir is a list of "nwm.YYYYMMDD" dirs.
             ldasin_dir_list = tmpdir.joinpath(

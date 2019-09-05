@@ -4,8 +4,10 @@
 # ipython --pdb  xrcmp.py -- \
 #     --candidate conus_test/201806012300.RTOUT_DOMAIN1 \
 #     --reference conus_test/201806020000.RTOUT_DOMAIN1 \
+#     --n_cores 8 \
 #     --log_file log.txt
-from math import log, ceil, sqrt
+
+import math
 from multiprocessing import Pool
 import pathlib
 import sys
@@ -17,7 +19,7 @@ import xarray as xr
 # These are for the larger fields which need some control
 conus_chunks_dict = {
     # RTOUT variables to control
-    'SOIL_M': {},  ## with {} maxes out at < 12% memory when files match
+    'SOIL_M': {},  ## with {} maxes out at < 18% memory when files do NOT match
     # HYDRO_RST variables: 
 }
 
@@ -56,40 +58,74 @@ def calc_stats(arg_tuple):
     # Check for variables in candidate and not in reference?
     print(key)
 
-    if not can_ds[key].equals(ref_ds[key]):
+    if can_ds[key].equals(ref_ds[key]):
+        return None
 
+    else: 
         cc = can_ds[key]
         rr = ref_ds[key]
-        #rr['time'] = cc.time ## THIS NEEDS REMOVED AFTER TESTING IS COMPLETE
-        diff_xr = cc - rr
 
-        # This threshold should be type dependent
-        nz_xr = diff_xr.where(abs(diff_xr) > 0.000000, drop=True)
+        if '|S' in str(cc.dtype):
 
-        the_count = nz_xr.count().load().item(0)
-        the_sum = nz_xr.sum().load().item(0)
-        the_min = nz_xr.min().load().item(0)
-        the_max = nz_xr.max().load().item(0)
-        the_range = the_max - the_min
-        the_mean = the_sum / the_count
-        the_z = (nz_xr - the_mean)
-        the_std = sqrt((the_z * the_z).sum() / the_count)
-        del the_z
+            # Deal with strings
+            nz_xr = cc.where(cc != rr, drop=True)
+            if len(nz_xr) == 0:
+                return None
+            else: 
+                the_count = nz_xr.count().load().item(0)
+                inf = float('inf')
+                result = {
+                    'Variable': key,
+                    'Count': the_count,
+                    'Sum': inf,
+                    'Min': inf,
+                    'Max': inf,
+                    'Range': inf,
+                    'Mean':  inf,
+                    'StdDev': inf
+                }
+                return result
 
-        result = {
-            'Variable': key,
-            'Count': the_count,
-            'Sum': the_sum,
-            'Min': the_min,
-            'Max': the_max,
-            'Range': the_range,
-            'Mean':  the_mean,
-            'StdDev': the_std
-        }
-        return result
+        else:
 
-    else:
-        return None
+            # All non-string types
+            cc = cc.astype(float)
+            rr = rr.astype(float)
+            
+            if 'time' in rr.coords: ## THIS NEEDS REMOVED AFTER TESTING IS COMPLETE
+                rr['time'] = cc.time 
+            if key == 'time':
+                rr.values = cc.values
+
+            diff_xr = cc - rr
+
+            # This threshold should be type dependent
+            nz_xr = diff_xr.where(abs(diff_xr) > 0.000000, drop=True)
+
+            if len(nz_xr) == 0:
+                return None
+
+            the_count = nz_xr.count().load().item(0)
+            the_sum = nz_xr.sum().load().item(0)
+            the_min = nz_xr.min().load().item(0)
+            the_max = nz_xr.max().load().item(0)
+            the_range = the_max - the_min
+            the_mean = the_sum / the_count
+            the_z = (nz_xr - the_mean)
+            the_std = math.sqrt((the_z * the_z).sum() / the_count)
+            del the_z
+
+            result = {
+                'Variable': key,
+                'Count': the_count,
+                'Sum': the_sum,
+                'Min': the_min,
+                'Max': the_max,
+                'Range': the_range,
+                'Mean':  the_mean,
+                'StdDev': the_std
+            }
+            return result
 
 
 # @stopwatch

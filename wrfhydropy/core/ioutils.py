@@ -21,6 +21,8 @@ import time
 import warnings
 import xarray as xr
 
+from wrfhydropy.util.xrnan import xrnan
+
 
 def is_not_none(x):
     return x is not None
@@ -71,7 +73,7 @@ def preprocess_nwm_data(
 ) -> xr.Dataset:
 
     try:
-        ds = xr.open_dataset(path)
+        ds = xr.open_dataset(path, mask_and_scale=False)
     except OSError:
         print("Skipping file, unable to open: ", path)
         return None
@@ -344,7 +346,7 @@ def open_wh_dataset(paths: list,
     # Create dictionary of forecasts, i.e. reference times
     ds_dict = dict()
     for a_file in paths:
-        ds = xr.open_dataset(a_file, chunks=chunks)
+        ds = xr.open_dataset(a_file, chunks=chunks, mask_and_scale=False)
         # Check if forecast and set reference_time to zero if not
         if not forecast:
             ds.coords['reference_time'].values = np.array(
@@ -414,7 +416,7 @@ def open_ensemble_dataset(
     # the all the members can be concatenated along "member".
 
     paths_bag = dask.bag.from_sequence(paths)
-    ds_all = paths_bag.map(xr.open_dataset, chunks=chunks).compute()
+    ds_all = paths_bag.map(xr.open_dataset, chunks=chunks, mask_and_scale=False).compute()
     all_bag = dask.bag.from_sequence(ds_all)
 
     def member_grouper(ds):
@@ -464,10 +466,10 @@ class WrfHydroTs(list):
         """
         return open_wh_dataset(self, chunks=chunks, forecast=forecast)
 
-    def check_nas(self):
+    def check_nans(self):
         """Return dictionary of counts of NA values for each data variable summed across files"""
         nc_dataset = self.open()
-        return check_file_nas(nc_dataset)
+        return check_file_nans(nc_dataset)
 
 
 class WrfHydroStatic(pathlib.PosixPath):
@@ -479,11 +481,11 @@ class WrfHydroStatic(pathlib.PosixPath):
         Returns:
             An xarray dataset object.
         """
-        return xr.open_dataset(self)
+        return xr.open_dataset(self, mask_and_scale=False)
 
-    def check_nas(self):
+    def check_nans(self):
         """Return dictionary of counts of NA values for each data variable"""
-        return check_file_nas(self)
+        return check_file_nans(self)
 
 
 def _check_file_exist_colon(dirpath: str, file_str: str):
@@ -619,41 +621,16 @@ def check_input_files(
     return None
 
 
-def check_file_nas(dataset_path: Union[str, pathlib.Path]) -> str:
+def check_file_nans(
+    dataset_or_path: Union[str, pathlib.Path, xr.Dataset]
+) -> Union[pd.DataFrame, None]:
     """Opens the specified netcdf file and checks all data variables for NA values. NA assigned
     according to xarray __FillVal parsing. See xarray.Dataset documentation
     Args:
-        dataset_path: The path to the netcdf dataset file
-    Returns: string summary of nas if present
+        dataset_or_path: The path to the netcdf dataset file, or a dataset itself
+    Returns: string summary of nans if present
     """
-
-    # Set filepath to strings
-    dataset_path = str(dataset_path)
-
-    # Make string to pass to subprocess, this compares the file against itself
-    # nans will not equal each other so will report nans as fails
-    command_str = 'nccmp --data --metadata --force ' + dataset_path + ' ' + dataset_path
-
-    # Run the subprocess to call nccmp
-    proc = subprocess.run(shlex.split(command_str),
-                          stdout=subprocess.PIPE,
-                          stderr=subprocess.PIPE)
-
-    # Check return code
-    if proc.returncode != 0:
-        # Get stoud into stringio object
-        output = io.StringIO()
-        output.write(proc.stderr.decode('utf-8'))
-        output.seek(0)
-
-        # Open stringio object as pandas dataframe
-        try:
-            nccmp_out = pd.read_csv(output, delimiter=':', header=None)
-            return nccmp_out
-        except:
-            warnings.warn('Problem reading nccmp output to pandas dataframe,'
-                          'returning as subprocess object')
-            return proc.stderr
+    return xrnan(dataset_or_path)
 
 
 def sort_files_by_time(file_list: list):

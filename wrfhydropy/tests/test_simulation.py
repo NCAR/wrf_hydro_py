@@ -192,7 +192,7 @@ def test_simulation_output_checknans(sim_output):
     public_atts = [att for att in dir(output) if not att.startswith('__')]
     for att in public_atts:
         assert getattr(output, att) is not None
-    assert output.check_output_nas() is not None
+    assert output.check_output_nans() is None
 
 
 def test_simulation_pickle(model, domain, job, tmpdir):

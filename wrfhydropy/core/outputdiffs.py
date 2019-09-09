@@ -46,7 +46,7 @@ def compare_ncfiles(
         file_candidate = pathlib.Path(files[0])
         file_reference = pathlib.Path(files[1])
 
-        if xrcmp_n_cores > 0 and '--metadata' not in nccmp_options:
+        if xrcmp_n_cores > 1 and '--metadata' not in nccmp_options:
             cmp_func = _compare_nc_xrcmp
         else:
             cmp_func = _compare_nc_nccmp

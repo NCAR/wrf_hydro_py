@@ -56,7 +56,6 @@ def calc_stats(arg_tuple):
 
     # Check for variables in reference and not in candidate?
     # Check for variables in candidate and not in reference?
-    print(key)
 
     if can_ds[key].equals(ref_ds[key]):
         return None
@@ -154,8 +153,8 @@ def xrcmp(
     can_vars = set([kk for kk in can_ds.variables.keys()])
     ref_vars = set([kk for kk in ref_ds.variables.keys()])
     have_same_variables = can_vars.difference(ref_vars) == set([])
-    can_ds.close()
-    ref_ds.close()
+    can_ds.close()  # These are likely critical to the success
+    ref_ds.close()  # of multiprocessing
 
     # TODO: Check that the meta data matches
 

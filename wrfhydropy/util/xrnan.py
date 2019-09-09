@@ -22,7 +22,7 @@ def xrnan(
     dataset_or_path: Union[str, pathlib.Path, xr.Dataset],
     log_file: str = None,
     exclude_vars: list = [],
-    chunks = None,
+    chunks=None,
     n_cores: int = 1
 ) -> int:
     # Set filepath to strings

@@ -622,7 +622,8 @@ def check_input_files(
 
 
 def check_file_nans(
-    dataset_or_path: Union[str, pathlib.Path, xr.Dataset]
+    dataset_or_path: Union[str, pathlib.Path, xr.Dataset],
+    n_cores: int = 1
 ) -> Union[pd.DataFrame, None]:
     """Opens the specified netcdf file and checks all data variables for NA values. NA assigned
     according to xarray __FillVal parsing. See xarray.Dataset documentation
@@ -630,7 +631,7 @@ def check_file_nans(
         dataset_or_path: The path to the netcdf dataset file, or a dataset itself
     Returns: string summary of nans if present
     """
-    return xrnan(dataset_or_path)
+    return xrnan(dataset_or_path, n_cores=n_cores)
 
 
 def sort_files_by_time(file_list: list):

@@ -121,8 +121,8 @@ def test_xrnan_none(filename, expected, tmpdir):
     ['filename', 'expected'],
     [
         ('fill_value.nc', 'None'),
-        ('nan_fill.nc', '     some_var\ndim          \n0         NaN\n1         NaN'),
-        ('nan_value.nc', '     some_var\ndim          \n0         NaN\n1         NaN'),
+        ('nan_fill.nc', "{'vars': ['some_var']}"),
+        ('nan_value.nc', "{'vars': ['some_var']}"),
         ('value_value.nc', 'None'),
     ],
     ids=[

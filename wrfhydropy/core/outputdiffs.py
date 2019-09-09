@@ -9,12 +9,15 @@ from ..util.xrcmp import xrcmp
 from .simulation import SimulationOutput
 
 
-def compare_ncfiles(candidate_files: list,
-                    reference_files: list,
-                    stats_only: bool = False,
-                    nccmp_options: list = None,
-                    exclude_vars: list = None,
-                    exclude_atts: list = None):
+def compare_ncfiles(
+    candidate_files: list,
+    reference_files: list,
+    stats_only: bool = False,
+    nccmp_options: list = None,
+    exclude_vars: list = None,
+    exclude_atts: list = None,
+    xrcmp_n_cores: int = 0
+):
     """Compare lists of netcdf restart files element-wise. Files must have common names
     Args:
         candidate_files: List of candidate netcdf file paths
@@ -43,8 +46,7 @@ def compare_ncfiles(candidate_files: list,
         file_candidate = pathlib.Path(files[0])
         file_reference = pathlib.Path(files[1])
 
-        # TODO: use XRCMP only when it supports metadata:
-        if ('--data' in nccmp_options) and ('--metadata' not in nccmp_options):
+        if xrcmp_n_cores > 1 and '--metadata' not in nccmp_options:
             cmp_func = _compare_nc_xrcmp
         else:
             cmp_func = _compare_nc_nccmp
@@ -55,7 +57,8 @@ def compare_ncfiles(candidate_files: list,
             stats_only=stats_only,
             nccmp_options=nccmp_options,
             exclude_vars=exclude_vars,
-            exclude_atts=exclude_atts
+            exclude_atts=exclude_atts,
+            n_cores=xrcmp_n_cores
         )
         output_list.append(nccmp_out)
     return output_list
@@ -68,7 +71,8 @@ class OutputDataDiffs(object):
         reference_output: SimulationOutput,
         nccmp_options: list = None,
         exclude_vars: list = None,
-        exclude_atts: list = None
+        exclude_atts: list = None,
+        xrcmp_n_cores: int = 0
     ):
         """Calculate Diffs between SimulationOutput objects from two WrfHydroSim objects
         Args:
@@ -149,7 +153,8 @@ class OutputDataDiffs(object):
                         stats_only=True,
                         nccmp_options=nccmp_options,
                         exclude_vars=exclude_vars,
-                        exclude_atts=exclude_atts
+                        exclude_atts=exclude_atts,
+                        xrcmp_n_cores=xrcmp_n_cores
                     )
                 )
                 diff_counts = sum(1 for _ in filter(None.__ne__, getattr(self, att)))
@@ -157,13 +162,16 @@ class OutputDataDiffs(object):
 
 
 class OutputMetaDataDiffs(object):
-    def __init__(self,
-                 candidate_output: SimulationOutput,
-                 reference_output: SimulationOutput,
-                 stats_only=False,
-                 nccmp_options: list = None,
-                 exclude_vars: list = None,
-                 exclude_atts: list = None):
+    def __init__(
+        self,
+        candidate_output: SimulationOutput,
+        reference_output: SimulationOutput,
+        stats_only=False,
+        nccmp_options: list = None,
+        exclude_vars: list = None,
+        exclude_atts: list = None,
+        xrcmp_n_cores: int = 0
+    ):
         """Calculate Diffs between SimulationOutput objects from two WrfHydroSim objects
         Args:
             candidate_output: The candidate SimulationOutput object
@@ -238,20 +246,24 @@ class OutputMetaDataDiffs(object):
                         reference_files=valid_files[1],
                         nccmp_options=nccmp_options,
                         exclude_vars=exclude_vars,
-                        exclude_atts=exclude_atts
+                        exclude_atts=exclude_atts,
+                        xrcmp_n_cores=xrcmp_n_cores
                     )
                 )
                 diff_counts = sum(1 for _ in filter(None.__ne__, getattr(self, att)))
                 self.diff_counts.update({att: diff_counts})
 
 
-def _compare_nc_xrcmp(candidate_nc: str,
-                      reference_nc: str,
-                      stats_only: bool = False,
-                      nccmp_options: list = None,
-                      exclude_vars: list = None,
-                      exclude_atts: list = None,
-                      log_file_path: str = "xrcmp.log"):
+def _compare_nc_xrcmp(
+    candidate_nc: str,
+    reference_nc: str,
+    stats_only: bool = False,
+    nccmp_options: list = None,
+    exclude_vars: list = None,
+    exclude_atts: list = None,
+    n_cores=1,
+    log_file_path: str = "xrcmp.log"
+):
 
     # Try and set files to strings
     candidate_nc = str(candidate_nc)
@@ -264,7 +276,8 @@ def _compare_nc_xrcmp(candidate_nc: str,
             can_file=candidate_nc,
             ref_file=reference_nc,
             log_file=str(log_file_path),
-            exclude_vars=exclude_vars
+            exclude_vars=exclude_vars,
+            n_cores=n_cores
         )
 
     if ret != 0:
@@ -285,12 +298,15 @@ def _compare_nc_xrcmp(candidate_nc: str,
         return None
 
 
-def _compare_nc_nccmp(candidate_nc: str,
-                      reference_nc: str,
-                      stats_only: bool = False,
-                      nccmp_options: list = None,
-                      exclude_vars: list = None,
-                      exclude_atts: list = None):
+def _compare_nc_nccmp(
+    candidate_nc: str,
+    reference_nc: str,
+    stats_only: bool = False,
+    nccmp_options: list = None,
+    exclude_vars: list = None,
+    exclude_atts: list = None,
+    n_cores: int = 0
+):
 
     """Private method to compare two netcdf files using nccmp.
     This is wrapped by compare ncfiles to applying to a list of one or more files

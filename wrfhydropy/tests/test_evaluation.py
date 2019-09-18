@@ -41,28 +41,34 @@ if sim_dir.exists():
 sim_dir.symlink_to(test_dir / 'data/collection_data/ens_ana/cast_2011082600/member_000')
 
 @pytest.mark.parametrize(
-    ['mod_dir', 'mod_glob', 'indices_name', 'indices', 'variable', 'expected'],
+    ['mod_dir', 'mod_glob', 'indices_dict', 'variable', 'expected'],
     [
         (test_dir / 'data/collection_data/simulation',
          '*CHRTOUT_DOMAIN1',
-         'feature_id',
-         [1, 39, 56, 34],
+         {'feature_id': [1, 39, 56, 34]},
          'streamflow',
          gof_answer_reprs['*CHRTOUT_DOMAIN1']
+        ),
+        (test_dir / 'data/collection_data/simulation',
+         '*LDASOUT_DOMAIN1',
+         {'x': [1, 3, 5], 'y': [2, 4, 6], 'soil_layers_stag': [2]},
+         'SOIL_M',
+         gof_answer_reprs['*LDASOUT_DOMAIN1']
         ),
     ],
     ids=[
         'gof-simulation-CHRTOUT',
+        'gof-simulation-LSMOUT',
     ]
 )
-def test_gof(mod_dir, mod_glob, indices_name, indices, variable, expected):
+def test_gof(mod_dir, mod_glob, indices_dict, variable, expected):
     # Keep this variable agnostic
     files = sorted(mod_dir.glob(mod_glob))
-    mod = open_whp_dataset(files).isel({indices_name: indices})
+    mod = open_whp_dataset(files).isel(indices_dict)
     mod_df = mod[variable].to_dataframe().rename(
         columns={variable: 'modeled'})
-    obs_df = mod.streamflow.to_dataframe().rename(
+    obs_df = mod[variable].to_dataframe().rename(
         columns={variable: 'observed'})
-    the_eval = Evaluation(mod_df, obs_df)
+    the_eval = Evaluation(mod_df, obs_df, join_on=[*indices_dict])
     gof = the_eval.gof()
     assert repr(gof) == expected

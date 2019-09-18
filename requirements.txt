@@ -5,7 +5,7 @@ deepdiff==3.3.0
 pathlib==1.0.1
 xarray==0.10.9
 DateTime==4.3
-pytest==4.3.11
+pytest==4.3.1
 pytest-html==1.19.0
 pytest-datadir-ng==1.1.0
 boltons==18.0.1

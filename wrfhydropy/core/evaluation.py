@@ -129,8 +129,8 @@ class Evaluation(object):
         data,
         threshold: Union[float, str],
         label: str = None,
-        mod_col: str = 'streamflow_mod',
-        obs_col: str = 'streamflow_obs',
+        mod_col: str = 'modeled',
+        obs_col: str = 'observed',
         decimals: int = 2
     ):
 
@@ -166,8 +166,8 @@ class Evaluation(object):
         threshold: Union[float, str],
         label: str = None,
         time_window: str = None,
-        mod_col: str = 'streamflow_mod',
-        obs_col: str = 'streamflow_obs',
+        mod_col: str = 'modeled',
+        obs_col: str = 'observed',
         group_by: Union[list, str] = None,
         inf_as_na: bool = True,
         decimals: int = 2
@@ -243,8 +243,8 @@ class Evaluation(object):
 
     def gof(
         self,
-        mod_col: str = 'streamflow_mod',
-        obs_col: str = 'streamflow_obs',
+        mod_col: str = 'modeled',
+        obs_col: str = 'observed',
         group_by: Union[list, str] = None,
         inf_as_na: bool = True,
         decimals: int = 2
@@ -287,8 +287,8 @@ class Evaluation(object):
         self,
         threshold: Union[float, str],
         label: str = None,
-        mod_col: str = 'streamflow_mod',
-        obs_col: str = 'streamflow_obs',
+        mod_col: str = 'modeled',
+        obs_col: str = 'observed',
         group_by: Union[list, str] = None,
         decimals: int = 2
     ):

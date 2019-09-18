@@ -297,7 +297,9 @@ def preprocess_timeslice_data(path, full_gage_list):
     full_gage_set = set(full_gage_list)
 
     # Sort by stationIdInd and drop query time.
-    ds = xr.open_dataset(path).sortby('stationIdInd').drop('queryTime')
+    ds = xr.open_dataset(path).sortby('stationIdInd')
+    if 'queryTime' in ds.variables:
+        ds = ds.drop('queryTime')
     # Make stationId the dimension instead of its index
     ds = ds.assign_coords(stationId=ds.stationId).swap_dims({'stationIdInd': 'stationId'})
     # Create time dimension based on the center_time of the slice from metadata.

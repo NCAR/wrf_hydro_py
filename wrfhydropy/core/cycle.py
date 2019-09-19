@@ -182,8 +182,6 @@ def parallel_run_casts(arg_dict):
     return exit_status
 
 
-
-
 class CycleSimulation(object):
     """Class for a WRF-Hydro CycleSimulation object. The Cycle Simulation object is used to
     orchestrate a set of 'N' WRF-Hydro simulations, referred to as 'casts', which only differ

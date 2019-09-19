@@ -1127,6 +1127,35 @@ def test_cycle_run(
         "Some parallel cycle casts in memory did not run successfully."
     assert cy_dir.joinpath("WrfHydroCycle.pkl").exists()
 
+    # Parallel teams test
+    cy_teams = copy.deepcopy(cy)
+    cy_dir = pathlib.Path(tmpdir).joinpath('cy_team')
+    os.chdir(tmpdir)
+    os.mkdir(str(cy_dir))
+    os.chdir(str(cy_dir))
+    cy_teams.compose()
+    # cy_teams.compose(rm_casts_from_memory=False)
+    teams_dict = {
+        '0': {
+            'casts': ['cast_2012121200', 'cast_2012121800'],
+            'nodes': ['hostname0'],
+            'entry_cmd': 'echo',
+            'exe_cmd': './wrf_hydro.exe {hostname} {nproc}',
+            'exit_cmd': './bogus_cmd'
+        },
+        '1': {
+            'casts': ['cast_2012121500'],
+            'nodes': ['hostname1'],
+            'entry_cmd': 'pwd',
+            'exe_cmd': './wrf_hydro.exe {hostname} {nproc}',
+            'exit_cmd': './bogus_cmd'
+        }
+    }
+    cy_teams_run_success = cy_teams.run(teams_dict=teams_dict)
+    assert cy_teams_run_success == 0, \
+        "Some parallel team cycle casts did not run successfully."
+    assert cy_dir.joinpath("WrfHydroCycle.pkl").exists()
+
 
 def test_cycle_self_dependent_run(
     simulation_compiled,

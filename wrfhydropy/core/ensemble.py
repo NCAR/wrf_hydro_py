@@ -533,6 +533,7 @@ class EnsembleSimulation(object):
                         'entry_cmd': 'pwd',
                         'exe_cmd'  : './wrf_hydro.exe {hostnames} {nproc}',
                         'exit_cmd' : './bogus_cmd',
+                        'env'      : {environment dict}
                     },
                     '1': {
                         'members'  : ['member_001', 'member_003'],
@@ -540,6 +541,7 @@ class EnsembleSimulation(object):
                         'entry_cmd': 'pwd',
                         'exe_cmd'  : './wrf_hydro.exe {hostnames} {nproc}',
                         'exit_cmd' : './bogus_cmd',
+                        'env'      : {environment dict}
                     }
                 }
                 The keys are the numbers of the teams, starting with zero.
@@ -591,8 +593,6 @@ class EnsembleSimulation(object):
             #     parallel_teams_run({'team_dict': team_dict, 'ens_dir': ens_dir, 'env': env})
             #     for (key, team_dict) in teams_dict.items()
             # ]
-
-            os.chdir(ens_dir)
             exit_code = int(not all([list(ee.values())[0] == 0 for ee in exit_codes]))
 
         elif n_concurrent > 1:
@@ -602,8 +602,6 @@ class EnsembleSimulation(object):
                     parallel_run,
                     ({'member': mm, 'ens_dir': ens_dir} for mm in self.members)
                 )
-
-            os.chdir(ens_dir)
             exit_code = int(not all([ee == 0 for ee in exit_codes]))
 
         else:
@@ -612,10 +610,9 @@ class EnsembleSimulation(object):
             exit_codes = [
                 parallel_run({'member': mm, 'ens_dir': ens_dir}) for mm in self.members
             ]
-
-            os.chdir(ens_dir)
             exit_code = int(not all([ee == 0 for ee in exit_codes]))
 
+        os.chdir(ens_dir)
         return exit_code
 
     def pickle(self, path: str):

@@ -182,6 +182,124 @@ def parallel_run_casts(arg_dict):
     return exit_status
 
 
+def parallel_teams_run(arg_dict):
+    """Parallelizable function for teams to run an EnsembleSimuation.
+
+    This function is called (in parallel) once for each team. (First level of parallelism
+    is from python multiprocessing.
+    This function (a team) sequentially runs (loops over) the ensemble members for which
+    the team is responsible.
+    This function (a team) makes a system call using MPI. (The second level of parallelism).
+
+    # TODO: extract this to be used by both cycles and ensembles.
+
+    Arguments:
+        arg_dict:
+            arg_dict == {
+               'obj_name'   : string, either "member" or "cast" (or some other object),
+                              matches the object name used in the team_dict below (first
+                              argument)
+               'compose_dir': <pathlib.Path absolute path to the cycle top level/compse,
+                               dir where the individual cycle dirs are found>,
+               'team_dict'  : <dict: the information needed for the team, see below>
+            }
+            where
+            team_dict == {
+                'casts'    : <list: length n_team, groups of cast run_dirs>
+                'nodes'    : <list: the nodes previously parsed from something like
+                              $PBS_NODEFILE>,
+                'entry_cmd': <string: the entry cmd to be run>,
+                'exe_cmd'  : <string: the MPI-specific model invokation command>,
+                'exit_cmd' : <string: exit cmd to be run>,
+                'env'      : <dict: containging the environment in which to run the
+                              cmds, may be None or 'None'>
+            }
+
+            The 'exe_cmd' is a form of invocation for the distribution of MPI to be used. For
+            openmpi, for example for OpenMPI, this is
+                exe_cmd: 'mpirun --host {hostnames} -np {nproc} {cmd}'
+            The variables in brackets are expanded by internal variables. The 'exe_cmd'
+            command substitutes the wrfhydropy of 'wrf_hydro.exe' convention for {cmd}.
+            The {nproc} argument is the length of the list passed in the nodes argument,
+            and the {hostnames} are the comma separated arguments in that list.
+
+            The "entry_cmd" and "exit_cmd"
+              1) can be semicolon-separated commands
+              2) where these are run depends on MPI. OpenMPI, for example, handles these
+                 on the same processor set as the model runs.
+
+    Notes:
+        Currently this is working/tested with openmpi.
+        MPT requires MPI_SHEPERD env variable and it's performance is not satisfactory so far.
+    """
+
+    obj_name = arg_dict['obj_name']
+    compose_dir = arg_dict['compose_dir']
+    team_dict = arg_dict['team_dict']
+
+    exit_statuses = {}
+    for obj in team_dict[obj_name]:
+        if type(obj) is str:
+            os.chdir(str(pathlib.Path(compose_dir) / obj))
+        else:
+            os.chdir(str(pathlib.Path(compose_dir) / obj.run_dir))
+
+        obj_pkl_file = "WrfHydroSim.pkl"
+        obj_pkl = pickle.load(open(obj_pkl_file, "rb"))
+        job = obj_pkl.jobs[0]
+
+        if job._entry_cmd is not None:
+            entry_cmds = job._entry_cmd.split(';')
+            new_entry_cmd = []
+            for cmd in entry_cmds:
+                if 'mpirun' not in cmd:
+                    new_entry_cmd.append(
+                        team_dict['exe_cmd'].format(
+                            **{
+                                'cmd': cmd,
+                                'hostname': team_dict['nodes'][0],  # only use one task
+                                'nproc': 1
+                            }
+                        )
+                    )
+                else:
+                    new_entry_cmd.append(cmd)
+            job._entry_cmd = '; '.join(new_entry_cmd)
+
+        if job._exit_cmd is not None:
+            exit_cmds = job._exit_cmd.split(';')
+            new_exit_cmd = []
+            for cmd in exit_cmds:
+                if 'mpirun' not in cmd:
+                    new_exit_cmd.append(
+                        team_dict['exe_cmd'].format(
+                            **{
+                                'cmd': cmd,
+                                'hostname': team_dict['nodes'][0],  # only use one task
+                                'nproc': 1
+                            }
+                        )
+                    )
+                else:
+                    new_exit_cmd.append(cmd)
+            job._exit_cmd = '; '.join(new_exit_cmd)
+
+        job._exe_cmd = team_dict['exe_cmd'].format(
+            **{
+                'cmd': './wrf_hydro.exe',
+                'hostname': ','.join(team_dict['nodes']),
+                'nproc': len(team_dict['nodes'])
+            }
+        )
+
+        obj_pkl.pickle(obj_pkl_file)
+        obj_pkl.run(env=team_dict['env'])
+
+        exit_statuses.update({obj: obj_pkl.jobs[0].exit_status})
+
+    return exit_statuses
+
+
 class CycleSimulation(object):
     """Class for a WRF-Hydro CycleSimulation object. The Cycle Simulation object is used to
     orchestrate a set of 'N' WRF-Hydro simulations, referred to as 'casts', which only differ
@@ -535,11 +653,50 @@ class CycleSimulation(object):
 
     def run(
         self,
-        n_concurrent: int = 1
+        n_concurrent: int = 1,
+        teams_dict: dict = None,
+        env: dict = None
     ):
         """Run the cycle of simulations.
         Args:
             n_concurrent: The number of cycle casts to run or schedule simultaneously.
+
+            teams_dict: a dict, of the following form
+                teams_dict = {
+                    '0': {
+                        'casts'  : ['cast_2010101000', 'cast_2010103000'],
+                        'nodes'    : ['hostname0'],
+                        'entry_cmd': 'pwd',
+                        'exe_cmd'  : './wrf_hydro.exe {hostnames} {nproc}',
+                        'exit_cmd' : './bogus_cmd',
+                    },
+                    '1': {
+                        'members'  : ['cast_2010103000', 'cast_2010104000'],
+                        'nodes'    : ['hostname1'],
+                        'entry_cmd': 'pwd',
+                        'exe_cmd'  : './wrf_hydro.exe {hostnames} {nproc}',
+                        'exit_cmd' : './bogus_cmd',
+                    }
+                }
+                The keys are the numbers of the teams, starting with zero.
+                'casts': list: This is a a list of casts.
+                'nodes': list: Node names parsed from something like a $PBS_NODEFILE. The
+                    length of this list is translated to {nproc}.
+                'entry_cmd': string:
+                    The 'exe_cmd' is a form of invocation for the distribution of MPI to be
+                    used. For openmpi, for example, this is
+                        exe_cmd: 'mpirun --host {hostnames} -np {nproc} {cmd}'
+                    The variables in brackets are expanded by internal variables. The 'exe_cmd'
+                    command substitutes the wrfhydropy of 'wrf_hydro.exe' convention for {cmd}.
+                    The {nproc} argument is the length of the list passed in the nodes
+                    argument, and the {hostnames} are the comma separated arguments in that
+                    list.
+                'exe_cmd': string:
+                'exit_cmd': string:
+                    The "entry_cmd" and "exit_cmd"
+                      1) can be semicolon-separated commands
+                      2) where these are run depends on MPI. OpenMPI, for example, handles
+                         these on the same processor set as the model runs.
         Returns: 0 for success.
         """
 
@@ -548,23 +705,54 @@ class CycleSimulation(object):
         path = pathlib.Path(self._compose_dir).joinpath('WrfHydroCycle.pkl')
         self.pickle(path)
 
-        if n_concurrent > 1:
+        if isinstance(teams_dict, dict):
+            # Add the env to all the teams
+            for key, value in teams_dict.items():
+                value.update(env=env)
+
+            with multiprocessing.Pool(len(teams_dict), initializer=mute) as pool:
+                exit_codes = pool.map(
+                    parallel_teams_run,
+                    (
+                        {'obj_name': 'casts',
+                         'team_dict': team_dict,
+                         'compose_dir': self._compose_dir,
+                         'env': env}
+                        for (key, team_dict) in teams_dict.items()
+                    )
+                )
+
+            # Keep around for serial testing/debugging
+            # exit_codes = [
+            #     parallel_teams_run(
+            #         {'obj_name': 'casts',
+            #          'team_dict': team_dict,
+            #          'compose_dir': self._compose_dir,
+            #          'env': env})
+            #     for (key, team_dict) in teams_dict.items()
+            # ]
+
+            exit_code = int(not all([list(ee.values())[0] == 0 for ee in exit_codes]))
+
+        elif n_concurrent > 1:
             with multiprocessing.Pool(n_concurrent, initializer=mute) as pool:
                 exit_codes = pool.map(
                     parallel_run_casts,
                     ({'cast': cc, 'compose_dir': self._compose_dir} for cc in self.casts)
                 )
+            exit_code = int(not all([ee == 0 for ee in exit_codes]))
+
         else:
             # Keep the following for debugging: Run it without pool.map
             exit_codes = [
                 parallel_run_casts({'cast': cc, 'compose_dir': self._compose_dir})
                 for cc in self.casts
             ]
+            exit_code = int(not all([ee == 0 for ee in exit_codes]))
 
         # Return to the cycle dir.
         os.chdir(self._compose_dir)
-
-        return int(not all([ee == 0 for ee in exit_codes]))
+        return exit_code
 
     def pickle(self, path: str):
         """Pickle ensemble sim object to specified file path

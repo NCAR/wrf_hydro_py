@@ -246,13 +246,14 @@ def model_dir(tmpdir):
     with model_dir_path.joinpath('configure').open('w') as f:
         f.write('# dummy configure \n')
 
+    # Arugments passed to wrf_hydro.exe are echoed to diag_hydro.00000.
     dummy_compile = (
         "#!/bin/bash \n"
         "# dummy compile \n"
         "mkdir Run \n"
         "echo '#!/bin/bash \n"
-        "echo $@ \n"
-        "echo \'The model finished successfully.......\' >  diag_hydro.00000\n"
+        "echo $@ > diag_hydro.00000\n"
+        "echo \'The model finished successfully.......\' >>  diag_hydro.00000\n"
         "exit 0' > Run/wrf_hydro.exe\n"
         "touch Run/DUMMY.TBL \n"
     )

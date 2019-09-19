@@ -19,7 +19,7 @@ from .job import Job
 from .schedulers import Scheduler
 from .simulation import Simulation
 from .ensemble import EnsembleSimulation
-from .teams import parallel_teams_run
+from .teams import parallel_teams_run, assign_teams
 
 def integer_coercable(val):
     try:
@@ -536,7 +536,10 @@ class CycleSimulation(object):
     def run(
         self,
         n_concurrent: int = 1,
-        teams_dict: dict = None,
+        teams: bool = False,
+        teams_exe_cmd: str = None,
+        teams_exe_cmd_nproc = None,
+        teams_node_file: dict = None,
         env: dict = None
     ):
         """Run the cycle of simulations.
@@ -587,32 +590,39 @@ class CycleSimulation(object):
         path = pathlib.Path(self._compose_dir).joinpath('WrfHydroCycle.pkl')
         self.pickle(path)
 
-        if isinstance(teams_dict, dict):
-            # Add the env to all the teams
-            for key, value in teams_dict.items():
-                value.update(env=env)
+        if teams:
+            if teams_exe_cmd is None:
+                raise ValueError("The teams_exe_cmd is required for using teams.")
+            
+            teams_dict = assign_teams(
+                self,
+                teams_exe_cmd=teams_exe_cmd,
+                teams_exe_cmd_nproc=teams_exe_cmd_nproc,
+                teams_node_file=teams_node_file,
+                env=env
+            )
 
-            with multiprocessing.Pool(len(teams_dict), initializer=mute) as pool:
-                exit_codes = pool.map(
-                    parallel_teams_run,
-                    (
-                        {'obj_name': 'casts',
-                         'team_dict': team_dict,
-                         'compose_dir': self._compose_dir,
-                         'env': env}
-                        for (key, team_dict) in teams_dict.items()
-                    )
-                )
+            # with multiprocessing.Pool(len(teams_dict), initializer=mute) as pool:
+            #     exit_codes = pool.map(
+            #         parallel_teams_run,
+            #         (
+            #             {'obj_name': 'casts',
+            #              'team_dict': team_dict,
+            #              'compose_dir': self._compose_dir,
+            #              'env': env}
+            #             for (key, team_dict) in teams_dict.items()
+            #         )
+            #     )
 
             # Keep around for serial testing/debugging
-            # exit_codes = [
-            #     parallel_teams_run(
-            #         {'obj_name': 'casts',
-            #          'team_dict': team_dict,
-            #          'compose_dir': self._compose_dir,
-            #          'env': env})
-            #     for (key, team_dict) in teams_dict.items()
-            # ]
+            exit_codes = [
+                parallel_teams_run(
+                    {'obj_name': 'casts',
+                     'team_dict': team_dict,
+                     'compose_dir': self._compose_dir,
+                     'env': env})
+                for (key, team_dict) in teams_dict.items()
+            ]
 
             exit_code = int(not all([list(ee.values())[0] == 0 for ee in exit_codes]))
 

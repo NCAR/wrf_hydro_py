@@ -12,6 +12,9 @@ from wrfhydropy.core.simulation import Simulation
 from wrfhydropy.core.ensemble import EnsembleSimulation
 from wrfhydropy.core.cycle import CycleSimulation
 
+test_dir = pathlib.Path(os.path.dirname(os.path.realpath(__file__)))
+node_file = test_dir / 'data/nodefile_pbs_example_copy.txt'
+
 n_members = 2
 
 
@@ -1188,6 +1191,8 @@ def test_cycle_run_parallel_teams(
         forcing_dirs=forcing_dirs
     )
     cy.add(sim)
+    job_restart._entry_cmd = 'echo mpirun entry_cmd > entry_cmd.output'
+    job_restart._exit_cmd = 'echo mpirun exit_cmd > exit_cmd.output'
     cy.add(job_restart)
     # Parallel teams test
     cy_teams = copy.deepcopy(cy)
@@ -1213,10 +1218,40 @@ def test_cycle_run_parallel_teams(
             'exit_cmd': './bogus_cmd'
         }
     }
-    cy_teams_run_success = cy_teams.run(teams_dict=teams_dict)
+    cy_teams_run_success = cy_teams.run(
+        n_concurrent=2,
+        teams=True,
+        teams_exe_cmd = ' ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
+        teams_exe_cmd_nproc = 2,
+        teams_node_file = {'pbs': node_file}
+    )
+
     assert cy_teams_run_success == 0, \
         "Some parallel team cycle casts did not run successfully."
     assert cy_dir.joinpath("WrfHydroCycle.pkl").exists()
+
+    def check_first_line(file, answer):
+        with open(file) as f:
+            first_line = f.readline()
+        assert first_line == answer
+    
+    # Check for command correctness in output files.
+    file_check = {
+        ('cast_2012121200/entry_cmd.output',
+         'cast_2012121500/entry_cmd.output',
+         'cast_2012121800/entry_cmd.output'): 'mpirun entry_cmd\n',
+        ('cast_2012121200/exit_cmd.output',
+         'cast_2012121500/exit_cmd.output',
+         'cast_2012121800/exit_cmd.output'): 'mpirun exit_cmd\n',
+        ('cast_2012121200/job_test_job_1/diag_hydro.00000',
+         'cast_2012121800/job_test_job_1/diag_hydro.00000'):
+            'mpirun --host r10i1n1,r10i1n1 -np 2 ./wrf_hydro.exe\n',
+        ('cast_2012121500/job_test_job_1/diag_hydro.00000',):
+            'mpirun --host r10i1n2,r10i1n2 -np 2 ./wrf_hydro.exe\n'
+    }
+    for tup, ans in file_check.items():
+        for file in tup:
+            check_first_line(file, ans)
 
 
 def test_cycle_self_dependent_run(

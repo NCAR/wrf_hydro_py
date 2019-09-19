@@ -13,3 +13,4 @@ bs4==0.0.1
 requests==2.20.0
 dask==0.19.4
 spotpy==1.5.6
+scipy==1.2.1

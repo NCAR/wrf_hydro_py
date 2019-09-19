@@ -9,7 +9,9 @@ from .data import collection_data_download
 from .data.evaluation_answer_reprs import *
 
 test_dir = pathlib.Path(os.path.dirname(os.path.realpath(__file__)))
+
 # The data are found here. Uses the same data as collection.
+os.chdir(str(test_dir))
 collection_data_download.download()
 
 

@@ -10,6 +10,7 @@ from .data.collection_data_answer_reprs import *
 
 test_dir = pathlib.Path(os.path.dirname(os.path.realpath(__file__)))
 
+os.chdir(str(test_dir))
 # The data are found here.
 collection_data_download.download()
 

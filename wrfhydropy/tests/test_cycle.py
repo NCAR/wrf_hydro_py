@@ -1219,7 +1219,6 @@ def test_cycle_run_parallel_teams(
         }
     }
     cy_teams_run_success = cy_teams.run(
-        n_concurrent=2,
         teams=True,
         teams_exe_cmd = ' ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
         teams_exe_cmd_nproc = 2,

@@ -528,10 +528,12 @@ class CycleSimulation(object):
             del self._ensemble
         del self._job
 
+
     def rm_casts(self):
         """Remove members from memory, replace with their paths."""
         run_dirs = [cc.run_dir for cc in self.casts]
         self.casts = run_dirs
+
 
     def run(
         self,
@@ -540,49 +542,26 @@ class CycleSimulation(object):
         teams_exe_cmd: str = None,
         teams_exe_cmd_nproc = None,
         teams_node_file: dict = None,
-        env: dict = None
+        env: dict = None,
+        teams_dict: dict = None
     ):
         """Run the cycle of simulations.
-        Args:
-            n_concurrent: The number of cycle casts to run or schedule simultaneously.
-
-            teams_dict: a dict, of the following form
-                teams_dict = {
-                    '0': {
-                        'casts'  : ['cast_2010101000', 'cast_2010103000'],
-                        'nodes'    : ['hostname0'],
-                        'entry_cmd': 'pwd',
-                        'exe_cmd'  : './wrf_hydro.exe {hostnames} {nproc}',
-                        'exit_cmd' : './bogus_cmd',
-                    },
-                    '1': {
-                        'members'  : ['cast_2010103000', 'cast_2010104000'],
-                        'nodes'    : ['hostname1'],
-                        'entry_cmd': 'pwd',
-                        'exe_cmd'  : './wrf_hydro.exe {hostnames} {nproc}',
-                        'exit_cmd' : './bogus_cmd',
-                    }
-                }
-                The keys are the numbers of the teams, starting with zero.
-                'casts': list: This is a a list of casts.
-                'nodes': list: Node names parsed from something like a $PBS_NODEFILE. The
-                    length of this list is translated to {nproc}.
-                'entry_cmd': string:
-                    The 'exe_cmd' is a form of invocation for the distribution of MPI to be
-                    used. For openmpi, for example, this is
-                        exe_cmd: 'mpirun --host {hostnames} -np {nproc} {cmd}'
-                    The variables in brackets are expanded by internal variables. The 'exe_cmd'
-                    command substitutes the wrfhydropy of 'wrf_hydro.exe' convention for {cmd}.
-                    The {nproc} argument is the length of the list passed in the nodes
-                    argument, and the {hostnames} are the comma separated arguments in that
-                    list.
-                'exe_cmd': string:
-                'exit_cmd': string:
-                    The "entry_cmd" and "exit_cmd"
-                      1) can be semicolon-separated commands
-                      2) where these are run depends on MPI. OpenMPI, for example, handles
-                         these on the same processor set as the model runs.
-        Returns: 0 for success.
+        Inputs:
+            n_concurrent: int = 1, Only used for non-team runs.
+            teams: bool = False, Use teams?
+            teams_exe_cmd: str, The mpi-specific syntax needed. For
+                example: 'mpirun --host {hostname} -np {nproc} {cmd}'
+            teams_exe_cmd_nproc: int, The number of cores per model/wrf_hydro
+                simulation to be run.
+            teams_node_file: dict = None, Optional file that acts like a node
+                file. It is not currently implemented but the key specifies the
+                scheduler format that the file follows. An example pbs node
+                file is in tests/data and this argument is used here to test
+                without a sched.
+            env: dict = None, optional envionment to pass to the run.
+            teams_dict: dict, Skip the arguments if you already have a
+                teams_dict to use (backwards compatibility)
+        Outputs: 0 for success.
         """
 
         # Save the ensemble object out to the ensemble directory before run
@@ -590,39 +569,40 @@ class CycleSimulation(object):
         path = pathlib.Path(self._compose_dir).joinpath('WrfHydroCycle.pkl')
         self.pickle(path)
 
-        if teams:
-            if teams_exe_cmd is None:
+        if teams or teams_dict is not None:
+            if teams_dict is None and teams_exe_cmd is None:
                 raise ValueError("The teams_exe_cmd is required for using teams.")
-            
-            teams_dict = assign_teams(
-                self,
-                teams_exe_cmd=teams_exe_cmd,
-                teams_exe_cmd_nproc=teams_exe_cmd_nproc,
-                teams_node_file=teams_node_file,
-                env=env
-            )
 
-            # with multiprocessing.Pool(len(teams_dict), initializer=mute) as pool:
-            #     exit_codes = pool.map(
-            #         parallel_teams_run,
-            #         (
-            #             {'obj_name': 'casts',
-            #              'team_dict': team_dict,
-            #              'compose_dir': self._compose_dir,
-            #              'env': env}
-            #             for (key, team_dict) in teams_dict.items()
-            #         )
-            #     )
+            if teams_dict is None:
+                teams_dict = assign_teams(
+                    self,
+                    teams_exe_cmd=teams_exe_cmd,
+                    teams_exe_cmd_nproc=teams_exe_cmd_nproc,
+                    teams_node_file=teams_node_file,
+                    env=env
+                )
 
-            # Keep around for serial testing/debugging
-            exit_codes = [
-                parallel_teams_run(
-                    {'obj_name': 'casts',
-                     'team_dict': team_dict,
-                     'compose_dir': self._compose_dir,
-                     'env': env})
-                for (key, team_dict) in teams_dict.items()
-            ]
+            with multiprocessing.Pool(len(teams_dict), initializer=mute) as pool:
+                exit_codes = pool.map(
+                    parallel_teams_run,
+                    (
+                        {'obj_name': 'casts',
+                         'team_dict': team_dict,
+                         'compose_dir': self._compose_dir,
+                         'env': env}
+                        for (key, team_dict) in teams_dict.items()
+                    )
+                )
+
+            # # Keep around for serial testing/debugging
+            # exit_codes = [
+            #     parallel_teams_run(
+            #         {'obj_name': 'casts',
+            #          'team_dict': team_dict,
+            #          'compose_dir': self._compose_dir,
+            #          'env': env})
+            #     for (key, team_dict) in teams_dict.items()
+            # ]
 
             exit_code = int(not all([list(ee.values())[0] == 0 for ee in exit_codes]))
 

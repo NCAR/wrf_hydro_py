@@ -408,51 +408,29 @@ class EnsembleSimulation(object):
     def run(
         self,
         n_concurrent: int = 1,
-        teams_dict: dict = None,
-        env: dict = None
+        teams: bool = False,
+        teams_exe_cmd: str = None,
+        teams_exe_cmd_nproc = None,
+        teams_node_file: dict = None,
+        env: dict = None,
+        teams_dict: dict = None
     ):
         """Run the ensemble of simulations.
-        Args:
-            n_concurrent: The number of ensemble members to run or schedule simultaneously.
-            teams_dict: a dict, of the following form
-                teams_dict = {
-                    '0': {
-                        'members'  : ['member_000', 'member_002'],
-                        'nodes'    : ['hostname0', 'hostname0'],
-                        'entry_cmd': 'pwd',
-                        'exe_cmd'  : './wrf_hydro.exe {hostnames} {nproc}',
-                        'exit_cmd' : './bogus_cmd',
-                        'env'      : {environment dict}
-                    },
-                    '1': {
-                        'members'  : ['member_001', 'member_003'],
-                        'nodes'    : ['hostname1', 'hostname1'],
-                        'entry_cmd': 'pwd',
-                        'exe_cmd'  : './wrf_hydro.exe {hostnames} {nproc}',
-                        'exit_cmd' : './bogus_cmd',
-                        'env'      : {environment dict}
-                    }
-                }
-                The keys are the numbers of the teams, starting with zero.
-                'members': list: This is a four member ensemble (member_000 - member_004).
-                'nodes': list: Node names parsed from something like a $PBS_NODEFILE. The
-                    length of this list is translated to {nproc}.
-                'entry_cmd': string:
-                    The 'exe_cmd' is a form of invocation for the distribution of MPI to be
-                    used. For openmpi, for example, this is
-                        exe_cmd: 'mpirun --host {hostnames} -np {nproc} {cmd}'
-                    The variables in brackets are expanded by internal variables. The 'exe_cmd'
-                    command substitutes the wrfhydropy of 'wrf_hydro.exe' convention for {cmd}.
-                    The {nproc} argument is the length of the list passed in the nodes
-                    argument, and the {hostnames} are the comma separated arguments in that
-                    list.
-                'exe_cmd': string:
-                'exit_cmd': string:
-                    The "entry_cmd" and "exit_cmd"
-                      1) can be semicolon-separated commands
-                      2) where these are run depends on MPI. OpenMPI, for example, handles
-                         these on the same processor set as the model runs.
-
+        Inputs:
+            n_concurrent: int = 1, Only used for non-team runs.
+            teams: bool = False, Use teams?
+            teams_exe_cmd: str, The mpi-specific syntax needed. For
+                example: 'mpirun --host {hostname} -np {nproc} {cmd}'
+            teams_exe_cmd_nproc: int, The number of cores per model/wrf_hydro
+                simulation to be run.
+            teams_node_file: dict = None, Optional file that acts like a node
+                file. It is not currently implemented but the key specifies the
+                scheduler format that the file follows. An example pbs node
+                file is in tests/data and this argument is used here to test
+                without a sched.
+            env: dict = None, optional envionment to pass to the run.
+            teams_dict: dict, Skip the arguments if you already have a
+                teams_dict to use (backwards compatibility)
         Returns: 0 for success.
         """
         ens_dir = os.getcwd()
@@ -479,7 +457,7 @@ class EnsembleSimulation(object):
                     )
                 )
 
-            # Keep around for serial testing/debugging
+            # # Keep around for serial testing/debugging
             # exit_codes = [
             #     parallel_teams_run(
             #         {'obj_name': 'members',

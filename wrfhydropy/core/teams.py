@@ -7,54 +7,61 @@ import pickle
 import wrfhydropy
 
 def parallel_teams_run(arg_dict):
-    """Parallelizable function for teams to run an EnsembleSimuation.
+    """
+    Parallelizable function to run simulations across nodes.
+    On the master node, python runs multiprocessing. Each separate process
+    is a "team". Multiprocessing makes MPI calls with a specific syntax to
+    run the MPI executable on specfific (potentially other) nodes. This
+    provides 2 levels of parallelism.
 
-    This function is called (in parallel) once for each team. (First level of parallelism
-    is from python multiprocessing.
-    This function (a team) sequentially runs (loops over) the ensemble members for which
-    the team is responsible.
-    This function (a team) makes a system call using MPI. (The second level of parallelism).
+    This function is called (in parallel) once for each team by
+    multiprocessing. Each team runs its set of simulations sequentially but
+    each simulation it runs is parallel via MPI.
 
-    # TODO: extract this to be used by both cycles and ensembles.
-
-    Arguments:
+    Input:
         arg_dict:
             arg_dict == {
-               'obj_name'   : string, either "member" or "cast" (or some other object),
-                              matches the object name used in the team_dict below (first
-                              argument)
-               'compose_dir': <pathlib.Path absolute path to the cycle top level/compse,
-                               dir where the individual cycle dirs are found>,
-               'team_dict'  : <dict: the information needed for the team, see below>
+               'obj_name'   : string, either "member" or "cast" (or some other
+                              object), matches the object name used in the
+                              team_dict below (first argument)
+               'compose_dir': <pathlib.Path absolute path to the cycle top
+                              level/compse, dir where the individual cycle dirs
+                              are found>,
+               'team_dict'  : <dict: the information needed for the team, see
+                              below>
             }
-            where
+        where:
             team_dict == {
-                'casts'    : <list: length n_team, groups of cast run_dirs>
-                'nodes'    : <list: the nodes previously parsed from something like
-                              $PBS_NODE_FILE>,
-                'entry_cmd': <string: the entry cmd to be run>,
-                'exe_cmd'  : <string: the MPI-specific model invokation command>,
-                'exit_cmd' : <string: exit cmd to be run>,
-                'env'      : <dict: containging the environment in which to run the
-                              cmds, may be None or 'None'>
+                object_name: key/name is either 'members' or 'casts', the value
+                             is a <list: groups of simulations to run either
+                              simulation objects or their run_dirs>
+                'nodes'    : <list: the nodes previously parsed from something
+                               like$PBS_NODE_FILE>,
+                'exe_cmd'  : <string: the MPI-specific model invokation
+                             command>,
+                'env'      : <dict: containging the environment in which to run
+                             the cmds, may be None or 'None'>
             }
 
-            The 'exe_cmd' is a form of invocation for the distribution of MPI to be used. For
-            openmpi, for example for OpenMPI, this is
-                exe_cmd: 'mpirun --host {hostnames} -np {nproc} {cmd}'
-            The variables in brackets are expanded by internal variables. The 'exe_cmd'
-            command substitutes the wrfhydropy of 'wrf_hydro.exe' convention for {cmd}.
-            The {nproc} argument is the length of the list passed in the nodes argument,
-            and the {hostnames} are the comma separated arguments in that list.
+        The 'exe_cmd' is a form of invocation for the distribution of MPI to be
+        used. For openmpi, for example for OpenMPI, this is
+            exe_cmd: 'mpirun --host {hostnames} -np {nproc} {cmd}'
+        The variables in brackets are expanded by internal variables. The
+        'exe_cmd' command substitutes the wrfhydropy of 'wrf_hydro.exe'
+        convention for {cmd}.
+        The {nproc} argument is the length of the list passed in the nodes
+        argument, and the {hostnames} are the comma separated arguments in that
+        list.
 
-            The "entry_cmd" and "exit_cmd"
-              1) can be semicolon-separated commands
-              2) where these are run depends on MPI. OpenMPI, for example, handles these
-                 on the same processor set as the model runs.
+        The "entry_cmd" and "exit_cmd" ARE TAKEN FROM THE JOB object.
+          1) can be semicolon-separated commands
+          2) where these are run depends on MPI. OpenMPI, for example, handles
+            these on the same processor set as the model runs.
 
     Notes:
-        Currently this is working/tested with openmpi.
-        MPT requires MPI_SHEPERD env variable and it's performance is not satisfactory so far.
+        Currently this is working/tested with openmpi and intel mpi.
+        MPT requires MPI_SHEPERD env variable and it's performance is not
+            satisfactory so far.
     """
 
     obj_name = arg_dict['obj_name']
@@ -133,7 +140,24 @@ def assign_teams(
     teams_node_file: dict = None,
     env: dict = None    
 ) -> dict:
-
+    """
+    Assign teams for parallel runs across nodes.
+    Inputs:
+        obj: The ensemble or cycle object, containin lists of members or casts
+            to be run.
+        teams_exe_cmd: str, The mpi-specific syntax needed. For example
+            'mpirun --host {hostname} -np {nproc} {cmd}'
+        teams_exe_cmd_nproc: int, The number of cores per model/wrf_hydro
+            simulation to be run.
+        teams_node_file: dict = None, Optional file that acts like a node file.
+            It is not currently implemented but the key specifies the scheduler
+            format that the file follows. An example pbs node file is in
+            tests/data and this argument is used here to test without a sched.
+        env: dict = None, optional envionment to pass to the run.
+    Outputs:
+        dict: the teams_dict to be used by parallel_teams_run. See requirements
+            above.
+    """
     if 'casts' in dir(obj): 
         object_list = obj.casts
         object_name = 'casts'

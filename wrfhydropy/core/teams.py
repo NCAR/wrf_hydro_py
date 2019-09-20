@@ -165,12 +165,12 @@ def assign_teams(
         object_list = obj.members
         object_name = 'members'
 
-    if 'pbs' in teams_node_file.keys():
-        pbs_node_file = teams_node_file['pbs']
+    if isinstance(teams_node_file, dict):
+        if 'pbs' in teams_node_file.keys():
+            pbs_node_file = teams_node_file['pbs']
     else:
-        pbs_node_file = os.environ.get('PBS_NODE_FILE')
-
-    # Merge other schduler files here.
+        pbs_node_file = os.environ.get('PBS_NODEFILE')
+        # Merge other schduler files here.
 
     n_runs = len(object_list)
 
@@ -204,6 +204,7 @@ def assign_teams(
         # Homogonization step here to avoid communication across nodes...
         # Sorting necessary for testing.
         unique_nodes = sorted([node.split('.')[0] for node in list(set(pbs_nodes))])
+        print("\n*** Team " + object_name + ' ***')
         print("Running on nodes: " + ', '.join(unique_nodes))
         del pbs_nodes
         pbs_nodes = []
@@ -216,7 +217,7 @@ def assign_teams(
         node_team_seq.sort(key = operator.itemgetter(1))
         team_groups = itertools.groupby(node_team_seq, operator.itemgetter(1))
         team_nodes = [[item[0] for item in data] for (key, data) in team_groups]
-        
+
         # Get the entry and exit commands from the job on the first cast/member
         # Foolery for in/out of memory
         if isinstance(object_list[0], str):
@@ -244,10 +245,11 @@ def assign_teams(
 
         print('\nPBS_NODE_FILE present: ')
         print('    ' + str(len(unique_nodes)) + ' nodes with')
-        print('    ' + str(n_total_processors) + ' processors requested.')
+        print('    ' + str(n_total_processors) + ' TOTAL processors requested.')
 
-        print('\nTeams parallelization over:')
-        print('    ' + str(n_teams) + ' concurrent teams each using')
-        print('    ' + str(teams_exe_cmd_nproc) + ' processors.')    
+        print('\nTeams parallelization:')
+        print('    ' + str(n_runs) + ' total ' + object_name)
+        print('    ' + str(n_teams) + ' concurrent teams using')
+        print('    ' + str(teams_exe_cmd_nproc) + ' processors each.')
 
         return teams_dict

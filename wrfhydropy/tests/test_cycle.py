@@ -18,6 +18,12 @@ node_file = test_dir / 'data/nodefile_pbs_example_copy.txt'
 n_members = 2
 
 
+def check_first_line(file, answer):
+    with open(file) as f:
+        first_line = f.readline()
+        assert first_line == answer
+
+
 def sub_tmpdir(the_string, tmpdir, pattern='<<tmpdir>>'):
     return the_string.replace(pattern, str(tmpdir))
 
@@ -1194,63 +1200,52 @@ def test_cycle_run_parallel_teams(
     job_restart._entry_cmd = 'echo mpirun entry_cmd > entry_cmd.output'
     job_restart._exit_cmd = 'echo mpirun exit_cmd > exit_cmd.output'
     cy.add(job_restart)
-    # Parallel teams test
-    cy_teams = copy.deepcopy(cy)
-    cy_dir = pathlib.Path(tmpdir).joinpath('cy_team')
-    os.chdir(tmpdir)
-    os.mkdir(str(cy_dir))
-    os.chdir(str(cy_dir))
-    cy_teams.compose()
-    # cy_teams.compose(rm_casts_from_memory=False)
-    teams_dict = {
-        '0': {
-            'casts': ['cast_2012121200', 'cast_2012121800'],
-            'nodes': ['hostname0'],
-            'entry_cmd': 'echo',
-            'exe_cmd': './wrf_hydro.exe {hostname} {nproc}',
-            'exit_cmd': './bogus_cmd'
-        },
-        '1': {
-            'casts': ['cast_2012121500'],
-            'nodes': ['hostname1'],
-            'entry_cmd': 'pwd',
-            'exe_cmd': './wrf_hydro.exe {hostname} {nproc}',
-            'exit_cmd': './bogus_cmd'
+
+    # Parallel teams test - test casts both in memory and not
+    cy_teams_to_test = {
+        'cy_teams_not_memory': copy.deepcopy(cy),
+        'cy_teams_memory': copy.deepcopy(cy)
+    }
+
+    for key, cy_teams in cy_teams_to_test.items():
+
+        cy_dir = pathlib.Path(tmpdir).joinpath(key)
+        os.chdir(tmpdir)
+        os.mkdir(str(cy_dir))
+        os.chdir(str(cy_dir))
+
+        if key == 'cy_teams_not_memory':
+            cy_teams.compose()
+        else:
+            cy_teams.compose(rm_casts_from_memory=False)
+
+        cy_teams_run_success = cy_teams.run(
+            teams=True,
+            teams_exe_cmd = ' ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
+            teams_exe_cmd_nproc = 2,
+            teams_node_file = {'pbs': node_file}
+        )
+        assert cy_teams_run_success == 0, \
+            "Some parallel team cycle casts did not run successfully."
+        assert cy_dir.joinpath("WrfHydroCycle.pkl").exists()
+
+        # Check for command correctness in output files.
+        file_check = {
+            ('cast_2012121200/entry_cmd.output',
+             'cast_2012121500/entry_cmd.output',
+             'cast_2012121800/entry_cmd.output'): 'mpirun entry_cmd\n',
+            ('cast_2012121200/exit_cmd.output',
+             'cast_2012121500/exit_cmd.output',
+             'cast_2012121800/exit_cmd.output'): 'mpirun exit_cmd\n',
+            ('cast_2012121200/job_test_job_1/diag_hydro.00000',
+             'cast_2012121800/job_test_job_1/diag_hydro.00000'):
+                'mpirun --host r10i1n1,r10i1n1 -np 2 ./wrf_hydro.exe\n',
+            ('cast_2012121500/job_test_job_1/diag_hydro.00000',):
+                'mpirun --host r10i1n2,r10i1n2 -np 2 ./wrf_hydro.exe\n'
         }
-    }
-    cy_teams_run_success = cy_teams.run(
-        teams=True,
-        teams_exe_cmd = ' ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
-        teams_exe_cmd_nproc = 2,
-        teams_node_file = {'pbs': node_file}
-    )
-
-    assert cy_teams_run_success == 0, \
-        "Some parallel team cycle casts did not run successfully."
-    assert cy_dir.joinpath("WrfHydroCycle.pkl").exists()
-
-    def check_first_line(file, answer):
-        with open(file) as f:
-            first_line = f.readline()
-        assert first_line == answer
-    
-    # Check for command correctness in output files.
-    file_check = {
-        ('cast_2012121200/entry_cmd.output',
-         'cast_2012121500/entry_cmd.output',
-         'cast_2012121800/entry_cmd.output'): 'mpirun entry_cmd\n',
-        ('cast_2012121200/exit_cmd.output',
-         'cast_2012121500/exit_cmd.output',
-         'cast_2012121800/exit_cmd.output'): 'mpirun exit_cmd\n',
-        ('cast_2012121200/job_test_job_1/diag_hydro.00000',
-         'cast_2012121800/job_test_job_1/diag_hydro.00000'):
-            'mpirun --host r10i1n1,r10i1n1 -np 2 ./wrf_hydro.exe\n',
-        ('cast_2012121500/job_test_job_1/diag_hydro.00000',):
-            'mpirun --host r10i1n2,r10i1n2 -np 2 ./wrf_hydro.exe\n'
-    }
-    for tup, ans in file_check.items():
-        for file in tup:
-            check_first_line(file, ans)
+        for tup, ans in file_check.items():
+            for file in tup:
+                check_first_line(file, ans)
 
 
 def test_cycle_self_dependent_run(
@@ -1293,3 +1288,89 @@ def test_cycle_self_dependent_run(
     # cy_run_success = cy_parallel.run(n_concurrent=2)
     # assert cy_run_success == 0, \
     #     "Some parallel cycle casts did not run successfully."
+
+
+def test_cycle_ensemble_run(
+    ensemble,
+    job_restart,
+    scheduler,
+    tmpdir,
+    capfd,
+    init_times,
+    restart_dirs_ensemble
+):
+    # Valid force dir exercise.
+    cy = CycleSimulation(
+        init_times=init_times,
+        restart_dirs=restart_dirs_ensemble,
+        ncores=1,
+        forcing_dirs=[
+            ['.', '../dummy_extant_dir'],
+            [-72, '../dummy_extant_dir'],
+            [-72, '../dummy_extant_dir']
+        ]
+    )
+    job_restart._entry_cmd = 'echo mpirun entry_cmd > entry_cmd.output'
+    job_restart._exit_cmd = 'echo mpirun exit_cmd > exit_cmd.output'
+    cy.add(job_restart)
+    cy.add(ensemble)
+
+    # Parallel teams test - test casts both in memory and not
+    cy_teams_to_test = {
+        'cy_teams_not_memory': copy.deepcopy(cy),
+        'cy_teams_memory': copy.deepcopy(cy)
+    }
+
+    for key, cy_teams in cy_teams_to_test.items():
+
+        cy_dir = pathlib.Path(tmpdir).joinpath(key)
+        os.chdir(tmpdir)
+        os.mkdir(str(cy_dir))
+        os.chdir(str(cy_dir))
+        cy_dir.joinpath('../dummy_extant_dir').touch()
+
+        if key == 'cy_teams_not_memory':
+            cy_teams.compose()
+        else:
+            cy_teams.compose(rm_casts_from_memory=False)
+
+        cy_teams_run_success = cy_teams.run(
+            teams=True,
+            teams_exe_cmd = (
+                ' ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}'),
+            teams_exe_cmd_nproc = 2,
+            teams_node_file = {'pbs': node_file}
+        )
+        assert cy_teams_run_success == 0, \
+            "Some parallel team cycle casts did not run successfully."
+        assert cy_dir.joinpath("WrfHydroCycle.pkl").exists()
+
+        # Check for command correctness in output files.
+        file_check = {
+            ('cast_2012121200/member_000/entry_cmd.output',
+             'cast_2012121200/member_001/entry_cmd.output',
+             'cast_2012121500/member_000/entry_cmd.output',
+             'cast_2012121500/member_001/entry_cmd.output',
+             'cast_2012121800/member_000/entry_cmd.output',
+             'cast_2012121800/member_001/entry_cmd.output'):
+                'mpirun entry_cmd\n',
+            ('cast_2012121200/member_000/exit_cmd.output',
+             'cast_2012121200/member_001/exit_cmd.output',
+             'cast_2012121500/member_000/exit_cmd.output',
+             'cast_2012121500/member_001/exit_cmd.output',
+             'cast_2012121800/member_000/exit_cmd.output',
+             'cast_2012121800/member_001/exit_cmd.output'):
+                'mpirun exit_cmd\n',
+            ('cast_2012121200/member_000/job_test_job_1/diag_hydro.00000',
+             'cast_2012121200/member_001/job_test_job_1/diag_hydro.00000',
+             'cast_2012121800/member_000/job_test_job_1/diag_hydro.00000',
+             'cast_2012121800/member_001/job_test_job_1/diag_hydro.00000'
+            ):
+                'mpirun --host r10i1n1,r10i1n1 -np 2 ./wrf_hydro.exe\n',
+            ('cast_2012121500/member_000/job_test_job_1/diag_hydro.00000',
+             'cast_2012121500/member_001/job_test_job_1/diag_hydro.00000'):
+                'mpirun --host r10i1n2,r10i1n2 -np 2 ./wrf_hydro.exe\n'
+        }
+        for tup, ans in file_check.items():
+            for file in tup:
+                check_first_line(file, ans)

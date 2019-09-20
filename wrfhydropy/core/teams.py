@@ -6,17 +6,47 @@ import pathlib
 import pickle
 import wrfhydropy
 
+
+def set_cycle_ens_sim_jobs(ens_obj, job):
+    members = ens_obj.members
+    for mem in members:
+        # Currently these are always strings, never in memory.
+        if isinstance(mem, str):
+            pkl_file = ens_obj._compose_dir / (mem + '/WrfHydroSim.pkl')
+            sim = pickle.load(pkl_file.open('rb'))
+            sim.jobs[0]._entry_cmd = job._entry_cmd
+            sim.jobs[0]._exe_cmd = job._exe_cmd
+            sim.jobs[0]._exit_cmd = job._exit_cmd
+            sim.pickle(pkl_file)
+
+
+def get_cycle_ens_sim_job_exits(cycle_obj):
+    members = cycle_obj.members
+    statuses = {}
+    for mem in members:
+        pkl_file = cycle_obj._compose_dir / (mem + '/WrfHydroSim.pkl')
+        sim = pickle.load(pkl_file.open('rb'))
+        statuses.update({pkl_file: sim.jobs[0].exit_status})
+    success = all([value == 0 for key, value in statuses.items()])
+    if success:
+        return 0
+    else:
+        return 1
+
+
 def parallel_teams_run(arg_dict):
     """
     Parallelizable function to run simulations across nodes.
     On the master node, python runs multiprocessing. Each separate process
-    is a "team". Multiprocessing makes MPI calls with a specific syntax to
-    run the MPI executable on specfific (potentially other) nodes. This
-    provides 2 levels of parallelism.
+    is a "team" of simulations to run. Multiprocessing makes MPI calls with
+    a specific syntax to run the MPI executable on specfific (potentially
+    other) nodes. This provides 2 levels of parallelism.
 
     This function is called (in parallel) once for each team by
     multiprocessing. Each team runs its set of simulations sequentially but
-    each simulation it runs is parallel via MPI.
+    each simulation it runs is parallel via MPI. (In the case of
+    ensemble-cycles each team runs an ensemble but the ensemble runs its
+    members sequentially.)
 
     Input:
         arg_dict:
@@ -75,7 +105,18 @@ def parallel_teams_run(arg_dict):
         else:
             os.chdir(str(pathlib.Path(compose_dir) / obj.run_dir))
 
-        object_pkl_file = "WrfHydroSim.pkl"
+        # The cycle ensemble has an extra level of ensemble between the casts and the sims.
+        # An ensemble and a non-ensemble-cycle have sim objects at this level
+        have_cycle_ens = False
+        object_pkl_file = pathlib.Path("WrfHydroSim.pkl")
+        if not object_pkl_file.exists():
+            # But a cycle ensemble will have ensembles at this level....
+            have_cycle_ens = True
+            object_pkl_file = pathlib.Path("WrfHydroEns.pkl")
+        if not object_pkl_file.exists():
+            raise FileNotFoundError(
+                "No appropriate pickle object for running " + obj_name + ".")
+
         object_pkl = pickle.load(open(object_pkl_file, "rb"))
         job = object_pkl.jobs[0]
 
@@ -126,10 +167,20 @@ def parallel_teams_run(arg_dict):
         )
 
         object_pkl.pickle(object_pkl_file)
+        if have_cycle_ens:
+            # An ensemble-cycle neeeds the job components set on the simulations.
+            # This object is acutally an ensemble...
+            set_cycle_ens_sim_jobs(object_pkl, job)
+
         object_pkl.run(env=team_dict['env'])
 
-        exit_statuses.update({obj: object_pkl.jobs[0].exit_status})
+        if have_cycle_ens:
+            # An ensemble-cycle neeeds the job components set on the simulations.
+            exit_status = get_cycle_ens_sim_job_exits(object_pkl)
+        else:
+            exit_status = object_pkl.jobs[0].exit_status
 
+    exit_statuses.update({obj: exit_status})
     return exit_statuses
 
 
@@ -221,7 +272,14 @@ def assign_teams(
         # Get the entry and exit commands from the job on the first cast/member
         # Foolery for in/out of memory
         if isinstance(object_list[0], str):
+            # An ensemble and a non-ensemble-cycle have sim objects at this level
             pkl_file = obj._compose_dir / (object_list[0] + '/WrfHydroSim.pkl')
+            if not pkl_file.exists():
+                # But a cycle ensemble will have ensembles at this level....
+                pkl_file = obj._compose_dir / (object_list[0] + '/WrfHydroEns.pkl')
+            if not pkl_file.exists():
+                raise FileNotFoundError(
+                    "No appropriate pickle object for running " + object_name + ".")
             jobs = pickle.load(pkl_file.open('rb')).jobs
         else:
             jobs = object_list[0].jobs

@@ -4,6 +4,7 @@ import operator
 import os
 import pathlib
 import pickle
+from pprint import pprint
 import wrfhydropy
 
 
@@ -309,5 +310,9 @@ def assign_teams(
         print('    ' + str(n_runs) + ' total ' + object_name)
         print('    ' + str(n_teams) + ' concurrent teams using')
         print('    ' + str(teams_exe_cmd_nproc) + ' processors each.')
+
+        print('\nTeams dict:')
+        pprint(teams_dict)
+        print('\n')
 
         return teams_dict

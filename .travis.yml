@@ -5,7 +5,7 @@ cache: bundler
 notifications:
   email: false
 python:
-    - "3.6"
+    - "3.6-dev"
 before_install:
     - sudo add-apt-repository ppa:remik-ziemlinski/nccmp -y
     - sudo apt-get update

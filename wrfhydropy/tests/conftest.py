@@ -172,12 +172,14 @@ def model_dir(tmpdir):
     model_dir_path = pathlib.Path(tmpdir).joinpath('wrf_hydro_nwm_public/trunk/NDHMS')
     model_dir_path.mkdir(parents=True)
 
-    # Make namelist patch files
+    # Make namelist files
     hrldas_namelist = {
         "base": {
             "noahlsm_offline": {
                 "btr_option": 1,
                 "canopy_stomatal_resistance_option": 1,
+                'restart_frequency_hours': 24,
+                'output_timestep': 86400
             },
             "wrf_hydro_offline": {
                 "forc_typ": "NULL_specified_in_domain.json"
@@ -196,6 +198,8 @@ def model_dir(tmpdir):
                 "chanobs_domain": 0,
                 "chanrtswcrt": 1,
                 "chrtout_domain": 1,
+                'rst_dt': 1440,
+                'out_dt': 1440
             },
             "nudging_nlist": {
                 "maxagepairsbiaspersist": 3,
@@ -247,6 +251,7 @@ def model_dir(tmpdir):
         "# dummy compile \n"
         "mkdir Run \n"
         "echo '#!/bin/bash \n"
+        "echo $@ \n"
         "echo \'The model finished successfully.......\' >  diag_hydro.00000\n"
         "exit 0' > Run/wrf_hydro.exe\n"
         "touch Run/DUMMY.TBL \n"
@@ -320,6 +325,7 @@ def job_restart():
         model_start_time='1984-10-14',
         model_end_time='2017-01-04',
         restart=True,
+        restart_file_time='2013-10-13',
         exe_cmd='./wrf_hydro.exe',
         entry_cmd='bogus entry cmd',
         exit_cmd='bogus exit cmd'
@@ -349,13 +355,17 @@ def sim_output(tmpdir, ds_1d, ds_1d_has_nans, ds_2d):
     sim_out_dir.mkdir(parents=True)
 
     # Make a list of DOMAIN filenames to create
-    file_names = ['CHRTOUT_DOMAIN1_TEST',
-                  'CHRTOUT_GRID1_TEST'
-                  'CHANOBS_TEST',
-                  'LAKEOUT_TEST',
-                  'HYDRO_RST_TEST',
-                  'RESTART_TEST',
-                  'nudgingLastObs_TEST']
+    file_names = [
+        'CHRTOUT_DOMAIN1_TEST',
+        'CHRTOUT_GRID1_TEST'
+        'CHANOBS_TEST',
+        'LAKEOUT_TEST',
+        'HYDRO_RST_TEST',
+        'RESTART_TEST',
+        'nudgingLastObs_TEST',
+        '.RTOUT_',
+        'LDASOUT'
+    ]
 
     for counter in range(3):
         for file in file_names:

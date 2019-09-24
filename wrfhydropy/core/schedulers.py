@@ -9,7 +9,7 @@ class Scheduler(ABC):
         super().__init__()
 
     @abstractmethod
-    def schedule(self,jobs):
+    def schedule(self, jobs):
         pass
 
 
@@ -19,22 +19,25 @@ class PBSCheyenne(Scheduler):
     def __init__(
             self,
             account: str,
-            email_who: str = None,
-            email_when: str = 'abe',
-            nproc: int = 216,
-            nnodes: int = 6,
+            nproc: int,
+            nnodes: int,
+            mem: int = None,
             ppn: int = None,
             queue: str = 'regular',
-            walltime: str = "12:00:00"):
+            walltime: str = "12:00:00",
+            email_who: str = None,
+            email_when: str = 'abe'
+    ):
         """Initialize an PBSCheyenne object.
         Args:
             account: The account string
-            email_who: Email address for PBS notifications
-            email_when: PBS email frequency options. Options include 'a' for on abort,
-            'b' for before each job, and 'e' for after each job.
             nproc: Number of processors to request
             nnodes: Number of nodes to request
             ppn: Number of processors per node
+            mem: Memory in GB usage/request on node (109 for fat nodes).
+            email_who: Email address for PBS notifications
+            email_when: PBS email frequency options. Options include 'a' for on abort,
+            'b' for before each job, and 'e' for after each job.
             queue: The queue to use, options are 'regular', 'premium', and 'shared'
             walltime: The wall clock time in HH:MM:SS format, max time is 12:00:00
         """
@@ -48,19 +51,16 @@ class PBSCheyenne(Scheduler):
 
         # Scheduler options dict
         # TODO: Make this more elegant than hard coding for maintenance sake
-        self.scheduler_opts = {'account':account,
-                               'email_when':email_when,
-                               'email_who':email_who,
-                               'queue':queue,
-                               'walltime':walltime}
+        self.scheduler_opts = {
+            'account': account,
+            'email_when': email_when,
+            'email_who': email_who,
+            'queue': queue,
+            'walltime': walltime,
+            'mem': mem
+        }
 
-        # Setup exe cmd, will overwrite job exe cmd
-        if self.scheduler_opts['queue'] == 'shared':
-            self._exe_cmd = 'mpirun -np {0} ./wrf_hydro.exe'.format(self.nproc)
-        else:
-            self._exe_cmd = 'mpiexec_mpt ./wrf_hydro.exe'
-
-    def schedule(self,jobs: list):
+    def schedule(self, jobs: list):
         """Schedule one or more jobs using the scheduler scheduler
             Args:
                 jobs: list of jobs to schedule
@@ -82,38 +82,34 @@ class PBSCheyenne(Scheduler):
         pbs_jids = []
         pbs_scripts = []
 
-        qsub_str = '/bin/bash -c "'
+        qsub_str = "/bin/bash -c '"
         for job_num, option in enumerate(jobs):
 
             # This gets the pbs script name and pbs jid for submission
             # the obs jid is stored in a list so that the previous jid can be retrieved for
             # dependency
             job_id = jobs[job_num].job_id
-            pbs_scripts.append(str(jobs[job_num].job_dir) + '/job_' + job_id + '.pbs')
-            pbs_jids.append('job_' + job_id)
+            pbs_scripts.append(str(jobs[job_num].job_dir) + "/job_" + job_id + ".pbs")
+            pbs_jids.append("job_" + job_id)
 
             # If first job, schedule using hold
             if job_num == 0:
                 qsub_str += pbs_jids[job_num] + "=`qsub -h " + pbs_scripts[job_num] + "`;"
             # Else schedule using job dependency on previous pbs jid
             else:
-                qsub_str += pbs_jids[job_num] + "=`qsub -W depend=afterok:$" + pbs_jids[
-                    job_num-1] + " " + pbs_scripts[job_num] + "`;"
+                qsub_str += pbs_jids[job_num] + "=`qsub -W depend=afterok:${" + pbs_jids[
+                    job_num-1] + "} " + pbs_scripts[job_num] + "`;"
 
-        qsub_str += 'qrls \$' + pbs_jids[0] + ";"
-        qsub_str += '"'
+        qsub_str += "qrls ${" + pbs_jids[0] + "};"
+        qsub_str += "'"
 
         # Just for debugging purposes
-        print(qsub_str)
+        print("qsub_str: ", qsub_str)
         # This stacks up dependent jobs in PBS in the same order as the job list
         subprocess.run(shlex.split(qsub_str),
                        cwd=str(current_dir))
 
-        # This releases the first job and triggers PBS to start the job sequence
-        subprocess.run(shlex.split('qrls $' + pbs_jids[0]),
-                       cwd=str(current_dir))
-
-    def _write_job_pbs(self,jobs):
+    def _write_job_pbs(self, jobs):
         """Private method to write bash PBS scripts for submitting each job """
         import copy
         import sys
@@ -140,9 +136,12 @@ class PBSCheyenne(Scheduler):
             jobstr += "#PBS -l walltime={0}\n".format(self.scheduler_opts['walltime'])
             jobstr += "\n"
 
-            prcstr = "select={0}:ncpus={1}:mpiprocs={1}\n"
+            prcstr = "select={0}:ncpus={1}:mpiprocs={1}"
             prcstr = prcstr.format(self.nnodes, self.ppn)
-
+            if self.scheduler_opts['mem'] is not None:
+                prcstr = prcstr + ":mem={0}GB"
+                prcstr = prcstr.format(self.scheduler_opts['mem'])
+            prcstr = prcstr + "\n"
 
             jobstr += "#PBS -l " + prcstr
             jobstr += "\n"
@@ -168,16 +167,21 @@ class PBSCheyenne(Scheduler):
             if self.scheduler_opts['queue'] == 'share':
                 jobstr += "export MPI_USE_ARRAY=false\n"
 
-            jobstr += '{0} run_job.py --job_id {1}\n'.format(python_path, job.job_id)
-            jobstr += 'exit $?\n'
+            jobstr += "{0} run_job.py --job_id {1}\n".format(python_path, job.job_id)
+            jobstr += "exit $?\n"
 
-            pbs_file = job.job_dir.joinpath('job_' + job.job_id + '.pbs')
+            pbs_file = job.job_dir.joinpath("job_" + job.job_id + ".pbs")
             with pbs_file.open(mode='w') as f:
                 f.write(jobstr)
 
             # Write the python run script for the job
-            # Overwrite job exe cmd with scheduler exe cmd
-            job._exe_cmd = self._exe_cmd
+            if '{nproc}' in job._exe_cmd:
+                # If the job exe uses "nproc" then apply the schedulers value.
+                job._exe_cmd = job._exe_cmd.format(**{'nproc': self.nproc})
+            else:
+                # regression tests use "{0}" format, try that here too
+                job._exe_cmd = job._exe_cmd.format(self.nproc)
+
             job._write_run_script()
 
     def _solve_nodes_cores(self):
@@ -221,4 +225,3 @@ class PBSCheyenne(Scheduler):
     @ppn.setter
     def ppn(self, value):
         self._ppn = value
-

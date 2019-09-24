@@ -10,7 +10,7 @@ import warnings
 import xarray as xr
 
 from wrfhydropy.core.ioutils import \
-    open_nwmdataset, WrfHydroTs, WrfHydroStatic, check_input_files, nwm_forcing_to_ldasin
+    open_wh_dataset, WrfHydroTs, WrfHydroStatic, check_input_files, nwm_forcing_to_ldasin
 
 from wrfhydropy.core.namelist import JSONNamelist
 
@@ -50,9 +50,9 @@ def ds_timeseries(tmpdir):
     return ts_dir
 
 
-def test_open_nwmdataset_no_forecast(ds_timeseries):
+def test_open_wh_dataset_no_forecast(ds_timeseries):
     ds_paths = list(ds_timeseries.rglob('*.nc'))
-    the_ds = open_nwmdataset(
+    the_ds = open_wh_dataset(
         paths=ds_paths,
         chunks=None,
         forecast=False
@@ -68,9 +68,9 @@ def test_open_nwmdataset_no_forecast(ds_timeseries):
                                                     dtype='datetime64[ns]'))
 
 
-def test_open_nwmdataset_forecast(ds_timeseries):
+def test_open_wh_dataset_forecast(ds_timeseries):
     ds_paths = list(ds_timeseries.rglob('*.nc'))
-    the_ds = open_nwmdataset(
+    the_ds = open_wh_dataset(
         paths=ds_paths,
         chunks=None,
         forecast=True
@@ -98,7 +98,7 @@ def test_wrfhydrots(ds_timeseries):
     ts_obj_open = ts_obj.open()
 
     assert type(ts_obj_open) == xr.core.dataset.Dataset
-    assert type(ts_obj.check_nas()) == pd.DataFrame
+    assert type(ts_obj.check_nans()) == dict
 
 
 def test_wrfhydrostatic(ds_timeseries):
@@ -108,7 +108,7 @@ def test_wrfhydrostatic(ds_timeseries):
     static_obj_open = static_obj.open()
 
     assert type(static_obj_open) == xr.core.dataset.Dataset
-    assert type(static_obj.check_nas()) == pd.DataFrame
+    assert type(static_obj.check_nans()) == dict
 
 
 def test_check_input_files(domain_dir):
@@ -134,8 +134,8 @@ def test_check_input_files(domain_dir):
 
 
 def test_nwm_forcing_to_ldasin(tmpdir):
-
     tmpdir = pathlib.Path(tmpdir)
+
     def url_index_anchor_regex(url, regex=''):
         page = requests.get(url).text
         soup = BeautifulSoup(page, 'html.parser')
@@ -150,17 +150,16 @@ def test_nwm_forcing_to_ldasin(tmpdir):
 
     for version_name, model_version in {'para': para_url, 'prod': prod_url}.items():
 
-        forcing_dirs = url_index_anchor_regex(model_version, '^forcing_')
+        forcing_dirs = url_index_anchor_regex(model_version, r'^forcing_')
         for forcing_range in forcing_dirs:
 
-            forcing_files = url_index_anchor_regex(forcing_range, '\.nc$')
+            forcing_files = url_index_anchor_regex(forcing_range, r'\.nc$')
             for file in forcing_files:
                 the_split = file.split('/')
                 the_base = '/'.join(file.split('/')[(the_split.index(version_name)+1):])
                 the_file = tmpdir.joinpath(version_name).joinpath(the_base)
                 the_file.parent.mkdir(exist_ok=True, parents=True)
                 the_file.touch()
-
 
             # The argument to nwm_forcing_dir is a list of "nwm.YYYYMMDD" dirs.
             ldasin_dir_list = tmpdir.joinpath(

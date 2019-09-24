@@ -11,14 +11,30 @@
 ## Description
 wrfhydrpy is a Python API for the WRF-Hydro modelling system. The goal of this project is to provide a clean, feature-rich, and unified API for interacting with the many components of the WRF-Hydro modelling system.
 
+## Documentation
+Documentation is only available on-line through help(). Documentation will be forthcoming once the API becomes more stable. 
+
 ## Contributing standards
 Failure to adhere to contributing standards may result in your Pull Request being rejected.
-### Style Guidlines
+
+### pep8speaks
+All pull requests will be linted automatically by pep8speaks and reported as a comment into the pull request. The pep8speaks configuration is specified in .pep8speaks.yml. All pull requests must satisfy pep8speaks.  
+Local linting can be performed after a `pip install` of [pycodestyle](https://github.com/PyCQA/pycodestyle). Pep8speaks linting reports also update with updated pull requests.
+
+### Additional Style Guidelines
 * Max line length: 100 chars.
 * docstrings: [Google style](http://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html)
 * All other guidance follows [Google style guide](https://google.github.io/styleguide/pyguide.html)
-### Testing
-All new functions or classes must be accompanied by additional unit/integration tests in the `wrf_hydro_py/wrfhydropy/tests` directory.
+* General advice: [Hitchhiker's guide to code style](https://goo.gl/hqbW4r)
 
-## Documentation
-Documentation will be forthcoming once the API becomes more stable.
+### Testing
+All pull requests must pass automated testing (via TravisCI). Testing can be performed locally by running `pytest` in the `wrfhydropy/tests` directory. Currently, this testing relies on the [`nccp`](https://gitlab.com/remikz/nccmp) binary for comparing netcdf files. A docker container can be supplied for testing on request (and documentation will subsequently be placed here).
+
+### Coverage
+Testing concludes by submitting a request to [coveralls](https://coveralls.io/). This will automatically report changes of code coverage by the testing. Coverage should be maximized with every pull request. That is all new functions or classes must be accompanied by comprehensive additional unit/integration tests in the `wrf_hydro_py/wrfhydropy/tests` directory. Running coverage locally can be achieved by `pip` installing [`coverage`](https://pypi.org/project/coverage/) and [`pytest-cov`](https://pypi.org/project/pytest-cov/) following a process similar to the following: 
+```
+cd wrfhydropy/tests/
+pytest --cov=wrfhydropy 
+coverage html -d coverage_html
+chrome coverage_html/index.html  # or your browser of choice
+```

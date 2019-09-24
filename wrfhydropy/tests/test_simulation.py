@@ -16,27 +16,41 @@ def test_simulation_add_model_domain(model, domain):
     sim.add(domain)
 
     assert sim.base_hydro_namelist == \
-        {'hydro_nlist': {'channel_option': 2,
-                         'chanobs_domain': 0,
-                         'chanrtswcrt': 1,
-                         'chrtout_domain': 1,
-                         'geo_static_flnm': './NWM/DOMAIN/geo_em.d01.nc',
-                         'restart_file': './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
-                         'aggfactrt': 4,
-                         'udmp_opt': 1},
-         'nudging_nlist': {'maxagepairsbiaspersist': 3,
-                           'minnumpairsbiaspersist': 1,
-                           'nudginglastobsfile':
-                           './NWM/RESTART/nudgingLastObs.2011-08-26_00:00:00.nc'}}
+        {'hydro_nlist':
+         {
+             'channel_option': 2,
+             'chanobs_domain': 0,
+             'chanrtswcrt': 1,
+             'chrtout_domain': 1,
+             'geo_static_flnm': './NWM/DOMAIN/geo_em.d01.nc',
+             'restart_file': './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
+             'aggfactrt': 4,
+             'udmp_opt': 1,
+             'out_dt': 1440,
+             'rst_dt': 1440
+         },
+         'nudging_nlist': {
+             'maxagepairsbiaspersist': 3,
+             'minnumpairsbiaspersist': 1,
+             'nudginglastobsfile':
+             './NWM/RESTART/nudgingLastObs.2011-08-26_00:00:00.nc'
+         }
+        }
 
     assert sim.base_hrldas_namelist == \
-        {'noahlsm_offline': {'btr_option': 1,
-                             'canopy_stomatal_resistance_option': 1,
-                             'hrldas_setup_file': './NWM/DOMAIN/wrfinput_d01.nc',
-                             'restart_filename_requested':
-                             './NWM/RESTART/RESTART.2011082600_DOMAIN1',
-                             'indir': './FORCING'},
-         'wrf_hydro_offline': {'forc_typ': 1}}
+        {'noahlsm_offline':
+         {
+             'btr_option': 1,
+             'canopy_stomatal_resistance_option': 1,
+             'hrldas_setup_file': './NWM/DOMAIN/wrfinput_d01.nc',
+             'restart_filename_requested':
+             './NWM/RESTART/RESTART.2011082600_DOMAIN1',
+             'indir': './FORCING',
+             'output_timestep': 86400,
+             'restart_frequency_hours': 24
+         },
+         'wrf_hydro_offline': {'forc_typ': 1}
+        }
 
 
 def test_simulation_add_job(model, domain, job):
@@ -67,9 +81,7 @@ def test_simulation_compose(model, domain, job, capfd, tmpdir):
     sim.compose()
 
     # Doing this thrice kinda asks for function...
-
     # This compose exercises the options to compose. Gives the same result.
-    # This compose 
     compose_dir_opts = pathlib.Path(tmpdir).joinpath('sim_compose_opts')
     os.mkdir(str(compose_dir_opts))
     os.chdir(str(compose_dir_opts))
@@ -151,7 +163,6 @@ def test_simulation_compose(model, domain, job, capfd, tmpdir):
 
 
 def test_simulation_run_no_scheduler(model, domain, job, tmpdir, capfd):
-
     sim = Simulation()
     sim.add(model)
     sim.add(domain)
@@ -166,24 +177,22 @@ def test_simulation_run_no_scheduler(model, domain, job, tmpdir, capfd):
     assert sim.jobs[0].exit_status == 0, \
         "The job did not exit successfully."
 
+
 def test_simulation_collect(sim_output):
     os.chdir(sim_output)
-
     sim = Simulation()
     sim.collect()
-
     assert sim.output is not None
     assert type(sim.output.channel_rt) is WrfHydroTs
 
 
 def test_simulation_output_checknans(sim_output):
-    output=SimulationOutput()
+    output = SimulationOutput()
     output.collect_output(sim_dir=sim_output)
     public_atts = [att for att in dir(output) if not att.startswith('__')]
     for att in public_atts:
         assert getattr(output, att) is not None
-
-    assert output.check_output_nas() is not None
+    assert output.check_output_nans() is None
 
 
 def test_simulation_pickle(model, domain, job, tmpdir):
@@ -191,7 +200,6 @@ def test_simulation_pickle(model, domain, job, tmpdir):
     sim.add(model)
     sim.add(domain)
     sim.add(job)
-
     pickle_path = pathlib.Path(tmpdir).joinpath('Sim.pkl')
     sim.pickle(pickle_path)
     sim0 = copy.deepcopy(sim)
@@ -206,14 +214,13 @@ def test_simulation_sub_obj_pickle(model, domain, job, tmpdir):
     sim.add(domain)
     sim.add(job)
 
-    domain_path = pathlib.Path(tmpdir).joinpath('Domain.pkl')
-    model_path = pathlib.Path(tmpdir).joinpath('Model.pkl')
-    sim.domain = sim.pickle_sub_obj(sim.domain, domain_path)
-    sim.model = sim.pickle_sub_obj(sim.model, model_path)
-    assert sim.domain == domain_path
-    assert sim.model == model_path
+    os.chdir(tmpdir)
+    domain_path = pathlib.Path(tmpdir).joinpath('WrfHydroDomain.pkl')
+    model_path = pathlib.Path(tmpdir).joinpath('WrfHydroModel.pkl')
+    sim.pickle_sub_objs()
+    assert sim.domain.resolve() == domain_path
+    assert sim.model.resolve() == model_path
 
-    sim.domain = sim.restore_sub_obj(sim.domain)
-    sim.model = sim.restore_sub_obj(sim.model)
+    sim.restore_sub_objs()
     assert deepdiff.DeepDiff(sim.domain, domain) == {}
     assert deepdiff.DeepDiff(sim.model, model) == {}

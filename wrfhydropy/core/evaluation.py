@@ -3,7 +3,7 @@ import itertools
 import numpy as np
 import pandas as pd
 import spotpy.objectivefunctions as spo
-
+import xarray as xr
 
 class Evaluation(object):
     """A dataset consisting of a modeled and observed dataframe.
@@ -13,6 +13,8 @@ class Evaluation(object):
         self,
         observed_df: pd.DataFrame,
         modeled_df: pd.DataFrame,
+        observed_ds: xr.DataArray = None,
+        modeled_ds: xr.DataArray = None,
         join_on: Union[list, str] = None,
         join_how: str = 'inner'
     ):
@@ -38,7 +40,13 @@ class Evaluation(object):
             how=join_how,
             suffixes=['_mod', '_obs']
         )
-        """pd.Dataframe: The dataset to analyze"""
+        """pd.Dataframe: The dataframe to analyze"""
+
+        if observed_ds is not None:
+            self.dataset = xr.merge(
+                [modeled_ds, observed_ds],
+                join=join_how
+            )
 
     @staticmethod
     def _group_calc_cont_stats(
@@ -270,6 +278,22 @@ class Evaluation(object):
                 mod_col=mod_col,
                 inf_as_na=inf_as_na,
                 decimals=decimals)
+
+            def spo_all_xr(observed, modeled):
+                #return (observed + modeled).mean()
+                return pd.DataFrame(spo.calculate_all_functions(observed, modeled)).to_xarray()
+            asdf
+            core_dims = ['time', 'feature_id']
+            gof_stats_xr = xr.apply_ufunc(spo_all_xr, self.dataset.observed, self.dataset.modeled, input_core_dims = [core_dims, core_dims], exclude_dims = set(core_dims))
+
+
+            obs_grp = self.dataset.observed.groupby('feature_id')
+            mod_grp = self.dataset.modeled.groupby('feature_id')
+            gof_stats_xr = xr.apply_ufunc(spo_all_xr, obs_grp, mod_grp, input_core_dims = [core_dims, core_dims], exclude_dims = set(core_dims))
+            
+            
+                
+
         else:
             gof_stats = self.data.set_index(group_by). \
                 groupby(group_by). \

@@ -67,10 +67,16 @@ def test_gof(mod_dir, mod_glob, indices_dict, variable, expected):
     # Keep this variable agnostic
     files = sorted(mod_dir.glob(mod_glob))
     mod = open_whp_dataset(files).isel(indices_dict)
+
     mod_df = mod[variable].to_dataframe().rename(
         columns={variable: 'modeled'})
     obs_df = mod[variable].to_dataframe().rename(
         columns={variable: 'observed'})
-    the_eval = Evaluation(mod_df, obs_df, join_on=[*indices_dict])
+    mod_ds = mod.rename({variable: 'modeled'})['modeled']
+    obs_ds = mod.rename({variable: 'observed'})['observed']
+    the_eval = Evaluation(
+        mod_df, obs_df,
+        mod_ds, obs_ds,
+        join_on=[*indices_dict])
     gof = the_eval.gof()
     assert repr(gof) == expected

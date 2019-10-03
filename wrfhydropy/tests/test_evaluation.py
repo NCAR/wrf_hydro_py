@@ -14,6 +14,7 @@ test_dir = pathlib.Path(os.path.dirname(os.path.realpath(__file__)))
 os.chdir(str(test_dir))
 collection_data_download.download()
 
+engine = ['pd', 'xr']
 
 @pytest.mark.parametrize(
     ['mod_dir', 'mod_glob'],
@@ -42,19 +43,25 @@ if sim_dir.exists():
     sim_dir.unlink()
 sim_dir.symlink_to(test_dir / 'data/collection_data/ens_ana/cast_2011082600/member_000')
 
+
+@pytest.mark.parametrize('engine', engine)
 @pytest.mark.parametrize(
-    ['mod_dir', 'mod_glob', 'indices_dict', 'variable', 'expected'],
+    ['mod_dir', 'mod_glob', 'indices_dict', 'join_on', 'variable', 'transform', 'expected'],
     [
         (test_dir / 'data/collection_data/simulation',
          '*CHRTOUT_DOMAIN1',
          {'feature_id': [1, 39, 56, 34]},
+         ['time', 'feature_id'],
          'streamflow',
+         lambda x: x,
          gof_answer_reprs['*CHRTOUT_DOMAIN1']
         ),
         (test_dir / 'data/collection_data/simulation',
          '*LDASOUT_DOMAIN1',
          {'x': [1, 3, 5], 'y': [2, 4, 6], 'soil_layers_stag': [2]},
+         ['time', 'x', 'y', 'soil_layers_stag'],
          'SOIL_M',
+         lambda x: x,
          gof_answer_reprs['*LDASOUT_DOMAIN1']
         ),
     ],
@@ -63,20 +70,24 @@ sim_dir.symlink_to(test_dir / 'data/collection_data/ens_ana/cast_2011082600/memb
         'gof-simulation-LSMOUT',
     ]
 )
-def test_gof(mod_dir, mod_glob, indices_dict, variable, expected):
+def test_gof_pd(engine, mod_dir, mod_glob, indices_dict, join_on, variable, transform, expected):
     # Keep this variable agnostic
     files = sorted(mod_dir.glob(mod_glob))
     mod = open_whp_dataset(files).isel(indices_dict)
 
-    mod_df = mod[variable].to_dataframe().rename(
-        columns={variable: 'modeled'})
-    obs_df = mod[variable].to_dataframe().rename(
-        columns={variable: 'observed'})
-    mod_ds = mod.rename({variable: 'modeled'})['modeled']
-    obs_ds = mod.rename({variable: 'observed'})['observed']
-    the_eval = Evaluation(
-        mod_df, obs_df,
-        mod_ds, obs_ds,
-        join_on=[*indices_dict])
-    gof = the_eval.gof()
-    assert repr(gof) == expected
+    if engine == 'pd':
+        mod_df = mod[variable].to_dataframe().rename(
+            columns={variable: 'modeled'})
+        obs_df = mod[variable].to_dataframe().rename(
+            columns={variable: 'observed'})
+        #mod_df = transform(mod_df)
+        the_eval = Evaluation(mod_df, obs_df, join_on=join_on)
+        gof = the_eval.gof()
+        assert repr(gof) == expected
+
+    elif engine == 'xr':
+        mod_ds = mod.rename({variable: 'modeled'})['modeled']
+        obs_ds = mod.rename({variable: 'observed'})['observed']
+        the_eval = Evaluation(mod_ds, obs_ds, join_on=join_on)
+        gof = the_eval.gof()
+        assert repr(gof) == expected

@@ -5,16 +5,15 @@ import pandas as pd
 import spotpy.objectivefunctions as spo
 import xarray as xr
 
+
 class Evaluation(object):
     """A dataset consisting of a modeled and observed dataframe.
     This class provides methods for calculating staistics."""
 
     def __init__(
         self,
-        observed_df: pd.DataFrame,
-        modeled_df: pd.DataFrame,
-        observed_ds: xr.DataArray = None,
-        modeled_ds: xr.DataArray = None,
+        observed: Union[pd.DataFrame, xr.DataArray],
+        modeled: Union[pd.DataFrame, xr.DataArray],
         join_on: Union[list, str] = None,
         join_how: str = 'inner'
     ):
@@ -22,8 +21,8 @@ class Evaluation(object):
         """
         Instantiate analysis class by joining modeled and observed datasets.
         Args:
-            observed_df: Dataframe containing observed data
-            modeled_df: Dataframe containing modelled data
+            observed: Dataframe containing observed data
+            modeled: Dataframe containing modelled data
             join_on: Optional, string or list of columns names to join datasets.
             Default is ['feature_id','time']
             join_how: Optional, how to perform teh dataframe join. Default is
@@ -31,22 +30,30 @@ class Evaluation(object):
             are 'inner','left','right'.
         """
         if join_on is None:
-            join_on = ['feature_id', 'time']
+            self.join_on = ['feature_id', 'time']
+        else:
+            self.join_on = join_on
+            
+        if not type(observed) == type(modeled):
+            raise ValueError('Observed and modeled data are not of the same type.')
+            
+        if isinstance(observed, pd.DataFrame):            
+            data = pd.merge(
+                modeled,
+                observed,
+                on=self.join_on,
+                how=join_how,
+                suffixes=['_mod', '_obs']
+            )
 
-        self.data = pd.merge(
-            modeled_df,
-            observed_df,
-            on=join_on,
-            how=join_how,
-            suffixes=['_mod', '_obs']
-        )
-        """pd.Dataframe: The dataframe to analyze"""
-
-        if observed_ds is not None:
-            self.dataset = xr.merge(
-                [modeled_ds, observed_ds],
+        elif isinstance(observed, xr.DataArray):
+            data = xr.merge(
+                [modeled, observed],
                 join=join_how
             )
+
+        self.data = data
+        """pd.Dataframe: The dataframe to analyze"""
 
     @staticmethod
     def _group_calc_cont_stats(
@@ -271,39 +278,46 @@ class Evaluation(object):
             Pandas dataframe containing contingency table
         """
 
-        if group_by is None:
-            gof_stats = self._calc_gof_stats(
-                data=self.data,
-                obs_col=obs_col,
-                mod_col=mod_col,
-                inf_as_na=inf_as_na,
-                decimals=decimals)
-
-            def spo_all_xr(observed, modeled):
-                #return (observed + modeled).mean()
-                return pd.DataFrame(spo.calculate_all_functions(observed, modeled)).to_xarray()
-            asdf
-            core_dims = ['time', 'feature_id']
-            gof_stats_xr = xr.apply_ufunc(spo_all_xr, self.dataset.observed, self.dataset.modeled, input_core_dims = [core_dims, core_dims], exclude_dims = set(core_dims))
-
-
-            obs_grp = self.dataset.observed.groupby('feature_id')
-            mod_grp = self.dataset.modeled.groupby('feature_id')
-            gof_stats_xr = xr.apply_ufunc(spo_all_xr, obs_grp, mod_grp, input_core_dims = [core_dims, core_dims], exclude_dims = set(core_dims))
+        if isinstance(self.data, pd.DataFrame):
             
-            
-                
-
-        else:
-            gof_stats = self.data.set_index(group_by). \
-                groupby(group_by). \
-                apply(
-                    self._calc_gof_stats,
+            if group_by is None:
+                gof_stats = self._calc_gof_stats(
+                    data=self.data,
                     obs_col=obs_col,
                     mod_col=mod_col,
                     inf_as_na=inf_as_na,
                     decimals=decimals)
-            gof_stats = gof_stats.rename(columns={'level_2': 'statistic'})
+
+            else:
+                gof_stats = self.data.set_index(group_by). \
+                    groupby(group_by). \
+                    apply(
+                        self._calc_gof_stats,
+                        obs_col=obs_col,
+                        mod_col=mod_col,
+                        inf_as_na=inf_as_na,
+                        decimals=decimals)
+                gof_stats = gof_stats.rename(columns={'level_2': 'statistic'})
+
+        elif isinstance(self.data, xr.Dataset):
+            gof_stats = xr.apply_ufunc(
+                spo_all_xr,
+                self.data.observed,
+                self.data.modeled,
+                kwargs = {'inf_as_na': inf_as_na,
+                          'decimals': decimals},
+                input_core_dims=[self.join_on, self.join_on]#,
+                #exclude_dims=set(self.join_on)
+            ).values.tolist()[0].to_dataframe()
+
+            gof_stats = gof_stats.reset_index().drop(columns='index')
+            #gof_stats = gof_stats.rename(columns={0:'statistic', 1: 'value'})
+            #gof_stats['value'] = gof_stats['value'].round(decimals=decimals)
+
+            # fafaf
+            # obs_grp = self.data.observed.groupby('feature_id')
+            # mod_grp = self.data.modeled.groupby('feature_id')
+            # gof_stats_xr = xr.apply_ufunc(spo_all_xr, obs_grp, mod_grp, input_core_dims = [core_dims, core_dims], exclude_dims = set(core_dims))
 
         return gof_stats
 
@@ -494,6 +508,7 @@ def calc_cont_stats(
 
     return cont_stats
 
+
 # TODO: actual -> observed, predicted -> modeled ?
 def calc_gof_stats(
     actual: np.array,
@@ -517,6 +532,9 @@ def calc_gof_stats(
     gof_stats = pd.DataFrame(gof_stats).rename(
         columns={0: 'statistic', 1: 'value'})
 
+    #if gof_stats['value'][7] != 1.000:
+    #    fjfjfjf
+    
     # Change the sign on bias since it is presented in spotpy as
     # obs-sim instead of typical sim-obs
     gof_stats.loc[gof_stats['statistic'] == 'bias', ['value']] = \
@@ -541,6 +559,11 @@ def calc_gof_stats(
     gof_stats['value'] = gof_stats['value'].round(decimals=decimals)
 
     return gof_stats
+
+
+def spo_all_xr(observed, modeled, inf_as_na: bool = True, decimals: int = 2):
+    #return (pd.DataFrame(spo.calculate_all_functions(observed, modeled)).to_xarray(),)
+    return (calc_gof_stats(observed, modeled, inf_as_na, decimals).to_xarray(),)
 
 
 # TODO: actual -> observed, predicted -> modeled ?

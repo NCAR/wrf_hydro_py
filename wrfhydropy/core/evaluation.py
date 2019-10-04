@@ -279,7 +279,6 @@ class Evaluation(object):
         """
 
         if isinstance(self.data, pd.DataFrame):
-            
             if group_by is None:
                 gof_stats = self._calc_gof_stats(
                     data=self.data,
@@ -287,7 +286,6 @@ class Evaluation(object):
                     mod_col=mod_col,
                     inf_as_na=inf_as_na,
                     decimals=decimals)
-
             else:
                 gof_stats = self.data.set_index(group_by). \
                     groupby(group_by). \
@@ -372,7 +370,7 @@ class Evaluation(object):
         return event_stats
 
 
-def calc_cont_table(actual: np.array, predicted: np.array) -> pd.DataFrame:
+def calc_cont_table(observed: np.array, modeled: np.array) -> pd.DataFrame:
     """
     Calculate a contingency table from two arrays of hits/misses.
     In each input array, a hit is True and a miss is a False
@@ -388,14 +386,14 @@ def calc_cont_table(actual: np.array, predicted: np.array) -> pd.DataFrame:
                  ------------------
 
         Args:
-            actual: Array of actual hits/misses
-            predicted: Array of predicted hits/misses
+            observed: Array of observed hits/misses
+            modeled: Array of modeled hits/misses
         Returns:
             Pandas dataframe containing contingency table
     """
 
     # Negating bools because pd.crosstab treats 0 as a hit and 1 as a miss
-    cont_tbl = pd.crosstab(~predicted, ~actual)
+    cont_tbl = pd.crosstab(~modeled, ~observed)
 
     # Have to manually construct table because pandas will drop columns
     # on return table if all values are 0
@@ -509,10 +507,9 @@ def calc_cont_stats(
     return cont_stats
 
 
-# TODO: actual -> observed, predicted -> modeled ?
 def calc_gof_stats(
-    actual: np.array,
-    predicted: np.array,
+    observed: np.array,
+    modeled: np.array,
     inf_as_na: bool = True,
     decimals: int = 2
 ):
@@ -521,14 +518,14 @@ def calc_gof_stats(
     See :py:fun:`calculate_all_functions() <calculate_all_functions>`
     in :py:mod:`spotpy`.
     Args:
-        actual: Array of actual hits/misses
-        predicted: Array of predicted hits/misses
+        observed: Array of observed hits/misses
+        modeled: Array of modeled hits/misses
         inf_as_na: convert inf values to na?
         decimals: round stats to specified decimal places
     Returns:
         Pandas dataframe containing GOF stats.
     """
-    gof_stats = spo.calculate_all_functions(actual, predicted)
+    gof_stats = spo.calculate_all_functions(observed, modeled)
     gof_stats = pd.DataFrame(gof_stats).rename(
         columns={0: 'statistic', 1: 'value'})
 
@@ -549,10 +546,10 @@ def calc_gof_stats(
         gof_stats['value'].replace(np.inf, np.nan, inplace=True)
         gof_stats['value'].replace(-np.inf, np.nan, inplace=True)
 
-    # Summarize actual
+    # Summarize observed
     # noinspection PyTypeChecker
     summary = pd.DataFrame(
-        {'value': [actual.mean(), np.percentile(actual, 0.5), actual.std()],
+        {'value': [observed.mean(), np.percentile(observed, 0.5), observed.std()],
          'statistic': ['mean_obs', 'median_obs', 'std_obs']})
     gof_stats = pd.concat([gof_stats, summary], ignore_index=True, sort=True)
 
@@ -561,22 +558,25 @@ def calc_gof_stats(
     return gof_stats
 
 
-def spo_all_xr(observed, modeled, inf_as_na: bool = True, decimals: int = 2):
-    #return (pd.DataFrame(spo.calculate_all_functions(observed, modeled)).to_xarray(),)
-    return (calc_gof_stats(observed, modeled, inf_as_na, decimals).to_xarray(),)
+def spo_all_xr(
+    observed: np.array,
+    modeled: np.array,
+    inf_as_na: bool = True,
+    decimals: int = 2
+):
+    return (calc_gof_stats(observed.ravel(), modeled.ravel(), inf_as_na, decimals).to_xarray(),)
 
 
-# TODO: actual -> observed, predicted -> modeled ?
 def calc_event_stats(
-    actual: np.array,
-    predicted: np.array,
+    observed: np.array,
+    modeled: np.array,
     decimals: int = 2
 ):
     """
     TODO: describe these metrics better.
     Args:
-        actual: Array of actual hits/misses TODO: does that make sense?
-        predicted: Array of predicted hits/misses
+        observed: Array of observed hits/misses TODO: does that make sense?
+        modeled: Array of modeled hits/misses
         decimals: round stats to specified decimal places
     Returns:
         pd.DataFrame(
@@ -590,8 +590,8 @@ def calc_event_stats(
             if event:
                 yield len(list(group))
 
-    pred_events = np.array(list(run_length(predicted)))
-    act_events = np.array(list(run_length(actual)))
+    pred_events = np.array(list(run_length(modeled)))
+    act_events = np.array(list(run_length(observed)))
 
     num_pred_events = len(pred_events)
     num_act_events = len(act_events)

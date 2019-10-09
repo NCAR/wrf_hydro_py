@@ -44,7 +44,7 @@ class Evaluation(object):
                 on=self.join_on,
                 how=join_how,
                 suffixes=['_mod', '_obs']
-            )
+            ).reset_index()
 
         elif isinstance(observed, xr.DataArray):
             data = xr.merge(
@@ -298,24 +298,41 @@ class Evaluation(object):
                 gof_stats = gof_stats.rename(columns={'level_2': 'statistic'})
 
         elif isinstance(self.data, xr.Dataset):
-            gof_stats = xr.apply_ufunc(
-                spo_all_xr,
-                self.data.observed,
-                self.data.modeled,
-                kwargs = {'inf_as_na': inf_as_na,
-                          'decimals': decimals},
-                input_core_dims=[self.join_on, self.join_on]#,
-                #exclude_dims=set(self.join_on)
-            ).values.tolist()[0].to_dataframe()
+            if group_by is None:
+                gof_stats = xr.apply_ufunc(
+                    spo_all_xr,
+                    self.data.observed,
+                    self.data.modeled,
+                    kwargs = {'inf_as_na': inf_as_na,
+                              'decimals': decimals},
+                    input_core_dims=[self.join_on, self.join_on] #,
+                    # exclude_dims=set(self.join_on)
+                )
+                gof_stats = gof_stats.values[()]()._mapping
+                gof_stats = gof_stats.to_dataframe().reset_index().drop(columns='index')
 
-            gof_stats = gof_stats.reset_index().drop(columns='index')
-            #gof_stats = gof_stats.rename(columns={0:'statistic', 1: 'value'})
-            #gof_stats['value'] = gof_stats['value'].round(decimals=decimals)
+            else:
 
-            # fafaf
-            # obs_grp = self.data.observed.groupby('feature_id')
-            # mod_grp = self.data.modeled.groupby('feature_id')
-            # gof_stats_xr = xr.apply_ufunc(spo_all_xr, obs_grp, mod_grp, input_core_dims = [core_dims, core_dims], exclude_dims = set(core_dims))
+                # how does this play out with more than 1 grouper?
+                # Xarray
+                obs_grp = self.data.observed.groupby(group_by)
+                mod_grp = self.data.modeled.groupby(group_by)
+                gof_stats = xr.apply_ufunc(
+                    spo_all_xr,
+                    obs_grp,
+                    mod_grp,
+                    kwargs = {'inf_as_na': inf_as_na,
+                              'decimals': decimals},
+                    input_core_dims = [self.join_on, self.join_on]
+                )
+                stats = [mv()._mapping for mv in gof_stats.values.tolist()]
+                grp_ids = gof_stats.feature_id.values
+                for grp_id, stat in zip(grp_ids, stats): stat[group_by] = grp_id
+                stats2 = [stat.expand_dims(group_by).set_coords(group_by) for stat in stats]
+                stats3 = xr.merge(stats2)
+                stats4 = stats3.to_dataframe().reset_index().set_index(['feature_id', 'index'])
+                stats4.index.names = ['feature_id', '']
+                gof_stats = stats4
 
         return gof_stats
 
@@ -529,9 +546,6 @@ def calc_gof_stats(
     gof_stats = pd.DataFrame(gof_stats).rename(
         columns={0: 'statistic', 1: 'value'})
 
-    #if gof_stats['value'][7] != 1.000:
-    #    fjfjfjf
-    
     # Change the sign on bias since it is presented in spotpy as
     # obs-sim instead of typical sim-obs
     gof_stats.loc[gof_stats['statistic'] == 'bias', ['value']] = \
@@ -564,7 +578,8 @@ def spo_all_xr(
     inf_as_na: bool = True,
     decimals: int = 2
 ):
-    return (calc_gof_stats(observed.ravel(), modeled.ravel(), inf_as_na, decimals).to_xarray(),)
+    result = calc_gof_stats(observed.ravel(), modeled.ravel(), inf_as_na, decimals).to_xarray()
+    return result
 
 
 def calc_event_stats(

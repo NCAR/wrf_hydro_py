@@ -1,3 +1,4 @@
+import copy
 import os
 import pathlib
 import pandas
@@ -9,6 +10,10 @@ from .data import collection_data_download
 from .data.evaluation_answer_reprs import *
 
 test_dir = pathlib.Path(os.path.dirname(os.path.realpath(__file__)))
+
+# Get the full reprs
+pandas.set_option('display.max_rows', None)
+pandas.set_option('display.max_columns', None)
 
 # The data are found here. Uses the same data as collection.
 os.chdir(str(test_dir))
@@ -45,8 +50,9 @@ sim_dir.symlink_to(test_dir / 'data/collection_data/ens_ana/cast_2011082600/memb
 
 
 @pytest.mark.parametrize('engine', engine)
+@pytest.mark.parametrize('group_by_in', [None, 'space'])
 @pytest.mark.parametrize(
-    ['mod_dir', 'mod_glob', 'indices_dict', 'join_on', 'variable', 'transform', 'expected'],
+    ['mod_dir', 'mod_glob', 'indices_dict', 'join_on', 'variable', 'transform', 'expected_key'],
     [
         (test_dir / 'data/collection_data/simulation',
          '*CHRTOUT_DOMAIN1',
@@ -54,7 +60,7 @@ sim_dir.symlink_to(test_dir / 'data/collection_data/ens_ana/cast_2011082600/memb
          ['time', 'feature_id'],
          'streamflow',
          lambda x: x,
-         gof_answer_reprs['*CHRTOUT_DOMAIN1']
+         '*CHRTOUT_DOMAIN1'
         ),
         (test_dir / 'data/collection_data/simulation',
          '*LDASOUT_DOMAIN1',
@@ -62,7 +68,7 @@ sim_dir.symlink_to(test_dir / 'data/collection_data/ens_ana/cast_2011082600/memb
          ['time', 'x', 'y', 'soil_layers_stag'],
          'SOIL_M',
          lambda x: x,
-         gof_answer_reprs['*LDASOUT_DOMAIN1']
+         '*LDASOUT_DOMAIN1'
         ),
     ],
     ids=[
@@ -70,10 +76,32 @@ sim_dir.symlink_to(test_dir / 'data/collection_data/ens_ana/cast_2011082600/memb
         'gof-simulation-LSMOUT',
     ]
 )
-def test_gof_pd(engine, mod_dir, mod_glob, indices_dict, join_on, variable, transform, expected):
+def test_gof_perfect(
+    engine,
+    mod_dir,
+    mod_glob,
+    indices_dict,
+    join_on,
+    variable,
+    group_by_in,
+    transform,
+    expected_key
+):
     # Keep this variable agnostic
     files = sorted(mod_dir.glob(mod_glob))
     mod = open_whp_dataset(files).isel(indices_dict)
+
+    if group_by_in is None:
+        group_by_key = ''
+        group_by = None
+    elif group_by_in == 'space':
+        group_by_key = '-' + group_by_in
+        group_by = copy.deepcopy(join_on)
+        group_by.remove('time')
+    else:
+        raise ValueError("not a valid grouping for this test: ", group_by)
+
+    expected = gof_answer_reprs[expected_key + group_by_key]
 
     if engine == 'pd':
         mod_df = mod[variable].to_dataframe().rename(
@@ -82,12 +110,15 @@ def test_gof_pd(engine, mod_dir, mod_glob, indices_dict, join_on, variable, tran
             columns={variable: 'observed'})
         #mod_df = transform(mod_df)
         the_eval = Evaluation(mod_df, obs_df, join_on=join_on)
-        gof = the_eval.gof()
+        gof = the_eval.gof(group_by=group_by)
         assert repr(gof) == expected
 
     elif engine == 'xr':
+        if group_by_in is not None:
+            pytest.skip("Currently not grouping using xarray.")
         mod_ds = mod.rename({variable: 'modeled'})['modeled']
         obs_ds = mod.rename({variable: 'observed'})['observed']
         the_eval = Evaluation(mod_ds, obs_ds, join_on=join_on)
-        gof = the_eval.gof()
+        gof = the_eval.gof(group_by=group_by)
+
         assert repr(gof) == expected

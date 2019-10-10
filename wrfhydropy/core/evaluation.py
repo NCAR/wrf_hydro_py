@@ -450,7 +450,7 @@ def calc_cont_stats(
                  | True |  False  |
                  ------------------
             True |hits  |false    |
-    forecast     |      |alarms   |
+    modeled      |      |alarms   |
                  ------------------
            False |misses|correct  |
                  |      |negatives|

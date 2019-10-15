@@ -290,3 +290,90 @@ def open_whp_dataset(
         )
     the_pool.close()
     return whp_ds
+
+
+def group_center_time(ds: xr.Dataset) -> int:
+    return ds.center_time.item(0)
+
+
+def preprocess_timeslice_data(path, full_gage_list):
+    # Each timeslice file must have the same/consistently ordered full gage list
+    full_gage_list = [gg.decode('utf-8') if not isinstance(gg, str) else gg for gg in full_gage_list]
+    full_gage_list = [gg.rjust(15) for gg in full_gage_list]
+    full_gage_set = set(full_gage_list)
+
+    # Sort by stationIdInd and drop query time.
+    ds = xr.open_dataset(path).sortby('stationIdInd')
+    if 'queryTime' in ds.variables:
+        ds = ds.drop('queryTime')
+    # Make stationId the dimension instead of its index
+    ds = ds.assign_coords(stationId=ds.stationId).swap_dims({'stationIdInd': 'stationId'})
+    # Create time dimension based on the center_time of the slice from metadata.
+    time_fmt = '%Y-%m-%d_%H:%M:%S'
+    ds = ds.assign_coords(
+        center_time=datetime.strptime(ds.attrs['sliceCenterTimeUTC'], time_fmt)
+    ).expand_dims(dim='center_time')
+
+    # Convert time strings to proper datetimes
+    time_list = ds.time.values.tolist()
+    datetime_list = [datetime.strptime(tt.decode('utf-8'), time_fmt) for tt in time_list[0]]
+    ds['time'] = xr.DataArray(np.array([datetime_list]), dims=('center_time', 'stationId'))
+
+    # Decode stationIds
+    station_list = ds.stationId.values.tolist()
+    station_list = [ss.decode('utf-8') for ss in station_list]
+    ds['stationId'] = np.array(station_list)
+
+    # What gages are in this file?
+    file_gage_set = set(ds.stationId.values)
+
+    # Find which sites in this file should be dropped.
+    gages_to_drop = file_gage_set.difference(full_gage_set)
+    if gages_to_drop != set():
+        ds = ds.drop(gages_to_drop, dim='stationId')
+
+    # Find which sites are missing in this file from the full gage list.
+    gages_to_add = full_gage_set.difference(file_gage_set)
+
+    if not gages_to_add == set():
+        for gage_add in gages_to_add:
+            dum = ds.isel(stationId=0)
+            dum['stationId'] = gage_add
+            dum['discharge'] = float('nan')
+            dum['discharge_quality'] = 0
+            ds = xr.concat([ds, dum], dim='stationId')
+
+    # Re-sort and return
+    ds = ds.sortby('stationId')
+    return(ds)
+
+
+def open_timeslice_dataset(
+    paths: list,
+    full_gage_list: list,
+    n_cores: int = 1,
+    npartitions: int = None
+) -> xr.Dataset:
+
+    the_pool = Pool(n_cores)
+    with dask.config.set(scheduler='processes', pool=the_pool):
+        paths_bag = dask.bag.from_sequence(paths, npartitions=npartitions)
+        ds_list = paths_bag.map(
+            preprocess_timeslice_data,
+            full_gage_list=full_gage_list,
+        ).filter(is_not_none).compute()
+
+        # For debugging the above
+        # result = preprocess_timeslice_data(paths[0], full_gage_list)
+        the_sort = sorted(ds_list, key=group_center_time)
+
+    the_pool.close()
+
+    timeslice_dataset = xr.merge(the_sort)
+
+    # Encode
+    timeslice_dataset.discharge_quality.encoding = {'dtype': 'int16'}
+    timeslice_dataset.discharge.encoding = {'dtype': 'float32'}
+    timeslice_dataset.stationId.encoding = {'dtype': 'S1'}
+
+    return(timeslice_dataset)

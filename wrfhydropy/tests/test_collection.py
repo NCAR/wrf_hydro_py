@@ -2,7 +2,7 @@ import os
 import pathlib
 import pytest
 import shutil
-from wrfhydropy import open_whp_dataset
+from wrfhydropy import open_whp_dataset, open_timeslice_dataset
 from .data import collection_data_download
 
 # The answer reprs are found here.
@@ -21,6 +21,45 @@ collection_data_download.download()
 # TODO: Test multiple versions (current and previous)
 version_file = test_dir.joinpath('data/collection_data/croton_NY/.version')
 version = version_file.open('r').read().split('-')[0]
+
+
+# Timeslice
+# Test timeslice collection with timeslices with different gages in them
+@pytest.mark.parametrize(
+    ['file_glob', 'full_gage_list', 'n_cores', 'expected'],
+    [
+        (
+            '*usgsTimeSlice.ncdf',
+            ['       01374559', '       01374581'],
+            1,
+            timeslice_answer_reprs[version]['timeslice-subset-collect'],
+        ),        (
+            '*usgsTimeSlice.ncdf',
+            ['       01374559', '       01374581', '       01374598', '     0137462010'],
+            1,
+            timeslice_answer_reprs[version]['timeslice-full-collect'],
+        ),
+    ],
+    ids=[
+        'timeslice-full-collect',
+        'timeslice-subset-collect',
+    ]
+)
+def test_collect_timeslice(
+    file_glob,
+    full_gage_list,
+    n_cores,
+    expected
+):
+
+    timeslice_path = test_dir.joinpath('data/collection_data/croton_NY/NWM/nudgingTimeSliceObs')
+    files = sorted(timeslice_path.glob(file_glob))
+    timeslice_ds = open_timeslice_dataset(
+        files,
+        full_gage_list,
+        n_cores=n_cores
+    )
+    assert repr(timeslice_ds) == expected
 
 
 # Simulation

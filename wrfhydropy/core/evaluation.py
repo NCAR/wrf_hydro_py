@@ -6,6 +6,32 @@ import spotpy.objectivefunctions as spo
 import xarray as xr
 
 
+# For collected data.
+@xr.register_dataarray_accessor("eval")
+# Better way to subclass?
+class Evaluate:
+    def __init__(self, xarray_obj):
+        self._obj = xarray_obj
+        # Something to check that this is actually collected data
+        # Something to classify the dimensions of the collected data:
+        # simulation, ensemble, forecast, ensembleforecast
+
+    def obs(
+        self,
+        observed,
+        join_on: Union[pd.DataFrame, xr.DataArray] = None,
+        join_how: str = 'inner'
+    ):
+        modeled = self._obj.rename('modeled')
+        observed = observed.rename('observed')
+        return Evaluation(
+            modeled.to_dataframe(),
+            observed.to_dataframe(),
+            join_on,
+            join_how
+        )
+
+
 class Evaluation(object):
     """A dataset consisting of a modeled and observed dataframe.
     This class provides methods for calculating staistics."""
@@ -33,10 +59,10 @@ class Evaluation(object):
             self.join_on = ['feature_id', 'time']
         else:
             self.join_on = join_on
-            
+
         if not type(observed) == type(modeled):
             raise ValueError('Observed and modeled data are not of the same type.')
-            
+
         if isinstance(observed, pd.DataFrame):            
             data = pd.merge(
                 modeled,
@@ -51,6 +77,9 @@ class Evaluation(object):
                 [modeled, observed],
                 join=join_how
             )
+
+        else:
+            raise ValueError('Observed data neither pandas dataframe nor xarray.DataArray')
 
         self.data = data
         """pd.Dataframe: The dataframe to analyze"""
@@ -542,7 +571,12 @@ def calc_gof_stats(
     Returns:
         Pandas dataframe containing GOF stats.
     """
-    gof_stats = spo.calculate_all_functions(observed, modeled)
+
+    nan_mask = np.isnan(observed) | np.isnan(modeled)
+    obs_masked = observed[~nan_mask]
+    mod_masked = modeled[~nan_mask]
+
+    gof_stats = spo.calculate_all_functions(obs_masked, mod_masked)
     gof_stats = pd.DataFrame(gof_stats).rename(
         columns={0: 'statistic', 1: 'value'})
 
@@ -563,12 +597,23 @@ def calc_gof_stats(
     # Summarize observed
     # noinspection PyTypeChecker
     summary = pd.DataFrame(
-        {'value': [observed.mean(), np.percentile(observed, 0.5), observed.std()],
-         'statistic': ['mean_obs', 'median_obs', 'std_obs']})
+        {
+            'value': [
+                obs_masked.mean(),
+                np.percentile(obs_masked, 0.5),
+                obs_masked.std(),
+                len(obs_masked)
+            ],
+            'statistic': [
+                'mean_obs',
+                'median_obs',
+                'std_obs',
+                'sample_size'
+            ]
+        }
+    )
     gof_stats = pd.concat([gof_stats, summary], ignore_index=True, sort=True)
-
     gof_stats['value'] = gof_stats['value'].round(decimals=decimals)
-
     return gof_stats
 
 

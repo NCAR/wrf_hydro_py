@@ -21,6 +21,7 @@ from .simulation import Simulation
 from .ensemble import EnsembleSimulation
 from .teams import parallel_teams_run, assign_teams
 
+
 def integer_coercable(val):
     try:
         int(str(val))
@@ -528,19 +529,17 @@ class CycleSimulation(object):
             del self._ensemble
         del self._job
 
-
     def rm_casts(self):
         """Remove members from memory, replace with their paths."""
         run_dirs = [cc.run_dir for cc in self.casts]
         self.casts = run_dirs
-
 
     def run(
         self,
         n_concurrent: int = 1,
         teams: bool = False,
         teams_exe_cmd: str = None,
-        teams_exe_cmd_nproc = None,
+        teams_exe_cmd_nproc: int = None,
         teams_node_file: dict = None,
         env: dict = None,
         teams_dict: dict = None

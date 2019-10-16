@@ -190,7 +190,7 @@ def assign_teams(
     teams_exe_cmd: str,
     teams_exe_cmd_nproc: int,
     teams_node_file: dict = None,
-    env: dict = None    
+    env: dict = None
 ) -> dict:
     """
     Assign teams for parallel runs across nodes.
@@ -210,7 +210,7 @@ def assign_teams(
         dict: the teams_dict to be used by parallel_teams_run. See requirements
             above.
     """
-    if 'casts' in dir(obj): 
+    if 'casts' in dir(obj):
         object_list = obj.casts
         object_name = 'casts'
     elif 'members' in dir(obj):
@@ -233,7 +233,7 @@ def assign_teams(
             for line in infile:
                 pbs_nodes.append(line.rstrip())
 
-        n_total_processors = len(pbs_nodes) # less may be used.
+        n_total_processors = len(pbs_nodes)  # less may be used.
         n_teams = min(math.floor(len(pbs_nodes) / teams_exe_cmd_nproc), n_runs)
         teams_dict = {}
 
@@ -245,10 +245,10 @@ def assign_teams(
             object_dirs = [oo.run_dir for oo in object_list]
         else:
             object_dirs = object_list
-        
+
         object_teams = [the_object % n_teams for the_object in range(n_runs)]
-        object_team_seq = [ [dir, team] for dir,team in zip(object_dirs, object_teams)]
-        object_team_seq.sort(key = operator.itemgetter(1))
+        object_team_seq = [[dir, team] for dir, team in zip(object_dirs, object_teams)]
+        object_team_seq.sort(key=operator.itemgetter(1))
         team_groups = itertools.groupby(object_team_seq, operator.itemgetter(1))
         team_objects = [[item[0] for item in data] for (key, data) in team_groups]
 
@@ -264,9 +264,9 @@ def assign_teams(
             pbs_nodes = pbs_nodes + (
                 [unique_nodes[i_team % len(unique_nodes)]] * teams_exe_cmd_nproc)
         node_teams = [the_node // teams_exe_cmd_nproc for the_node in range(len(pbs_nodes))]
-        node_team_seq = [ [node, team] for node,team in zip(pbs_nodes, node_teams)]
-        
-        node_team_seq.sort(key = operator.itemgetter(1))
+        node_team_seq = [[node, team] for node, team in zip(pbs_nodes, node_teams)]
+
+        node_team_seq.sort(key=operator.itemgetter(1))
         team_groups = itertools.groupby(node_team_seq, operator.itemgetter(1))
         team_nodes = [[item[0] for item in data] for (key, data) in team_groups]
 

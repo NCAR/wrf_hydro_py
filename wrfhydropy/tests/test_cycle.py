@@ -1221,9 +1221,9 @@ def test_cycle_run_parallel_teams(
 
         cy_teams_run_success = cy_teams.run(
             teams=True,
-            teams_exe_cmd = ' ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
-            teams_exe_cmd_nproc = 2,
-            teams_node_file = {'pbs': node_file}
+            teams_exe_cmd=' ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
+            teams_exe_cmd_nproc=2,
+            teams_node_file={'pbs': node_file}
         )
         assert cy_teams_run_success == 0, \
             "Some parallel team cycle casts did not run successfully."
@@ -1336,10 +1336,10 @@ def test_cycle_ensemble_run(
 
         cy_teams_run_success = cy_teams.run(
             teams=True,
-            teams_exe_cmd = (
+            teams_exe_cmd=(
                 ' ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}'),
-            teams_exe_cmd_nproc = 2,
-            teams_node_file = {'pbs': node_file}
+            teams_exe_cmd_nproc=2,
+            teams_node_file={'pbs': node_file}
         )
         assert cy_teams_run_success == 0, \
             "Some parallel team cycle casts did not run successfully."
@@ -1364,8 +1364,7 @@ def test_cycle_ensemble_run(
             ('cast_2012121200/member_000/job_test_job_1/diag_hydro.00000',
              'cast_2012121200/member_001/job_test_job_1/diag_hydro.00000',
              'cast_2012121800/member_000/job_test_job_1/diag_hydro.00000',
-             'cast_2012121800/member_001/job_test_job_1/diag_hydro.00000'
-            ):
+             'cast_2012121800/member_001/job_test_job_1/diag_hydro.00000'):
                 'mpirun --host r10i1n1,r10i1n1 -np 2 ./wrf_hydro.exe\n',
             ('cast_2012121500/member_000/job_test_job_1/diag_hydro.00000',
              'cast_2012121500/member_001/job_test_job_1/diag_hydro.00000'):

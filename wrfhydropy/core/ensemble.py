@@ -410,7 +410,7 @@ class EnsembleSimulation(object):
         n_concurrent: int = 1,
         teams: bool = False,
         teams_exe_cmd: str = None,
-        teams_exe_cmd_nproc = None,
+        teams_exe_cmd_nproc: int = None,
         teams_node_file: dict = None,
         env: dict = None,
         teams_dict: dict = None
@@ -450,7 +450,7 @@ class EnsembleSimulation(object):
                     parallel_teams_run,
                     (
                         {'obj_name': 'members',
-                        'team_dict': team_dict,
+                         'team_dict': team_dict,
                          'compose_dir': ens_dir,
                          'env': env}
                         for (key, team_dict) in teams_dict.items()

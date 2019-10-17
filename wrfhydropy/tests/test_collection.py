@@ -241,7 +241,12 @@ def test_collect_ensemble_cycle(
     assert repr(ens_cycle_ds) == expected
 
     # Test that hierarchical collects are identical
-    ens_cycle_ds_chunk = open_whp_dataset(files, n_cores=n_cores, file_chunk_size=1)
+    # Speed up this super slow one...
+    file_chunk_size = 1
+    if file_glob == '*/*/*LDASOUT_DOMAIN1':
+        file_chunk_size = 50
+    ens_cycle_ds_chunk = open_whp_dataset(
+        files, n_cores=n_cores, file_chunk_size=file_chunk_size)
     assert ens_cycle_ds_chunk.equals(ens_cycle_ds)
 
 

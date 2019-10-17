@@ -214,6 +214,12 @@ def open_whp_dataset_inner(
 
     del ds_list
 
+    # Impose some order.
+    if have_members:
+        nwm_dataset = nwm_dataset.sortby(['member'])
+    if have_lead_time:
+        nwm_dataset = nwm_dataset.sortby(['reference_time', 'lead_time'])
+
     # Create a valid_time variable. I'm estimating that doing it here is more efficient
     # than adding more data to the collection processes.
     def calc_valid_time(ref, lead):

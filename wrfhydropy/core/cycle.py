@@ -19,6 +19,7 @@ from .job import Job
 from .schedulers import Scheduler
 from .simulation import Simulation
 from .ensemble import EnsembleSimulation
+from .teams import parallel_teams_run, assign_teams
 
 
 def integer_coercable(val):
@@ -535,12 +536,31 @@ class CycleSimulation(object):
 
     def run(
         self,
-        n_concurrent: int = 1
+        n_concurrent: int = 1,
+        teams: bool = False,
+        teams_exe_cmd: str = None,
+        teams_exe_cmd_nproc: int = None,
+        teams_node_file: dict = None,
+        env: dict = None,
+        teams_dict: dict = None
     ):
         """Run the cycle of simulations.
-        Args:
-            n_concurrent: The number of cycle casts to run or schedule simultaneously.
-        Returns: 0 for success.
+        Inputs:
+            n_concurrent: int = 1, Only used for non-team runs.
+            teams: bool = False, Use teams?
+            teams_exe_cmd: str, The mpi-specific syntax needed. For
+                example: 'mpirun --host {hostname} -np {nproc} {cmd}'
+            teams_exe_cmd_nproc: int, The number of cores per model/wrf_hydro
+                simulation to be run.
+            teams_node_file: dict = None, Optional file that acts like a node
+                file. It is not currently implemented but the key specifies the
+                scheduler format that the file follows. An example pbs node
+                file is in tests/data and this argument is used here to test
+                without a sched.
+            env: dict = None, optional envionment to pass to the run.
+            teams_dict: dict, Skip the arguments if you already have a
+                teams_dict to use (backwards compatibility)
+        Outputs: 0 for success.
         """
 
         # Save the ensemble object out to the ensemble directory before run
@@ -548,23 +568,62 @@ class CycleSimulation(object):
         path = pathlib.Path(self._compose_dir).joinpath('WrfHydroCycle.pkl')
         self.pickle(path)
 
-        if n_concurrent > 1:
+        if teams or teams_dict is not None:
+            if teams_dict is None and teams_exe_cmd is None:
+                raise ValueError("The teams_exe_cmd is required for using teams.")
+
+            if teams_dict is None:
+                teams_dict = assign_teams(
+                    self,
+                    teams_exe_cmd=teams_exe_cmd,
+                    teams_exe_cmd_nproc=teams_exe_cmd_nproc,
+                    teams_node_file=teams_node_file,
+                    env=env
+                )
+
+            with multiprocessing.Pool(len(teams_dict), initializer=mute) as pool:
+                exit_codes = pool.map(
+                    parallel_teams_run,
+                    (
+                        {'obj_name': 'casts',
+                         'team_dict': team_dict,
+                         'compose_dir': self._compose_dir,
+                         'env': env}
+                        for (key, team_dict) in teams_dict.items()
+                    )
+                )
+
+            # # Keep around for serial testing/debugging
+            # exit_codes = [
+            #     parallel_teams_run(
+            #         {'obj_name': 'casts',
+            #          'team_dict': team_dict,
+            #          'compose_dir': self._compose_dir,
+            #          'env': env})
+            #     for (key, team_dict) in teams_dict.items()
+            # ]
+
+            exit_code = int(not all([list(ee.values())[0] == 0 for ee in exit_codes]))
+
+        elif n_concurrent > 1:
             with multiprocessing.Pool(n_concurrent, initializer=mute) as pool:
                 exit_codes = pool.map(
                     parallel_run_casts,
                     ({'cast': cc, 'compose_dir': self._compose_dir} for cc in self.casts)
                 )
+            exit_code = int(not all([ee == 0 for ee in exit_codes]))
+
         else:
             # Keep the following for debugging: Run it without pool.map
             exit_codes = [
                 parallel_run_casts({'cast': cc, 'compose_dir': self._compose_dir})
                 for cc in self.casts
             ]
+            exit_code = int(not all([ee == 0 for ee in exit_codes]))
 
         # Return to the cycle dir.
         os.chdir(self._compose_dir)
-
-        return int(not all([ee == 0 for ee in exit_codes]))
+        return exit_code
 
     def pickle(self, path: str):
         """Pickle ensemble sim object to specified file path

@@ -47,8 +47,9 @@ def ds_2d():
 
     time = pd.to_datetime('1984-10-14')
 
-    ds_2d = xr.Dataset({'var1': (('x','y'), vals_2d)},
-                       {'Time': time, 'x': x,'y':y})
+    ds_2d = xr.Dataset(
+        {'var1': (('x', 'y'), vals_2d)},
+        {'Time': time, 'x': x, 'y': y})
     ds_2d.var1.encoding['_FillValue'] = False
 
     return ds_2d
@@ -57,11 +58,11 @@ def ds_2d():
 @pytest.fixture(scope='function')
 def ds_timeseries():
     # Create a dummy dataset
-    vals_ts = np.random.randn(3,3)
-    time = pd.to_datetime(['1984-10-14 00:00:00','1984-10-14 01:00:00','1984-10-14 02:00:00'])
+    vals_ts = np.random.randn(3, 3)
+    time = pd.to_datetime(['1984-10-14 00:00:00', '1984-10-14 01:00:00', '1984-10-14 02:00:00'])
     location = ['loc1', 'loc2', 'loc3']
 
-    ds_ts = xr.Dataset({'var1': (('location','Time'), vals_ts)},
+    ds_ts = xr.Dataset({'var1': (('location', 'Time'), vals_ts)},
                        {'Time': time,
                         'location': location})
 
@@ -157,7 +158,7 @@ def domain_dir(tmpdir, ds_1d):
         hrldas_namelist,
         domain_top_dir_path.joinpath('hrldas_namelist_patches.json').open('w')
     )
-    
+
     json.dump(
         hydro_namelist,
         domain_top_dir_path.joinpath('hydro_namelist_patches.json').open('w')
@@ -246,13 +247,14 @@ def model_dir(tmpdir):
     with model_dir_path.joinpath('configure').open('w') as f:
         f.write('# dummy configure \n')
 
+    # Arugments passed to wrf_hydro.exe are echoed to diag_hydro.00000.
     dummy_compile = (
         "#!/bin/bash \n"
         "# dummy compile \n"
         "mkdir Run \n"
         "echo '#!/bin/bash \n"
-        "echo $@ \n"
-        "echo \'The model finished successfully.......\' >  diag_hydro.00000\n"
+        "echo $@ > diag_hydro.00000\n"
+        "echo \'The model finished successfully.......\' >>  diag_hydro.00000\n"
         "exit 0' > Run/wrf_hydro.exe\n"
         "touch Run/DUMMY.TBL \n"
     )

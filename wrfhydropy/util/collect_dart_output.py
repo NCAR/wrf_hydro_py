@@ -15,6 +15,7 @@ def collect_dart_output(
     run_dir: Union[pathlib.Path, str],
     out_dir: Union[pathlib.Path, str] = None,
     n_cores: int = 1,
+    file_chunk_size: int = 1200,        
     spatial_indices: list = None,
     drop_variables: list = None
 ):
@@ -39,14 +40,12 @@ def collect_dart_output(
 
     for stage in stage_list:
         for typ in type_list:
-
             # Restrictive enough for the DART_cleanup *out* files.
             in_files = sorted((run_dir / 'output').glob('*/' + stage + '_' + typ + '.*[0-9].nc'))
             if len(in_files) == 0:
                 continue
 
             out_file = out_dir / ('all_' + stage + '_' + typ + '.nc')
-
             # Do have to add the time dim to each variable to get the correct result.
             def preproc_time(ds):
                 for key in ds.variables.keys():
@@ -101,7 +100,7 @@ def collect_dart_output(
 
             the_pool = Pool(n_cores)
             with dask.config.set(scheduler='processes', pool=the_pool):
-                ds = wrfhydropy.open_dart_dataset(in_files)
+                ds = wrfhydropy.open_dart_dataset(in_files, file_chunk_size=file_chunk_size)
             the_pool.close()
 
             out_file = out_dir / ('all_' + stage + '_ensemble' + domain + '.nc')

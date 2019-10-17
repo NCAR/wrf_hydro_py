@@ -1,7 +1,14 @@
 import collections
 import dask
 import itertools
+import math
+import multiprocessing
+import os
+import pathlib
+import pickle
+import sys
 import xarray as xr
+
 from .ioutils import is_not_none, group_member, merge_time, merge_member
 
 
@@ -43,7 +50,7 @@ def preprocess_dart_data(
     return ds
 
 
-def open_dart_dataset(
+def open_dart_dataset_inner(
     paths: list,
     chunks: dict = None,
     spatial_indices: list = None,
@@ -112,3 +119,73 @@ paths: List ,iterable, or generator of file paths to wrf-hydro netcdf output fil
         dart_dataset = dart_dataset.chunk(chunks=chunks)
 
     return dart_dataset
+
+
+def open_dart_dataset(
+    paths: list,
+    file_chunk_size: int = 1200,
+    chunks: dict = None,
+    isel: dict = None,
+    drop_variables: list = None,
+    npartitions: int = None,
+    attrs_keep: list = None,
+    n_cores: int = 1,
+    write_cumulative_file: pathlib.Path = None
+) -> xr.Dataset:
+
+    n_files = len(paths)
+    print('n_files', str(n_files))
+
+    if file_chunk_size is None:
+        file_chunk_size = n_files
+
+    if file_chunk_size >= n_files:
+        the_pool = multiprocessing.Pool(n_cores)
+        with dask.config.set(scheduler='processes', pool=the_pool):
+            whp_ds = open_dart_dataset_inner(
+                paths=paths,
+                chunks=chunks,
+                attrs_keep=attrs_keep,
+                spatial_indices=isel,
+                drop_variables=drop_variables,
+                npartitions=npartitions
+            )
+        the_pool.close()
+
+    else:
+
+        n_file_chunks = math.ceil(n_files / file_chunk_size)
+        start_list = [file_chunk_size * ii for ii in range(n_file_chunks)]
+        end_list = [file_chunk_size * (ii + 1) - 1 for ii in range(n_file_chunks)]
+
+        whp_ds = None
+        for start_ind, end_ind in zip(start_list, end_list):
+            the_pool = multiprocessing.Pool(n_cores)
+            with dask.config.set(scheduler='processes', pool=the_pool):
+                #ds_chunk = open_whp_dataset_inner(
+                ds_chunk = open_dart_dataset_inner(
+                    paths=paths,
+                    chunks=chunks,
+                    attrs_keep=attrs_keep,
+                    spatial_indices=isel,
+                    drop_variables=drop_variables,
+                    npartitions=npartitions
+                )
+            the_pool.close()
+
+            if ds_chunk is not None:
+                if whp_ds is None:
+                    whp_ds = ds_chunk
+                else:
+                    whp_ds = xr.merge([whp_ds, ds_chunk])
+                if write_cumulative_file is not None:
+                    if not write_cumulative_file.parent.exists():
+                        write_cumulative_file.parent.mkdir()
+                    whp_ds.to_netcdf(write_cumulative_file)
+                    cumulative_files_file = write_cumulative_file.parent / (
+                        write_cumulative_file.stem + '.files.pkl')
+                    pickle.dump(
+                        paths[0:end_ind],
+                        open(str(cumulative_files_file), 'wb'))
+
+    return whp_ds

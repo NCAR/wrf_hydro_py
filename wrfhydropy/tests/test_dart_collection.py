@@ -5,12 +5,13 @@ import shutil
 import wrfhydropy
 from .data import collection_data_download
 from wrfhydropy.core.ioutils import md5
+import xarray as xr
 
 # The answer reprs are found here.
 from .data.collection_data_answer_reprs import *
 
 test_dir = pathlib.Path(os.path.dirname(os.path.realpath(__file__)))
-dart_data_dir = test_dir / 'collection_data/dart_output'
+dart_data_dir = test_dir / 'data/collection_data/dart_output'
 
 # The data are found here.
 collection_data_download.download()
@@ -39,9 +40,29 @@ def test_collect_dart_output(
     tmpdir
 ):
     _ = wrfhydropy.collect_dart_output(
-        run_dir=dart_data_dir, out_dir=tmpdir, n_cores=n_cores)
+        run_dir=dart_data_dir,
+        out_dir=tmpdir,
+        n_cores=n_cores
+    )
 
     output_files = sorted(pathlib.Path(tmpdir).glob('*.nc'))
+    assert len(output_files) == len(md5_answer_key)
+
     for ff in output_files:
         check_md5 = md5(ff)
         assert md5_answer_key[ff.name] == check_md5
+
+    chunk_dir = tmpdir / 'file_chunk_size'
+    os.mkdir(str(chunk_dir))
+    _ = wrfhydropy.collect_dart_output(
+        run_dir=dart_data_dir,
+        out_dir=chunk_dir,
+        n_cores=n_cores,
+        file_chunk_size=1
+    )
+
+    chunk_files = sorted(pathlib.Path(chunk_dir).glob('*.nc'))
+    for chunk, no_chunk in zip(chunk_files, output_files):
+        ds_chunk = xr.open_dataset(chunk)
+        ds_nochunk = xr.open_dataset(no_chunk)
+        assert ds_chunk.equals(ds_nochunk)

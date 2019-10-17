@@ -3,9 +3,14 @@ import dask
 import dask.bag
 from datetime import datetime
 import itertools
+import math
+import multiprocessing
 from multiprocessing.pool import Pool
 import numpy as np
+import os
 import pathlib
+import pickle
+import sys
 from wrfhydropy.core.ioutils import timesince
 import xarray as xr
 
@@ -278,9 +283,6 @@ def open_whp_dataset_orig(
     n_cores: int = 1
 ) -> xr.Dataset:
 
-    import sys
-    import os
-
     # print('n_cores', str(n_cores))
     the_pool = Pool(n_cores)
     with dask.config.set(scheduler='processes', pool=the_pool):
@@ -311,12 +313,6 @@ def open_whp_dataset(
     n_cores: int = 1,
     write_cumulative_file: pathlib.Path = None
 ) -> xr.Dataset:
-
-    import sys
-    import os
-    import math
-    import multiprocessing
-    import pickle
 
     n_files = len(paths)
     print('n_files', str(n_files))

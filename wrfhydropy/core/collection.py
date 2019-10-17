@@ -297,24 +297,6 @@ def open_whp_dataset_orig(
     return whp_ds
 
 
-def open_whp_middle(arg_dict: dict):
-    # print('n_cores', str(arg_dict['n_cores']))
-    # print('len(paths)', str(len(arg_dict['paths'])))
-    the_pool = Pool(arg_dict['n_cores'])
-    with dask.config.set(scheduler=arg_dict['dask_sched'], pool=the_pool):
-        whp_ds = open_whp_dataset_inner(
-            paths=arg_dict['paths'],
-            chunks=arg_dict['chunks'],
-            attrs_keep=arg_dict['attrs_keep'],
-            isel=arg_dict['isel'],
-            drop_variables=arg_dict['drop_variables'],
-            npartitions=arg_dict['npartitions'],
-            profile=arg_dict['profile']
-        )
-    the_pool.close()
-    return whp_ds
-
-
 def open_whp_dataset(
     paths: list,
     file_chunk_size: int = None,
@@ -343,20 +325,18 @@ def open_whp_dataset(
         file_chunk_size = n_files
 
     if file_chunk_size >= n_files:
-
-        whp_ds = open_whp_middle(
-            {
-                'n_cores': n_cores,
-                'dask_sched': 'processes',
-                'paths': paths,
-                'chunks': chunks,
-                'attrs_keep': attrs_keep,
-                'isel': isel,
-                'drop_variables': drop_variables,
-                'npartitions': npartitions,
-                'profile': profile
-            }
-        )
+        the_pool = Pool(n_cores)
+        with dask.config.set(scheduler='processes', pool=the_pool):
+            whp_ds = open_whp_dataset_inner(
+                paths=paths,
+                chunks=chunks,
+                attrs_keep=attrs_keep,
+                isel=isel,
+                drop_variables=drop_variables,
+                npartitions=npartitions,
+                profile=profile
+            )
+        the_pool.close()
 
     else:
 
@@ -366,17 +346,19 @@ def open_whp_dataset(
 
         whp_ds = None
         for start_ind, end_ind in zip(start_list, end_list):
-            ds_chunk = open_whp_middle({
-                'n_cores': n_cores,
-                'dask_sched': 'processes',
-                'paths': paths[start_ind:(end_ind + 1)],
-                'chunks': chunks,
-                'attrs_keep': attrs_keep,
-                'isel': isel,
-                'drop_variables': drop_variables,
-                'npartitions': npartitions,
-                'profile': profile
-            })
+            the_pool = Pool(n_cores)
+            with dask.config.set(scheduler='processes', pool=the_pool):
+                ds_chunk = open_whp_dataset_inner(
+                    paths=paths,
+                    chunks=chunks,
+                    attrs_keep=attrs_keep,
+                    isel=isel,
+                    drop_variables=drop_variables,
+                    npartitions=npartitions,
+                    profile=profile
+                )
+            the_pool.close()
+
             if ds_chunk is not None:
                 if whp_ds is None:
                     whp_ds = ds_chunk

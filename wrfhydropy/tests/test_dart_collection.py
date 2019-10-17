@@ -15,7 +15,7 @@ dart_data_dir = test_dir / 'collection_data/dart_output'
 # The data are found here.
 collection_data_download.download()
 
-#md5_answer_key = {ff.name: md5(ff) for ff in output_files}
+# md5_answer_key = {ff.name: md5(ff) for ff in output_files}
 md5_answer_key = {
     'all_analysis_ensemble.nc': 'a17f1c9c2f82f8643d7c990d60c355c2',
     'all_analysis_mean.nc': '429decdf4a096b63eed4a1469859e08f',
@@ -32,7 +32,8 @@ md5_answer_key = {
     'all_preassim_priorinf_sd.nc': '5ea07dd7fccd1c166a31b08759d214be',
     'all_preassim_sd.nc': 'd7e35fa9d8475b59fd9365dab897cb6e'}
 
-@pytest.mark.parametrize('n_cores', [1,3])
+
+@pytest.mark.parametrize('n_cores', [1, 3])
 def test_collect_dart_output(
     n_cores,
     tmpdir
@@ -44,5 +45,3 @@ def test_collect_dart_output(
     for ff in output_files:
         check_md5 = md5(ff)
         assert md5_answer_key[ff.name] == check_md5
-
-

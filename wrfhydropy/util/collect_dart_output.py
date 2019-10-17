@@ -40,9 +40,7 @@ def collect_dart_output(
     for stage in stage_list:
         for typ in type_list:
 
-            # This is the correct glob
-            #in_files = sorted((run_dir / 'output').glob('*/' + stage + '_' + typ + '.*.nc'))
-            # This one is more restrictive b/c of the DART_cleanup *out* files.
+            # Restrictive enough for the DART_cleanup *out* files.
             in_files = sorted((run_dir / 'output').glob('*/' + stage + '_' + typ + '.*[0-9].nc'))
             if len(in_files) == 0:
                 continue
@@ -56,7 +54,7 @@ def collect_dart_output(
                         ds[key] = ds[key].expand_dims('time')
                 return ds
 
-            the_pool=Pool(n_cores)
+            the_pool = Pool(n_cores)
             with dask.config.set(scheduler='processes', pool=the_pool):
                 ds = xr.open_mfdataset(in_files, parallel=True, preprocess=preproc_time)
             the_pool.close()
@@ -81,7 +79,7 @@ def collect_dart_output(
     #     assert o.equals(n)
     # Success.
 
-    #-------------------------------------------------------
+    # -------------------------------------------------------
     # 2. Collect members. This replaces DART_cleanup_pack_members.csh and DART_cleanup.csh
     #    The explicit handling of individual members happens in wrfhydropy.open_dart_dataset
     stage_list = ['input', 'preassim', 'analysis', 'output']
@@ -91,7 +89,7 @@ def collect_dart_output(
         for domain in domain_list:
 
             # This is the correct glob
-            #in_files = sorted((run_dir / 'output').glob('*/' + stage + '_' + typ + '.*.nc'))
+            # in_files = sorted((run_dir / 'output').glob('*/' + stage + '_' + typ + '.*.nc'))
             # This one is more restrictive b/c of the DART_cleanup *out* files.
             in_files = sorted(
                 (run_dir / 'output').glob(
@@ -101,7 +99,7 @@ def collect_dart_output(
             if len(in_files) == 0:
                 continue
 
-            the_pool=Pool(n_cores)
+            the_pool = Pool(n_cores)
             with dask.config.set(scheduler='processes', pool=the_pool):
                 ds = wrfhydropy.open_dart_dataset(in_files)
             the_pool.close()
@@ -109,7 +107,7 @@ def collect_dart_output(
             out_file = out_dir / ('all_' + stage + '_ensemble' + domain + '.nc')
             ds.to_netcdf(out_file)
 
-    #-------------------------------------------------------
+    # -------------------------------------------------------
     # Wrap it up.
     t_end = time.time()
     print("Wrote collected output to : ", out_dir)
@@ -118,7 +116,7 @@ def collect_dart_output(
     return(True)
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
         description='Script interface to wrfhydropy.ioutils.open_nwm_dataset.'

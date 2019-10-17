@@ -15,7 +15,7 @@ def collect_dart_output(
     run_dir: Union[pathlib.Path, str],
     out_dir: Union[pathlib.Path, str] = None,
     n_cores: int = 1,
-    file_chunk_size: int = 1200,        
+    file_chunk_size: int = 1200,
     spatial_indices: list = None,
     drop_variables: list = None
 ):

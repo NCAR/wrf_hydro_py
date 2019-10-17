@@ -162,7 +162,6 @@ def open_dart_dataset(
         for start_ind, end_ind in zip(start_list, end_list):
             the_pool = multiprocessing.Pool(n_cores)
             with dask.config.set(scheduler='processes', pool=the_pool):
-                #ds_chunk = open_whp_dataset_inner(
                 ds_chunk = open_dart_dataset_inner(
                     paths=paths,
                     chunks=chunks,

@@ -47,6 +47,7 @@ def collect_dart_output(
 
             out_file = out_dir / ('all_' + stage + '_' + typ + '.nc')
             # Do have to add the time dim to each variable to get the correct result.
+
             def preproc_time(ds):
                 for key in ds.variables.keys():
                     if 'time' not in ds[key].dims:

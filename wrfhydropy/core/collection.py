@@ -155,6 +155,9 @@ def open_whp_dataset_inner(
         drop_variables=drop_variables
     ).filter(is_not_none).compute()
 
+    if len(ds_list) is 0:
+        return None
+
     if profile:
         then = timesince(then)
         print("after ds_list preprocess/filter")
@@ -278,7 +281,7 @@ def open_whp_dataset_orig(
     import sys
     import os
 
-    print('n_cores', str(n_cores))
+    # print('n_cores', str(n_cores))
     the_pool = Pool(n_cores)
     with dask.config.set(scheduler='processes', pool=the_pool):
         whp_ds = open_whp_dataset_inner(
@@ -295,8 +298,8 @@ def open_whp_dataset_orig(
 
 
 def open_whp_middle(arg_dict: dict):
-    print('n_cores', str(arg_dict['n_cores']))
-    print('len(paths)', str(len(arg_dict['paths'])))
+    # print('n_cores', str(arg_dict['n_cores']))
+    # print('len(paths)', str(len(arg_dict['paths'])))
     the_pool = Pool(arg_dict['n_cores'])
     with dask.config.set(scheduler=arg_dict['dask_sched'], pool=the_pool):
         whp_ds = open_whp_dataset_inner(
@@ -335,7 +338,7 @@ def open_whp_dataset(
 
     n_files = len(paths)
     print('n_files', str(n_files))
-    
+
     if file_chunk_size is None:
         file_chunk_size = n_files
 
@@ -358,42 +361,23 @@ def open_whp_dataset(
     else:
 
         n_file_chunks = math.ceil(n_files / file_chunk_size)
-        start_list = [file_chunk_size*ii for ii in range(n_file_chunks)]
-        end_list = [file_chunk_size*(ii+1)-1 for ii in range(n_file_chunks)]
+        start_list = [file_chunk_size * ii for ii in range(n_file_chunks)]
+        end_list = [file_chunk_size * (ii + 1) - 1 for ii in range(n_file_chunks)]
 
-        if n_cores is None:
-            with multiprocessing.Pool(processes=n_cores) as pool:  # , initializer=mute
-                ds_chunks = pool.map(
-                    open_whp_middle,
-                    ({
-                        'n_cores': 1,
-                        'dask_sched': 'single-threaded',
-                        'paths': paths[start_ind:(end_ind+1)],
-                        'chunks': chunks,
-                        'attrs_keep': attrs_keep,
-                        'isel': isel,
-                        'drop_variables': drop_variables,
-                        'npartitions': npartitions,
-                        'profile': profile
-                    } for start_ind, end_ind in zip(start_list, end_list))
-                )
-
-        else:
-            print('not multiprocessing')
-
-            whp_ds = None
-            for start_ind, end_ind in zip(start_list, end_list):
-                ds_chunk = open_whp_middle({
-                    'n_cores': n_cores,
-                    'dask_sched': 'processes',
-                    'paths': paths[start_ind:(end_ind+1)],
-                    'chunks': chunks,
-                    'attrs_keep': attrs_keep,
-                    'isel': isel,
-                    'drop_variables': drop_variables,
-                    'npartitions': npartitions,
-                    'profile': profile
-                })
+        whp_ds = None
+        for start_ind, end_ind in zip(start_list, end_list):
+            ds_chunk = open_whp_middle({
+                'n_cores': n_cores,
+                'dask_sched': 'processes',
+                'paths': paths[start_ind:(end_ind + 1)],
+                'chunks': chunks,
+                'attrs_keep': attrs_keep,
+                'isel': isel,
+                'drop_variables': drop_variables,
+                'npartitions': npartitions,
+                'profile': profile
+            })
+            if ds_chunk is not None:
                 if whp_ds is None:
                     whp_ds = ds_chunk
                 else:

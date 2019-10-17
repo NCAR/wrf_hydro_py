@@ -240,6 +240,10 @@ def test_collect_ensemble_cycle(
     # This checks everything about the metadata.
     assert repr(ens_cycle_ds) == expected
 
+    # Test that hierarchical collects are identical
+    ens_cycle_ds_hier = open_whp_dataset(files, n_cores=n_cores, file_chunk_size=1)
+    assert ens_cycle_ds_hier.equals(ens_cycle_ds)
+
 
 # Missing/bogus files.
 # Do this for ensemble cycle as that's the most complicated relationship to the missing file.
@@ -313,6 +317,9 @@ def test_collect_missing_ens_cycle(
     # This checks everything about the metadata.
     assert repr(ens_cycle_ds) == expected
 
+    ens_cycle_ds_hier = open_whp_dataset(files, n_cores=n_cores, file_chunk_size=1)
+    assert ens_cycle_ds_hier.equals(ens_cycle_ds)
+
 
 # Exercise profile and chunking.
 @pytest.mark.parametrize(
@@ -334,6 +341,11 @@ def test_collect_profile_chunking(
     sim_ds = open_whp_dataset(files, n_cores=n_cores, profile=True, chunks=15)
     # This checks everything about the metadata.
     assert repr(sim_ds) == expected
+
+    # if file_chunk_size > and chunk is not None there is an error.
+    sim_ds_hier = open_whp_dataset(
+        files, n_cores=n_cores, profile=True, chunks=15, file_chunk_size=2)
+    assert sim_ds_hier.equals(sim_ds)
 
 
 # Test spatial index selection
@@ -374,13 +386,12 @@ def test_collect_ensemble_cycle_isel(
 ):
     ens_cycle_path = test_dir.joinpath('data/collection_data/ens_ana')
     files = sorted(ens_cycle_path.glob(file_glob))
-    ens_cycle_ds = open_whp_dataset(
-        files,
-        n_cores=n_cores,
-        isel=isel
-    )
+    ens_cycle_ds = open_whp_dataset(files, n_cores=n_cores, isel=isel)
     # This checks everything about the metadata.
     assert repr(ens_cycle_ds) == expected
+
+    ens_cycle_ds_hier = open_whp_dataset(files, n_cores=n_cores, isel=isel, file_chunk_size=1)
+    assert ens_cycle_ds_hier.equals(ens_cycle_ds)
 
 
 # Test dropping/keeping variables
@@ -421,10 +432,10 @@ def test_collect_ensemble_cycle_drop_vars(
 ):
     ens_cycle_path = test_dir.joinpath('data/collection_data/ens_ana')
     files = sorted(ens_cycle_path.glob(file_glob))
-    ens_cycle_ds = open_whp_dataset(
-        files,
-        n_cores=n_cores,
-        drop_variables=drop_vars
-    )
+    ens_cycle_ds = open_whp_dataset(files, n_cores=n_cores, drop_variables=drop_vars)
     # This checks everything about the metadata.
     assert repr(ens_cycle_ds) == expected
+
+    ens_cycle_ds_hier = open_whp_dataset(
+        files, n_cores=n_cores, drop_variables=drop_vars, file_chunk_size=1)
+    assert ens_cycle_ds_hier.equals(ens_cycle_ds)

@@ -9,7 +9,7 @@ def test_model_init(model_dir):
                   model_config='nwm_ana')
     assert type(model) == Model
 
-def test_model_setenvar(model_dir,tmpdir):
+def test_model_setenvar(model_dir, tmpdir):
     model = Model(source_dir=model_dir,
                   model_config='nwm_ana')
 

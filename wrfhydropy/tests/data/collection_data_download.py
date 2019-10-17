@@ -12,7 +12,7 @@ def download(version='latest'):
     id_md5_dict = {
         'latest': {
             'id': '1VrWVve8fhYobDg2xDrgHfiAi7VBDmV9T',
-            'md5': '13914b4c133dcab1e1beb8fab8fac4ec'
+            'md5': 'b8e6b9a3ad89c1502defae9aa0c8cf53'
         }
     }
     id = id_md5_dict[version]['id']

@@ -18,20 +18,20 @@ collection_data_download.download()
 
 # md5_answer_key = {ff.name: md5(ff) for ff in output_files}
 md5_answer_key = {
-    'all_analysis_ensemble.nc': 'a17f1c9c2f82f8643d7c990d60c355c2',
-    'all_analysis_mean.nc': '429decdf4a096b63eed4a1469859e08f',
-    'all_analysis_priorinf_mean.nc': '12ebe5703e84ac9e487d341a77c51170',
-    'all_analysis_priorinf_sd.nc': '34845df8c5fbd93c8df1ff6c4e3cee8a',
-    'all_analysis_sd.nc': '8d4bf08b48ef2c739e2f5645870638d4',
-    'all_output_mean.nc': '1dcf81a346fcd127839e29560f10bc3d',
-    'all_output_priorinf_mean.nc': 'b3ebb7949a4e20bc8db267f8053a3ac7',
-    'all_output_priorinf_sd.nc': '3d2e1deab5999e9d261b9d85f8a6c166',
-    'all_output_sd.nc': '9e83d86df1a42e99babcc53ccac1b638',
-    'all_preassim_ensemble.nc': 'd02a920051b8b9ce07470c7c5b5bd46f',
-    'all_preassim_mean.nc': '211b985720587f0aa91478dbb9a4f9c3',
-    'all_preassim_priorinf_mean.nc': '927c1a2edce6c1bf448ba1ea6d921de0',
-    'all_preassim_priorinf_sd.nc': '5ea07dd7fccd1c166a31b08759d214be',
-    'all_preassim_sd.nc': 'd7e35fa9d8475b59fd9365dab897cb6e'}
+    'all_analysis_ensemble.nc': 'ff2333f0a950cf966880bdc9904b2ed6',
+    'all_analysis_mean.nc': 'f6389525d8d872b85eff6981342c35b4',
+    'all_analysis_priorinf_mean.nc': 'ef1679c8561a9d494ca50f327dd76fd6',
+    'all_analysis_priorinf_sd.nc': '1ca7b203293884c18823ae351d69d4e4',
+    'all_analysis_sd.nc': 'c6ac39792a93a0191af299b3961b0df7',
+    'all_output_mean.nc': '475c9b99686d3a371706b424c86e5f23',
+    'all_output_priorinf_mean.nc': '085120dd550bb513ffd56a3cbb6c02cd',
+    'all_output_priorinf_sd.nc': '69d0364eb3b8aa31a3ab6e8696326f7e',
+    'all_output_sd.nc': 'c4bc7829cb9a543f8f7968e461d0c7be',
+    'all_preassim_ensemble.nc': 'c54d961e8ce665a6e4515cc6ff2cd5f3',
+    'all_preassim_mean.nc': '6381ca923e0dc379dd7ae334f88e60f0',
+    'all_preassim_priorinf_mean.nc': 'd5f783e7869fa4ecafc47592b614fee1',
+    'all_preassim_priorinf_sd.nc': 'a07bdbbadf6b2e5534d0d3e1c8ce03cd',
+    'all_preassim_sd.nc': 'caf37d3193fa5b58e414eb07ff46411f'}
 
 
 @pytest.mark.parametrize('n_cores', [1, 3])

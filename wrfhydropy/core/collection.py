@@ -6,6 +6,7 @@ import itertools
 from multiprocessing.pool import Pool
 import numpy as np
 import pathlib
+import time
 from wrfhydropy.core.ioutils import timesince
 import xarray as xr
 
@@ -346,10 +347,14 @@ def open_whp_dataset(
 
         whp_ds = None
         for start_ind, end_ind in zip(start_list, end_list):
+            loop_start_time = time.time()
+            print('start_ind: ', start_ind)
+            print('end_ind: ', end_ind)
+            path_chunk = paths[start_ind:(end_ind+1)]
             the_pool = Pool(n_cores)
             with dask.config.set(scheduler='processes', pool=the_pool):
                 ds_chunk = open_whp_dataset_inner(
-                    paths=paths,
+                    paths=path_chunk,
                     chunks=chunks,
                     attrs_keep=attrs_keep,
                     isel=isel,
@@ -360,18 +365,29 @@ def open_whp_dataset(
             the_pool.close()
 
             if ds_chunk is not None:
-                if whp_ds is None:
-                    whp_ds = ds_chunk
-                else:
-                    whp_ds = xr.merge([whp_ds, ds_chunk])
-                if write_cumulative_file is not None:
+                if not write_cumulative_file.exists():
                     if not write_cumulative_file.parent.exists():
                         write_cumulative_file.parent.mkdir()
+                    ds_chunk.to_netcdf(write_cumulative_file)
+                    whp_ds = ds_chunk
+                else:
+                    backup_file = write_cumulative_file.with_suffix('.prev')
+                    write_cumulative_file.replace(backup_file)
+                    cumulative_ds = xr.open_dataset(backup_file)
+                    whp_ds = xr.merge([cumulative_ds, ds_chunk])
                     whp_ds.to_netcdf(write_cumulative_file)
-                    cumulative_files_file = write_cumulative_file.parent / (
-                        write_cumulative_file.stem + '.files.pkl')
-                    pickle.dump(
-                        paths[0:end_ind],
-                        open(str(cumulative_files_file), 'wb'))
+                    backup_file.unlink()
+
+                cumulative_files_file = write_cumulative_file.parent / (
+                    write_cumulative_file.stem + '.files.pkl')
+                pickle.dump(
+                    paths[0:(end_ind+1)],
+                    open(str(cumulative_files_file), 'wb'))
+
+            print('wrote: ')
+            print('       ', write_cumulative_file)
+            print('       ', cumulative_files_file)
+            print('loop took: ', time.time() - loop_start_time)
+            print('')
 
     return whp_ds

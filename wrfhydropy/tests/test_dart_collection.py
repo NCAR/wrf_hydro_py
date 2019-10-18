@@ -50,7 +50,7 @@ def test_collect_dart_output(
 
     for ff in output_files:
         check_md5 = md5(ff)
-        # assert md5_answer_key[ff.name] == check_md5
+        assert md5_answer_key[ff.name] == check_md5
 
     chunk_dir = tmpdir / 'file_chunk_size'
     os.mkdir(str(chunk_dir))

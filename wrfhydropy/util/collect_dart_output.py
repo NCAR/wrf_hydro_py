@@ -108,7 +108,6 @@ def collect_dart_output(
                     write_cumulative_file=out_file
                 )
             the_pool.close()
-
             ds.to_netcdf(out_file)
 
     # -------------------------------------------------------

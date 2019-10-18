@@ -3,12 +3,17 @@ import dask
 import dask.bag
 from datetime import datetime
 import itertools
-from multiprocessing.pool import Pool
+import math
+import multiprocessing
 import numpy as np
+import os
 import pathlib
+import pickle
+import sys
 import time
-from wrfhydropy.core.ioutils import timesince
 import xarray as xr
+
+from wrfhydropy.core.ioutils import timesince
 
 
 def is_not_none(x):
@@ -279,11 +284,8 @@ def open_whp_dataset_orig(
     n_cores: int = 1
 ) -> xr.Dataset:
 
-    import sys
-    import os
-
     # print('n_cores', str(n_cores))
-    the_pool = Pool(n_cores)
+    the_pool = multiprocessing.Pool(n_cores)
     with dask.config.set(scheduler='processes', pool=the_pool):
         whp_ds = open_whp_dataset_inner(
             paths,
@@ -300,7 +302,7 @@ def open_whp_dataset_orig(
 
 def open_whp_dataset(
     paths: list,
-    file_chunk_size: int = None,
+    file_chunk_size: int = 1200,
     chunks: dict = None,
     attrs_keep: list = ['featureType', 'proj4',
                         'station_dimension', 'esri_pe_string',
@@ -313,12 +315,6 @@ def open_whp_dataset(
     write_cumulative_file: pathlib.Path = None
 ) -> xr.Dataset:
 
-    import sys
-    import os
-    import math
-    import multiprocessing
-    import pickle
-
     n_files = len(paths)
     print('n_files', str(n_files))
 
@@ -326,7 +322,7 @@ def open_whp_dataset(
         file_chunk_size = n_files
 
     if file_chunk_size >= n_files:
-        the_pool = Pool(n_cores)
+        the_pool = multiprocessing.Pool(n_cores)
         with dask.config.set(scheduler='processes', pool=the_pool):
             whp_ds = open_whp_dataset_inner(
                 paths=paths,
@@ -351,7 +347,7 @@ def open_whp_dataset(
             print('start_ind: ', start_ind)
             print('end_ind: ', end_ind)
             path_chunk = paths[start_ind:(end_ind+1)]
-            the_pool = Pool(n_cores)
+            the_pool = multiprocessing.Pool(n_cores)
             with dask.config.set(scheduler='processes', pool=the_pool):
                 ds_chunk = open_whp_dataset_inner(
                     paths=path_chunk,

@@ -7,6 +7,7 @@ import os
 import pathlib
 import pickle
 import sys
+import time
 import xarray as xr
 
 from .ioutils import is_not_none, group_member, merge_time, merge_member
@@ -154,16 +155,21 @@ def open_dart_dataset(
 
     else:
 
+
         n_file_chunks = math.ceil(n_files / file_chunk_size)
         start_list = [file_chunk_size * ii for ii in range(n_file_chunks)]
         end_list = [file_chunk_size * (ii + 1) - 1 for ii in range(n_file_chunks)]
 
         whp_ds = None
         for start_ind, end_ind in zip(start_list, end_list):
+            loop_start_time = time.time()
+            print('start_ind: ', start_ind)
+            print('end_ind: ', end_ind)
+            path_chunk = paths[start_ind:(end_ind+1)]
             the_pool = multiprocessing.Pool(n_cores)
             with dask.config.set(scheduler='processes', pool=the_pool):
                 ds_chunk = open_dart_dataset_inner(
-                    paths=paths,
+                    paths=path_chunk,
                     chunks=chunks,
                     attrs_keep=attrs_keep,
                     spatial_indices=isel,
@@ -184,7 +190,10 @@ def open_dart_dataset(
                     cumulative_files_file = write_cumulative_file.parent / (
                         write_cumulative_file.stem + '.files.pkl')
                     pickle.dump(
-                        paths[0:end_ind],
+                        paths[0:(end_ind+1)],
                         open(str(cumulative_files_file), 'wb'))
+
+            print('loop took: ', time.time() - loop_start_time)
+            print('')
 
     return whp_ds

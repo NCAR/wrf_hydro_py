@@ -4,7 +4,7 @@ from .core import outputdiffs
 from .core import schedulers
 from .core.cycle import *
 from .core.collection import open_whp_dataset
-from .core.dart_collection import open_dart_dataset
+from .core.dart_collection import open_dart_dataset, collect_dart_dataset_pieces
 from .core.domain import *
 from .core.ensemble import *
 from .core.job import *

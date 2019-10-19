@@ -104,15 +104,24 @@ def collect_dart_output(
                 continue
 
             out_file = out_dir / ('all_' + stage + '_ensemble' + domain + '.nc')
-            ds = wrfhydropy.open_dart_dataset(
+
+            # ds = wrfhydropy.open_dart_dataset(
+            #     in_files,
+            #     n_cores=n_cores,
+            #     file_chunk_size=file_chunk_size,
+            #     write_cumulative_file=out_file
+            # )
+            # if isinstance(ds, xr.Dataset):
+            #     ds.to_netcdf(out_file)
+            #     ds.close()
+
+            ds = wrfhydropy.collect_dart_dataset_pieces(
                 in_files,
-                n_cores=n_cores,
-                file_chunk_size=file_chunk_size,
-                write_cumulative_file=out_file
+                out_file,
+                file_piece_size=file_chunk_size,
+                n_cores = 4,
+                n_cores_inner = 1
             )
-            if isinstance(ds, xr.Dataset):
-                ds.to_netcdf(out_file)
-                ds.close()
 
     # -------------------------------------------------------
     # Wrap it up.
@@ -139,7 +148,13 @@ if __name__ == '__main__':
         '--out_dir',
         required=True,
         action='store',
-        help='The path to the dart run_dir.'
+        help='The path to the dart out_dir.'
+    )
+    requiredNamed.add_argument(
+        '--file_chunk_size',
+        required=True,
+        action='store',
+        help='The number of file in each chunk to be processed and then collected.'
     )
     requiredNamed.add_argument(
         '--n_cores',
@@ -168,26 +183,27 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
-    run_dir = args.run_dir
-    out_dir = args.out_dir
+    run_dir = pathlib.Path(args.run_dir)
+    out_dir = pathlib.Path(args.out_dir)
+    file_chunk_size = int(args.file_chunk_size)
     n_cores = int(args.n_cores)
     file_chunk_size = args.file_chunk_size
     spatial_indices = args.spatial_indices
     drop_variables = args.drop_variables
 
-    cluster = LocalCluster(n_workers=n_cores, threads_per_worker=2)
-    client = Client(cluster)
+    #cluster = LocalCluster(n_workers=n_cores, threads_per_worker=2)
+    #client = Client(cluster)
     
-    if file_chunk_size == 'None':
+    if file_chunk_size == 'None' or file_chunk_size is None:
         file_chunk_size = 1200
     file_chunk_size = int(file_chunk_size)
         
-    if spatial_indices == 'None':
+    if spatial_indices == 'None' or spatial_indices is None:
         spatial_indices = None
     else:
         spatial_indices = [int(ind) for ind in spatial_indices.replace(" ", "").split(',')]
 
-    if drop_variables == 'None':
+    if drop_variables == 'None' or drop_variables is None:
         drop_variables = None
     else:
         drop_variables = [var for var in drop_variables.replace(" ", "").split(',')]
@@ -197,8 +213,8 @@ if __name__ == '__main__':
     success = collect_dart_output(
         run_dir=run_dir,
         out_dir=out_dir,
-        n_cores=n_cores,
         file_chunk_size=file_chunk_size,
+        n_cores=n_cores,
         spatial_indices=spatial_indices,
         drop_variables=drop_variables
     )

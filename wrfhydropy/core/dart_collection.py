@@ -7,13 +7,19 @@ import multiprocessing
 import os
 import pathlib
 import pickle
+import shlex
+import shutil
+import subprocess
 import sys
 import time
 import xarray as xr
 
 from .ioutils import is_not_none, group_member, merge_time, merge_member
+from .ensemble_tools import mute
 
-
+util_dir = pathlib.Path(os.path.realpath(__file__)).parent.parent / 'util'
+collect_sub_path = util_dir / 'collect_dart_output_sub.py'
+                        
 def preprocess_dart_data(
     path,
     chunks: dict = None,
@@ -232,3 +238,80 @@ def open_dart_dataset(
             print('')
 
         return True
+
+
+def subproccess_collect_dart_output(pkl_file):
+    cmd_raw = (
+        'python3 ' + str(collect_sub_path) + ' --pkl_file ' + str(pkl_file.absolute()))
+    cmd_split = shlex.split(cmd_raw)
+    result = subprocess.run(cmd_split, cwd=pkl_file.parent)
+    return True
+
+
+def collect_dart_dataset_pieces(
+    paths: list,
+    out_file: pathlib.Path,
+    file_piece_size: int = 1200,
+    n_cores: int = 1,
+    n_cores_inner: int = 1,
+    isel: dict = None,
+    drop_variables: list = None,
+    chunks: dict = None,
+    npartitions: int = None,
+    attrs_keep: list = None
+) -> xr.Dataset:
+
+    n_files = len(paths)
+    print('n_files', str(n_files))
+    
+    n_file_pieces = math.ceil(n_files / file_piece_size)
+    start_list = [file_piece_size * ii for ii in range(n_file_pieces)]
+    end_list = [file_piece_size * (ii + 1) - 1 for ii in range(n_file_pieces)]
+
+    # create a tmpdir where the out_file is
+    pieces_dir = out_file.parent / (out_file.with_suffix('').name + '_pieces_dir')
+    if not pieces_dir.exists():
+        os.mkdir(pieces_dir)
+    
+    # write pickle files to the tmpdir
+    count = -1
+    pkl_file_list = []
+    for start_ind, end_ind in zip(start_list, end_list):
+        count += 1
+        path_piece = paths[start_ind:(end_ind+1)]
+        piece_dict = {
+            'piece_number': count,
+            'paths': path_piece,
+            'isel': isel,
+            'drop_variables': drop_variables,
+            'chunks': chunks,
+            'npartitions': npartitions,
+            'n_cores_inner': n_cores_inner
+        }
+        pkl_file = pieces_dir / ('piece_' + str(count) + '.pkl')
+        pkl_file_list += [pkl_file]
+        pickle.dump(piece_dict, open( pkl_file, "wb" ))
+
+    # del stuff cause we are about to fork
+    del paths, path_piece, piece_dict, start_list, end_list
+    
+    if n_cores > 1:
+        with multiprocessing.Pool(processes=n_cores, initializer=mute) as pool:
+            results = pool.map(
+                subproccess_collect_dart_output, (pp for pp in pkl_file_list))
+    else:
+        results = [subproccess_collect_dart_output(pp) for pp in pkl_file_list]
+
+    if not all(results):
+        print("Not all pieces were successfully computed: not collecting.")
+        # Maybe delete the unsuccessfull pieces and try again on those?
+        # Leave that for later...
+
+    nc_file_list = [pkl.with_suffix('.nc') for pkl in pkl_file_list]
+    ds_list = [xr.open_dataset(nc) for nc in nc_file_list]
+    ds_full = xr.merge(ds_list)
+    ds_full.to_netcdf(out_file)
+    shutil.rmtree(str(pieces_dir))
+
+    return 0
+>>>>>>> origin/group_collection

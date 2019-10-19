@@ -1,5 +1,6 @@
 import collections
 import dask
+import gc
 import itertools
 import math
 import multiprocessing
@@ -136,7 +137,8 @@ def open_dart_dataset(
 
     n_files = len(paths)
     print('n_files', str(n_files))
-
+    print('')
+    
     if file_chunk_size is None:
         file_chunk_size = n_files
 
@@ -152,21 +154,41 @@ def open_dart_dataset(
                 npartitions=npartitions
             )
         the_pool.close()
+        return whp_ds
 
     else:
 
         n_file_chunks = math.ceil(n_files / file_chunk_size)
         start_list = [file_chunk_size * ii for ii in range(n_file_chunks)]
-        end_list = [file_chunk_size * (ii + 1) - 1 for ii in range(n_file_chunks)]
-
+        end_list = [min(file_chunk_size * (ii + 1), n_files)
+                    for ii in range(n_file_chunks)]
+        cumulative_files_file = write_cumulative_file.parent / (
+            write_cumulative_file.stem + '.files.pkl')
+        
         whp_ds = None
         for start_ind, end_ind in zip(start_list, end_list):
-            loop_start_time = time.time()
+
             print('start_ind: ', start_ind)
             print('end_ind: ', end_ind)
-            path_chunk = paths[start_ind:(end_ind+1)]
+
+            loop_start_time = time.time()
+
+            path_chunk = paths[start_ind:end_ind]
+            if write_cumulative_file.exists():
+                cumulative_files = pickle.load(
+                    open(cumulative_files_file, 'rb'))
+                path_chunk = set(set(path_chunk) - set(cumulative_files))
+                if len(path_chunk) is 0:
+                    print('files in loop already processed... ')
+                    print('loop took: ', time.time() - loop_start_time)
+                    print('')
+                    continue
+            
+            if len(path_chunk) != end_ind - start_ind: 
+                print('Some but not all files previously processed in this chunk.')
+            
             the_pool = multiprocessing.Pool(n_cores)
-            with dask.config.set(scheduler='processes', pool=the_pool):
+            with dask.config.set(scheduler='distributed', pool=the_pool):
                 ds_chunk = open_dart_dataset_inner(
                     paths=path_chunk,
                     chunks=chunks,
@@ -190,11 +212,17 @@ def open_dart_dataset(
                     whp_ds = xr.merge([cumulative_ds, ds_chunk])
                     whp_ds.to_netcdf(write_cumulative_file)
                     backup_file.unlink()
+                    cumulative_ds.close()
+                    del cumulative_ds
 
-                cumulative_files_file = write_cumulative_file.parent / (
-                    write_cumulative_file.stem + '.files.pkl')
+                whp_ds.close()
+                del whp_ds
+                ds_chunk.close()
+                del ds_chunk
+                gc.collect()
+                
                 pickle.dump(
-                    paths[0:(end_ind+1)],
+                    paths[0:end_ind],
                     open(str(cumulative_files_file), 'wb'))
 
             print('wrote: ')
@@ -203,4 +231,4 @@ def open_dart_dataset(
             print('loop took: ', time.time() - loop_start_time)
             print('')
 
-    return whp_ds
+        return True

@@ -19,6 +19,7 @@ from .ensemble_tools import mute
 
 util_dir = pathlib.Path(os.path.realpath(__file__)).parent.parent / 'util'
 collect_sub_path = util_dir / 'collect_dart_output_sub.py'
+merge_sub_path = util_dir / 'merge_collections.py'
                         
 def preprocess_dart_data(
     path,
@@ -248,6 +249,18 @@ def subproccess_collect_dart_output(pkl_file):
     return True
 
 
+def subprocess_merge_collections(arg_dict):
+    cmd_raw = (
+        'python3 ' + str(merge_sub_path) +
+        ' --file_a ' + str(arg_dict['file_a']) +
+        ' --file_b ' + str(arg_dict['file_b']) +
+        ' --out_file ' + str(arg_dict['out_file']))
+    cmd_split = shlex.split(cmd_raw)
+    result = subprocess.run(cmd_split, cwd=arg_dict['out_file'].parent)
+    _ = [ff.unlink() for ff in [arg_dict['file_a'], arg_dict['file_b']]]
+    return True
+
+
 def collect_dart_dataset_pieces(
     paths: list,
     out_file: pathlib.Path,
@@ -266,7 +279,8 @@ def collect_dart_dataset_pieces(
     
     n_file_pieces = math.ceil(n_files / file_piece_size)
     start_list = [file_piece_size * ii for ii in range(n_file_pieces)]
-    end_list = [file_piece_size * (ii + 1) - 1 for ii in range(n_file_pieces)]
+    end_list = [min(file_piece_size * (ii + 1), n_files)
+                for ii in range(n_file_pieces)]
 
     # create a tmpdir where the out_file is
     pieces_dir = out_file.parent / (out_file.with_suffix('').name + '_pieces_dir')
@@ -274,11 +288,14 @@ def collect_dart_dataset_pieces(
         os.mkdir(pieces_dir)
     
     # write pickle files to the tmpdir
-    count = -1
+    count = 0
     pkl_file_list = []
     for start_ind, end_ind in zip(start_list, end_list):
-        count += 1
-        path_piece = paths[start_ind:(end_ind+1)]
+        pkl_file = pieces_dir / ('piece_' + str(count).zfill(3) + '.pkl')
+        nc_file = pkl_file.with_suffix('.nc')
+        if nc_file.exists():
+            continue
+        path_piece = paths[start_ind:end_ind]
         piece_dict = {
             'piece_number': count,
             'paths': path_piece,
@@ -288,30 +305,63 @@ def collect_dart_dataset_pieces(
             'npartitions': npartitions,
             'n_cores_inner': n_cores_inner
         }
-        pkl_file = pieces_dir / ('piece_' + str(count) + '.pkl')
         pkl_file_list += [pkl_file]
         pickle.dump(piece_dict, open( pkl_file, "wb" ))
+        count += 1
 
-    # del stuff cause we are about to fork
-    del paths, path_piece, piece_dict, start_list, end_list
+    if len(pkl_file_list) > 0:
+        # del stuff cause we are about to fork
+        del paths, path_piece, piece_dict, start_list, end_list
+
+        if n_cores > 1:
+            with multiprocessing.Pool(processes=n_cores, initializer=mute) as pool:
+                results = pool.map(
+                    subproccess_collect_dart_output, (pp for pp in pkl_file_list))
+        else:
+            results = [subproccess_collect_dart_output(pp) for pp in pkl_file_list]
+
+        if not all(results):
+            print("Not all pieces were successfully computed: not collecting.")
+            # Maybe delete the unsuccessfull pieces and try again on those?
+            # Leave that for later... make a function in a while loop?
+
+        # remove all the pickle files upon success
+        _ = [pf.unlink() for pf in pkl_file_list]
     
-    if n_cores > 1:
-        with multiprocessing.Pool(processes=n_cores, initializer=mute) as pool:
-            results = pool.map(
-                subproccess_collect_dart_output, (pp for pp in pkl_file_list))
-    else:
-        results = [subproccess_collect_dart_output(pp) for pp in pkl_file_list]
+    nc_file_list = sorted(pieces_dir.glob("piece*.nc"))
+    count = 0
+    while len(nc_file_list) > 1:
+        file_piece_size = 2
+        n_file_pieces = math.ceil(len(nc_file_list) / file_piece_size)
+        start_list = [file_piece_size * ii for ii in range(n_file_pieces)]
+        end_list = [min(file_piece_size * (ii + 1), len(nc_file_list)) for ii in range(n_file_pieces)]
 
-    if not all(results):
-        print("Not all pieces were successfully computed: not collecting.")
-        # Maybe delete the unsuccessfull pieces and try again on those?
-        # Leave that for later...
+        merge_args_list = []
+        for start_ind, end_ind in zip(start_list, end_list):
+            arg_dict = {}
+            nc_files = nc_file_list[start_ind:end_ind]
+            if len(nc_files) == 1:
+                continue
+            arg_dict['file_a'] = nc_files[0]
+            arg_dict['file_b'] = nc_files[1]
+            arg_dict['out_file'] = pieces_dir / ('aggregate_file_' + str(count).zfill(3) + '.nc')
+            merge_args_list += [arg_dict]
+            count += 1
 
-    nc_file_list = [pkl.with_suffix('.nc') for pkl in pkl_file_list]
-    ds_list = [xr.open_dataset(nc) for nc in nc_file_list]
-    ds_full = xr.merge(ds_list)
-    ds_full.to_netcdf(out_file)
+            # ds_merge = xr.merge([xr.open_dataset(nc) for nc in nc_files])
+            # ds_merge.to_netcdf(out_file)
+            # del ds_merge
+
+        if n_cores > 1:
+            with multiprocessing.Pool(processes=n_cores, initializer=mute) as pool:
+                results = pool.map(
+                    subprocess_merge_collections, (arg_dict for arg_dict in merge_args_list))
+        else:
+            results = [subprocess_merge_collections(arg_dict) for arg_dict in merge_args_list]
+
+        nc_file_list = sorted(pieces_dir.glob("aggregate_file_*.nc"))
+
+    nc_file_list[0].replace(out_file)
     shutil.rmtree(str(pieces_dir))
 
     return 0
->>>>>>> origin/group_collection

@@ -33,7 +33,7 @@ def collect_dart_output_sub(pkl_file: pathlib.Path):
         n_cores=piece_dict['n_cores_inner'],
     )
     out_file = pkl_file.parent / (
-        'piece_' + str(piece_dict['piece_number']) + '.nc')
+        'piece_' + str(piece_dict['piece_number']).zfill(3) + '.nc')
     ds.to_netcdf(out_file)
     return(0)
 

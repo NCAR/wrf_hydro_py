@@ -119,7 +119,7 @@ def collect_dart_output(
                 in_files,
                 out_file,
                 file_piece_size=file_chunk_size,
-                n_cores = 4,
+                n_cores = n_cores,
                 n_cores_inner = 1
             )
 
@@ -161,12 +161,6 @@ if __name__ == '__main__':
         required=True,
         action='store',
         help='The number of cores to use in the processing.'
-    )
-    parser.add_argument(
-        '--file_chunk_size',
-        action='store',
-        default=None,
-        help='Integer size of number of files to process simultaneously. Default = 1200.'
     )
     # Not sure these two will ever be used, but they are easy to leave until later.
     parser.add_argument(

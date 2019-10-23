@@ -18,8 +18,8 @@ class Evaluate:
 
     def obs(
         self,
-        observed,
-        join_on: Union[pd.DataFrame, xr.DataArray] = None,
+        observed: Union[pd.DataFrame, xr.DataArray],
+        join_on: Union[list, str] = None,
         join_how: str = 'inner'
     ):
         modeled = self._obj.rename('modeled')

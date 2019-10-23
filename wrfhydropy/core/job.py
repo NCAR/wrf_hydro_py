@@ -350,7 +350,7 @@ class Job(object):
         else:
             self.exit_status = 1
             self.pickle(str(self.job_dir.joinpath('WrfHydroJob_postrun.pkl')))
-            # raise RuntimeError('Model did not finish successfully')
+            raise RuntimeError('Model did not finish successfully')
 
         # Only write the file .model_end_time upon successful completion.
         if self.exit_status == 0:

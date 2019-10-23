@@ -3,6 +3,7 @@ import pathlib
 import pytest
 import shutil
 from wrfhydropy import open_whp_dataset
+import xarray as xr
 from .data import collection_data_download
 
 # The answer reprs are found here.
@@ -232,7 +233,8 @@ def test_collect_ensemble(
 def test_collect_ensemble_cycle(
     file_glob,
     expected,
-    n_cores
+    n_cores,
+    tmpdir
 ):
     ens_cycle_path = test_dir.joinpath('data/collection_data/ens_ana')
     files = sorted(ens_cycle_path.glob(file_glob))
@@ -241,13 +243,17 @@ def test_collect_ensemble_cycle(
     assert repr(ens_cycle_ds) == expected
 
     # Test that hierarchical collects are identical
-    # Speed up this super slow one...
-    file_chunk_size = 1
-    if file_glob == '*/*/*LDASOUT_DOMAIN1':
-        file_chunk_size = 50
+    ## joining become problematic when the chunks dont all have the same dimension
+    file_chunk_size = 12
+    cumulative_file = pathlib.Path(tmpdir) / 'cumulative_file.nc'
     ens_cycle_ds_chunk = open_whp_dataset(
-        files, n_cores=n_cores, file_chunk_size=file_chunk_size)
+        files,
+        n_cores=n_cores,
+        file_chunk_size=file_chunk_size,
+        write_cumulative_file=cumulative_file
+    )
     assert ens_cycle_ds_chunk.equals(ens_cycle_ds)
+    # xr.testing.assert_allclose(ens_cycle_ds_chunk, ens_cycle_ds, decode_bytes=False)
 
 
 # Missing/bogus files.
@@ -314,7 +320,8 @@ pathlib.Path(cc.name).symlink_to('/foo/bar')
 def test_collect_missing_ens_cycle(
     file_glob,
     expected,
-    n_cores
+    n_cores,
+    tmpdir
 ):
     miss_ens_cycle_path = test_dir.joinpath(miss_ens_cycle_dir)
     files = sorted(miss_ens_cycle_path.glob(file_glob))
@@ -322,7 +329,14 @@ def test_collect_missing_ens_cycle(
     # This checks everything about the metadata.
     assert repr(ens_cycle_ds) == expected
 
-    ens_cycle_ds_chunk = open_whp_dataset(files, n_cores=n_cores, file_chunk_size=1)
+    file_chunk_size = 12  # ensemble cycle needs >= 12
+    cumulative_file = pathlib.Path(tmpdir) / 'cumulative_file.nc'
+    ens_cycle_ds_chunk = open_whp_dataset(
+        files,
+        n_cores=n_cores,
+        file_chunk_size=file_chunk_size,
+        write_cumulative_file=cumulative_file
+    )
     assert ens_cycle_ds_chunk.equals(ens_cycle_ds)
 
 
@@ -339,7 +353,8 @@ def test_collect_missing_ens_cycle(
 def test_collect_profile_chunking(
     file_glob,
     expected,
-    n_cores
+    n_cores,
+    tmpdir
 ):
     sim_path = test_dir.joinpath(sim_dir)
     files = sorted(sim_path.glob(file_glob))
@@ -347,9 +362,17 @@ def test_collect_profile_chunking(
     # This checks everything about the metadata.
     assert repr(sim_ds) == expected
 
-    # if file_chunk_size > and chunk is not None there is an error.
+    # if file_chunk_size = 1 and chunk is not None there is an error.
+    file_chunk_size = 2  # Simulation
+    cumulative_file = pathlib.Path(tmpdir) / 'cumulative_file.nc'
     sim_ds_chunk = open_whp_dataset(
-        files, n_cores=n_cores, profile=True, chunks=15, file_chunk_size=2)
+        files,
+        n_cores=n_cores,
+        profile=True,
+        chunks=15,
+        file_chunk_size=file_chunk_size,
+        write_cumulative_file=cumulative_file
+    )
     assert sim_ds_chunk.equals(sim_ds)
 
 
@@ -387,15 +410,24 @@ def test_collect_ensemble_cycle_isel(
     file_glob,
     expected,
     n_cores,
-    isel
+    isel,
+    tmpdir
 ):
     ens_cycle_path = test_dir.joinpath('data/collection_data/ens_ana')
     files = sorted(ens_cycle_path.glob(file_glob))
     ens_cycle_ds = open_whp_dataset(files, n_cores=n_cores, isel=isel)
     # This checks everything about the metadata.
-    assert repr(ens_cycle_ds) == expected
 
-    ens_cycle_ds_chunk = open_whp_dataset(files, n_cores=n_cores, isel=isel, file_chunk_size=1)
+    assert repr(ens_cycle_ds) == expected
+    file_chunk_size = 18  # ensemble cycle needs >= 12
+    cumulative_file = pathlib.Path(tmpdir) / 'cumulative_file.nc'
+    ens_cycle_ds_chunk = open_whp_dataset(
+        files,
+        n_cores=n_cores,
+        isel=isel,
+        file_chunk_size=file_chunk_size,
+        write_cumulative_file=cumulative_file
+    )
     assert ens_cycle_ds_chunk.equals(ens_cycle_ds)
 
 
@@ -433,7 +465,8 @@ def test_collect_ensemble_cycle_drop_vars(
     file_glob,
     expected,
     n_cores,
-    drop_vars
+    drop_vars,
+    tmpdir
 ):
     ens_cycle_path = test_dir.joinpath('data/collection_data/ens_ana')
     files = sorted(ens_cycle_path.glob(file_glob))
@@ -441,6 +474,13 @@ def test_collect_ensemble_cycle_drop_vars(
     # This checks everything about the metadata.
     assert repr(ens_cycle_ds) == expected
 
+    file_chunk_size = 12  # ensemble cycle needs >= 12
+    cumulative_file = pathlib.Path(tmpdir) / 'cumulative_file.nc'
     ens_cycle_ds_chunk = open_whp_dataset(
-        files, n_cores=n_cores, drop_variables=drop_vars, file_chunk_size=1)
+        files,
+        n_cores=n_cores,
+        drop_variables=drop_vars,
+        file_chunk_size=file_chunk_size,
+        write_cumulative_file=cumulative_file
+    )
     assert ens_cycle_ds_chunk.equals(ens_cycle_ds)

@@ -9,7 +9,8 @@ def test_model_init(model_dir):
                   model_config='nwm_ana')
     assert type(model) == Model
 
-def test_model_setenvar(model_dir,tmpdir):
+
+def test_model_setenvar(model_dir, tmpdir):
     model = Model(source_dir=model_dir,
                   model_config='nwm_ana')
 
@@ -42,11 +43,10 @@ def test_model_setenvar(model_dir,tmpdir):
                            'export NCEP_WCOSS=0\n' \
                            'export WRF_HYDRO_NUDGING=1\n'
 
-#model_dir=pathlib.Path('test')
-def test_model_compile(model_dir,tmpdir):
-    model = Model(source_dir=model_dir,
-                  model_config='nwm_ana')
 
+# model_dir=pathlib.Path('test')
+def test_model_compile(model_dir, tmpdir):
+    model = Model(source_dir=model_dir, model_config='nwm_ana')
     compile_dir = pathlib.Path(tmpdir).joinpath('compile_dir_compile')
 
     # Compile will fail so trap exception and check compile artifacts instead
@@ -59,10 +59,10 @@ def test_model_compile(model_dir,tmpdir):
 
     assert model.compile_log.returncode == 0
 
+
 def test_model_copyfiles(model_dir, tmpdir, compile_dir):
 
-    model = Model(source_dir=model_dir,
-                  model_config='nwm_ana')
+    model = Model(source_dir=model_dir, model_config='nwm_ana')
 
     # compile_dir = pathlib.Path(tmpdir).joinpath('compile_dir_compile')
     # compile_dir.mkdir(parents=True)
@@ -70,7 +70,8 @@ def test_model_copyfiles(model_dir, tmpdir, compile_dir):
     copy_dir.mkdir(parents=True)
 
     # Set table files and exe file attributes
-    model.table_files = [compile_dir.joinpath('file1.tbl'),compile_dir.joinpath('file2.tbl')]
+    model.table_files = [compile_dir.joinpath('file1.tbl'),
+                         compile_dir.joinpath('file2.tbl')]
     model.wrf_hydro_exe = compile_dir.joinpath('wrf_hydro.exe')
 
     # Make fake run directory with files that would have been produced at compile

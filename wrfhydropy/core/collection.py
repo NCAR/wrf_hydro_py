@@ -2,12 +2,19 @@ import collections
 import dask
 import dask.bag
 from datetime import datetime
+import gc
 import itertools
-from multiprocessing.pool import Pool
+import math
+import multiprocessing
 import numpy as np
+import os
 import pathlib
-from wrfhydropy.core.ioutils import timesince
+import pickle
+import sys
+import time
 import xarray as xr
+
+from wrfhydropy.core.ioutils import timesince
 
 
 def is_not_none(x):
@@ -278,11 +285,8 @@ def open_whp_dataset_orig(
     n_cores: int = 1
 ) -> xr.Dataset:
 
-    import sys
-    import os
-
     # print('n_cores', str(n_cores))
-    the_pool = Pool(n_cores)
+    the_pool = multiprocessing.Pool(n_cores)
     with dask.config.set(scheduler='processes', pool=the_pool):
         whp_ds = open_whp_dataset_inner(
             paths,
@@ -299,7 +303,7 @@ def open_whp_dataset_orig(
 
 def open_whp_dataset(
     paths: list,
-    file_chunk_size: int = None,
+    file_chunk_size: int = 1700,
     chunks: dict = None,
     attrs_keep: list = ['featureType', 'proj4',
                         'station_dimension', 'esri_pe_string',
@@ -312,20 +316,15 @@ def open_whp_dataset(
     write_cumulative_file: pathlib.Path = None
 ) -> xr.Dataset:
 
-    import sys
-    import os
-    import math
-    import multiprocessing
-    import pickle
-
     n_files = len(paths)
     print('n_files', str(n_files))
+    print('')
 
     if file_chunk_size is None:
         file_chunk_size = n_files
 
     if file_chunk_size >= n_files:
-        the_pool = Pool(n_cores)
+        the_pool = multiprocessing.Pool(n_cores)
         with dask.config.set(scheduler='processes', pool=the_pool):
             whp_ds = open_whp_dataset_inner(
                 paths=paths,
@@ -337,19 +336,43 @@ def open_whp_dataset(
                 profile=profile
             )
         the_pool.close()
+        return whp_ds
 
     else:
 
         n_file_chunks = math.ceil(n_files / file_chunk_size)
         start_list = [file_chunk_size * ii for ii in range(n_file_chunks)]
-        end_list = [file_chunk_size * (ii + 1) - 1 for ii in range(n_file_chunks)]
+        end_list = [min(file_chunk_size * (ii + 1), n_files)
+                    for ii in range(n_file_chunks)]
+        cumulative_files_file = write_cumulative_file.parent / (
+            write_cumulative_file.stem + '.files.pkl')
 
         whp_ds = None
         for start_ind, end_ind in zip(start_list, end_list):
-            the_pool = Pool(n_cores)
+
+            print('start_ind: ', start_ind)
+            print('end_ind: ', end_ind)
+
+            loop_start_time = time.time()
+            path_chunk = paths[start_ind:end_ind]
+
+            if write_cumulative_file.exists():
+                cumulative_files = pickle.load(
+                    open(cumulative_files_file, 'rb'))
+                path_chunk = set(set(path_chunk) - set(cumulative_files))
+                if len(path_chunk) is 0:
+                    print('files in loop already processed... ')
+                    print('loop took: ', time.time() - loop_start_time)
+                    print('')
+                    continue
+
+            if len(path_chunk) != end_ind - start_ind:
+                print('Some but not all files previously processed in this chunk.')
+
+            the_pool = multiprocessing.Pool(n_cores)
             with dask.config.set(scheduler='processes', pool=the_pool):
                 ds_chunk = open_whp_dataset_inner(
-                    paths=paths,
+                    paths=path_chunk,
                     chunks=chunks,
                     attrs_keep=attrs_keep,
                     isel=isel,
@@ -360,18 +383,35 @@ def open_whp_dataset(
             the_pool.close()
 
             if ds_chunk is not None:
-                if whp_ds is None:
-                    whp_ds = ds_chunk
-                else:
-                    whp_ds = xr.merge([whp_ds, ds_chunk])
-                if write_cumulative_file is not None:
+                if not write_cumulative_file.exists():
                     if not write_cumulative_file.parent.exists():
                         write_cumulative_file.parent.mkdir()
+                    ds_chunk.to_netcdf(write_cumulative_file)
+                    whp_ds = ds_chunk
+                else:
+                    backup_file = write_cumulative_file.with_suffix('.prev')
+                    write_cumulative_file.replace(backup_file)
+                    cumulative_ds = xr.open_dataset(backup_file)
+                    whp_ds = xr.merge([cumulative_ds, ds_chunk])
                     whp_ds.to_netcdf(write_cumulative_file)
-                    cumulative_files_file = write_cumulative_file.parent / (
-                        write_cumulative_file.stem + '.files.pkl')
-                    pickle.dump(
-                        paths[0:end_ind],
-                        open(str(cumulative_files_file), 'wb'))
+                    backup_file.unlink()
+                    cumulative_ds.close()
+                    del cumulative_ds
 
-    return whp_ds
+                whp_ds.close()
+                del whp_ds
+                ds_chunk.close()
+                del ds_chunk
+                gc.collect()
+
+                pickle.dump(
+                    paths[0:end_ind],
+                    open(str(cumulative_files_file), 'wb'))
+
+            print('wrote: ')
+            print('       ', write_cumulative_file)
+            print('       ', cumulative_files_file)
+            print('loop took: ', time.time() - loop_start_time)
+            print('')
+
+        return True

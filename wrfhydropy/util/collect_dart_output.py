@@ -31,57 +31,57 @@ def collect_dart_output(
     
     t_start = time.time()
 
-    # # -------------------------------------------------------
-    # # 1. These files only concatenate along the time dimension.
-    # #    We can use xr.open_mfdataset out of the box!
-    # stage_list = ['input', 'preassim', 'analysis', 'output']
+    # -------------------------------------------------------
+    # 1. These files only concatenate along the time dimension.
+    #    We can use xr.open_mfdataset out of the box!
+    stage_list = ['input', 'preassim', 'forecast', 'analysis', 'output']
 
-    # type_base_list = ['mean', 'sd', 'priorinf_mean', 'priorinf_sd', 'postinf_mean', 'postinf_sd']
-    # domain_list = ['d01', 'd02']
-    # type_list = type_base_list
-    # for domain in domain_list:
-    #     type_list = type_list + [(typ + '_' + domain) for typ in type_base_list]
+    type_base_list = ['mean', 'sd', 'priorinf_mean', 'priorinf_sd', 'postinf_mean', 'postinf_sd']
+    domain_list = ['d01', 'd02']
+    type_list = type_base_list
+    for domain in domain_list:
+        type_list = type_list + [(typ + '_' + domain) for typ in type_base_list]
 
-    # for stage in stage_list:
-    #     for typ in type_list:
-    #         # Restrictive enough for the DART_cleanup *out* files.
-    #         in_files = sorted((run_dir / 'output').glob('*/' + stage + '_' + typ + '.*[0-9].nc'))
-    #         if len(in_files) == 0:
-    #             continue
+    for stage in stage_list:
+        for typ in type_list:
+            # Restrictive enough for the DART_cleanup *out* files.
+            in_files = sorted((run_dir / 'output').glob('*/' + stage + '_' + typ + '.*[0-9].nc'))
+            if len(in_files) == 0:
+                continue
 
-    #         out_file = out_dir / ('all_' + stage + '_' + typ + '.nc')
-    #         # Do have to add the time dim to each variable to get the correct result.
+            out_file = out_dir / ('all_' + stage + '_' + typ + '.nc')
+            # Do have to add the time dim to each variable to get the correct result.
 
-    #         def preproc_time(ds):
-    #             for key in ds.variables.keys():
-    #                 if 'time' not in ds[key].dims:
-    #                     ds[key] = ds[key].expand_dims('time')
-    #             return ds
+            def preproc_time(ds):
+                for key in ds.variables.keys():
+                    if 'time' not in ds[key].dims:
+                        ds[key] = ds[key].expand_dims('time')
+                return ds
 
-    #         the_pool = Pool(n_cores)
-    #         with dask.config.set(scheduler='processes', pool=the_pool):
-    #             ds = xr.open_mfdataset(in_files, parallel=True, preprocess=preproc_time)
-    #         the_pool.close()
-    #         # Feel like this should go in the above with/context. But it errors.
-    #         # Xarray sets nan as the fill value when there is none. Dont allow that...
-    #         for key, val in ds.variables.items():
-    #             if '_FillValue' not in ds[key].encoding:
-    #                 ds[key].encoding.update({'_FillValue': None})
-    #         ds.to_netcdf(out_file)
-    #         del ds
+            the_pool = Pool(n_cores)
+            with dask.config.set(scheduler='processes', pool=the_pool):
+                ds = xr.open_mfdataset(in_files, parallel=True, preprocess=preproc_time)
+            the_pool.close()
+            # Feel like this should go in the above with/context. But it errors.
+            # Xarray sets nan as the fill value when there is none. Dont allow that...
+            for key, val in ds.variables.items():
+                if '_FillValue' not in ds[key].encoding:
+                    ds[key].encoding.update({'_FillValue': None})
+            ds.to_netcdf(out_file)
+            del ds
 
-    # # # A check... to hold on to for a while.
-    # # import xarray as xr
-    # # import pathlib
-    # # run_dir = pathlib.Path('/glade/scratch/jamesmcc/wrfhydro_dart/flo_cut/runs/bucket1')
-    # # new_files = sorted(run_dir.glob("all*.nc"))
-    # # for file in new_files:
-    # #     old_file = run_dir / 'cleanup_dart' / file.name
-    # #     print(old_file)
-    # #     o = xr.open_dataset(old_file)
-    # #     n = xr.open_dataset(file)
-    # #     assert o.equals(n)
-    # # Success.
+    # # A check... to hold on to for a while.
+    # import xarray as xr
+    # import pathlib
+    # run_dir = pathlib.Path('/glade/scratch/jamesmcc/wrfhydro_dart/flo_cut/runs/bucket1')
+    # new_files = sorted(run_dir.glob("all*.nc"))
+    # for file in new_files:
+    #     old_file = run_dir / 'cleanup_dart' / file.name
+    #     print(old_file)
+    #     o = xr.open_dataset(old_file)
+    #     n = xr.open_dataset(file)
+    #     assert o.equals(n)
+    # Success.
 
     # -------------------------------------------------------
     # 2. Collect members. This replaces DART_cleanup_pack_members.csh and DART_cleanup.csh

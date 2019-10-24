@@ -363,7 +363,10 @@ class Evaluation(object):
                 stats4.index.names = ['feature_id', '']
                 gof_stats = stats4
 
-        return gof_stats
+        if isinstance(self.data, xr.Dataset):
+            return gof_stats.to_xarray()
+        else:
+            return gof_stats
 
     def event(
         self,
@@ -575,7 +578,9 @@ def calc_gof_stats(
     nan_mask = np.isnan(observed) | np.isnan(modeled)
     obs_masked = observed[~nan_mask]
     mod_masked = modeled[~nan_mask]
-
+    if obs_masked.empty:
+        return pd.DataFrame()
+    
     gof_stats = spo.calculate_all_functions(obs_masked, mod_masked)
     gof_stats = pd.DataFrame(gof_stats).rename(
         columns={0: 'statistic', 1: 'value'})
@@ -614,6 +619,10 @@ def calc_gof_stats(
     )
     gof_stats = pd.concat([gof_stats, summary], ignore_index=True, sort=True)
     gof_stats['value'] = gof_stats['value'].round(decimals=decimals)
+
+    # Will this break everything?
+    gof_stats = gof_stats.set_index('statistic')
+    
     return gof_stats
 
 

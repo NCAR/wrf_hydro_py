@@ -56,7 +56,13 @@ class Evaluation(object):
             are 'inner','left','right'.
         """
         if join_on is None:
-            self.join_on = ['feature_id', 'time']
+            if isinstance(observed, pd.DataFrame):
+                self.join_on = observed.index.names
+            elif isinstance(observed, xr.DataArray):
+                self.join_on = list(observed.dims)
+            else:
+                raise ValueError(
+                    'Observed data neither pandas dataframe nor xarray.DataArray')
         else:
             self.join_on = join_on
 

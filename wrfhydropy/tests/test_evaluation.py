@@ -1,7 +1,10 @@
 import copy
+import datetime
+import math
+import numpy as np
 import os
 import pathlib
-import pandas
+import pandas as pd
 import pytest
 import warnings
 
@@ -12,8 +15,8 @@ from .data.evaluation_answer_reprs import *
 test_dir = pathlib.Path(os.path.dirname(os.path.realpath(__file__)))
 
 # Get the full reprs
-pandas.set_option('display.max_rows', None)
-pandas.set_option('display.max_columns', None)
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
 
 # The data are found here. Uses the same data as collection.
 os.chdir(str(test_dir))
@@ -122,3 +125,58 @@ def test_gof_perfect(
         gof = the_eval.gof(group_by=group_by)
 
         assert repr(gof) == expected
+
+
+
+@pytest.mark.parametrize('engine', engine)
+@pytest.mark.parametrize('the_stat', ['crps', 'brier'])
+def test_crps_brier_basic(
+    the_stat,
+    engine
+):
+
+    # The input data for the test
+    ens0 = np.linspace(-5, 5, num=1000)
+    ens1 = np.linspace(-500, 500, num=1000)
+    obs = 0.0000
+
+    # WOw i must be a dunce, this is way too much work.
+    t0 = datetime.datetime(2000, 1, 1)
+    t1 = datetime.datetime(2000, 1, 2)
+    modeled = pd.DataFrame(
+        np.array([ens0, ens1]).transpose(),
+        columns=[t0, t1]
+    )
+    modeled.index.name = 'member'
+    modeled = modeled.reset_index()
+    modeled = modeled.melt(
+        id_vars=['member'],
+        var_name='time',
+        value_name = 'modeled'
+    ).set_index(['time', 'member'])
+    observed = modeled.rename(columns={'modeled': 'observed'}) * obs
+
+    if engine == 'xr':
+        pytest.skip("Currently using xarray for brier and crps.")
+        modeled = modeled.to_xarray()['modeled']
+        observed = observed.to_xarray()['observed']
+
+    the_eval = Evaluation(modeled, observed)
+
+    if the_stat == 'crps':
+        # Generate the answer
+        # import properscoring as ps
+        # answer = np.array([ps.crps_ensemble(obs, mod) for mod in [ens0, ens1]])
+        answer = np.array([ 0.83416917, 83.41691692])
+        crps = the_eval.crps()
+        assert np.isclose(crps, answer).all()
+
+    elif the_stat == 'brier':
+        threshold = 1
+        # Generate the answer
+        # import properscoring as ps
+        # answer = np.array([ps.threshold_brier_score(obs, mod, threshold=threshold)
+        #                   for mod in [ens0, ens1]])
+        answer = np.array([0.16    , 0.249001])
+        brier = the_eval.brier(threshold)
+        assert np.isclose(brier, answer).all()

@@ -2,6 +2,7 @@ from typing import Union
 import itertools
 import numpy as np
 import pandas as pd
+import properscoring as ps
 import spotpy.objectivefunctions as spo
 import xarray as xr
 
@@ -25,7 +26,7 @@ class Evaluate:
         modeled = self._obj.rename('modeled')
         observed = observed.rename('observed')
         return Evaluation(
-            modeled.to_dataframe(),
+            modeled.to_dataframe(),  ## should remove, make an arg to_dataframe=True
             observed.to_dataframe(),
             join_on,
             join_how
@@ -57,7 +58,12 @@ class Evaluation(object):
         """
         if join_on is None:
             if isinstance(observed, pd.DataFrame):
+                if observed.index.names is None:
+                    if observed.index.nlevels > 1:
+                        raise ValueError('You should add dataframe index level names')
+                    observed.index.name = 'ind0'
                 self.join_on = observed.index.names
+
             elif isinstance(observed, xr.DataArray):
                 self.join_on = list(observed.dims)
             else:
@@ -76,7 +82,7 @@ class Evaluation(object):
                 on=self.join_on,
                 how=join_how,
                 suffixes=['_mod', '_obs']
-            ).reset_index()
+            ).reset_index()   # should we be resetting the index?
 
         elif isinstance(observed, xr.DataArray):
             data = xr.merge(
@@ -166,7 +172,9 @@ class Evaluation(object):
         inf_as_na,
         decimals
     ):
-        # TODO: This is just an interface... i guess, i think this can be removed
+        # TODO: does this facilitate grouping?
+        # This can be removed by changing the call to this function for the call made by this
+        # function.
         return calc_gof_stats(
             data[obs_col],
             data[mod_col],
@@ -174,7 +182,6 @@ class Evaluation(object):
             decimals=decimals)
 
     @staticmethod
-    # TODO: What are "flow metrics" and how do they differ form GOF stats?
     def _group_calc_event_stats(
         data,
         threshold: Union[float, str],
@@ -373,6 +380,83 @@ class Evaluation(object):
             return gof_stats.to_xarray()
         else:
             return gof_stats
+
+    def crps(
+        self,
+        mod_col: str = 'modeled',
+        obs_col: str = 'observed',
+        time_col: str = 'time',
+        weights = None
+    ):
+        """
+        Calculate CRPS (continuous ranked probability score) using the properscoring package.
+        See :py:fun:`crps_ensemble() <crps_ensemble>`
+        in :py:mod:`properscoring`.
+        Grouping is not necessary because CRPS returns a value per forecast.
+        Grouping would happen when computing CRPSS.
+        The Eval object generally wants one observation per modeled data point,
+        that is overkill for this function but we handle it in a consistent manner
+        with the rest of Evaluation.
+        Args:
+            mod_col: Column name of modelled data
+            obs_col: Column name of observed data.
+        Returns:
+            CRPS for each ensemble forecast against the observations.
+        """
+        # Grouping is not necessary because CRPS
+        if isinstance(self.data, pd.DataFrame):
+            # This is a bit hackish to get the indices columns
+            indices = list(set(self.data.columns.tolist()) - set([mod_col, obs_col]))
+            data = self.data.set_index(indices)
+            modeled = data[mod_col]
+            observed = data[obs_col]
+
+            modeled = modeled.unstack(level='time').to_numpy().transpose()
+            observed = observed.mean(axis=0, level='time').to_numpy()
+            result = ps.crps_ensemble(observed, modeled, weights=weights)
+            return result
+        else:
+
+            raise ValueError('Xarray not currently implemented for CRPS')
+
+    def brier(
+        self,
+        threshold: float,
+        mod_col: str = 'modeled',
+        obs_col: str = 'observed',
+        time_col: str = 'time',
+        weights = None
+    ):
+        """
+        Calculate Brier score using the properscoring package.
+        See :py:fun:`threshold_brier_score() <threshold_brier_score>`
+        in :py:mod:`properscoring`.
+        Grouping is not necessary because BRIER returns a value per forecast.
+        Grouping would happen when computing BRIERS.
+        The Eval object generally wants one observation per modeled data point,
+        that is overkill for this function but we handle it in a consistent manner
+        with the rest of Evaluation.
+        Args:
+            mod_col: Column name of modelled data
+            obs_col: Column name of observed data.
+        Returns:
+            BRIER for each ensemble forecast against the observations.
+        """
+        # Grouping is not necessary because BRIER
+        if isinstance(self.data, pd.DataFrame):
+            # This is a bit hackish to get the indices columns
+            indices = list(set(self.data.columns.tolist()) - set([mod_col, obs_col]))
+            data = self.data.set_index(indices)
+            modeled = data[mod_col]
+            observed = data[obs_col]
+
+            modeled = modeled.unstack(level='time').to_numpy().transpose()
+            observed = observed.mean(axis=0, level='time').to_numpy()
+            result = ps.threshold_brier_score(observed, modeled, threshold=threshold)
+            return result
+
+        else:
+            raise ValueError('Xarray not currently implemented for Brier score.')
 
     def event(
         self,

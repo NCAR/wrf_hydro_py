@@ -385,21 +385,42 @@ class Evaluation(object):
         self,
         mod_col: str = 'modeled',
         obs_col: str = 'observed',
-        time_col: str = 'time',
+        member_col: str = 'member',
+        valid_time_col: str = 'valid_time',
+        lead_time_col: str = 'lead_time',
+        gage_col: str = 'gage',
         weights = None
     ):
         """
         Calculate CRPS (continuous ranked probability score) using the properscoring package.
         See :py:fun:`crps_ensemble() <crps_ensemble>`
         in :py:mod:`properscoring`.
+
         Grouping is not necessary because CRPS returns a value per forecast.
         Grouping would happen when computing CRPSS.
+        
         The Eval object generally wants one observation per modeled data point,
-        that is overkill for this function but we handle it in a consistent manner
-        with the rest of Evaluation.
+        that is overkill for this function (since the ensemble takes one observations) 
+        but we handle it in a consistent manner with the rest of Evaluation.
+
+        This function is setup to identify the ensemble dimension in the following way:
+            1. if "member_col" is present in the columns, then this is the ensemble dimension, 
+               which is a standard ensemble forecast way
+            2. else, the "valid_time" dimension is used. This is the time-lagged ensembles way.
+            3. NOT DONE: one could consider time-lagged ensembles of ensemble forecasts. 
+
         Args:
-            mod_col: Column name of modelled data
-            obs_col: Column name of observed data.
+            mod_col: str = 'modeled': Column name of modelled data
+            obs_col: str = 'observed': Column name of observed data.
+            member_col: str = 'member': Column name giving the members. If the column is present, 
+                evaluation is performed across the member dimension for each combination of 
+                other columns. If member is not present the valid_time lead_time and gage cols
+                are used to calculate CRPS across lead-time for each valid_time, gage combination.
+                This later option is the "timelagged" ensemble verification.
+            valid_time_col: str = 'valid_time': I
+            lead_time_col: str = 'lead_time',
+            gage_col: str = 'gage',
+
         Returns:
             CRPS for each ensemble forecast against the observations.
         """
@@ -411,12 +432,39 @@ class Evaluation(object):
             modeled = data[mod_col]
             observed = data[obs_col]
 
-            modeled = modeled.unstack(level='time').to_numpy().transpose()
-            observed = observed.mean(axis=0, level='time').to_numpy()
-            result = ps.crps_ensemble(observed, modeled, weights=weights)
-            return result
-        else:
+            if member_col in indices:
+                inds_m_member = list(set(indices) - set([member_col]))
+                # Expand the members across the columns - across which the CRPS is calculated
+                # for each reference_time, lead_time, gage
+                modeled = modeled.unstack(level='member')
+                # Remove the member dimension from the obs. Could check the mean
+                # matches the values.
+                observed = observed.mean(axis=0, level=inds_m_member)
+                
+            elif valid_time_col in indices:
+                # This may be a bit too in the business of the modeled data.
+                mm = modeled.reset_index()
+                drop_inds = list(set(indices) - set([valid_time_col, gage_col, lead_time_col]))
+                mm = mm.drop(columns=drop_inds)
+                mm = mm.set_index([valid_time_col, gage_col])
+                # Expand lead times across the columns, across which the CRPS is calculated
+                # for each valid time, gage
+                modeled = mm.pivot(columns=lead_time_col)
+                observed = observed.mean(axis=0, level=[valid_time_col, gage_col])
 
+            result_np = ps.crps_ensemble(
+                observed.to_numpy(),
+                modeled.to_numpy(),
+                weights=weights)
+
+            result_pd = pd.DataFrame(
+                result_np,
+                columns=['crps'],
+                index=observed.index)
+            
+            return result_pd
+        
+        else:
             raise ValueError('Xarray not currently implemented for CRPS')
 
     def brier(

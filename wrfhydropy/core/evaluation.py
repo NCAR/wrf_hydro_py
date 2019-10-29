@@ -6,6 +6,7 @@ import properscoring as ps
 import spotpy.objectivefunctions as spo
 import xarray as xr
 
+# TODO: i think pd.DataFrame should be pd.Series everywhere.
 
 # For collected data.
 @xr.register_dataarray_accessor("eval")
@@ -432,16 +433,23 @@ class Evaluation(object):
             modeled = data[mod_col]
             observed = data[obs_col]
 
-            if member_col in indices:
-                inds_m_member = list(set(indices) - set([member_col]))
-                # Expand the members across the columns - across which the CRPS is calculated
-                # for each reference_time, lead_time, gage
-                modeled = modeled.unstack(level='member')
-                # Remove the member dimension from the obs. Could check the mean
-                # matches the values.
-                observed = observed.mean(axis=0, level=inds_m_member)
-                
+            if valid_time_col in indices and member_col in indices:
+                # Time-lagged ensemble WITH members
+                mm = modeled.reset_index()
+                mm = mm.set_index([valid_time_col, gage_col, member_col])
+                mm = mm.pivot(columns=lead_time_col)
+                mm = mm.unstack(level='member')
+                mm = mm.sort_index()
+                oo = observed.reset_index().set_index([valid_time_col, gage_col, member_col])
+                inds_avg = list(set(indices) - set([lead_time_col, member_col]))
+                oo = observed.mean(axis=0, level=inds_avg).to_frame()
+                oo = oo.reset_index().set_index([valid_time_col, gage_col]).sort_index()
+                assert mm.index.equals(oo.index)
+                modeled = mm
+                observed = oo[obs_col]
+
             elif valid_time_col in indices:
+                # Time-lagged ensemble WITHOUT members
                 # This may be a bit too in the business of the modeled data.
                 mm = modeled.reset_index()
                 drop_inds = list(set(indices) - set([valid_time_col, gage_col, lead_time_col]))
@@ -449,8 +457,27 @@ class Evaluation(object):
                 mm = mm.set_index([valid_time_col, gage_col])
                 # Expand lead times across the columns, across which the CRPS is calculated
                 # for each valid time, gage
-                modeled = mm.pivot(columns=lead_time_col)
-                observed = observed.mean(axis=0, level=[valid_time_col, gage_col])
+                mm = mm.pivot(columns=lead_time_col).sort_index()
+                oo = observed.mean(axis=0, level=[valid_time_col, gage_col])
+                oo = oo.reset_index().set_index([valid_time_col, gage_col]).sort_index()
+                assert mm.index.equals(oo.index)
+                modeled = mm
+                observed = oo[obs_col]
+
+            elif member_col in indices:
+                # A "regular" member-only ensemble.
+                inds_m_member = list(set(indices) - set([member_col]))
+                # Expand the members across the columns - across which the CRPS is calculated
+                # for each reference_time, lead_time, gage
+                mm = modeled.unstack(level='member')
+                mm = mm.reset_index().set_index(inds_m_member).sort_index()
+                # Remove the member dimension from the obs. Could check the mean
+                # matches the values.
+                oo = observed.mean(axis=0, level=inds_m_member)
+                oo = oo.reset_index().set_index(inds_m_member).sort_index()
+                assert mm.index.equals(oo.index)
+                modeled = mm
+                observed = oo[obs_col]
 
             result_np = ps.crps_ensemble(
                 observed.to_numpy(),

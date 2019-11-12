@@ -26,10 +26,10 @@ class Evaluate:
         modeled = self._obj.rename('modeled')
         observed = observed.rename('observed')
         return Evaluation(
-            modeled.to_dataframe(),  ## should remove, make an arg to_dataframe=True
-            observed.to_dataframe(),
-            join_on,
-            join_how
+            modeled=modeled.to_dataframe(),  ## should remove, make an arg to_dataframe=True
+            observed=observed.to_dataframe(),
+            join_on=join_on,
+            join_how=join_how
         )
 
 
@@ -273,6 +273,7 @@ class Evaluation(object):
         Returns:
             Pandas dataframe containing contingency statistics
         """
+
         if group_by:
             cont_stats = self.data.set_index(group_by).groupby(group_by). \
                 apply(
@@ -351,7 +352,7 @@ class Evaluation(object):
                     # exclude_dims=set(self.join_on)
                 )
                 gof_stats = gof_stats.values[()]()._mapping
-                gof_stats = gof_stats.to_dataframe().reset_index().drop(columns='index')
+                # gof_stats = gof_stats.to_dataframe().reset_index() #.drop(columns='index')
 
             else:
 
@@ -376,10 +377,7 @@ class Evaluation(object):
                 stats4.index.names = ['feature_id', '']
                 gof_stats = stats4
 
-        if isinstance(self.data, xr.Dataset):
-            return gof_stats.to_xarray()
-        else:
-            return gof_stats
+        return gof_stats
 
     def crps(
         self,
@@ -440,7 +438,7 @@ class Evaluation(object):
                 # Remove the member dimension from the obs. Could check the mean
                 # matches the values.
                 observed = observed.mean(axis=0, level=inds_m_member)
-                
+
             elif valid_time_col in indices:
                 # This may be a bit too in the business of the modeled data.
                 mm = modeled.reset_index()
@@ -716,9 +714,9 @@ def calc_gof_stats(
     nan_mask = np.isnan(observed) | np.isnan(modeled)
     obs_masked = observed[~nan_mask]
     mod_masked = modeled[~nan_mask]
-    if obs_masked.empty:
+    if len(obs_masked) == 0:
         return pd.DataFrame()
-    
+
     gof_stats = spo.calculate_all_functions(obs_masked, mod_masked)
     gof_stats = pd.DataFrame(gof_stats).rename(
         columns={0: 'statistic', 1: 'value'})

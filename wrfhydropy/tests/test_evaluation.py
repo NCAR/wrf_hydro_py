@@ -122,10 +122,9 @@ def test_gof_perfect(
         mod_ds = mod.rename({variable: 'modeled'})['modeled']
         obs_ds = mod.rename({variable: 'observed'})['observed']
         the_eval = Evaluation(mod_ds, obs_ds, join_on=join_on)
-        gof = the_eval.gof(group_by=group_by)
+        gof = the_eval.gof(group_by=group_by).to_dataframe()
 
         assert repr(gof) == expected
-
 
 
 @pytest.mark.parametrize('engine', engine)
@@ -167,9 +166,13 @@ def test_crps_brier_basic(
         # Generate the answer
         # import properscoring as ps
         # answer = np.array([ps.crps_ensemble(obs, mod) for mod in [ens0, ens1]])
-        answer = np.array([ 0.83416917, 83.41691692])
+        answer = pd.DataFrame(
+            {'time': [t0, t1],
+             'crps': np.array([ 0.83416917, 83.41691692])}
+        ).set_index('time')
         crps = the_eval.crps()
-        assert np.isclose(crps, answer).all()
+        pd.testing.assert_frame_equal(crps, answer)        
+        # assert np.isclose(crps, answer).all()
 
     elif the_stat == 'brier':
         threshold = 1
@@ -177,6 +180,21 @@ def test_crps_brier_basic(
         # import properscoring as ps
         # answer = np.array([ps.threshold_brier_score(obs, mod, threshold=threshold)
         #                   for mod in [ens0, ens1]])
+        # answer = pd.DataFrame(
+        #     {'time': [t0, t1],
+        #      'crps': np.array([ 0.83416917, 83.41691692])}
+        # ).set_index('time')
         answer = np.array([0.16    , 0.249001])
         brier = the_eval.brier(threshold)
         assert np.isclose(brier, answer).all()
+
+
+#@pytest.mark.parametrize('engine', engine)
+def test_contingency_known_data(
+):
+    known_data = contingency_known_data_input.to_xarray().set_coords("tsh")
+    mod = known_data.mod.drop('tsh')
+    obs = known_data.obs
+    result = mod.eval.obs(obs).contingency(threshold='tsh', group_by='loc')
+    assert repr(result) == contingency_known_data_answer
+

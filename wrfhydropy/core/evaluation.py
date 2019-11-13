@@ -755,8 +755,6 @@ def calc_gof_stats(
     )
     gof_stats = pd.concat([gof_stats, summary], ignore_index=True, sort=True)
     gof_stats['value'] = gof_stats['value'].round(decimals=decimals)
-
-    # Will this break everything?
     gof_stats = gof_stats.set_index('statistic')
     
     return gof_stats
@@ -803,11 +801,17 @@ def calc_event_stats(
 
     event_freq_bias = np.nan
     event_dur_bias = np.nan
+    avg_dur_act = np.nan
+    avg_dur_pred = np.nan
+    
     if num_act_events > 0:
         event_freq_bias = num_pred_events / num_act_events
-
-        avg_dur_pred = pred_events.sum() / num_pred_events
         avg_dur_act = act_events.sum() / num_act_events
+
+    if num_pred_events > 0:
+        avg_dur_pred = pred_events.sum() / num_pred_events        
+
+    if not np.isnan(avg_dur_pred) and not np.isnan(avg_dur_act):
         event_dur_bias = avg_dur_pred / avg_dur_act
 
     if decimals is not None:

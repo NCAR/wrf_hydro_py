@@ -7,10 +7,22 @@ import pathlib
 import pandas as pd
 import pytest
 import warnings
+import xarray as xr
 
+from io import StringIO
+from pandas.testing import assert_frame_equal
 from wrfhydropy import Evaluation, open_whp_dataset
 from .data import collection_data_download
 from .data.evaluation_answer_reprs import *
+
+# Testing helper functons for data frames. Serialization is a PITA.
+float_form = '.2f'
+def assert_frame_close(df1, df2): assert_frame_equal(df1, df2, check_exact=False)
+def str_to_frame(string: str): return(pd.read_csv(StringIO(string)))
+def frame_to_str(frame: pd.DataFrame): return(frame.to_csv(float_format='%' + float_form))
+def round_trip_df_serial(frame: pd.DataFrame): return(str_to_frame(frame_to_str(frame)))
+
+pd.options.display.float_format = ('{:' + float_form + '}').format
 
 test_dir = pathlib.Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -55,14 +67,18 @@ sim_dir.symlink_to(test_dir / 'data/collection_data/ens_ana/cast_2011082600/memb
 @pytest.mark.parametrize('engine', engine)
 @pytest.mark.parametrize('group_by_in', [None, 'space'])
 @pytest.mark.parametrize(
-    ['mod_dir', 'mod_glob', 'indices_dict', 'join_on', 'variable', 'transform', 'expected_key'],
+    ['transform', 'transform_key'],
+    [(lambda x: x, 'identity'),
+     (lambda x: [ii for ii in range(len(x))], 'index')],
+    ids=['lambda_identity', 'lambda_index'])
+@pytest.mark.parametrize(
+    ['mod_dir', 'mod_glob', 'indices_dict', 'join_on', 'variable', 'expected_key'],
     [
         (test_dir / 'data/collection_data/simulation',
          '*CHRTOUT_DOMAIN1',
          {'feature_id': [1, 39, 56, 34]},
          ['time', 'feature_id'],
          'streamflow',
-         lambda x: x,
          '*CHRTOUT_DOMAIN1'
         ),
         (test_dir / 'data/collection_data/simulation',
@@ -70,7 +86,6 @@ sim_dir.symlink_to(test_dir / 'data/collection_data/ens_ana/cast_2011082600/memb
          {'x': [1, 3, 5], 'y': [2, 4, 6], 'soil_layers_stag': [2]},
          ['time', 'x', 'y', 'soil_layers_stag'],
          'SOIL_M',
-         lambda x: x,
          '*LDASOUT_DOMAIN1'
         ),
     ],
@@ -88,6 +103,7 @@ def test_gof_perfect(
     variable,
     group_by_in,
     transform,
+    transform_key,
     expected_key
 ):
     # Keep this variable agnostic
@@ -104,27 +120,32 @@ def test_gof_perfect(
     else:
         raise ValueError("not a valid grouping for this test: ", group_by)
 
-    expected = gof_answer_reprs[expected_key + group_by_key]
+    expected_answer_key = expected_key + group_by_key + '_' + transform_key
+    # expected = gof_answer_reprs[expected_answer_key]
+    expected = str_to_frame(gof_answer_reprs[expected_answer_key])
 
     if engine == 'pd':
         mod_df = mod[variable].to_dataframe().rename(
             columns={variable: 'modeled'})
         obs_df = mod[variable].to_dataframe().rename(
             columns={variable: 'observed'})
-        #mod_df = transform(mod_df)
+        mod_df.modeled = transform(mod_df.modeled)
         the_eval = Evaluation(mod_df, obs_df, join_on=join_on)
         gof = the_eval.gof(group_by=group_by)
-        assert repr(gof) == expected
+        assert_frame_close(round_trip_df_serial(gof), expected)
 
     elif engine == 'xr':
         if group_by_in is not None:
             pytest.skip("Currently not grouping using xarray.")
         mod_ds = mod.rename({variable: 'modeled'})['modeled']
         obs_ds = mod.rename({variable: 'observed'})['observed']
+        new_data = np.array(transform(mod_ds.to_dataframe().modeled)).reshape(mod_ds.shape)
+        mod_ds.values = new_data
+        # mod_ds = xr.DataArray(new_data, dims=mod_ds.dims, coords=mod_ds.coords)
         the_eval = Evaluation(mod_ds, obs_ds, join_on=join_on)
         gof = the_eval.gof(group_by=group_by).to_dataframe()
-
-        assert repr(gof) == expected
+        # assert repr(gof) == expected
+        assert_frame_close(round_trip_df_serial(gof), expected)
 
 
 @pytest.mark.parametrize('engine', engine)
@@ -171,8 +192,7 @@ def test_crps_brier_basic(
              'crps': np.array([ 0.83416917, 83.41691692])}
         ).set_index('time')
         crps = the_eval.crps()
-        pd.testing.assert_frame_equal(crps, answer)        
-        # assert np.isclose(crps, answer).all()
+        assert_frame_close(crps, answer)        
 
     elif the_stat == 'brier':
         threshold = 1
@@ -190,11 +210,21 @@ def test_crps_brier_basic(
 
 
 #@pytest.mark.parametrize('engine', engine)
-def test_contingency_known_data(
-):
+def test_contingency_known_data():
     known_data = contingency_known_data_input.to_xarray().set_coords("tsh")
     mod = known_data.mod.drop('tsh')
     obs = known_data.obs
     result = mod.eval.obs(obs).contingency(threshold='tsh', group_by='loc')
-    assert repr(result) == contingency_known_data_answer
+    assert_frame_close(
+        round_trip_df_serial(result),
+        str_to_frame(contingency_known_data_answer))
 
+
+def test_event_known_data():
+    known_data = contingency_known_data_input.to_xarray().set_coords("tsh")
+    mod = known_data.mod.drop('tsh')
+    obs = known_data.obs
+    result = mod.eval.obs(obs).event(threshold='tsh', group_by='loc')
+    assert_frame_close(
+        round_trip_df_serial(result),
+        str_to_frame(event_known_data_answer))

@@ -101,7 +101,6 @@ class Evaluation(object):
     def _group_calc_cont_stats(
         data,
         threshold: Union[float, str],
-        label: str = None,
         time_window: str = None,
         mod_col: str = 'modeled',
         obs_col: str = 'observed',
@@ -126,44 +125,33 @@ class Evaluation(object):
         # TODO: Check if there are data above the above the threshold
         # TODO: how is threshold being used and then reset if it's a string?
         # TODO: Can one even index with a float?
-        if len(data[threshold].dropna()) > 0:
-            if type(threshold) == str:
-                threshold = data[threshold].iloc[0]
-
-            if label is None:
-                label = threshold
-
-            if time_window is None:
-                observed = data[obs_col] > threshold
-                modeled = data[mod_col] > threshold
-            else:
-                data.set_index('time', inplace=True)
-                rolling_df = data.rolling(window=time_window)
-                observed = rolling_df[obs_col].max() > threshold
-                modeled = rolling_df[mod_col].max() > threshold
-                data.reset_index('time', inplace=True)
-
-            cont_table = calc_cont_table(observed, modeled)
-
-            cont_stats = calc_cont_stats(
-                cont_table,
-                inf_as_na=inf_as_na,
-                decimals=decimals
-            )
-
-            cont_stats['threshold'] = label
-            cont_stats['value'] = cont_stats['value'].round(decimals=decimals)
-
-            return cont_stats
-
+        if isinstance(threshold, str):
+            thres_col = threshold
         else:
-            if label is None:
-                label = threshold
-            return pd.DataFrame(
-                columns={
-                    'statistic': np.nan,
-                    'value': np.nan,
-                    'threshold': label})
+            thresh_col = '__thresh_col__'
+            data[thresh_col] = threshold
+
+        if time_window is None:
+            observed = data[obs_col] > data[threshold]
+            modeled = data[mod_col] > data[threshold]
+        else:
+            data.set_index('time', inplace=True)
+            rolling_df = data.rolling(window=time_window)
+            observed = rolling_df[obs_col].max() > data[threshold]
+            modeled = rolling_df[mod_col].max() > data[threshold]
+            data.reset_index('time', inplace=True)
+
+        cont_table = calc_cont_table(observed, modeled)
+            
+        cont_stats = calc_cont_stats(
+            cont_table,
+            inf_as_na=inf_as_na,
+            decimals=decimals
+        )
+
+        cont_stats['value'] = cont_stats['value'].round(decimals=decimals)
+        return cont_stats
+
 
     @staticmethod
     def _calc_gof_stats(
@@ -222,7 +210,6 @@ class Evaluation(object):
     def contingency(
         self,
         threshold: Union[float, str],
-        label: str = None,
         time_window: str = None,
         mod_col: str = 'modeled',
         obs_col: str = 'observed',
@@ -262,7 +249,6 @@ class Evaluation(object):
                       used. I guess this allows different thresholds for 
                       different groups within the data.frame.
 
-            label: Label for the threshold, value used if None.
             time_window: Calculate contingency statistics over a moving
             time window of specified width in seconds ('s'), hours ('h'),
             or days('d').
@@ -280,7 +266,6 @@ class Evaluation(object):
                 apply(
                     self._group_calc_cont_stats,
                     threshold=threshold,
-                    label=label,
                     time_window=time_window,
                     mod_col=mod_col,
                     obs_col=obs_col,
@@ -291,7 +276,6 @@ class Evaluation(object):
             cont_stats = self._group_calc_cont_stats(
                 data=self.data,
                 threshold=threshold,
-                label=label,
                 time_window=time_window,
                 mod_col=mod_col,
                 obs_col=obs_col,
@@ -626,9 +610,10 @@ def calc_cont_table(observed: np.array, modeled: np.array) -> pd.DataFrame:
     except:
         correct_negatives = 0
 
-    cont_tbl = pd.DataFrame({True: [hits, misses],
-                             False: [false_alarms, correct_negatives]},
-                            index=[True, False])
+    cont_tbl = pd.DataFrame(
+        {True: [hits, misses],
+         False: [false_alarms, correct_negatives]},
+        index=[True, False])
 
     return cont_tbl
 

@@ -1,6 +1,3 @@
-import datetime
-import pandas as pd
-
 
 gof_answer_reprs = {
 
@@ -31,18 +28,7 @@ gof_answer_reprs = {
 }
 
 
-base_dum_time = datetime.datetime(2000, 1, 1)
-dumtime = [base_dum_time + datetime.timedelta(hours=dd) for dd in range(4)]
-contingency_known_data_input = pd.DataFrame({
-    #       hits         #mix           # misses         # false pos      # corr_neg
-    'mod': [1, 1, 1, 1,   1, -1,  1, -1,  -1, -1, -1, -1,   1,  1,  1,  1,  -1, -1, -1, -1],
-    'obs': [1, 1, 1, 1,   1,  1, -1, -1,   1,  1,  1,  1,  -1, -1, -1, -1,  -1, -1, -1, -1],
-    'tsh': [0, 0, 0, 0,   0,  0, 0, 0,     0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0],
-    'loc': (['hits']*4)+ (['mix']*4)+     (['miss']*4)+  (['false_pos']*4)+  (['corr_neg']*4),
-    'time': dumtime +     dumtime +        dumtime +      dumtime +           dumtime,
-    }).set_index(['loc', 'time'])
-
-contingency_known_data_answer = 'loc,,statistic,value,threshold\ncorr_neg,0,acc,1.00,0\ncorr_neg,1,bias,,0\ncorr_neg,2,pod,,0\ncorr_neg,3,far,,0\ncorr_neg,4,pofd,0.00,0\ncorr_neg,5,sr,,0\ncorr_neg,6,csi,,0\ncorr_neg,7,gss,,0\ncorr_neg,8,hk,,0\ncorr_neg,9,or,,0\ncorr_neg,10,orss,,0\ncorr_neg,11,N,0.00,0\nfalse_pos,0,acc,0.00,0\nfalse_pos,1,bias,,0\nfalse_pos,2,pod,,0\nfalse_pos,3,far,1.00,0\nfalse_pos,4,pofd,1.00,0\nfalse_pos,5,sr,0.00,0\nfalse_pos,6,csi,0.00,0\nfalse_pos,7,gss,0.00,0\nfalse_pos,8,hk,,0\nfalse_pos,9,or,,0\nfalse_pos,10,orss,,0\nfalse_pos,11,N,0.00,0\nhits,0,acc,1.00,0\nhits,1,bias,1.00,0\nhits,2,pod,1.00,0\nhits,3,far,0.00,0\nhits,4,pofd,,0\nhits,5,sr,1.00,0\nhits,6,csi,1.00,0\nhits,7,gss,,0\nhits,8,hk,,0\nhits,9,or,,0\nhits,10,orss,,0\nhits,11,N,4.00,0\nmiss,0,acc,0.00,0\nmiss,1,bias,0.00,0\nmiss,2,pod,0.00,0\nmiss,3,far,,0\nmiss,4,pofd,,0\nmiss,5,sr,,0\nmiss,6,csi,0.00,0\nmiss,7,gss,0.00,0\nmiss,8,hk,,0\nmiss,9,or,,0\nmiss,10,orss,,0\nmiss,11,N,4.00,0\nmix,0,acc,0.50,0\nmix,1,bias,1.00,0\nmix,2,pod,0.50,0\nmix,3,far,0.50,0\nmix,4,pofd,0.50,0\nmix,5,sr,0.50,0\nmix,6,csi,0.33,0\nmix,7,gss,0.00,0\nmix,8,hk,0.00,0\nmix,9,or,1.00,0\nmix,10,orss,0.00,0\nmix,11,N,2.00,0\n'
+contingency_known_data_answer = 'loc,,statistic,value\ncorr_neg,0,acc,1.00\ncorr_neg,1,bias,\ncorr_neg,2,pod,\ncorr_neg,3,far,\ncorr_neg,4,pofd,0.00\ncorr_neg,5,sr,\ncorr_neg,6,csi,\ncorr_neg,7,gss,\ncorr_neg,8,hk,\ncorr_neg,9,or,\ncorr_neg,10,orss,\ncorr_neg,11,N,0.00\nfalse_pos,0,acc,0.00\nfalse_pos,1,bias,\nfalse_pos,2,pod,\nfalse_pos,3,far,1.00\nfalse_pos,4,pofd,1.00\nfalse_pos,5,sr,0.00\nfalse_pos,6,csi,0.00\nfalse_pos,7,gss,0.00\nfalse_pos,8,hk,\nfalse_pos,9,or,\nfalse_pos,10,orss,\nfalse_pos,11,N,0.00\nhits,0,acc,1.00\nhits,1,bias,1.00\nhits,2,pod,1.00\nhits,3,far,0.00\nhits,4,pofd,\nhits,5,sr,1.00\nhits,6,csi,1.00\nhits,7,gss,\nhits,8,hk,\nhits,9,or,\nhits,10,orss,\nhits,11,N,4.00\nmiss,0,acc,0.00\nmiss,1,bias,0.00\nmiss,2,pod,0.00\nmiss,3,far,\nmiss,4,pofd,\nmiss,5,sr,\nmiss,6,csi,0.00\nmiss,7,gss,0.00\nmiss,8,hk,\nmiss,9,or,\nmiss,10,orss,\nmiss,11,N,4.00\nmix,0,acc,0.50\nmix,1,bias,1.00\nmix,2,pod,0.50\nmix,3,far,0.50\nmix,4,pofd,0.50\nmix,5,sr,0.50\nmix,6,csi,0.33\nmix,7,gss,0.00\nmix,8,hk,0.00\nmix,9,or,1.00\nmix,10,orss,0.00\nmix,11,N,2.00\n'
 
 
 event_known_data_answer = 'loc,,statistic,value,threshold\ncorr_neg,0,event_freq_bias,,0\ncorr_neg,1,event_dur_bias,,0\ncorr_neg,2,N_obs_events,0.00,0\nfalse_pos,0,event_freq_bias,,0\nfalse_pos,1,event_dur_bias,,0\nfalse_pos,2,N_obs_events,0.00,0\nhits,0,event_freq_bias,1.00,0\nhits,1,event_dur_bias,1.00,0\nhits,2,N_obs_events,1.00,0\nmiss,0,event_freq_bias,0.00,0\nmiss,1,event_dur_bias,,0\nmiss,2,N_obs_events,1.00,0\nmix,0,event_freq_bias,2.00,0\nmix,1,event_dur_bias,0.50,0\nmix,2,N_obs_events,1.00,0\n'

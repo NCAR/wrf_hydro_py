@@ -209,15 +209,44 @@ def test_crps_brier_basic(
         assert np.isclose(brier, answer).all()
 
 
+# Inputs for contingency and event stat calculations.        
+# Answers are in data/evaluation_answer_reprs.py
+base_dum_time = datetime.datetime(2000, 1, 1)
+dumtime = [base_dum_time + datetime.timedelta(hours=dd) for dd in range(4)]
+
+# Easy to read and interpret inputs and grouped output.
+contingency_known_data_input = pd.DataFrame({
+    #       hits         #mix           # misses         # false pos      # corr_neg
+    'mod': [1, 1, 1, 1,   1, -1,  1, -1,  -1, -1, -1, -1,   1,  1,  1,  1,  -1, -1, -1, -1],
+    'obs': [1, 1, 1, 1,   1,  1, -1, -1,   1,  1,  1,  1,  -1, -1, -1, -1,  -1, -1, -1, -1],
+    'tsh': [0, 0, 0, 0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0,   0,  0,  0,  0],
+    'loc': (['hits']*4)+ (['mix']*4)+     (['miss']*4)+  (['false_pos']*4)+  (['corr_neg']*4),
+    'time': dumtime +     dumtime +        dumtime +      dumtime +           dumtime,
+    }).set_index(['loc', 'time'])
+
+# A threshold that varies across the group on which the calcuation is made.
+contingency_known_data_input_2 = pd.DataFrame({
+    #       hits             #mix             # misses          # false pos      # corr_neg
+    'mod': [1, 11, 111, 1,   1, 1,  111,  1,   0, 10, 110, -1,   1, 11, 111, 2,  0, 2, 10, 17],
+    'obs': [1, 11, 111, 1,   1, 11,   1,  1,   2, 11, 111,  1,   0, 10, 110, 1,  0, 2, 10, 13],
+    'tsh': [0, 10, 110, 0,   0, 10, 110, 10,   1, 10, 110,  0,   0, 10, 110, 1,  1, 3, 11, 20],
+    'loc': (['hits']*4)+    (['mix']*4)+      (['miss']*4)+   (['false_pos']*4)+ (['corr_neg']*4),
+    'time': dumtime +     dumtime +        dumtime +      dumtime +           dumtime,
+    }).set_index(['loc', 'time'])
+
+
 #@pytest.mark.parametrize('engine', engine)
-def test_contingency_known_data():
-    known_data = contingency_known_data_input.to_xarray().set_coords("tsh")
+@pytest.mark.parametrize(
+    'input_data',
+    [contingency_known_data_input, contingency_known_data_input_2])
+def test_contingency_known_data(input_data):
+    known_data = input_data.to_xarray().set_coords("tsh")
     mod = known_data.mod.drop('tsh')
     obs = known_data.obs
     result = mod.eval.obs(obs).contingency(threshold='tsh', group_by='loc')
-    assert_frame_close(
-        round_trip_df_serial(result),
-        str_to_frame(contingency_known_data_answer))
+    result = round_trip_df_serial(result)
+    expected = str_to_frame(contingency_known_data_answer)
+    assert_frame_close(result, expected)
 
 
 def test_event_known_data():

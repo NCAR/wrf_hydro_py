@@ -249,11 +249,14 @@ def test_contingency_known_data(input_data):
     assert_frame_close(result, expected)
 
 
-def test_event_known_data():
-    known_data = contingency_known_data_input.to_xarray().set_coords("tsh")
+@pytest.mark.parametrize(
+    'input_data',
+    [contingency_known_data_input, contingency_known_data_input_2])
+def test_event_known_data(input_data):
+    known_data = input_data.to_xarray().set_coords("tsh")
     mod = known_data.mod.drop('tsh')
     obs = known_data.obs
     result = mod.eval.obs(obs).event(threshold='tsh', group_by='loc')
-    assert_frame_close(
-        round_trip_df_serial(result),
-        str_to_frame(event_known_data_answer))
+    result = round_trip_df_serial(result)
+    expected = str_to_frame(event_known_data_answer)
+    assert_frame_close(result, expected)

@@ -126,22 +126,22 @@ class Evaluation(object):
         # TODO: how is threshold being used and then reset if it's a string?
         # TODO: Can one even index with a float?
         if isinstance(threshold, str):
-            thres_col = threshold
+            thresh_col = threshold
         else:
             thresh_col = '__thresh_col__'
             data[thresh_col] = threshold
 
         if time_window is None:
-            observed = data[obs_col] > data[threshold]
-            modeled = data[mod_col] > data[threshold]
+            obs_is_event = data[obs_col] > data[thresh_col]
+            mod_is_event = data[mod_col] > data[thresh_col]
         else:
             data.set_index('time', inplace=True)
             rolling_df = data.rolling(window=time_window)
-            observed = rolling_df[obs_col].max() > data[threshold]
-            modeled = rolling_df[mod_col].max() > data[threshold]
+            obs_is_event = rolling_df[obs_col].max() > data[thresh_col]
+            mod_is_event = rolling_df[mod_col].max() > data[thresh_col]
             data.reset_index('time', inplace=True)
 
-        cont_table = calc_cont_table(observed, modeled)
+        cont_table = calc_cont_table(obs_is_event, mod_is_event)
             
         cont_stats = calc_cont_stats(
             cont_table,
@@ -174,38 +174,24 @@ class Evaluation(object):
     def _group_calc_event_stats(
         data,
         threshold: Union[float, str],
-        label: str = None,
         mod_col: str = 'modeled',
         obs_col: str = 'observed',
         decimals: int = 2
     ):
 
-        if len(data[threshold].dropna()) > 0:
-            if type(threshold) == str:
-                threshold = data[threshold].iloc[0]
-
-            observed = data[obs_col] > threshold
-            modeled = data[mod_col] > threshold
-
-            event_stats = calc_event_stats(
-                observed,
-                modeled,
-                decimals=decimals
-            )
-
-            if label is None:
-                label = threshold
-            event_stats['threshold'] = label
-            event_stats['value'] = event_stats['value'].round(
-                decimals=decimals)
-            return event_stats
-
+        if isinstance(threshold, str):
+            thresh_col = threshold
         else:
-            if label is None:
-                label = threshold
-            return pd.DataFrame(columns={'statistic': np.nan,
-                                         'value': np.nan,
-                                         'threshold': label})
+            thresh_col = '__thresh_col__'
+            data[thresh_col] = threshold
+
+        obs_is_event = data[obs_col] > data[thresh_col]
+        mod_is_event = data[mod_col] > data[thresh_col]
+
+        event_stats = calc_event_stats(obs_is_event, mod_is_event, decimals=decimals)
+
+        event_stats['value'] = event_stats['value'].round(decimals=decimals)
+        return event_stats
 
     def contingency(
         self,
@@ -518,7 +504,6 @@ class Evaluation(object):
     def event(
         self,
         threshold: Union[float, str],
-        label: str = None,
         mod_col: str = 'modeled',
         obs_col: str = 'observed',
         group_by: Union[list, str] = None,
@@ -536,7 +521,6 @@ class Evaluation(object):
             decimals: round stats to specified decimal places
             threshold: Threshold value for high flow event or
             column name containing threshold value.
-            label: Label for threshold to use instead of valeu in returned
         dataframe
         Returns:
             Pandas dataframe containing contingency table
@@ -546,7 +530,6 @@ class Evaluation(object):
             event_stats = self._group_calc_event_stats(
                 data=self.data,
                 threshold=threshold,
-                label=label,
                 obs_col=obs_col,
                 mod_col=mod_col,
                 decimals=decimals)
@@ -556,7 +539,6 @@ class Evaluation(object):
                 apply(
                     self._group_calc_event_stats,
                     threshold=threshold,
-                    label=label,
                     obs_col=obs_col,
                     mod_col=mod_col,
                     decimals=decimals)

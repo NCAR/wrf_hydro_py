@@ -694,7 +694,7 @@ def calc_cont_stats(
 
     cont_stats = pd.DataFrame(cont_stats).rename(
         columns={0: 'statistic', 1: 'value'})
-
+    cont_stats = cont_stats.set_index('statistic')
     cont_stats['value'] = cont_stats['value'].round(decimals=decimals)
     if inf_as_na:
         cont_stats['value'].replace(np.inf, np.nan, inplace=True)
@@ -831,5 +831,6 @@ def calc_event_stats(
     df = pd.DataFrame(
         {'statistic': ['event_freq_bias', 'event_dur_bias', 'N_obs_events'],
          'value': [event_freq_bias, event_dur_bias, num_act_events]})
+    df = df.set_index('statistic')
 
     return df

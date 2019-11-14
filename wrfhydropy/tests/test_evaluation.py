@@ -234,6 +234,7 @@ contingency_known_data_input_2 = pd.DataFrame({
     'time': dumtime +     dumtime +        dumtime +      dumtime +           dumtime,
     }).set_index(['loc', 'time'])
 
+# TODO: test NaNs in the data
 
 #@pytest.mark.parametrize('engine', engine)
 @pytest.mark.parametrize(

@@ -125,16 +125,29 @@ class Evaluation(object):
         # TODO: Check if there are data above the above the threshold
         # TODO: how is threshold being used and then reset if it's a string?
         # TODO: Can one even index with a float?
+
         if isinstance(threshold, str):
             thresh_col = threshold
         else:
             thresh_col = '__thresh_col__'
             data[thresh_col] = threshold
 
+        # I dont like that this is in a different place than for gof
+        observed = data[obs_col]
+        modeled = data[mod_col]
+        thresh = data[thresh_col]
+        nan_mask = np.isnan(observed) | np.isnan(modeled) | np.isnan(thresh)
+        obs_masked = observed[~nan_mask]
+        mod_masked = modeled[~nan_mask]
+        thresh_masked = thresh[~nan_mask]
+        if len(obs_masked) == 0:
+            return pd.DataFrame()
+
         if time_window is None:
-            obs_is_event = data[obs_col] > data[thresh_col]
-            mod_is_event = data[mod_col] > data[thresh_col]
+            obs_is_event = obs_masked > thresh_masked
+            mod_is_event = mod_masked > thresh_masked
         else:
+            raise ValueError('This is some highly experimental code, but Im leaving it there')
             data.set_index('time', inplace=True)
             rolling_df = data.rolling(window=time_window)
             obs_is_event = rolling_df[obs_col].max() > data[thresh_col]
@@ -320,10 +333,8 @@ class Evaluation(object):
                     kwargs = {'inf_as_na': inf_as_na,
                               'decimals': decimals},
                     input_core_dims=[self.join_on, self.join_on] #,
-                    # exclude_dims=set(self.join_on)
                 )
                 gof_stats = gof_stats.values[()]()._mapping
-                # gof_stats = gof_stats.to_dataframe().reset_index() #.drop(columns='index')
 
             else:
 
@@ -653,11 +664,17 @@ def calc_cont_stats(
     misses = cont_table.loc[False, True]
     false_alarms = cont_table.loc[True, False]
     correct_neg = cont_table.loc[False, False]
+    # Used in various stats...
     hits_random = ((hits + misses) * (hits + false_alarms)) / total
     pod = hits / (hits + misses)
     pofd = false_alarms / (false_alarms + correct_neg)
 
     cont_stats = [
+        ('hits', hits),
+        ('misses', misses),
+        ('false_alarms', false_alarms),
+        ('correct_neg', correct_neg),
+        ('hits_random', hits_random),
         ('acc', (hits + correct_neg) / total),
         ('bias', (hits + false_alarms) / (hits + misses)),
         ('pod', pod),
@@ -672,7 +689,7 @@ def calc_cont_stats(
         ('or', (pod / (1 - pod)) / (pofd / (1 - pofd))),
         ('orss', ((hits * correct_neg) - (misses * false_alarms)) /
          ((hits * correct_neg) + (misses * false_alarms))),
-        ('N', (hits + misses))
+        ('sample_size', total)
     ]
 
     cont_stats = pd.DataFrame(cont_stats).rename(

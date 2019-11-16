@@ -112,5 +112,5 @@ for col in thresh_stages:
     thresh_ds_write[col].encoding = {'dtype': 'float32'}
 
 # Save this to a netcdf file. 
-thresh_nc_file = wrf_hydro_py_dir / 'data/flood_thresholds_mertic_units.nc'
+thresh_nc_file = wrf_hydro_py_dir / 'data/flood_thresholds_metric_units.nc'
 thresh_ds_write.to_netcdf(thresh_nc_file)

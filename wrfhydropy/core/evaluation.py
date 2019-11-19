@@ -611,6 +611,27 @@ def calc_cont_table(observed: np.array, modeled: np.array) -> pd.DataFrame:
     return cont_tbl
 
 
+cont_stats_ideal = {
+    'hits': np.nan,
+    'misses': 0,
+    'false_alarms': 0,
+    'correct_neg': np.nan,
+    'hits_random': np.nan,  # ?
+    'acc': 1,
+    'bias': 1,
+    'pod': 1,
+    'far': 0,
+    'pofd': 0,
+    'sr': 1,
+    'csi': 1,
+    'gss': np.nan,  # ?
+    'hk': 1,
+    'or': np.nan,
+    'orss': 1,
+    'sample_size': np.nan,
+}
+
+
 def calc_cont_stats(
     cont_table: pd.DataFrame,
     inf_as_na: bool = True,
@@ -701,6 +722,31 @@ def calc_cont_stats(
         cont_stats['value'].replace(-np.inf, np.nan, inplace=True)
 
     return cont_stats
+
+
+gof_stats_ideal = {
+    "agreementindex": 1,
+    "bias": 0,
+    "correlationcoefficient": 1,
+    "covariance": np.nan,
+    "decomposed_mse": 0,
+    "kge": 1,
+    "log_p": np.nan,
+    "lognashsutcliffe": np.nan,
+    "mae": 0,
+    "mean_obs": np.nan,
+    "median_obs": np.nan,
+    "mse": np.nan,
+    "nashsutcliffe": 1,
+    "pbias": 0,
+    "rmse": 0,
+    "rrmse": 0,
+    "rsquared": 1,
+    "rsr": 0,
+    "sample_size": np.nan,
+    "std_obs": np.nan,
+    "volume_error": 0
+}
 
 
 def calc_gof_stats(

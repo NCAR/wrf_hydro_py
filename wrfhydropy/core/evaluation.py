@@ -624,7 +624,7 @@ cont_stats_ideal = {
     'pofd': 0,
     'sr': 1,
     'csi': 1,
-    'gss': np.nan,  # ?
+    'gss': 1,
     'hk': 1,
     'or': np.nan,
     'orss': 1,
@@ -650,6 +650,8 @@ def calc_cont_stats(
                  |      |negatives|
                  ------------------
 
+    See https://www.cawcr.gov.au/projects/verification/ for descriptions.
+
     Accuracy (acc, fraction correct) = (hits + correct_negatives)/total
     Bias score (bias, frequency bias) = (hits + false_alarms)/(hits + misses)
     Probability of detection (pod, hit rate) = hits/(hits + misses)
@@ -669,7 +671,6 @@ def calc_cont_stats(
     Odds ratio skill score (orss, Yule's Q) = ((hits * correct_negatives) -
     (misses * false_alarms))/((hits * correct_negatives) +
     (misses * false_alarms)
-
 
     Args:
         cont_table: A contingency table

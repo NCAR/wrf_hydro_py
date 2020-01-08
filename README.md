@@ -1,4 +1,4 @@
-![](https://ral.ucar.edu/sites/default/files/public/wrf_hydro_symbol_logo_2017_09_150pxby63px.png) WRF-HYDRO
+![](https://ral.ucar.edu/sites/default/files/public/wrf_hydro_symbol_logo_2017_09_150pxby63px.png) WRF-HYDRO-PY ![](https://www.python.org/static/community_logos/python-powered-h-140x182.png)
 
 [![Build Status](https://travis-ci.org/NCAR/wrf_hydro_py.svg?branch=master)](https://travis-ci.org/NCAR/wrf_hydro_py)
 [![Coverage Status](https://coveralls.io/repos/github/NCAR/wrf_hydro_py/badge.svg?branch=master&service=github)](https://coveralls.io/github/NCAR/wrf_hydro_py?branch=master)

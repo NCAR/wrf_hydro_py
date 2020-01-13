@@ -3,16 +3,33 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to wrfhydropy's documentation!
-======================================
+wrfhydropy: An API for the WRF-Hydro model and more.
+====================================================
+
+Documentation
+-------------
+
+**Getting Started**
+
+* :doc:`what-and-why`
+* :doc:`examples`
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+    :maxdepth: 2
+    :hidden:
+    :caption: Getting Started
+    what-and-why
+    examples
 
+**User Guide**
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: User Guide
+            
 
-Indices and tables
+Help & Reference
 ==================
 
 * :ref:`genindex`

@@ -42,9 +42,27 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.viewcode',
     'sphinx.ext.napoleon',
-    'nbsphinx'
+    'nbsphinx',
+    "sphinx.ext.autosummary",
+    "sphinx.ext.intersphinx",
+    # "sphinx.ext.extlinks",
+    "sphinx.ext.mathjax",
+    "numpydoc",
+    "IPython.sphinxext.ipython_directive",
+    "IPython.sphinxext.ipython_console_highlighting",    
 ]
 
+nbsphinx_timeout = 600
+#nbsphinx_execute = "always"
+#nbsphinx_allow_errors = True
+#nbsphinx_prolog = """
+#{% set docname = env.doc2path(env.docname, base=None) %}
+#You can run this notebook in a `live session <https://mybinder.org/v2/gh/pydata/xarray/doc/examples/master?urlpath=lab/tree/doc/{{ docname }}>`_ |Binder| or view it `on Github <https://github.com/pydata/xarray/blob/master/doc/{{ docname }}>`_.
+#.. |Binder| image:: https://mybinder.org/badge.svg
+#   :target: https://mybinder.org/v2/gh/pydata/xarray/master?urlpath=lab/tree/doc/{{ docname }}
+#"""
+
+autosummary_generate = True
 
 napoleon_google_docstring = True
 napoleon_use_param = False

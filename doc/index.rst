@@ -12,26 +12,44 @@ Documentation
 **Getting Started**
 
 * :doc:`what-and-why`
+* :doc:`installation`
 * :doc:`examples`
 
 .. toctree::
     :maxdepth: 2
     :hidden:
     :caption: Getting Started
+
     what-and-why
+    installation
     examples
 
-**User Guide**
+
+**Reference**
+
+* :doc:`model_api`
+* :doc:`output`
+* :doc:`utilities`
+
+.. toctree::
+    :maxdepth: 2
+    :hidden:
+    :caption: Reference
+
+    model_api
+    output    
+    utilities
+
+
+**Help & Index**
+   
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
 
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: User Guide
-            
+   :caption: Help & Index
 
-Help & Reference
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   search

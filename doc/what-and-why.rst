@@ -22,7 +22,10 @@ to facilitate all aspects of working with WRF-Hydro including:
     * analysis (input and output)
     * sharing results (jupyter notebooks)
 
+The `wrfhydropy` package is **user supported and community contributed**. That
+means you can help add to and improve it.
 
+            
 Why wrfhydropy?
 ---------------
 The WRF-Hydro model was not originally built with many applications or workflows
@@ -43,12 +46,29 @@ application was the construction and execuation of ensembles and ensemble
 forecasts. 
 
 
+Limitations of wrfhydropy
+-------------------------
+
+The `wrfhydropy` package does many things but also has some strong limitations
+which are worth acknowledging up-front. The development of `wrfhydropy` has
+mostly emerged to support testing and other applications of the NWM. While
+`wrfhydropy` supports other modes of running WRF-Hydro, the further away from
+the NWM you get, the less likely `wrfhydropy` will support your needs. This
+guidance is highly dependent on those differences. If those differences are
+containted in the namelists only, you are likely not going to have issues. But
+attempting to use the `Noah` model instead of `NoahMP`, for example, will
+simply not work. We are open to changes/enhancements to support your needs,
+but we may require you to perform them and make a pull request to get them
+into the upstream master branch.
+
+
 Key concepts
 ------------
 A few concepts in wrfhydropy differ from how WRF-Hydro is generally
 interfaced. These are explained and summarized her.
 
-# Object Oriented API
+Object Oriented API
+###################
 THe `wrfhydropy` model API follows an object oriented approach. Composition
 of objects is a theme of the design. That is core building blocks are put
 together to form more complicated object. The separation of concerns of these
@@ -70,7 +90,8 @@ Higher-level objects:
   * Forecast <- simulation, job [, scheduler]
   * Ensemble_Forecast <- ensemble, job [, scheduler]
 
-# Namelists: model and domain sides
+    
+Namelists: model and domain sides
+#################################
 
-#
 

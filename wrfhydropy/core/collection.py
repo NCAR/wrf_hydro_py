@@ -60,13 +60,13 @@ def preprocess_whp_data(
     if drop_variables is not None:
         to_drop = set(ds.variables).intersection(set(drop_variables))
         if to_drop != set():
-            ds = ds.drop(to_drop)
+            ds = ds.drop_vars(to_drop)
 
     # Exception for RESTART.YYMMDDHHMM_DOMAIN1 files
     if 'RESTART.' in str(path):
         time = datetime.strptime(ds.Times.values[0].decode('utf-8'), '%Y-%m-%d_%H:%M:%S')
         ds = ds.squeeze('Time')
-        ds = ds.drop(['Times'])
+        ds = ds.drop_vars(['Times'])
         ds = ds.assign_coords(time=time)
 
     # Exception for HYDRO_RST.YY-MM-DD_HH:MM:SS_DOMAIN1 files
@@ -106,7 +106,7 @@ def preprocess_whp_data(
             ds.time.values - ds.reference_time.values,
             dtype='timedelta64[ns]'
         )
-        ds = ds.drop('time')
+        ds = ds.drop_vars('time')
 
         # Could create a valid time variable here, but I'm guessing it's more efficient
         # after all the data are collected.
@@ -114,7 +114,7 @@ def preprocess_whp_data(
 
     else:
         if 'reference_time' in ds.variables:
-            ds = ds.drop('reference_time')
+            ds = ds.drop_vars('reference_time')
 
     # Spatial subsetting
     if isel is not None:

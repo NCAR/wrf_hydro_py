@@ -13,7 +13,7 @@ setup(
         'netCDF4',
         'deepdiff==3.3.0',
         'pathlib',
-        'xarray',
+        'xarray==0.14.1',
         'datetime',
         'pytest',
         'pytest-html',

@@ -13,6 +13,6 @@ before_install:
     - pip install --upgrade coveralls
     - python setup.py install
 script:
-    - travis_wait 30 mvn pytest -v --cov=wrfhydropy
+    - travis_wait 30 sh -c 'pytest -v --cov=wrfhydropy'
 after_success:
     - coveralls

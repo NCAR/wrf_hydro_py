@@ -32,9 +32,8 @@ version = version_file.open('r').read().split('-')[0]
 # Simulation
 # Make a sim dir to a single simulation.
 sim_dir = test_dir / 'data/collection_data/simulation'
-if sim_dir.exists():
-    sim_dir.unlink()
-    shutil.rmtree(str(sim_dir))
+#if sim_dir.exists():
+sim_dir.unlink()
 sim_dir.symlink_to(test_dir / 'data/collection_data/ens_ana/cast_2011082600/member_000')
 
 

@@ -1,4 +1,4 @@
-pandas==0.23.4
+pandas==0.25.3
 f90nml==1.0.2
 netCDF4==1.4.1
 deepdiff==3.3.0

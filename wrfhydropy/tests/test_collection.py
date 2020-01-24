@@ -1,5 +1,5 @@
 import os
-import pathlib
+import pathlib2 as pathlib
 import pytest
 import shutil
 import xarray as xr

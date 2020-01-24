@@ -15,7 +15,7 @@ collection_data_download.download()
 
 # WTF?
 #problem_file = test_dir / 'data/collection_data/simulation'
-problem_file = test_dir / 'simulation/ens_ana/cast_2011082600/member_000'
+problem_file = test_dir / 'data/collection_data/ens_ana/cast_2011082600/member_000'
 if not problem_file.exists():
     raise FileExistsError('problem not present: ', str(problem_file))
 if problem_file.exists():

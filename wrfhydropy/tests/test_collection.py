@@ -13,6 +13,10 @@ answer_dir = test_dir / 'data/collection_data/test_answers'
 # The data are found here.
 collection_data_download.download()
 
+collection_data_dir = test_dir / 'data/collection_data'
+if not collection_data_dir.exists():
+    raise FileExistsError('collection data not present: ', str(collection_data_dir))
+
 # Issues raised by these tests
 # https://github.com/NCAR/wrf_hydro_nwm_public/issues/301
 # Make an issue: The restart files should have reference time and time just like the other files.

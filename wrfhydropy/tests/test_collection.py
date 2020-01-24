@@ -366,7 +366,7 @@ def test_collect_profile_chunking(
 
     # if file_chunk_size > and chunk is not None there is an error.
     sim_ds_chunk = open_whp_dataset(
-        files, n_cores=n_cores, profile=True, chunks=15, file_chunk_size=2)
+        files, n_cores=n_cores, profile=True, chunks=15, file_chunk_size=1)
     xr.testing.assert_equal(sim_ds_chunk, ans)
 
 
@@ -412,7 +412,7 @@ def test_collect_ensemble_cycle_isel(
     ans = xr.open_dataset(answer_dir / ans_file)
     xr.testing.assert_equal(ens_cycle_ds, ans)
 
-    ens_cycle_ds_chunk = open_whp_dataset(files, n_cores=n_cores, isel=isel, file_chunk_size=1)
+    ens_cycle_ds_chunk = open_whp_dataset(files, n_cores=n_cores, isel=isel, file_chunk_size=2)
     xr.testing.assert_equal(ens_cycle_ds_chunk, ans)
 
 

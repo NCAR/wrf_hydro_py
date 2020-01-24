@@ -343,13 +343,14 @@ def open_whp_dataset(
         n_file_chunks = math.ceil(n_files / file_chunk_size)
         start_list = [file_chunk_size * ii for ii in range(n_file_chunks)]
         end_list = [file_chunk_size * (ii + 1) - 1 for ii in range(n_file_chunks)]
+#        adsf
 
         whp_ds = None
         for start_ind, end_ind in zip(start_list, end_list):
             the_pool = Pool(n_cores)
             with dask.config.set(scheduler='processes', pool=the_pool):
                 ds_chunk = open_whp_dataset_inner(
-                    paths=paths,
+                    paths=paths[start_ind:(end_ind+1)],
                     chunks=chunks,
                     attrs_keep=attrs_keep,
                     isel=isel,

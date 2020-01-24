@@ -14,12 +14,12 @@ answer_dir = test_dir / 'data/collection_data/test_answers'
 collection_data_download.download()
 
 # WTF?
-problem_file = test_dir / 'data/collection_data/simulation'
-#problem_file = test_dir / 'data/collection_data/ens_ana/cast_2011082600/member_000' # present
-if not problem_file.exists():
-    raise FileExistsError('problem not present: ', str(problem_file))
-if problem_file.exists():
-    raise FileExistsError('problem file present: ', str(problem_file))
+#problem_file = test_dir / 'data/collection_data/simulation'  # not present
+#problem_file = test_dir / 'data/collection_data/ens_ana/cast_2011082600/member_000'  # present
+#if not problem_file.exists():
+#    raise FileExistsError('problem not present: ', str(problem_file))
+#if problem_file.exists():
+#    raise FileExistsError('problem file present: ', str(problem_file))
 
 # Issues raised by these tests
 # https://github.com/NCAR/wrf_hydro_nwm_public/issues/301

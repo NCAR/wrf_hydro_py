@@ -12,7 +12,7 @@ setup(
         'f90nml',
         'netCDF4',
         'deepdiff==3.3.0',
-        'pathlib',
+        'pathlib==1.0.1',
         'xarray==0.14.1',
         'datetime',
         'pytest',

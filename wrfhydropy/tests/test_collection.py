@@ -14,7 +14,7 @@ answer_dir = test_dir / 'data/collection_data/test_answers'
 collection_data_download.download()
 
 collection_data_dir = test_dir / 'data/collection_data'
-if not collection_data_dir.exists():
+if not collection_data_dir.joinpath('ens_ana/cast_2011082600/member_000').exists():
     raise FileExistsError('collection data not present: ', str(collection_data_dir))
 
 # Issues raised by these tests

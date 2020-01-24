@@ -32,8 +32,8 @@ version = version_file.open('r').read().split('-')[0]
 # Simulation
 # Make a sim dir to a single simulation.
 sim_dir = test_dir / 'data/collection_data/simulation'
-#if sim_dir.exists():
-sim_dir.unlink()
+if sim_dir.is_symlink():
+    sim_dir.unlink()
 sim_dir.symlink_to(test_dir / 'data/collection_data/ens_ana/cast_2011082600/member_000')
 
 
@@ -131,7 +131,7 @@ def test_collect_cycle(
 # Make an ensemble dir and set it up from the ensemble cycle.
 ens_dir = test_dir / 'data/collection_data/ensemble'
 # delete the directory here.
-if ens_dir.exists():
+if ens_dir.is_symlink():
     ens_dir.unlink()
 ens_dir.symlink_to(test_dir / 'data/collection_data/ens_ana/cast_2011082600')
 

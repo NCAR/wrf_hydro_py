@@ -323,7 +323,8 @@ def test_collect_missing_ens_cycle(
         ens_cycle_ds['crs'].encoding['_FillVale'] = 'nan'
     # This is mostly because int32 is changed to float64 bc of nans
     for vv in ens_cycle_ds.variables:
-        if not 'time' in vv: ens_cycle_ds[vv].encoding['dtype'] = ens_cycle_ds[vv].dtype
+        if 'time' not in vv:
+            ens_cycle_ds[vv].encoding['dtype'] = ens_cycle_ds[vv].dtype
 
     ans = xr.open_dataset(answer_dir / ans_file)
     xr.testing.assert_equal(ens_cycle_ds, ans)

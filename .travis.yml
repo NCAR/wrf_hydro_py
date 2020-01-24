@@ -13,6 +13,6 @@ before_install:
     - pip install --upgrade coveralls
     - python setup.py install
 script:
-    - pytest -v --cov=wrfhydropy
+    - pytest -v 
 after_success:
     - coveralls

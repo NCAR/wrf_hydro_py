@@ -13,12 +13,13 @@ answer_dir = test_dir / 'data/collection_data/test_answers'
 # The data are found here.
 collection_data_download.download()
 
-collection_data_dir = test_dir / 'data/collection_data'
-if not collection_data_dir.joinpath('ens_ana/cast_2011082600/member_000').exists():
-    raise FileExistsError('collection data not present: ', str(collection_data_dir))
-
-if collection_data_dir.joinpath('ens_ana/cast_2011082600/member_000').exists():
-    raise FileExistsError('collection data present: ', str(collection_data_dir))
+# WTF?
+#problem_file = test_dir / 'data/collection_data/simulation'
+problem_file = test_dir / 'simulation/ens_ana/cast_2011082600/member_000'
+if not problem_file.exists():
+    raise FileExistsError('problem not present: ', str(problem_file))
+if problem_file.exists():
+    raise FileExistsError('problem file present: ', str(problem_file))
 
 # Issues raised by these tests
 # https://github.com/NCAR/wrf_hydro_nwm_public/issues/301
@@ -33,6 +34,7 @@ version = version_file.open('r').read().split('-')[0]
 sim_dir = test_dir / 'data/collection_data/simulation'
 if sim_dir.exists():
     sim_dir.unlink()
+    shutil.rmtree(str(sim_dir))
 sim_dir.symlink_to(test_dir / 'data/collection_data/ens_ana/cast_2011082600/member_000')
 
 

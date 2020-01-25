@@ -11,6 +11,7 @@ setup(
         'pandas',
         'f90nml',
         'netCDF4',
+        'numpy==17.1.2',
         'deepdiff==3.3.0',
         'pathlib==1.0.1',
         'xarray==0.14.1',

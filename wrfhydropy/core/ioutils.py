@@ -81,7 +81,7 @@ def preprocess_nwm_data(
     if drop_variables is not None:
         to_drop = set(ds.variables).intersection(set(drop_variables))
         if to_drop != set():
-            ds = ds.drop(to_drop)
+            ds = ds.drop_vars(to_drop)
 
     # TODO JLM? Check range (e.g. "medium_range")
     # TODO JLM? Check file type (e.g "channel_rt")
@@ -101,7 +101,7 @@ def preprocess_nwm_data(
         ds.time.values - ds.reference_time.values,
         dtype='timedelta64[ns]'
     )
-    ds = ds.drop('time')
+    ds = ds.drop_vars('time')
 
     # Spatial subsetting
     if spatial_indices is not None:
@@ -241,7 +241,7 @@ def preprocess_dart_data(
     if drop_variables is not None:
         to_drop = set(ds.variables).intersection(set(drop_variables))
         if to_drop != set():
-            ds = ds.drop(to_drop)
+            ds = ds.drop_vars(to_drop)
 
     # This member definition is different from preprocess_nwm_data
     member = int(ds.attrs['DART_file_information'].split()[-1])

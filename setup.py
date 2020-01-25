@@ -15,6 +15,7 @@ setup(
         'pathlib==1.0.1',
         'xarray==0.14.1',
         'datetime',
+        'properscoring==0.1',
         'pytest',
         'pytest-html',
         'pytest-datadir-ng',

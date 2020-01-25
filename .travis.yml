@@ -1,6 +1,5 @@
 language: python
 sudo: true
-cache: bundler
 
 notifications:
   email: false

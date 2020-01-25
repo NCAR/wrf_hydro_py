@@ -13,14 +13,6 @@ answer_dir = test_dir / 'data/collection_data/test_answers'
 # The data are found here.
 collection_data_download.download()
 
-# WTF?
-#problem_file = test_dir / 'data/collection_data/simulation'  # not present
-#problem_file = test_dir / 'data/collection_data/ens_ana/cast_2011082600/member_000'  # present
-#if not problem_file.exists():
-#    raise FileExistsError('problem not present: ', str(problem_file))
-#if problem_file.exists():
-#    raise FileExistsError('problem file present: ', str(problem_file))
-
 # Issues raised by these tests
 # https://github.com/NCAR/wrf_hydro_nwm_public/issues/301
 # Make an issue: The restart files should have reference time and time just like the other files.
@@ -328,7 +320,7 @@ def test_collect_missing_ens_cycle(
     # and type conversions
     if 'crs' in ens_cycle_ds.variables:
         ens_cycle_ds['crs'] = ens_cycle_ds['crs'].astype('S8')
-        ens_cycle_ds['crs'].encoding['_FillVale'] = 'nan'
+        ens_cycle_ds['crs'].encoding['_FillValue'] = 'nan'
     # This is mostly because int32 is changed to float64 bc of nans
     for vv in ens_cycle_ds.variables:
         if 'time' not in vv:

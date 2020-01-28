@@ -19,6 +19,7 @@ from .ensemble_tools import DeepDiffEq, dictify, get_sub_objs, mute
 from .job import Job
 from .schedulers import Scheduler
 from .simulation import Simulation
+from .teams import parallel_teams_run
 
 
 def parallel_compose_addjobs(arg_dict):
@@ -56,118 +57,6 @@ def parallel_run(arg_dict):
 
     mem_pkl.run()
     return mem_pkl.jobs[0].exit_status
-
-
-def parallel_teams_run(arg_dict):
-    """Parallelizable function for teams to run an EnsembleSimuation.
-
-    This function is called (in parallel) once for each team. (First level of parallelism
-    is from python multiprocessing.
-    This function (a team) sequentially runs (loops over) the ensemble members for which
-    the team is responsible.
-    This function (a team) makes a system call using MPI. (The second level of parallelism).
-
-    Arguments:
-        arg_dict:
-            arg_dict == {
-               'ens_dir'  : <pathlib.Path absolute path to the ensemble run dir path,
-                             where the member dirs are found>,
-               'team_dict': <dict: the information needed for the team, see below>
-            }
-            where
-            team_dict == {
-                'members'  : <list: length n_team, groups of member run_dirs>
-                'nodes'    : <list: the nodes previously parsed from something like
-                              $PBS_NODEFILE>,
-                'entry_cmd': <string: the entry cmd to be run>,
-                'exe_cmd'  : <string: the MPI-specific model invokation command>,
-                'exit_cmd' : <string: exit cmd to be run>,
-                'env'      : <dict: containging the environment in which to run the
-                              cmds, may be None or 'None'>
-            }
-
-            The 'exe_cmd' is a form of invocation for the distribution of MPI to be used. For
-            openmpi, for example for OpenMPI, this is
-                exe_cmd: 'mpirun --host {hostnames} -np {nproc} {cmd}'
-            The variables in brackets are expanded by internal variables. The 'exe_cmd'
-            command substitutes the wrfhydropy of 'wrf_hydro.exe' convention for {cmd}.
-            The {nproc} argument is the length of the list passed in the nodes argument,
-            and the {hostnames} are the comma separated arguments in that list.
-
-            The "entry_cmd" and "exit_cmd"
-              1) can be semicolon-separated commands
-              2) where these are run depends on MPI. OpenMPI, for example, handles these
-                 on the same processor set as the model runs.
-
-    Notes:
-        Currently this is working/tested with openmpi.
-        MPT requires MPI_SHEPERD env variable and it's performance is not satisfactory so far.
-    """
-
-    ens_dir = arg_dict['ens_dir']
-    team_dict = arg_dict['team_dict']
-
-    exit_statuses = {}
-    for member in team_dict['members']:
-        if type(member) is str:
-            os.chdir(str(pathlib.Path(ens_dir) / member))
-        else:
-            os.chdir(str(pathlib.Path(ens_dir) / member.run_dir))
-
-        mem_pkl_file = "WrfHydroSim.pkl"
-        mem_pkl = pickle.load(open(mem_pkl_file, "rb"))
-        job = mem_pkl.jobs[0]
-
-        if job._entry_cmd is not None:
-            entry_cmds = job._entry_cmd.split(';')
-            new_entry_cmd = []
-            for cmd in entry_cmds:
-                if 'mpirun' not in cmd:
-                    new_entry_cmd.append(
-                        team_dict['exe_cmd'].format(
-                            **{
-                                'cmd': cmd,
-                                'hostname': team_dict['nodes'][0],  # only use one task
-                                'nproc': 1
-                            }
-                        )
-                    )
-                else:
-                    new_entry_cmd.append(cmd)
-            job._entry_cmd = '; '.join(new_entry_cmd)
-
-        if job._exit_cmd is not None:
-            exit_cmds = job._exit_cmd.split(';')
-            new_exit_cmd = []
-            for cmd in exit_cmds:
-                if 'mpirun' not in cmd:
-                    new_exit_cmd.append(
-                        team_dict['exe_cmd'].format(
-                            **{
-                                'cmd': cmd,
-                                'hostname': team_dict['nodes'][0],  # only use one task
-                                'nproc': 1
-                            }
-                        )
-                    )
-                else:
-                    new_exit_cmd.append(cmd)
-            job._exit_cmd = '; '.join(new_exit_cmd)
-
-        job._exe_cmd = team_dict['exe_cmd'].format(
-            **{
-                'cmd': './wrf_hydro.exe',
-                'hostname': ','.join(team_dict['nodes']),
-                'nproc': len(team_dict['nodes'])
-            }
-        )
-
-        mem_pkl.pickle(mem_pkl_file)
-        mem_pkl.run(env=team_dict['env'])
-
-        exit_statuses.update({member: mem_pkl.jobs[0].exit_status})
-
-    return exit_statuses
 
 
 # Classes for constructing and running a wrf_hydro simulation
@@ -519,49 +408,29 @@ class EnsembleSimulation(object):
     def run(
         self,
         n_concurrent: int = 1,
-        teams_dict: dict = None,
-        env: dict = None
+        teams: bool = False,
+        teams_exe_cmd: str = None,
+        teams_exe_cmd_nproc: int = None,
+        teams_node_file: dict = None,
+        env: dict = None,
+        teams_dict: dict = None
     ):
         """Run the ensemble of simulations.
-        Args:
-            n_concurrent: The number of ensemble members to run or schedule simultaneously.
-            teams_dict: a dict, of the following form
-                teams_dict = {
-                    '0': {
-                        'members'  : ['member_000', 'member_002'],
-                        'nodes'    : ['hostname0', 'hostname0'],
-                        'entry_cmd': 'pwd',
-                        'exe_cmd'  : './wrf_hydro.exe {hostnames} {nproc}',
-                        'exit_cmd' : './bogus_cmd',
-                    },
-                    '1': {
-                        'members'  : ['member_001', 'member_003'],
-                        'nodes'    : ['hostname1', 'hostname1'],
-                        'entry_cmd': 'pwd',
-                        'exe_cmd'  : './wrf_hydro.exe {hostnames} {nproc}',
-                        'exit_cmd' : './bogus_cmd',
-                    }
-                }
-                The keys are the numbers of the teams, starting with zero.
-                'members': list: This is a four member ensemble (member_000 - member_004).
-                'nodes': list: Node names parsed from something like a $PBS_NODEFILE. The
-                    length of this list is translated to {nproc}.
-                'entry_cmd': string:
-                    The 'exe_cmd' is a form of invocation for the distribution of MPI to be
-                    used. For openmpi, for example, this is
-                        exe_cmd: 'mpirun --host {hostnames} -np {nproc} {cmd}'
-                    The variables in brackets are expanded by internal variables. The 'exe_cmd'
-                    command substitutes the wrfhydropy of 'wrf_hydro.exe' convention for {cmd}.
-                    The {nproc} argument is the length of the list passed in the nodes
-                    argument, and the {hostnames} are the comma separated arguments in that
-                    list.
-                'exe_cmd': string:
-                'exit_cmd': string:
-                    The "entry_cmd" and "exit_cmd"
-                      1) can be semicolon-separated commands
-                      2) where these are run depends on MPI. OpenMPI, for example, handles
-                         these on the same processor set as the model runs.
-
+        Inputs:
+            n_concurrent: int = 1, Only used for non-team runs.
+            teams: bool = False, Use teams?
+            teams_exe_cmd: str, The mpi-specific syntax needed. For
+                example: 'mpirun --host {hostname} -np {nproc} {cmd}'
+            teams_exe_cmd_nproc: int, The number of cores per model/wrf_hydro
+                simulation to be run.
+            teams_node_file: dict = None, Optional file that acts like a node
+                file. It is not currently implemented but the key specifies the
+                scheduler format that the file follows. An example pbs node
+                file is in tests/data and this argument is used here to test
+                without a sched.
+            env: dict = None, optional envionment to pass to the run.
+            teams_dict: dict, Skip the arguments if you already have a
+                teams_dict to use (backwards compatibility)
         Returns: 0 for success.
         """
         ens_dir = os.getcwd()
@@ -572,7 +441,6 @@ class EnsembleSimulation(object):
         self.pickle(path)
 
         if isinstance(teams_dict, dict):
-
             # Add the env to all the teams
             for key, value in teams_dict.items():
                 value.update(env=env)
@@ -581,18 +449,24 @@ class EnsembleSimulation(object):
                 exit_codes = pool.map(
                     parallel_teams_run,
                     (
-                        {'team_dict': team_dict, 'ens_dir': ens_dir, 'env': env}
+                        {'obj_name': 'members',
+                         'team_dict': team_dict,
+                         'compose_dir': ens_dir,
+                         'env': env}
                         for (key, team_dict) in teams_dict.items()
                     )
                 )
 
             # # Keep around for serial testing/debugging
             # exit_codes = [
-            #     parallel_teams_run({'team_dict': team_dict, 'ens_dir': ens_dir, 'env': env})
+            #     parallel_teams_run(
+            #         {'obj_name': 'members',
+            #          'team_dict': team_dict,
+            #          'compose_dir': ens_dir,
+            #          'env': env})
             #     for (key, team_dict) in teams_dict.items()
             # ]
 
-            os.chdir(ens_dir)
             exit_code = int(not all([list(ee.values())[0] == 0 for ee in exit_codes]))
 
         elif n_concurrent > 1:
@@ -602,8 +476,6 @@ class EnsembleSimulation(object):
                     parallel_run,
                     ({'member': mm, 'ens_dir': ens_dir} for mm in self.members)
                 )
-
-            os.chdir(ens_dir)
             exit_code = int(not all([ee == 0 for ee in exit_codes]))
 
         else:
@@ -612,10 +484,9 @@ class EnsembleSimulation(object):
             exit_codes = [
                 parallel_run({'member': mm, 'ens_dir': ens_dir}) for mm in self.members
             ]
-
-            os.chdir(ens_dir)
             exit_code = int(not all([ee == 0 for ee in exit_codes]))
 
+        os.chdir(ens_dir)
         return exit_code
 
     def pickle(self, path: str):

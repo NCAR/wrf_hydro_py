@@ -383,21 +383,19 @@ def test_ens_teams_run(simulation_compiled, job, scheduler, tmpdir, capfd):
         '0': {
             'members': ['member_000', 'member_002'],
             'nodes': ['hostname0'],
-            'entry_cmd': 'echo',
-            'exe_cmd': './wrf_hydro.exe {hostname} {nproc}',
-            'exit_cmd': './bogus_cmd'
+            'exe_cmd': './wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
         },
         '1': {
             'members': ['member_001', 'member_003'],
             'nodes': ['hostname1', 'hostname1'],
-            'entry_cmd': 'pwd',
-            'exe_cmd': './wrf_hydro.exe {hostname} {nproc}',
-            'exit_cmd': './bogus_cmd'
+            'exe_cmd': './wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
         }
     }
 
     sim = simulation_compiled
     ens = EnsembleSimulation()
+    job._entry_cmd = 'echo mpirun entry_cmd > entry_cmd.output'
+    job._exit_cmd = 'echo mpirun exit_cmd > exit_cmd.output'
     ens.add(job)
     ens.add([sim, sim, sim, sim])
 
@@ -410,10 +408,28 @@ def test_ens_teams_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     assert ens_run_success == 0, \
         "Some teams ensemble members did not run successfully."
 
-    answers = ['hostname0 1\n', 'hostname1,hostname1 2\n',
-               'hostname0 1\n', 'hostname1,hostname1 2\n']
-    for answer, std_out_file in zip(
-            answers,
-            sorted(ens_dir.glob('member_00*/job*/test_job*stdout'))
-    ):
-        assert answer == std_out_file.open('r').readline()
+    def check_first_line(file, answer):
+        with open(file) as f:
+            first_line = f.readline()
+        assert first_line == answer
+
+    # Check for command correctness in output files.
+    file_check = {
+        ('member_000/entry_cmd.output',
+         'member_001/entry_cmd.output',
+         'member_002/entry_cmd.output',
+         'member_003/entry_cmd.output'): 'mpirun entry_cmd\n',
+        ('member_000/exit_cmd.output',
+         'member_001/exit_cmd.output',
+         'member_002/exit_cmd.output',
+         'member_003/exit_cmd.output'): 'mpirun exit_cmd\n',
+        ('member_000/job_test_job_1/diag_hydro.00000',
+         'member_002/job_test_job_1/diag_hydro.00000'):
+             'mpirun --host hostname0 -np 1 ./wrf_hydro.exe\n',
+        ('member_001/job_test_job_1/diag_hydro.00000',
+         'member_003/job_test_job_1/diag_hydro.00000'):
+             'mpirun --host hostname1,hostname1 -np 2 ./wrf_hydro.exe\n'
+    }
+    for tup, ans in file_check.items():
+        for file in tup:
+            check_first_line(file, ans)

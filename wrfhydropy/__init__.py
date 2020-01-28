@@ -10,3 +10,4 @@ from .core.job import *
 from .core.model import *
 from .core.simulation import *
 from .util.xrcmp import xrcmp
+from .core.evaluation import Evaluation

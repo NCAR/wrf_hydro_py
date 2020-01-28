@@ -17,10 +17,23 @@ from .data.evaluation_answer_reprs import *
 
 # Testing helper functons for data frames. Serialization is a PITA.
 float_form = '.2f'
-def assert_frame_close(df1, df2): assert_frame_equal(df1, df2, check_exact=False)
-def str_to_frame(string: str): return(pd.read_csv(StringIO(string)))
-def frame_to_str(frame: pd.DataFrame): return(frame.to_csv(float_format='%' + float_form))
-def round_trip_df_serial(frame: pd.DataFrame): return(str_to_frame(frame_to_str(frame)))
+
+
+def assert_frame_close(df1, df2):
+    assert_frame_equal(df1, df2, check_exact=False)
+
+
+def str_to_frame(string: str):
+    return(pd.read_csv(StringIO(string)))
+
+
+def frame_to_str(frame: pd.DataFrame):
+    return(frame.to_csv(float_format='%' + float_form))
+
+
+def round_trip_df_serial(frame: pd.DataFrame):
+    return(str_to_frame(frame_to_str(frame)))
+
 
 pd.options.display.float_format = ('{:' + float_form + '}').format
 
@@ -35,6 +48,7 @@ os.chdir(str(test_dir))
 collection_data_download.download()
 
 engine = ['pd', 'xr']
+
 
 @pytest.mark.parametrize(
     ['mod_dir', 'mod_glob'],
@@ -172,7 +186,7 @@ def test_crps_brier_basic(
     modeled = modeled.melt(
         id_vars=['member'],
         var_name='time',
-        value_name = 'modeled'
+        value_name='modeled'
     ).set_index(['time', 'member'])
     observed = modeled.rename(columns={'modeled': 'observed'}) * obs
 
@@ -189,10 +203,10 @@ def test_crps_brier_basic(
         # answer = np.array([ps.crps_ensemble(obs, mod) for mod in [ens0, ens1]])
         answer = pd.DataFrame(
             {'time': [t0, t1],
-             'crps': np.array([ 0.83416917, 83.41691692])}
+             'crps': np.array([0.83416917, 83.41691692])}
         ).set_index('time')
         crps = the_eval.crps()
-        assert_frame_close(crps, answer)        
+        assert_frame_close(crps, answer)
 
     elif the_stat == 'brier':
         threshold = 1
@@ -204,12 +218,12 @@ def test_crps_brier_basic(
         #     {'time': [t0, t1],
         #      'crps': np.array([ 0.83416917, 83.41691692])}
         # ).set_index('time')
-        answer = np.array([0.16    , 0.249001])
+        answer = np.array([0.16, 0.249001])
         brier = the_eval.brier(threshold)
         assert np.isclose(brier, answer).all()
 
 
-# Inputs for contingency and event stat calculations.        
+# Inputs for contingency and event stat calculations.
 # Answers are in data/evaluation_answer_reprs.py
 base_dum_time = datetime.datetime(2000, 1, 1)
 dumtime = [base_dum_time + datetime.timedelta(hours=dd) for dd in range(4)]
@@ -236,11 +250,26 @@ contingency_known_data_input_2 = pd.DataFrame({
 
 # TODO: test NaNs in the data
 
-#@pytest.mark.parametrize('engine', engine)
+
+# @pytest.mark.parametrize('engine', engine)
 @pytest.mark.parametrize(
     'input_data',
     [contingency_known_data_input, contingency_known_data_input_2])
 def test_contingency_known_data(input_data):
+    known_data = input_data.to_xarray().set_coords("tsh")
+    mod = known_data.mod.drop('tsh')
+    obs = known_data.obs
+    result = mod.eval.obs(obs).contingency(threshold='tsh', group_by='loc')
+    result = round_trip_df_serial(result)
+    expected = str_to_frame(contingency_known_data_answer)
+    assert_frame_close(result, expected)
+
+
+# @pytest.mark.parametrize('engine', engine)
+@pytest.mark.parametrize(
+    'input_data',
+    [contingency_known_data_input, contingency_known_data_input_2])
+def test_contingency_missing_columns(input_data):
     known_data = input_data.to_xarray().set_coords("tsh")
     mod = known_data.mod.drop('tsh')
     obs = known_data.obs

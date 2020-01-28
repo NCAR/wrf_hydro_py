@@ -24,7 +24,7 @@ thresh_df = thresh_df.reset_index().rename(columns={'site_no': 'gage'}).drop(col
 # QC
 # 1. Duplicates feature_ids dropped.
 dup_feats = thresh_df[thresh_df.duplicated(subset='feature_id')].feature_id.to_list()
-# 3 duplicated features... 
+# 3 duplicated features...
 thresh_df[thresh_df['feature_id'].isin(dup_feats)].sort_values(by='feature_id')
 # For now, just drop the duplicated. This serendipitiously selects the
 # rows I would manually choose.
@@ -47,11 +47,12 @@ ge_dict = {
     'minor': {'action'},
     'moderate': {'minor', 'action'},
     'major': {'moderate', 'minor', 'action'},
-    #'record': {'major', 'moderate', 'minor', 'action'}
+    # 'record': {'major', 'moderate', 'minor', 'action'}
 }
 
+
 def check_thresh_orders(row):
-    errors=[]
+    errors = []
     for var in ['stage', 'flow']:
         for thresh, thresh_below in ge_dict.items():
             var_thresh = thresh + '_' + var
@@ -66,12 +67,13 @@ def check_thresh_orders(row):
     else:
         return(errors)
 
+
 results = {}
 for gage, row in thresh_df.iterrows():
     results[gage] = check_thresh_orders(row)
 
 # remove the good=none results
-results2 = {gage: result for gage, result in results.items() if result is not None }
+results2 = {gage: result for gage, result in results.items() if result is not None}
 
 # Only two gages with this contradiction
 funky_gages = list(results2.keys())
@@ -80,9 +82,9 @@ funky_ones = thresh_df[thresh_df.index.isin(funky_gages)].sort_values(by='featur
 with pd.option_context('display.max_rows', None, 'display.max_columns', None):
     print(funky_ones)
 
-# Just set the conflicting thresholds to none by hand!    
-thresh_df.loc[thresh_df.gage=='07159750', 'action_stage'] = np.NaN
-thresh_df.loc[thresh_df.gage=='11156500', 'action_flow'] = np.NaN
+# Just set the conflicting thresholds to none by hand!
+thresh_df.loc[thresh_df.gage == '07159750', 'action_stage'] = np.NaN
+thresh_df.loc[thresh_df.gage == '11156500', 'action_flow'] = np.NaN
 
 funky_ones = thresh_df[thresh_df.index.isin(funky_gages)].sort_values(by='feature_id')
 with pd.option_context('display.max_rows', None, 'display.max_columns', None):
@@ -93,7 +95,7 @@ with pd.option_context('display.max_rows', None, 'display.max_columns', None):
 # -------------------------------------------------------
 # Write it out
 
-thresh_ds_write = thresh_df.set_index('gage').to_xarray() 
+thresh_ds_write = thresh_df.set_index('gage').to_xarray()
 
 # Convert cfs to cms
 cfs_to_cms = 0.0280
@@ -111,6 +113,6 @@ for col in thresh_stages:
     thresh_ds_write[col].attrs['units'] = 'meters'
     thresh_ds_write[col].encoding = {'dtype': 'float32'}
 
-# Save this to a netcdf file. 
+# Save this to a netcdf file.
 thresh_nc_file = wrf_hydro_py_dir / 'data/flood_thresholds_metric_units.nc'
 thresh_ds_write.to_netcdf(thresh_nc_file)

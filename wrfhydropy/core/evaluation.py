@@ -27,7 +27,7 @@ class Evaluate:
         modeled = self._obj.rename('modeled')
         observed = observed.rename('observed')
         return Evaluation(
-            modeled=modeled.to_dataframe(),  ## should remove, make an arg to_dataframe=True
+            modeled=modeled.to_dataframe(),  # should remove, make an arg to_dataframe=True
             observed=observed.to_dataframe(),
             join_on=join_on,
             join_how=join_how
@@ -76,7 +76,7 @@ class Evaluation(object):
         if not type(observed) == type(modeled):
             raise ValueError('Observed and modeled data are not of the same type.')
 
-        if isinstance(observed, pd.DataFrame):            
+        if isinstance(observed, pd.DataFrame):
             data = pd.merge(
                 modeled,
                 observed,
@@ -155,7 +155,6 @@ class Evaluation(object):
             data.reset_index('time', inplace=True)
 
         cont_table = calc_cont_table(obs_is_event, mod_is_event)
-            
         cont_stats = calc_cont_stats(
             cont_table,
             inf_as_na=inf_as_na,
@@ -164,7 +163,6 @@ class Evaluation(object):
 
         cont_stats['value'] = cont_stats['value'].round(decimals=decimals)
         return cont_stats
-
 
     @staticmethod
     def _calc_gof_stats(
@@ -244,8 +242,8 @@ class Evaluation(object):
             threshold: The threshold value for contingency stats or column name
             in self.data containing threshold value. The first value of the
             column will be used as the threshold value.
-            TODO JLM: I Do NOT love an entire column where a single value is 
-                      used. I guess this allows different thresholds for 
+            TODO JLM: I Do NOT love an entire column where a single value is
+                      used. I guess this allows different thresholds for
                       different groups within the data.frame.
 
             time_window: Calculate contingency statistics over a moving
@@ -330,9 +328,10 @@ class Evaluation(object):
                     spo_all_xr,
                     self.data.observed,
                     self.data.modeled,
-                    kwargs = {'inf_as_na': inf_as_na,
-                              'decimals': decimals},
-                    input_core_dims=[self.join_on, self.join_on] #,
+                    kwargs={
+                        'inf_as_na': inf_as_na,
+                        'decimals': decimals},
+                    input_core_dims=[self.join_on, self.join_on]
                 )
                 gof_stats = gof_stats.values[()]()._mapping
 
@@ -346,13 +345,15 @@ class Evaluation(object):
                     spo_all_xr,
                     obs_grp,
                     mod_grp,
-                    kwargs = {'inf_as_na': inf_as_na,
-                              'decimals': decimals},
-                    input_core_dims = [self.join_on, self.join_on]
+                    kwargs={
+                        'inf_as_na': inf_as_na,
+                        'decimals': decimals},
+                    input_core_dims=[self.join_on, self.join_on]
                 )
                 stats = [mv()._mapping for mv in gof_stats.values.tolist()]
                 grp_ids = gof_stats.feature_id.values
-                for grp_id, stat in zip(grp_ids, stats): stat[group_by] = grp_id
+                for grp_id, stat in zip(grp_ids, stats):
+                    stat[group_by] = grp_id
                 stats2 = [stat.expand_dims(group_by).set_coords(group_by) for stat in stats]
                 stats3 = xr.merge(stats2)
                 stats4 = stats3.to_dataframe().reset_index().set_index(['feature_id', 'index'])
@@ -369,7 +370,7 @@ class Evaluation(object):
         valid_time_col: str = 'valid_time',
         lead_time_col: str = 'lead_time',
         gage_col: str = 'gage',
-        weights = None
+        weights=None
     ):
         """
         Calculate CRPS (continuous ranked probability score) using the properscoring package.
@@ -378,22 +379,22 @@ class Evaluation(object):
 
         Grouping is not necessary because CRPS returns a value per forecast.
         Grouping would happen when computing CRPSS.
-        
+
         The Eval object generally wants one observation per modeled data point,
-        that is overkill for this function (since the ensemble takes one observations) 
+        that is overkill for this function (since the ensemble takes one observations)
         but we handle it in a consistent manner with the rest of Evaluation.
 
         This function is setup to identify the ensemble dimension in the following way:
-            1. if "member_col" is present in the columns, then this is the ensemble dimension, 
+            1. if "member_col" is present in the columns, then this is the ensemble dimension,
                which is a standard ensemble forecast way
             2. else, the "valid_time" dimension is used. This is the time-lagged ensembles way.
-            3. NOT DONE: one could consider time-lagged ensembles of ensemble forecasts. 
+            3. NOT DONE: one could consider time-lagged ensembles of ensemble forecasts.
 
         Args:
             mod_col: str = 'modeled': Column name of modelled data
             obs_col: str = 'observed': Column name of observed data.
-            member_col: str = 'member': Column name giving the members. If the column is present, 
-                evaluation is performed across the member dimension for each combination of 
+            member_col: str = 'member': Column name giving the members. If the column is present,
+                evaluation is performed across the member dimension for each combination of
                 other columns. If member is not present the valid_time lead_time and gage cols
                 are used to calculate CRPS across lead-time for each valid_time, gage combination.
                 This later option is the "timelagged" ensemble verification.
@@ -467,9 +468,9 @@ class Evaluation(object):
                 result_np,
                 columns=['crps'],
                 index=observed.index)
-            
+
             return result_pd
-        
+
         else:
             raise ValueError('Xarray not currently implemented for CRPS')
 
@@ -479,7 +480,7 @@ class Evaluation(object):
         mod_col: str = 'modeled',
         obs_col: str = 'observed',
         time_col: str = 'time',
-        weights = None
+        weights=None
     ):
         """
         Calculate Brier score using the properscoring package.
@@ -588,19 +589,22 @@ def calc_cont_table(observed: np.array, modeled: np.array) -> pd.DataFrame:
     # on return table if all values are 0
     try:
         hits = cont_tbl.at[False, False]
-    except:
+    except KeyError:
         hits = 0
+
     try:
         false_alarms = cont_tbl.at[False, True]
-    except:
+    except KeyError:
         false_alarms = 0
+
     try:
         misses = cont_tbl.at[True, False]
-    except:
+    except KeyError:
         misses = 0
+
     try:
         correct_negatives = cont_tbl.at[True, True]
-    except:
+    except KeyError:
         correct_negatives = 0
 
     cont_tbl = pd.DataFrame(
@@ -707,10 +711,11 @@ def calc_cont_stats(
         ('gss',
          (hits - hits_random) / (hits + misses + false_alarms - hits_random)),
         ('hk', (hits / (hits + misses)) - (
-                false_alarms / (false_alarms + correct_neg))),
+            false_alarms / (false_alarms + correct_neg))),
         ('or', (pod / (1 - pod)) / (pofd / (1 - pofd))),
-        ('orss', ((hits * correct_neg) - (misses * false_alarms)) /
-         ((hits * correct_neg) + (misses * false_alarms))),
+        ('orss',
+            ((hits * correct_neg) - (misses * false_alarms)) / (
+                (hits * correct_neg) + (misses * false_alarms))),
         ('sample_size', total)
     ]
 
@@ -814,7 +819,7 @@ def calc_gof_stats(
     gof_stats = pd.concat([gof_stats, summary], ignore_index=True, sort=True)
     gof_stats['value'] = gof_stats['value'].round(decimals=decimals)
     gof_stats = gof_stats.set_index('statistic')
-    
+
     return gof_stats
 
 
@@ -861,13 +866,13 @@ def calc_event_stats(
     event_dur_bias = np.nan
     avg_dur_act = np.nan
     avg_dur_pred = np.nan
-    
+
     if num_act_events > 0:
         event_freq_bias = num_pred_events / num_act_events
         avg_dur_act = act_events.sum() / num_act_events
 
     if num_pred_events > 0:
-        avg_dur_pred = pred_events.sum() / num_pred_events        
+        avg_dur_pred = pred_events.sum() / num_pred_events
 
     if not np.isnan(avg_dur_pred) and not np.isnan(avg_dur_act):
         event_dur_bias = avg_dur_pred / avg_dur_act

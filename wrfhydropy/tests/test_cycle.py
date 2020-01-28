@@ -1365,6 +1365,7 @@ def test_cycle_ensemble_run(
              'cast_2012121200/member_001/job_test_job_1/diag_hydro.00000',
              'cast_2012121800/member_000/job_test_job_1/diag_hydro.00000',
              'cast_2012121800/member_001/job_test_job_1/diag_hydro.00000'):
+
                  'mpirun --host r10i1n1,r10i1n1 -np 2 ./wrf_hydro.exe\n',
             ('cast_2012121500/member_000/job_test_job_1/diag_hydro.00000',
              'cast_2012121500/member_001/job_test_job_1/diag_hydro.00000'):

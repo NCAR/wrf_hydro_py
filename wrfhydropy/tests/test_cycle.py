@@ -265,8 +265,7 @@ def test_cycle_addsimulation(
                  './NWM/RESTART/RESTART.2011082600_DOMAIN1'],
          'hyd': ['./NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
                  './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
-                 './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1']
-        }
+                 './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1']}
      ),
      (
         ['0', '-72', '-72'],
@@ -275,8 +274,7 @@ def test_cycle_addsimulation(
                  '../cast_2012121500/RESTART.2012121800_DOMAIN1'],
          'hyd': ['../cast_2012121200/HYDRO_RST.2012-12-12_00:00_DOMAIN1',
                  '../cast_2012121200/HYDRO_RST.2012-12-15_00:00_DOMAIN1',
-                 '../cast_2012121500/HYDRO_RST.2012-12-18_00:00_DOMAIN1'],
-        }
+                 '../cast_2012121500/HYDRO_RST.2012-12-18_00:00_DOMAIN1']}
      ),
      (
         ['.', '-72', '../dummy_extant_dir'],
@@ -285,8 +283,7 @@ def test_cycle_addsimulation(
                  '<<tmpdir>>/dummy_extant_dir/RESTART.2012121800_DOMAIN1'],
          'hyd': ['./NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
                  '../cast_2012121200/HYDRO_RST.2012-12-15_00:00_DOMAIN1',
-                 '<<tmpdir>>/dummy_extant_dir/HYDRO_RST.2012-12-18_00:00_DOMAIN1']
-        }
+                 '<<tmpdir>>/dummy_extant_dir/HYDRO_RST.2012-12-18_00:00_DOMAIN1']}
      ),
      (
         ['/foo/bar', '-72', '-72'],
@@ -295,8 +292,7 @@ def test_cycle_addsimulation(
      (
         ['../dummy_extant_dir', '-72', '72'],
         ['Only non-negative integers can be used to specify restart_dirs']
-     )
-    ]
+     )]
 )
 def test_cycle_addsimulation_translate(
     restart_dirs,
@@ -1353,23 +1349,26 @@ def test_cycle_ensemble_run(
              'cast_2012121500/member_001/entry_cmd.output',
              'cast_2012121800/member_000/entry_cmd.output',
              'cast_2012121800/member_001/entry_cmd.output'):
-                 'mpirun entry_cmd\n',
+            'mpirun entry_cmd\n',
+
             ('cast_2012121200/member_000/exit_cmd.output',
              'cast_2012121200/member_001/exit_cmd.output',
              'cast_2012121500/member_000/exit_cmd.output',
              'cast_2012121500/member_001/exit_cmd.output',
              'cast_2012121800/member_000/exit_cmd.output',
              'cast_2012121800/member_001/exit_cmd.output'):
-                 'mpirun exit_cmd\n',
+            'mpirun exit_cmd\n',
+
             ('cast_2012121200/member_000/job_test_job_1/diag_hydro.00000',
              'cast_2012121200/member_001/job_test_job_1/diag_hydro.00000',
              'cast_2012121800/member_000/job_test_job_1/diag_hydro.00000',
              'cast_2012121800/member_001/job_test_job_1/diag_hydro.00000'):
+            'mpirun --host r10i1n1,r10i1n1 -np 2 ./wrf_hydro.exe\n',
 
-                'mpirun --host r10i1n1,r10i1n1 -np 2 ./wrf_hydro.exe\n',
             ('cast_2012121500/member_000/job_test_job_1/diag_hydro.00000',
              'cast_2012121500/member_001/job_test_job_1/diag_hydro.00000'):
-                'mpirun --host r10i1n2,r10i1n2 -np 2 ./wrf_hydro.exe\n'
+            'mpirun --host r10i1n2,r10i1n2 -np 2 ./wrf_hydro.exe\n'
+
         }
         for tup, ans in file_check.items():
             for file in tup:

@@ -93,15 +93,13 @@ sim_dir.symlink_to(test_dir / 'data/collection_data/ens_ana/cast_2011082600/memb
          {'feature_id': [1, 39, 56, 34]},
          ['time', 'feature_id'],
          'streamflow',
-         '*CHRTOUT_DOMAIN1'
-        ),
+         '*CHRTOUT_DOMAIN1'),
         (test_dir / 'data/collection_data/simulation',
          '*LDASOUT_DOMAIN1',
          {'x': [1, 3, 5], 'y': [2, 4, 6], 'soil_layers_stag': [2]},
          ['time', 'x', 'y', 'soil_layers_stag'],
          'SOIL_M',
-         '*LDASOUT_DOMAIN1'
-        ),
+         '*LDASOUT_DOMAIN1'),
     ],
     ids=[
         'gof-simulation-CHRTOUT',

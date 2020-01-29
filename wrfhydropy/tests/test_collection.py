@@ -10,6 +10,7 @@ test_dir = pathlib.Path(os.path.dirname(os.path.realpath(__file__)))
 # The collection_data gets wiped...
 answer_dir = test_dir / 'data/collection_data/test_answers'
 
+os.chdir(str(test_dir))
 # The data are found here.
 collection_data_download.download()
 

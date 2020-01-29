@@ -425,10 +425,10 @@ def test_ens_teams_run(simulation_compiled, job, scheduler, tmpdir, capfd):
          'member_003/exit_cmd.output'): 'mpirun exit_cmd\n',
         ('member_000/job_test_job_1/diag_hydro.00000',
          'member_002/job_test_job_1/diag_hydro.00000'):
-            'mpirun --host hostname0 -np 1 ./wrf_hydro.exe\n',
+             'mpirun --host hostname0 -np 1 ./wrf_hydro.exe\n',
         ('member_001/job_test_job_1/diag_hydro.00000',
          'member_003/job_test_job_1/diag_hydro.00000'):
-            'mpirun --host hostname1,hostname1 -np 2 ./wrf_hydro.exe\n'
+             'mpirun --host hostname1,hostname1 -np 2 ./wrf_hydro.exe\n'
     }
     for tup, ans in file_check.items():
         for file in tup:

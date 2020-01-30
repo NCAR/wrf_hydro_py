@@ -14,3 +14,4 @@ from .core.ensemble import EnsembleSimulation
 from .core.cycle import CycleSimulation
 from .util.xrcmp import xrcmp
 from .util.xrnan import xrnan
+from .core.evaluation import Evaluation

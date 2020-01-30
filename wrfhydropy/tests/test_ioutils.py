@@ -51,15 +51,19 @@ def ds_timeseries(tmpdir):
 
 
 def test_open_wh_dataset_no_forecast(ds_timeseries):
-    ds_paths = list(ds_timeseries.rglob('*.nc'))
+    ds_paths = sorted(ds_timeseries.rglob('*.nc'))
     the_ds = open_wh_dataset(
         paths=ds_paths,
         chunks=None,
         forecast=False
     )
 
-    assert the_ds['reference_time'].values == np.array(['1970-01-01T00:00:00.000000000'],
-                                                       dtype='datetime64[ns]')
+    the_ref_times = np.array(
+        ['1984-10-14T00:00:00.000000000',
+         '1984-10-14T01:00:00.000000000',
+         '1984-10-14T02:00:00.000000000'],
+        dtype='datetime64[ns]')
+    assert (the_ds['reference_time'].values == the_ref_times).all()
 
     the_ds['time'].values.sort()
     assert np.all(the_ds['time'].values == np.array(['1984-10-14T01:00:00.000000000',

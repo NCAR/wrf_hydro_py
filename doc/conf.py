@@ -12,6 +12,7 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+import datetime
 import os
 import sys
 sys.path.insert(0, os.path.abspath('.'))
@@ -20,8 +21,7 @@ sys.path.insert(0, os.path.abspath('../'))
 # -- Project information -----------------------------------------------------
 
 project = 'wrfhydropy'
-copyright = '2018, Joe Mills'
-author = 'Joe Mills'
+copyright = '2018-%s, wrfhydropy Devlopers' % datetime.datetime.now().year
 
 # The short X.Y version
 version = ''
@@ -41,9 +41,28 @@ release = '0.0.3'
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.viewcode',
-    'sphinx.ext.napoleon'
+    'sphinx.ext.napoleon',
+    'nbsphinx',
+    "sphinx.ext.autosummary",
+    "sphinx.ext.intersphinx",
+    # "sphinx.ext.extlinks",
+    "sphinx.ext.mathjax",
+    "numpydoc",
+    "IPython.sphinxext.ipython_directive",
+    "IPython.sphinxext.ipython_console_highlighting",    
 ]
 
+nbsphinx_timeout = 600
+#nbsphinx_execute = "always"
+#nbsphinx_allow_errors = True
+#nbsphinx_prolog = """
+#{% set docname = env.doc2path(env.docname, base=None) %}
+#You can run this notebook in a `live session <https://mybinder.org/v2/gh/pydata/xarray/doc/examples/master?urlpath=lab/tree/doc/{{ docname }}>`_ |Binder| or view it `on Github <https://github.com/pydata/xarray/blob/master/doc/{{ docname }}>`_.
+#.. |Binder| image:: https://mybinder.org/badge.svg
+#   :target: https://mybinder.org/v2/gh/pydata/xarray/master?urlpath=lab/tree/doc/{{ docname }}
+#"""
+
+autosummary_generate = True
 
 napoleon_google_docstring = True
 napoleon_use_param = False
@@ -137,7 +156,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'wrfhydropy.tex', 'wrfhydropy Documentation',
-     'Joe Mills', 'manual'),
+     'wrfhydropy Developers', 'manual'),
 ]
 
 
@@ -146,8 +165,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'wrfhydropy', 'wrfhydropy Documentation',
-     [author], 1)
+    (master_doc, 'wrfhydropy', 'wrfhydropy Documentation', 1)
 ]
 
 
@@ -158,7 +176,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'wrfhydropy', 'wrfhydropy Documentation',
-     author, 'wrfhydropy', 'One line description of project.',
+     'wrfhydropy', 'One line description of project.',
      'Miscellaneous'),
 ]
 

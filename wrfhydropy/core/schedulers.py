@@ -26,7 +26,8 @@ class PBSCheyenne(Scheduler):
             queue: str = 'regular',
             walltime: str = "12:00:00",
             email_who: str = None,
-            email_when: str = 'abe'
+            email_when: str = 'abe',
+            custom: dict = {}
     ):
         """Initialize an PBSCheyenne object.
         Args:
@@ -57,7 +58,8 @@ class PBSCheyenne(Scheduler):
             'email_who': email_who,
             'queue': queue,
             'walltime': walltime,
-            'mem': mem
+            'mem': mem,
+            'custom': custom
         }
 
     def schedule(self, jobs: list):
@@ -120,7 +122,8 @@ class PBSCheyenne(Scheduler):
         for job in jobs:
             # Copy the job because the exe cmd is edited below
             job = copy.deepcopy(job)
-
+            custom = self.scheduler_opts['custom']
+            
             # Write PBS script
             jobstr = ""
             jobstr += "#!/bin/sh\n"
@@ -133,18 +136,24 @@ class PBSCheyenne(Scheduler):
                 jobstr += "#PBS -m {0}\n".format(self.scheduler_opts['email_when'])
             jobstr += "\n"
 
-            jobstr += "#PBS -l walltime={0}\n".format(self.scheduler_opts['walltime'])
-            jobstr += "\n"
+            if '-l' not in custom or (
+                    '-l' in custom and 'walltime' not in custom['-l']):
+                jobstr += "#PBS -l walltime={0}\n".format(self.scheduler_opts['walltime'])
 
-            prcstr = "select={0}:ncpus={1}:mpiprocs={1}"
-            prcstr = prcstr.format(self.nnodes, self.ppn)
-            if self.scheduler_opts['mem'] is not None:
-                prcstr = prcstr + ":mem={0}GB"
-                prcstr = prcstr.format(self.scheduler_opts['mem'])
-            prcstr = prcstr + "\n"
+            if '-l' not in custom or (
+                    '-l' in custom and 'select' not in custom['-l']):
+                prcstr = "select={0}:ncpus={1}:mpiprocs={1}"
+                prcstr = prcstr.format(self.nnodes, self.ppn)
+                if self.scheduler_opts['mem'] is not None:
+                    prcstr = prcstr + ":mem={0}GB"
+                    prcstr = prcstr.format(self.scheduler_opts['mem'])
+                    prcstr = prcstr
+                jobstr += "#PBS -l " + prcstr + "\n"
+                jobstr += "\n"
 
-            jobstr += "#PBS -l " + prcstr
-            jobstr += "\n"
+            if '-l' in custom:
+                jobstr += "#PBS -l " + custom['-l'] + "\n"
+                jobstr += "\n"
 
             jobstr += "# Not using PBS standard error and out files to capture model output\n"
             jobstr += "# but these files might catch output and errors from the scheduler.\n"

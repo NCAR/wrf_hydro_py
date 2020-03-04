@@ -47,10 +47,11 @@ class Job(object):
         output_freq_hr: Either an int or a dict. If int: Output write frequency, hours. If dict,
             must be of the form {'hydro': int, 'hrldas': int} which sets them independently.
         restart: Job is starting from a restart file. Use False for a cold start.
+        restart_dir: The path in which to look for the restart files.
         restart_file_time: The time on the restart file, if not the same as the model_start_time.
-        Eithera string (e.g. '2000-01-01 00') or a datetime object (datetime or pandas) or a dict
-        the form {'hydro': date1, 'hrldas': date2}  where dates are either strings or datetime
-        objects.
+            Eithera string (e.g. '2000-01-01 00') or a datetime object (datetime or pandas) or a dict
+            the form {'hydro': date1, 'hrldas': date2}  where dates are either strings or datetime
+            objects.
         exe_cmd: The system-specific command to execute WRF-Hydro, for example 'mpirun -np
             36 ./wrf_hydro.exe'. Can be left as None if jobs is added to a scheduler or if a
             scheduler is used in a simulation.

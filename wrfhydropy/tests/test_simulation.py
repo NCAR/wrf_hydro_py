@@ -179,11 +179,10 @@ def test_simulation_run_no_scheduler(model, domain, job, tmpdir, capfd):
 
 
 def test_simulation_collect(sim_output):
-    os.chdir(sim_output)
     sim = Simulation()
-    sim.collect()
+    sim.collect(sim_dir=sim_output)
     assert sim.output is not None
-    assert type(sim.output.channel_rt) is WrfHydroTs
+    assert type(sim.output) is SimulationOutput
 
 
 def test_simulation_output_checknans(sim_output):

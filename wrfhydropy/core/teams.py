@@ -1,3 +1,4 @@
+import collections
 import itertools
 import math
 import operator
@@ -235,6 +236,10 @@ def assign_teams(
 
         n_total_processors = len(pbs_nodes)  # less may be used.
         n_teams = min(math.floor(len(pbs_nodes) / teams_exe_cmd_nproc), n_runs)
+        pbs_nodes_counts = dict(collections.Counter(pbs_nodes))
+        if any([ teams_exe_cmd_nproc > val for val in pbs_nodes_counts.values()]):
+            raise ValueError("teams_exe_cmd_nproc > number of cores/node: "
+                             'teams does not currently function in this capacity.')
         teams_dict = {}
 
         # Map the objects on to the teams (this seems overly complicated, should prob
@@ -260,6 +265,20 @@ def assign_teams(
         print("Running on nodes: " + ', '.join(unique_nodes))
         del pbs_nodes
         pbs_nodes = []
+
+        # This is a proposal for cross-node execution setup that seems to work
+        # but it crashes.
+        # if any([ teams_exe_cmd_nproc > val for val in pbs_nodes_counts.values()]):
+        #     pbs_nodes_avail = [ nn.split('.')[0] for nn in pbs_nodes_in]
+        #     # copy.deepcopy(pbs_nodes_in)
+        #     for i_team in range(n_teams):
+        #         the_team_nodes = []
+        #         for ii in range(teams_exe_cmd_nproc):
+        #             the_team_nodes += [pbs_nodes_avail.pop(0)]
+        #         pbs_nodes += [the_team_nodes]
+        #     team_nodes = pbs_nodes
+        # else:
+
         for i_team in range(n_teams):
             pbs_nodes = pbs_nodes + (
                 [unique_nodes[i_team % len(unique_nodes)]] * teams_exe_cmd_nproc)
@@ -269,6 +288,7 @@ def assign_teams(
         node_team_seq.sort(key=operator.itemgetter(1))
         team_groups = itertools.groupby(node_team_seq, operator.itemgetter(1))
         team_nodes = [[item[0] for item in data] for (key, data) in team_groups]
+        # End else
 
         # Get the entry and exit commands from the job on the first cast/member
         # Foolery for in/out of memory

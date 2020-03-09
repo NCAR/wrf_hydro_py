@@ -20,6 +20,7 @@ setup(
         'pytest',
         'pytest-html',
         'pytest-datadir-ng',
+        'pytest-lazy-fixture==0.6.3',
         'boltons',
         'bs4',
         'requests',

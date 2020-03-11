@@ -461,7 +461,9 @@ class SimulationOutput(object):
         for att in data_atts:
             # Loop over files in each attribute
             att_obj = getattr(self, att)
-            if type(att_obj) is list or type(att_obj) is WrfHydroTs:
+            if isinstance(att_obj, list) or isinstance(att_obj, WrfHydroTs):
+                if len(att_obj) == 0:
+                    continue
                 file = att_obj[-1]
                 na_check_result = check_file_nans(file, n_cores=n_cores)
                 if na_check_result is not None:

@@ -152,7 +152,7 @@ class PBSCheyenne(Scheduler):
                 jobstr += "\n"
 
             if '-l' in custom:
-                jobstr += "#PBS -l " + custom['-l']
+                jobstr += "#PBS -l " + custom['-l'] + "\n"
                 jobstr += "\n"
 
             jobstr += "# Not using PBS standard error and out files to capture model output\n"

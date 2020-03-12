@@ -72,7 +72,7 @@ expected_script = ''.join(expected_script_list)
 
 custom_l = {'-l': 'select=1:ncpus=36:mpiprocs=36:mem=109GB+1:ncpus=36:mpiprocs=36'}
 expected_script_custom_l = expected_script_list
-expected_script_custom_l[8] = '#PBS -l ' + custom_l['-l']
+expected_script_custom_l[8] = '#PBS -l ' + custom_l['-l'] + '\n'
 expected_script_custom_l = ''.join(expected_script_custom_l)
 
 

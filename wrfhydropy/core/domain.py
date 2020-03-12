@@ -151,32 +151,11 @@ class Domain(object):
         for from_path in self.hydro_files:
             # Get new file path for run directory, relative to the top-level domain directory
             # This is needed to ensure the path matches the domain namelist
-            relative_path = from_path.relative_to(self.domain_top_dir)
-            to_path = dest_dir.joinpath(relative_path)
-            if to_path.parent.is_dir() is False:
-                to_path.parent.mkdir(parents=True)
-            if symlink:
-                to_path.symlink_to(from_path)
-            else:
-                shutil.copy(str(from_path), str(to_path))
-
-        # Symlink in nudging files
-
-        # handling nudging obs files
-        # Users may signal "None" by the null string (''), treat them the same.
-        if not (self.nudging_dir is None or self.nudging_dir is ''):
-            from_dir = self.nudging_dir
-            to_dir = dest_dir.joinpath(from_dir.relative_to(self.domain_top_dir))
-            if symlink:
-                to_dir.symlink_to(from_dir, target_is_directory=True)
-            else:
-                shutil.copy(str(from_dir), str(to_dir))
-
-        for from_path in self.nudging_files:
-            # Get new file path for run directory, relative to the top-level domain directory
-            # This is needed to ensure the path matches the domain namelist
-            if type(from_path) is not WrfHydroTs:
+            try:
                 relative_path = from_path.relative_to(self.domain_top_dir)
+            except ValueError:
+                pass
+            else:
                 to_path = dest_dir.joinpath(relative_path)
                 if to_path.parent.is_dir() is False:
                     to_path.parent.mkdir(parents=True)
@@ -185,18 +164,55 @@ class Domain(object):
                 else:
                     shutil.copy(str(from_path), str(to_path))
 
+        # Symlink in nudging files
+
+        # handling nudging obs files
+        # Users may signal "None" by the null string (''), treat them the same.
+        if not (self.nudging_dir is None or self.nudging_dir is ''):
+            from_dir = self.nudging_dir
+            try:
+                to_dir = dest_dir.joinpath(from_dir.relative_to(self.domain_top_dir))
+            except ValueError:
+                pass
+            else:
+                if symlink:
+                    to_dir.symlink_to(from_dir, target_is_directory=True)
+                else:
+                    shutil.copy(str(from_dir), str(to_dir))
+
+        for from_path in self.nudging_files:
+            # Get new file path for run directory, relative to the top-level domain directory
+            # This is needed to ensure the path matches the domain namelist
+            if type(from_path) is not WrfHydroTs:
+                try:
+                    relative_path = from_path.relative_to(self.domain_top_dir)
+                except ValueError:
+                    pass
+                else:
+                    to_path = dest_dir.joinpath(relative_path)
+                    if to_path.parent.is_dir() is False:
+                        to_path.parent.mkdir(parents=True)
+                    if symlink:
+                        to_path.symlink_to(from_path)
+                    else:
+                        shutil.copy(str(from_path), str(to_path))
+
         # Symlink in lsm files
         for from_path in self.lsm_files:
             # Get new file path for run directory, relative to the top-level domain directory
             # This is needed to ensure the path matches the domain namelist
-            relative_path = from_path.relative_to(self.domain_top_dir)
-            to_path = dest_dir.joinpath(relative_path)
-            if to_path.parent.is_dir() is False:
-                to_path.parent.mkdir(parents=True)
-            if symlink:
-                to_path.symlink_to(from_path)
+            try:
+                relative_path = from_path.relative_to(self.domain_top_dir)
+            except ValueError:
+                pass
             else:
-                shutil.copy(str(from_path), str(to_path))
+                to_path = dest_dir.joinpath(relative_path)
+                if to_path.parent.is_dir() is False:
+                    to_path.parent.mkdir(parents=True)
+                if symlink:
+                    to_path.symlink_to(from_path)
+                else:
+                    shutil.copy(str(from_path), str(to_path))
 
         model_files = [*self.hydro_files,
                        *self.nudging_files,

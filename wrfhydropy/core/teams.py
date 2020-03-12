@@ -237,9 +237,10 @@ def assign_teams(
         n_total_processors = len(pbs_nodes)  # less may be used.
         n_teams = min(math.floor(len(pbs_nodes) / teams_exe_cmd_nproc), n_runs)
         pbs_nodes_counts = dict(collections.Counter(pbs_nodes))
-        if any([ teams_exe_cmd_nproc > val for val in pbs_nodes_counts.values()]):
-            raise ValueError("teams_exe_cmd_nproc > number of cores/node: "
-                             'teams does not currently function in this capacity.')
+        if n_teams > 1:
+            if any([ teams_exe_cmd_nproc > val for val in pbs_nodes_counts.values()]):
+                raise ValueError("teams_exe_cmd_nproc > number of cores/node: "
+                                 'teams does not currently function in this capacity.')
         teams_dict = {}
 
         # Map the objects on to the teams (this seems overly complicated, should prob

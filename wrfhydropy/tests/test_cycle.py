@@ -5,6 +5,7 @@ import os
 import pathlib
 import pandas
 import pytest
+import shutil
 import string
 import timeit
 
@@ -1210,21 +1211,31 @@ def test_cycle_run_parallel_teams(
         os.mkdir(str(cy_dir))
         os.chdir(str(cy_dir))
 
+        cy_teams_cp = copy.deepcopy(cy_teams)
         if key == 'cy_teams_not_memory':
-            cy_teams.compose()
+            cy_teams_cp.compose()
         else:
-            cy_teams.compose(rm_casts_from_memory=False)
+            cy_teams_cp.compose(rm_casts_from_memory=False)
 
         with pytest.raises(Exception) as e_info:
-            cy_teams_run_fail_xnode = cy_teams.run(
+            cy_teams_run_fail_xnode = cy_teams_cp.run(
                 teams=True,
                 teams_exe_cmd=' ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
-                teams_exe_cmd_nproc=4,
+                teams_exe_cmd_nproc=3,
                 teams_node_file={'pbs': node_file}
             )
             the_error = ("ValueError('teams_exe_cmd_nproc > number of cores/node: "
                          "teams does not currently function in this capacity.',)" )
             assert repr(e_info._excinfo[1]) == the_error, 'Teams is not failing on xnode request'
+
+        os.chdir(tmpdir)
+        shutil.rmtree(str(cy_dir))
+        os.mkdir(str(cy_dir))
+        os.chdir(str(cy_dir))
+        if key == 'cy_teams_not_memory':
+            cy_teams.compose()
+        else:
+            cy_teams.compose(rm_casts_from_memory=False)
 
         cy_teams_run_success = cy_teams.run(
             teams=True,
@@ -1244,11 +1255,12 @@ def test_cycle_run_parallel_teams(
             ('cast_2012121200/exit_cmd.output',
              'cast_2012121500/exit_cmd.output',
              'cast_2012121800/exit_cmd.output'): 'mpirun exit_cmd\n',
-            ('cast_2012121200/job_test_job_1/diag_hydro.00000',
-             'cast_2012121800/job_test_job_1/diag_hydro.00000'):
+            ('cast_2012121200/job_test_job_1/diag_hydro.00000',):
                  'mpirun --host r10i1n1,r10i1n1 -np 2 ./wrf_hydro.exe\n',
             ('cast_2012121500/job_test_job_1/diag_hydro.00000',):
-                 'mpirun --host r10i1n2,r10i1n2 -np 2 ./wrf_hydro.exe\n'
+                 'mpirun --host r10i1n2,r10i1n2 -np 2 ./wrf_hydro.exe\n',
+            ('cast_2012121800/job_test_job_1/diag_hydro.00000',):
+                 'mpirun --host r10i1n3,r10i1n3 -np 2 ./wrf_hydro.exe\n',
         }
         for tup, ans in file_check.items():
             for file in tup:
@@ -1371,15 +1383,14 @@ def test_cycle_ensemble_run(
             'mpirun exit_cmd\n',
 
             ('cast_2012121200/member_000/job_test_job_1/diag_hydro.00000',
-             'cast_2012121200/member_001/job_test_job_1/diag_hydro.00000',
-             'cast_2012121800/member_000/job_test_job_1/diag_hydro.00000',
-             'cast_2012121800/member_001/job_test_job_1/diag_hydro.00000'):
-            'mpirun --host r10i1n1,r10i1n1 -np 2 ./wrf_hydro.exe\n',
-
+             'cast_2012121200/member_001/job_test_job_1/diag_hydro.00000'):
+             'mpirun --host r10i1n1,r10i1n1 -np 2 ./wrf_hydro.exe\n',
             ('cast_2012121500/member_000/job_test_job_1/diag_hydro.00000',
              'cast_2012121500/member_001/job_test_job_1/diag_hydro.00000'):
-            'mpirun --host r10i1n2,r10i1n2 -np 2 ./wrf_hydro.exe\n'
-
+             'mpirun --host r10i1n2,r10i1n2 -np 2 ./wrf_hydro.exe\n',
+            ('cast_2012121800/member_000/job_test_job_1/diag_hydro.00000',
+             'cast_2012121800/member_001/job_test_job_1/diag_hydro.00000'):
+             'mpirun --host r10i1n3,r10i1n3 -np 2 ./wrf_hydro.exe\n',
         }
         for tup, ans in file_check.items():
             for file in tup:

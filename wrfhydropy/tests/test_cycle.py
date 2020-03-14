@@ -1215,6 +1215,17 @@ def test_cycle_run_parallel_teams(
         else:
             cy_teams.compose(rm_casts_from_memory=False)
 
+        with pytest.raises(Exception) as e_info:
+            cy_teams_run_fail_xnode = cy_teams.run(
+                teams=True,
+                teams_exe_cmd=' ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
+                teams_exe_cmd_nproc=4,
+                teams_node_file={'pbs': node_file}
+            )
+            the_error = ("ValueError('teams_exe_cmd_nproc > number of cores/node: "
+                         "teams does not currently function in this capacity.',)" )
+            assert repr(e_info._excinfo[1]) == the_error, 'Teams is not failing on xnode request'
+
         cy_teams_run_success = cy_teams.run(
             teams=True,
             teams_exe_cmd=' ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',

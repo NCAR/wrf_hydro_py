@@ -450,7 +450,7 @@ def open_ensemble_dataset(
 
     return ens_dataset
 
-
+# TODO JLM: deprecate?
 class WrfHydroTs(list):
     """WRF-Hydro netcdf timeseries data class"""
     def open(self, chunks: dict = None, forecast: bool = True):
@@ -472,6 +472,7 @@ class WrfHydroTs(list):
         return check_file_nans(nc_dataset)
 
 
+# TODO JLM: deprecate?
 class WrfHydroStatic(pathlib.PosixPath):
     """WRF-Hydro static data class"""
     def open(self):
@@ -644,7 +645,6 @@ def sort_files_by_time(file_list: list):
         file_list,
         key=lambda file: file.stat().st_mtime_ns
     )
-
     return file_list_sorted
 
 

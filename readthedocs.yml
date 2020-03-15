@@ -20,6 +20,6 @@ python:
   version: 3.6
   install:
     - requirements: doc/requirements.txt
-    - type: setup.py
+    - method: setuptools
       path: ../
   system_packages: true

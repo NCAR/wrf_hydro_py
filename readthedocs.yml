@@ -21,4 +21,5 @@ python:
   install:
     - requirements: doc/requirements.txt
     - method: setuptools
+      path: ./
   system_packages: true

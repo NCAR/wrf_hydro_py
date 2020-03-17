@@ -129,7 +129,7 @@ provided in the `Job section`_ of the first example of the documentation.
 .. _xarray: http://xarray.pydata.org/en/stable/
 .. _tested: https://github.com/NCAR/wrf_hydro_py/tree/master/wrfhydropy/tests
 .. _coverage: https://coveralls.io/github/NCAR/wrf_hydro_py
-.. _development docker container: https://hub.docker.com/r/wrfhydro/dev
-.. _End-to-end overview of wrfhydropy: Simulation evaluation: https://wrfhydropy.readthedocs.io/en/latest/examples/ex_01_end_to_end.html
-.. _namelist section: https://wrfhydropy.readthedocs.io/en/latest/examples/ex_01_end_to_end.html#2.-Namelists-and-configurations-in-wrfhydropy
-.. _Job section: https://wrfhydropy.readthedocs.io/en/latest/examples/ex_01_end_to_end.html#7.-Job-object
+.. _`development docker container`: https://hub.docker.com/r/wrfhydro/dev
+.. _`End-to-end overview of wrfhydropy: Simulation evaluation`: https://wrfhydropy.readthedocs.io/en/latest/examples/ex_01_end_to_end.html
+.. _`namelist section`: https://wrfhydropy.readthedocs.io/en/latest/examples/ex_01_end_to_end.html#2.-Namelists-and-configurations-in-wrfhydropy
+.. _`Job section`: https://wrfhydropy.readthedocs.io/en/latest/examples/ex_01_end_to_end.html#7.-Job-object

@@ -8,7 +8,7 @@ Instructions
 ------------
 The easiest way::
 
-    $ pip install xarray
+    $ pip install wrfhydropy
 
 Development installation::
 

@@ -4,4 +4,4 @@ Examples
 .. toctree::
     :maxdepth: 2
 
-    examples/wrfhydropy_example
+    examples/ex_01_end_to_end

@@ -4,26 +4,35 @@ Overview: What and why wrfhydropy?
 What is wrfhydropy?
 -------------------
 
-Primarily, `wrfhydropy` provides a Python API for the WRF-Hydro modelling
-system. Secondarily, it provides tools for working with model input
-(preparation) and output (analysis). The package provides fine-grained
-control over the model and its inputs and outputs. Generally, high-level
-workflows are not found here
+`wrfhydropy` provides an end-to-end user python interface to support 
+reproducible research and construction of workflows involving the 
+WRF-Hydro model. 
+
+`wrfhydropy`:
+1. Is A Python API for the WRF-Hydro modelling system. 
+2. Provides tools for working with model input (preparation) 
+   and output (analysis), largely based on 
+   (xarray)[http://xarray.pydata.org/en/stable/].
+3. Is tested.
+
+The package provides fine-grained control over the model and its 
+inputs and outputs. Generally, high-level workflows are not found here
 *but should be and can easily be built from `wrfhydropy`.*
 
-That is `wrfhydropy` provides an end-to-end user interface to support reproducible
-research and construction of workflows involving the WRF-Hydro model. Its goal is
-to facilitate all aspects of working with WRF-Hydro including:
-
+`wrfhydropy` facilitates all aspects of working with WRF-Hydro including:
     * compiling
     * setting up experiments (manipulating input files and namelists)
     * running and scheduling jobs
     * collecting output
     * analysis (input and output)
-    * sharing results (jupyter notebooks)
+    * sharing and reproducing results (jupyter notebooks)
 
 The `wrfhydropy` package is **user supported and community contributed**. That
 means you can help add to and improve it.
+
+
+
+`wrfhydropy` is tested.
 
             
 Why wrfhydropy?

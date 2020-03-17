@@ -9,4 +9,4 @@ Utilities
 
    xrnan
    xrcmp
-
+   diff_namelist

@@ -10,7 +10,7 @@
 
 ## Description
 *wrfhydropy* provides an end-to-end python interface to support reproducible research and construction of workflows involving the 
-WRF-Hydro model. See the docs for an extended description of [what-and-why wrfhydropy](https://wrfhydropy.readthedocs.io/en/documentation/what-and-why.html).
+WRF-Hydro model. See the docs for an extended description of [what-and-why wrfhydropy](https://wrfhydropy.readthedocs.io/en/latest/what-and-why.html).
 
 ## Documentation
 Documentation is available on-line through `help()` and via [readthedocs](https://wrfhydropy.readthedocs.io/en/latest/index.html). Documentation is a work in progress, please feel free to help improve the documentation or to make an issue when the docs are inaccurate!

@@ -41,10 +41,11 @@ etc ...). Python therefore provides a mechanism for developing a better (for man
 purposes) model interface that is afforded by the underlying model. The
 model API as developed in python may begin to make its way back to the underlying
 FORTRAN code with time. For this reason, a few conceptualizations in wrfhydropy
-are formalized differently than in FORTRAN. These are summarized in key_concepts.
+are formalized differently than in FORTRAN. These are summarized in `Key concepts`_.
 
 wrfhydropy was initally developed to handle the WRF-Hydro model testing
-(wrf_hydro_nwm_public/tests) and, in particularly, the need to be able to
+(`wrf_hydro_nwm_public/tests <https://github.com/NCAR/wrf_hydro_nwm_public/tree/master/tests>`_) 
+and, in particularly, the need to be able to
 easily swap domains while holding model options constant. Another early
 application was the construction and execuation of ensembles and ensemble
 forecasts. 
@@ -68,7 +69,7 @@ wrfhydropy does not provide an in-memory connection between WRF-Hydro and Python
 The API is implemented through system calls (Python's subprocess) and all information
 between Python and the model passes through disk. There is no magic in wrfhydropy, 
 just convenience: you still need a system and environment in which WRF-Hydro can be
-compiled and run. (Such as our development docker container_.)
+compiled and run. (Such as our `development docker container`_.)
 
 
 Key concepts
@@ -101,7 +102,7 @@ Higher-level objects:
   * Cycle <- simulation|ensemble, job [, scheduler]
 
 The first example in the documentation, 
-End-to-end overview of wrfhydropy: Simulation evaluation]
+`End-to-end overview of wrfhydropy: Simulation evaluation`_
 details the core objects, their initialization and their composition into
 a Simulation object.
 
@@ -113,7 +114,7 @@ than WRF-Hydro model users experience them. The input namelists to the model,
 namelist.hrldas and hydro.namelist are each split in to two pieces, the model-side 
 and domain-side options. The new namelist files collect many different potential 
 namelists using named configurations. The motivation for this and the details are 
-explained in depth in the first example of the documentation_.
+explained in depth in `namelist section`_ of the first example of the documentation.
 
 
 Jobs: 
@@ -122,11 +123,13 @@ The notion of a Job is formalized by wrfhydropy and can be a bit surprising to
 WRF-Hydro users. Jobs are essential model time and frequency interventions into the 
 model namelists. Each job has a different call to the executable and a subdirectory
 of the run directory dedicated to its provenance and its artifacts. Details are
-provided in the Job section_ of the first example of the documentation. 
+provided in the `Job section`_ of the first example of the documentation. 
+
+
 .. _xarray: http://xarray.pydata.org/en/stable/
 .. _tested: https://github.com/NCAR/wrf_hydro_py/tree/master/wrfhydropy/tests
 .. _coverage: https://coveralls.io/github/NCAR/wrf_hydro_py
 .. _development docker container: https://hub.docker.com/r/wrfhydro/dev
 .. _End-to-end overview of wrfhydropy: Simulation evaluation: https://wrfhydropy.readthedocs.io/en/latest/examples/ex_01_end_to_end.html
-.. _first example of the documentation: https://wrfhydropy.readthedocs.io/en/latest/examples/ex_01_end_to_end.html#2.-Namelists-and-configurations-in-wrfhydropy
+.. _namelist section: https://wrfhydropy.readthedocs.io/en/latest/examples/ex_01_end_to_end.html#2.-Namelists-and-configurations-in-wrfhydropy
 .. _Job section: https://wrfhydropy.readthedocs.io/en/latest/examples/ex_01_end_to_end.html#7.-Job-object

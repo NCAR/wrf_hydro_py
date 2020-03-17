@@ -38,17 +38,18 @@ language is needed to adapt the FORTRAN model API to something suited to other
 purposes. Python is a good choice for this secondary API language for a vareity of
 reasons (widely adopted, multi-platform, great packages for scientific analysis,
 etc ...). Python therefore provides a mechanism for developing a better (for many
-purposes) model interface that is afforded by the underlying model. The
-model API as developed in python may begin to make its way back to the underlying
-FORTRAN code with time. For this reason, a few conceptualizations in wrfhydropy
-are formalized differently than in FORTRAN. These are summarized in `Key concepts`_.
+purposes) model interface that is afforded by the underlying model.  For this reason, 
+a few conceptualizations in wrfhydropy are formalized differently than in FORTRAN. 
+These are summarized in `Key concepts`_. The model API as developed in python may begin 
+to make its way back to the underlying FORTRAN code with time.
 
 wrfhydropy was initally developed to handle the WRF-Hydro model testing
 (`wrf_hydro_nwm_public/tests <https://github.com/NCAR/wrf_hydro_nwm_public/tree/master/tests>`_) 
 and, in particularly, the need to be able to
 easily swap domains while holding model options constant. Another early
 application was the construction and execuation of ensembles and ensemble
-forecasts. 
+forecasts. The examples_ included in this documentation will grow to show other 
+applications of the package.
 
 
 Limitations of wrfhydropy
@@ -129,6 +130,7 @@ provided in the `Job section`_ of the first example of the documentation.
 .. _xarray: http://xarray.pydata.org/en/stable/
 .. _tested: https://github.com/NCAR/wrf_hydro_py/tree/master/wrfhydropy/tests
 .. _coverage: https://coveralls.io/github/NCAR/wrf_hydro_py
+.. _examples: https://wrfhydropy.readthedocs.io/en/latest/examples.html
 .. _`development docker container`: https://hub.docker.com/r/wrfhydro/dev
 .. _`End-to-end overview of wrfhydropy: Simulation evaluation`: https://wrfhydropy.readthedocs.io/en/latest/examples/ex_01_end_to_end.html
 .. _`namelist section`: https://wrfhydropy.readthedocs.io/en/latest/examples/ex_01_end_to_end.html#2.-Namelists-and-configurations-in-wrfhydropy

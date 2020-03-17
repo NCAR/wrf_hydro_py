@@ -9,10 +9,10 @@ reproducible research and construction of workflows involving the
 WRF-Hydro model. 
 
 `wrfhydropy`:  
-* Is a Python API for the WRF-Hydro modelling system. 
-* Provides tools for working with WRF-Hydro input (preparation)
-  and output (analysis), largely based on xarray_.  
-* Is tested_ and coverage_ is calculated.  
+    * Is a Python API for the WRF-Hydro modelling system. 
+    * Provides tools for working with WRF-Hydro input (preparation)
+      and output (analysis), largely based on xarray_.  
+    * Is tested_ and coverage_ is calculated.  
 
 The package provides fine-grained control over the model and its
 inputs and outputs. Generally, high-level workflows are not found here
@@ -121,12 +121,12 @@ Jobs:
 The notion of a Job is formalized by `wrfhydropy` and can be a bit surprising to 
 WRF-Hydro users. Jobs are essential model time and frequency interventions into the 
 model namelists. Each job has a different call to the executable and a subdirectory
-of the run directory dedicated to its provenance and its artifacts. [Details are
-provided in the first example of the documentation](https://wrfhydropy.readthedocs.io/en/latest/examples/ex_01_end_to_end.html#7.-Job-object).
-
+of the run directory dedicated to its provenance and its artifacts. Details are
+provided in the `Job section`_ of the first example of the documentation. 
 .. _xarray: http://xarray.pydata.org/en/stable/
 .. _tested: https://github.com/NCAR/wrf_hydro_py/tree/master/wrfhydropy/tests
 .. _coverage: https://coveralls.io/github/NCAR/wrf_hydro_py
 .. _`development docker container`: https://hub.docker.com/r/wrfhydro/dev
 .. _`End-to-end overview of wrfhydropy: Simulation evaluation`: https://wrfhydropy.readthedocs.io/en/latest/examples/ex_01_end_to_end.html
-.. _`first example of the documentation`: https://wrfhydropy.readthedocs.io/en/documentation/examples/ex_01_end_to_end.html#2.-Namelists-and-configurations-in-wrfhydropy
+.. _`first example of the documentation`: https://wrfhydropy.readthedocs.io/en/latest/examples/ex_01_end_to_end.html#2.-Namelists-and-configurations-in-wrfhydropy
+.. _`Job section`: https://wrfhydropy.readthedocs.io/en/latest/examples/ex_01_end_to_end.html#7.-Job-object

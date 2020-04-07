@@ -60,13 +60,13 @@ def preprocess_whp_data(
     if drop_variables is not None:
         to_drop = set(ds.variables).intersection(set(drop_variables))
         if to_drop != set():
-            ds = ds.drop(to_drop)
+            ds = ds.drop_vars(to_drop)
 
     # Exception for RESTART.YYMMDDHHMM_DOMAIN1 files
     if 'RESTART.' in str(path):
         time = datetime.strptime(ds.Times.values[0].decode('utf-8'), '%Y-%m-%d_%H:%M:%S')
         ds = ds.squeeze('Time')
-        ds = ds.drop(['Times'])
+        ds = ds.drop_vars(['Times'])
         ds = ds.assign_coords(time=time)
 
     # Exception for HYDRO_RST.YY-MM-DD_HH:MM:SS_DOMAIN1 files
@@ -106,7 +106,7 @@ def preprocess_whp_data(
             ds.time.values - ds.reference_time.values,
             dtype='timedelta64[ns]'
         )
-        ds = ds.drop('time')
+        ds = ds.drop_vars('time')
 
         # Could create a valid time variable here, but I'm guessing it's more efficient
         # after all the data are collected.
@@ -114,7 +114,7 @@ def preprocess_whp_data(
 
     else:
         if 'reference_time' in ds.variables:
-            ds = ds.drop('reference_time')
+            ds = ds.drop_vars('reference_time')
 
     # Spatial subsetting
     if isel is not None:
@@ -154,6 +154,9 @@ def open_whp_dataset_inner(
         isel=isel,
         drop_variables=drop_variables
     ).filter(is_not_none).compute()
+
+    if len(ds_list) is 0:
+        return None
 
     if profile:
         then = timesince(then)
@@ -262,7 +265,7 @@ def open_whp_dataset_inner(
     return nwm_dataset
 
 
-def open_whp_dataset(
+def open_whp_dataset_orig(
     paths: list,
     chunks: dict = None,
     attrs_keep: list = ['featureType', 'proj4',
@@ -277,6 +280,8 @@ def open_whp_dataset(
 
     import sys
     import os
+
+    # print('n_cores', str(n_cores))
     the_pool = Pool(n_cores)
     with dask.config.set(scheduler='processes', pool=the_pool):
         whp_ds = open_whp_dataset_inner(
@@ -289,4 +294,85 @@ def open_whp_dataset(
             profile
         )
     the_pool.close()
+    return whp_ds
+
+
+def open_whp_dataset(
+    paths: list,
+    file_chunk_size: int = None,
+    chunks: dict = None,
+    attrs_keep: list = ['featureType', 'proj4',
+                        'station_dimension', 'esri_pe_string',
+                        'Conventions', 'model_version'],
+    isel: dict = None,
+    drop_variables: list = None,
+    npartitions: int = None,
+    profile: int = False,
+    n_cores: int = 1,
+    write_cumulative_file: pathlib.Path = None
+) -> xr.Dataset:
+
+    import sys
+    import os
+    import math
+    import multiprocessing
+    import pickle
+
+    n_files = len(paths)
+    print('n_files', str(n_files))
+
+    if file_chunk_size is None:
+        file_chunk_size = n_files
+
+    if file_chunk_size >= n_files:
+        the_pool = Pool(n_cores)
+        with dask.config.set(scheduler='processes', pool=the_pool):
+            whp_ds = open_whp_dataset_inner(
+                paths=paths,
+                chunks=chunks,
+                attrs_keep=attrs_keep,
+                isel=isel,
+                drop_variables=drop_variables,
+                npartitions=npartitions,
+                profile=profile
+            )
+        the_pool.close()
+
+    else:
+
+        n_file_chunks = math.ceil(n_files / file_chunk_size)
+        start_list = [file_chunk_size * ii for ii in range(n_file_chunks)]
+        end_list = [file_chunk_size * (ii + 1) - 1 for ii in range(n_file_chunks)]
+#        adsf
+
+        whp_ds = None
+        for start_ind, end_ind in zip(start_list, end_list):
+            the_pool = Pool(n_cores)
+            with dask.config.set(scheduler='processes', pool=the_pool):
+                ds_chunk = open_whp_dataset_inner(
+                    paths=paths[start_ind:(end_ind+1)],
+                    chunks=chunks,
+                    attrs_keep=attrs_keep,
+                    isel=isel,
+                    drop_variables=drop_variables,
+                    npartitions=npartitions,
+                    profile=profile
+                )
+            the_pool.close()
+
+            if ds_chunk is not None:
+                if whp_ds is None:
+                    whp_ds = ds_chunk
+                else:
+                    whp_ds = xr.merge([whp_ds, ds_chunk])
+                if write_cumulative_file is not None:
+                    if not write_cumulative_file.parent.exists():
+                        write_cumulative_file.parent.mkdir()
+                    whp_ds.to_netcdf(write_cumulative_file)
+                    cumulative_files_file = write_cumulative_file.parent / (
+                        write_cumulative_file.stem + '.files.pkl')
+                    pickle.dump(
+                        paths[0:end_ind],
+                        open(str(cumulative_files_file), 'wb'))
+
     return whp_ds

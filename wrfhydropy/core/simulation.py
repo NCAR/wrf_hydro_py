@@ -1,12 +1,14 @@
 import copy
 import os
+import pandas as pd
 import pathlib
 import pickle
-import warnings
 import shutil
 from typing import Union
+import warnings
+import xarray
 
-import pandas as pd
+from .collection import open_whp_dataset
 
 from .domain import Domain
 from .ioutils import WrfHydroStatic, \
@@ -42,7 +44,7 @@ class Simulation(object):
         self.scheduler = None
         """Scheduler: A scheduler object to use for each Job in self.jobs"""
 
-        self.output = None
+        self.output = SimulationOutput()
         """CompletedSim: A CompletedSim object returned by the self.collect() method"""
 
         self.base_hydro_namelist = Namelist()
@@ -157,12 +159,16 @@ class Simulation(object):
     def collect(self, sim_dir=None, output=True):
         """Collect simulation output after a run"""
 
-        if sim_dir is None and hasattr(self, '_compose_dir '):
+        if sim_dir is None and hasattr(self, '_compose_dir'):
             compose_dir = self._compose_dir
         elif sim_dir is not None:
             compose_dir = sim_dir
         else:
-            compose_dir = pathlib.Path('.')
+            raise ValueError(
+                'The simulation has not been composed and the sim_dir ragument not supplied.')
+            # This is what we used to do, but I'm not seeing why this behavior would make senese
+            # or that it's clear to remove it. Toremove when it's clearly unnecessary:
+            # compose_dir = pathlib.Path('.')
 
         # Overwrite sim job objects with collected objects matched on job id
         # Create dict of index/ids so that globbed jobs match the original list order
@@ -178,7 +184,6 @@ class Simulation(object):
             self.jobs[original_idx] = collect_job
 
         if output:
-            self.output = SimulationOutput()
             self.output.collect_output(sim_dir=os.getcwd())
 
     def pickle(self, path: str):
@@ -384,90 +389,64 @@ class SimulationOutput(object):
         self.restart_nudging = None
         """list: List of nudgingLastObs WrfHydroStatic objects"""
 
+    def __print__(self):
+        return self.__repr__(self)
+
+    def __repr__(self):
+        all_none = all([ ff is None for ff in self.__dict__.values() ])
+        if all_none:
+            return "This simulation currently has no output. Run simulation.collect()."
+        the_repr = ''
+        for key, val in self.__dict__.items():
+            # if its an open dataset, get it's repr
+            if isinstance(val, xarray.core.dataset.Dataset):
+                the_repr += '\n' + key + ':\n' + val.__repr__() + '\n\n'
+            else:
+                if val is not None:
+                    the_len = str(len(val))
+                else:
+                    the_len = "0"
+                the_repr += key + ': ' + the_len + ' files \n'
+        return the_repr
+
     def collect_output(self, sim_dir: Union[str, pathlib.Path] = None):
         """Collect simulation output after a run
         Args:
             sim_dir: The simulation directory to collect
         """
-
         if sim_dir is None:
             sim_dir = pathlib.Path(os.curdir).absolute()
         else:
             sim_dir = pathlib.Path(sim_dir).absolute()
 
-        # Grab outputs as WrfHydroXX classes of file paths
-        # Get channel files
-        if len(list(sim_dir.glob('*CHRTOUT_DOMAIN*'))) > 0:
-            self.channel_rt = sort_files_by_time(list(sim_dir.glob('*CHRTOUT_DOMAIN*')))
-            self.channel_rt = WrfHydroTs(self.channel_rt)
+        file_glob_dict = {
+            'channel_rt': '*CHRTOUT_DOMAIN*',
+            'channel_rt_grid': '*CHRTOUT_GRID*',
+            'chanobs': '*CHANOBS*',
+            'lakeout': '*LAKEOUT*',
+            'gwout': '*GWOUT*',
+            'rtout': '*.RTOUT_*',
+            'ldasout': '*LDASOUT*',
+            'restart_hydro': 'HYDRO_RST*',
+            'restart_lsm': 'RESTART*',
+            'restart_nudging': 'nudgingLastObs*'}
 
-        if len(list(sim_dir.glob('*CHRTOUT_GRID*'))) > 0:
-            self.channel_rt_grid = sort_files_by_time(list(sim_dir.glob('*CHRTOUT_GRID*')))
-            self.channel_rt_grid = WrfHydroTs(self.channel_rt_grid)
+        for key, value in file_glob_dict.items():
+            self.__dict__[key] = sort_files_by_time(list(sim_dir.glob(value)))
+            if key == 'ldasout':
+                self.__dict__[key] = self.__dict__[key][1:]
 
-        if len(list(sim_dir.glob('*CHANOBS*'))) > 0:
-            self.chanobs = sort_files_by_time(list(sim_dir.glob('*CHANOBS*')))
-            self.chanobs = WrfHydroTs(self.chanobs)
-
-        # Get Lakeout files
-        if len(list(sim_dir.glob('*LAKEOUT*'))) > 0:
-            self.lakeout = sort_files_by_time(list(sim_dir.glob('*LAKEOUT*')))
-            self.lakeout = WrfHydroTs(self.lakeout)
-
-        # Get gwout files
-        if len(list(sim_dir.glob('*GWOUT*'))) > 0:
-            self.gwout = sort_files_by_time(list(sim_dir.glob('*GWOUT*')))
-            self.gwout = WrfHydroTs(self.gwout)
-
-        # Get rtout files
-        if len(list(sim_dir.glob('*.RTOUT_*'))) > 0:
-            self.rtout = sort_files_by_time(list(sim_dir.glob('*.RTOUT_*')))
-            self.rtout = WrfHydroTs(self.rtout)
-
-        # Get ldasout files
-        if len(list(sim_dir.glob('*LDASOUT*'))) > 0:
-            if len(list(sim_dir.glob('*LDASOUT*'))) > 1:
-                # The [1:] in the next line is a side effect of NoahMP always
-                # outputting a file at t0.
-                self.ldasout = sort_files_by_time(list(sim_dir.glob('*LDASOUT*')))[1:]
-            else:
-                self.ldasout = sort_files_by_time(list(sim_dir.glob('*LDASOUT*')))
-
-            self.ldasout = WrfHydroTs(self.ldasout)
-
-        # Get restart files and sort by modified time
-        # Hydro restarts
-        self.restart_hydro = []
-        for file in sim_dir.glob('HYDRO_RST*'):
-            file = WrfHydroStatic(file)
-            self.restart_hydro.append(file)
-
-        if len(self.restart_hydro) > 0:
-            self.restart_hydro = sort_files_by_time(self.restart_hydro)
+    def open(self, name, n_cores=None):
+        if not hasattr(self, name):
+            raise ValueError('Simulation output does not contain ' + name)
+        the_files = self.__dict__[name]
+        if isinstance(the_files, list):
+            self.__dict__[name] = open_whp_dataset(the_files)
+        elif isinstance(the_files, xarray.core.dataset.Dataset):
+            print("This output appears to already be open: " + name)
         else:
-            self.restart_hydro = None
-
-        # LSM Restarts
-        self.restart_lsm = []
-        for file in sim_dir.glob('RESTART*'):
-            file = WrfHydroStatic(file)
-            self.restart_lsm.append(file)
-
-        if len(self.restart_lsm) > 0:
-            self.restart_lsm = sort_files_by_time(self.restart_lsm)
-        else:
-            self.restart_lsm = None
-
-        # Nudging restarts
-        self.restart_nudging = []
-        for file in sim_dir.glob('nudgingLastObs*'):
-            file = WrfHydroStatic(file)
-            self.restart_nudging.append(file)
-
-        if len(self.restart_nudging) > 0:
-            self.restart_nudging = sort_files_by_time(self.restart_nudging)
-        else:
-            self.restart_nudging = None
+            raise ValueError("Can not open: " + name)
+        return None
 
     def check_output_nans(self, n_cores: int = 1):
         """Check all outputs for NA values"""
@@ -482,7 +461,9 @@ class SimulationOutput(object):
         for att in data_atts:
             # Loop over files in each attribute
             att_obj = getattr(self, att)
-            if type(att_obj) is list or type(att_obj) is WrfHydroTs:
+            if isinstance(att_obj, list) or isinstance(att_obj, WrfHydroTs):
+                if len(att_obj) == 0:
+                    continue
                 file = att_obj[-1]
                 na_check_result = check_file_nans(file, n_cores=n_cores)
                 if na_check_result is not None:

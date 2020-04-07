@@ -1,7 +1,26 @@
+# Read the Docs configuration file
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+
+# Required
+version: 2
+
+# Build documentation in the doc/ directory with Sphinx
+sphinx:
+  configuration: doc/conf.py
+
+# Docker image used for build
 build:
-    image: latest
-conda:
-  file: doc/environment.yml
+    image: stable
+
+# Optionally build your docs in additional formats such as PDF and ePub
+formats: []
+
+# Optionally set the version of Python and requirements required to build your docs
 python:
-   version: 3.6
-   setup_py_install: true
+  version: 3.6
+  install:
+    - requirements: doc/requirements.txt
+    - requirements: requirements.txt
+    - method: setuptools
+      path: ./
+  system_packages: true

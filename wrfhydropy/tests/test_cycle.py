@@ -5,6 +5,7 @@ import os
 import pathlib
 import pandas
 import pytest
+import shutil
 import string
 import timeit
 
@@ -12,7 +13,16 @@ from wrfhydropy.core.simulation import Simulation
 from wrfhydropy.core.ensemble import EnsembleSimulation
 from wrfhydropy.core.cycle import CycleSimulation
 
+test_dir = pathlib.Path(os.path.dirname(os.path.realpath(__file__)))
+node_file = test_dir / 'data/nodefile_pbs_example_copy.txt'
+
 n_members = 2
+
+
+def check_first_line(file, answer):
+    with open(file) as f:
+        first_line = f.readline()
+        assert first_line == answer
 
 
 def sub_tmpdir(the_string, tmpdir, pattern='<<tmpdir>>'):
@@ -256,8 +266,7 @@ def test_cycle_addsimulation(
                  './NWM/RESTART/RESTART.2011082600_DOMAIN1'],
          'hyd': ['./NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
                  './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
-                 './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1']
-        }
+                 './NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1']}
      ),
      (
         ['0', '-72', '-72'],
@@ -266,8 +275,7 @@ def test_cycle_addsimulation(
                  '../cast_2012121500/RESTART.2012121800_DOMAIN1'],
          'hyd': ['../cast_2012121200/HYDRO_RST.2012-12-12_00:00_DOMAIN1',
                  '../cast_2012121200/HYDRO_RST.2012-12-15_00:00_DOMAIN1',
-                 '../cast_2012121500/HYDRO_RST.2012-12-18_00:00_DOMAIN1'],
-        }
+                 '../cast_2012121500/HYDRO_RST.2012-12-18_00:00_DOMAIN1']}
      ),
      (
         ['.', '-72', '../dummy_extant_dir'],
@@ -276,8 +284,7 @@ def test_cycle_addsimulation(
                  '<<tmpdir>>/dummy_extant_dir/RESTART.2012121800_DOMAIN1'],
          'hyd': ['./NWM/RESTART/HYDRO_RST.2011-08-26_00:00_DOMAIN1',
                  '../cast_2012121200/HYDRO_RST.2012-12-15_00:00_DOMAIN1',
-                 '<<tmpdir>>/dummy_extant_dir/HYDRO_RST.2012-12-18_00:00_DOMAIN1']
-        }
+                 '<<tmpdir>>/dummy_extant_dir/HYDRO_RST.2012-12-18_00:00_DOMAIN1']}
      ),
      (
         ['/foo/bar', '-72', '-72'],
@@ -286,8 +293,7 @@ def test_cycle_addsimulation(
      (
         ['../dummy_extant_dir', '-72', '72'],
         ['Only non-negative integers can be used to specify restart_dirs']
-     )
-    ]
+     )]
 )
 def test_cycle_addsimulation_translate(
     restart_dirs,
@@ -1066,7 +1072,7 @@ def test_cycle_ensemble_parallel_compose(
     assert time_taken < 1.5
 
 
-def test_cycle_run(
+def test_cycle_serial(
     simulation_compiled,
     job_restart,
     scheduler,
@@ -1075,14 +1081,11 @@ def test_cycle_run(
     init_times,
     restart_dirs
 ):
-
     sim = simulation_compiled
-
     tmp = pathlib.Path(tmpdir)
     forcing_dirs = [tmp / letter for letter in list(string.ascii_lowercase)[0:len(init_times)]]
     for dir in forcing_dirs:
         dir.mkdir()
-
     cy = CycleSimulation(
         init_times=init_times,
         restart_dirs=restart_dirs,
@@ -1090,7 +1093,6 @@ def test_cycle_run(
     )
     cy.add(sim)
     cy.add(job_restart)
-
     # Serial test
     cy_serial = copy.deepcopy(cy)
     cy_dir = pathlib.Path(tmpdir).joinpath('cycle_serial_run')
@@ -1103,6 +1105,28 @@ def test_cycle_run(
         "Some serial cycle casts did not run successfully."
     assert cy_dir.joinpath("WrfHydroCycle.pkl").exists()
 
+
+def test_cycle_run_parallel(
+    simulation_compiled,
+    job_restart,
+    scheduler,
+    tmpdir,
+    capfd,
+    init_times,
+    restart_dirs
+):
+    sim = simulation_compiled
+    tmp = pathlib.Path(tmpdir)
+    forcing_dirs = [tmp / letter for letter in list(string.ascii_lowercase)[0:len(init_times)]]
+    for dir in forcing_dirs:
+        dir.mkdir()
+    cy = CycleSimulation(
+        init_times=init_times,
+        restart_dirs=restart_dirs,
+        forcing_dirs=forcing_dirs
+    )
+    cy.add(sim)
+    cy.add(job_restart)
     # Parallel test
     cy_parallel = copy.deepcopy(cy)
     cy_dir = pathlib.Path(tmpdir).joinpath('cycle_parallel_run')
@@ -1115,6 +1139,28 @@ def test_cycle_run(
         "Some parallel cycle casts did not run successfully."
     assert cy_dir.joinpath("WrfHydroCycle.pkl").exists()
 
+
+def test_cycle_run_parallel_casts_in_memory(
+    simulation_compiled,
+    job_restart,
+    scheduler,
+    tmpdir,
+    capfd,
+    init_times,
+    restart_dirs
+):
+    sim = simulation_compiled
+    tmp = pathlib.Path(tmpdir)
+    forcing_dirs = [tmp / letter for letter in list(string.ascii_lowercase)[0:len(init_times)]]
+    for dir in forcing_dirs:
+        dir.mkdir()
+    cy = CycleSimulation(
+        init_times=init_times,
+        restart_dirs=restart_dirs,
+        forcing_dirs=forcing_dirs
+    )
+    cy.add(sim)
+    cy.add(job_restart)
     # Parallel test with ensemble in memory
     cy_parallel = copy.deepcopy(cy)
     cy_dir = pathlib.Path(tmpdir).joinpath('cy_parallel_run_cy_in_memory')
@@ -1126,6 +1172,99 @@ def test_cycle_run(
     assert cy_run_mem_success == 0, \
         "Some parallel cycle casts in memory did not run successfully."
     assert cy_dir.joinpath("WrfHydroCycle.pkl").exists()
+
+
+def test_cycle_run_parallel_teams(
+    simulation_compiled,
+    job_restart,
+    scheduler,
+    tmpdir,
+    capfd,
+    init_times,
+    restart_dirs
+):
+    sim = simulation_compiled
+    tmp = pathlib.Path(tmpdir)
+    forcing_dirs = [tmp / letter for letter in list(string.ascii_lowercase)[0:len(init_times)]]
+    for dir in forcing_dirs:
+        dir.mkdir()
+    cy = CycleSimulation(
+        init_times=init_times,
+        restart_dirs=restart_dirs,
+        forcing_dirs=forcing_dirs
+    )
+    cy.add(sim)
+    job_restart._entry_cmd = 'echo mpirun entry_cmd > entry_cmd.output'
+    job_restart._exit_cmd = 'echo mpirun exit_cmd > exit_cmd.output'
+    cy.add(job_restart)
+
+    # Parallel teams test - test casts both in memory and not
+    cy_teams_to_test = {
+        'cy_teams_not_memory': copy.deepcopy(cy),
+        'cy_teams_memory': copy.deepcopy(cy)
+    }
+
+    for key, cy_teams in cy_teams_to_test.items():
+
+        cy_dir = pathlib.Path(tmpdir).joinpath(key)
+        os.chdir(tmpdir)
+        os.mkdir(str(cy_dir))
+        os.chdir(str(cy_dir))
+
+        cy_teams_cp = copy.deepcopy(cy_teams)
+        if key == 'cy_teams_not_memory':
+            cy_teams_cp.compose()
+        else:
+            cy_teams_cp.compose(rm_casts_from_memory=False)
+
+        with pytest.raises(Exception) as e_info:
+            cy_teams_run_fail_xnode = cy_teams_cp.run(
+                teams=True,
+                teams_exe_cmd=' ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
+                teams_exe_cmd_nproc=3,
+                teams_node_file={'pbs': node_file}
+            )
+            the_error = ("ValueError('teams_exe_cmd_nproc > number of cores/node: "
+                         "teams does not currently function in this capacity.',)" )
+            assert repr(e_info._excinfo[1]) == the_error, 'Teams is not failing on xnode request'
+
+        os.chdir(tmpdir)
+        shutil.rmtree(str(cy_dir))
+        os.mkdir(str(cy_dir))
+        os.chdir(str(cy_dir))
+        if key == 'cy_teams_not_memory':
+            cy_teams.compose()
+        else:
+            cy_teams.compose(rm_casts_from_memory=False)
+
+        cy_teams_run_success = cy_teams.run(
+            teams=True,
+            teams_exe_cmd=' ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
+            teams_exe_cmd_nproc=2,
+            teams_node_file={'pbs': node_file}
+        )
+        assert cy_teams_run_success == 0, \
+            "Some parallel team cycle casts did not run successfully."
+        assert cy_dir.joinpath("WrfHydroCycle.pkl").exists()
+
+        # Check for command correctness in output files.
+        file_check = {
+            ('cast_2012121200/entry_cmd.output',
+             'cast_2012121500/entry_cmd.output',
+             'cast_2012121800/entry_cmd.output'): 'mpirun entry_cmd\n',
+            ('cast_2012121200/exit_cmd.output',
+             'cast_2012121500/exit_cmd.output',
+             'cast_2012121800/exit_cmd.output'): 'mpirun exit_cmd\n',
+            ('cast_2012121200/job_test_job_1/diag_hydro.00000',):
+                 'mpirun --host r10i1n1,r10i1n1 -np 2 ./wrf_hydro.exe\n',
+            ('cast_2012121500/job_test_job_1/diag_hydro.00000',):
+                 'mpirun --host r10i1n2,r10i1n2 -np 2 ./wrf_hydro.exe\n',
+            ('cast_2012121800/job_test_job_1/diag_hydro.00000',):
+                 'mpirun --host r10i1n3,r10i1n3 -np 2 ./wrf_hydro.exe\n',
+        }
+        for tup, ans in file_check.items():
+            for file in tup:
+                check_first_line(file, ans)
 
 
 def test_cycle_self_dependent_run(
@@ -1168,3 +1307,91 @@ def test_cycle_self_dependent_run(
     # cy_run_success = cy_parallel.run(n_concurrent=2)
     # assert cy_run_success == 0, \
     #     "Some parallel cycle casts did not run successfully."
+
+
+def test_cycle_ensemble_run(
+    ensemble,
+    job_restart,
+    scheduler,
+    tmpdir,
+    capfd,
+    init_times,
+    restart_dirs_ensemble
+):
+    # Valid force dir exercise.
+    cy = CycleSimulation(
+        init_times=init_times,
+        restart_dirs=restart_dirs_ensemble,
+        ncores=1,
+        forcing_dirs=[
+            ['.', '../dummy_extant_dir'],
+            [-72, '../dummy_extant_dir'],
+            [-72, '../dummy_extant_dir']
+        ]
+    )
+    job_restart._entry_cmd = 'echo mpirun entry_cmd > entry_cmd.output'
+    job_restart._exit_cmd = 'echo mpirun exit_cmd > exit_cmd.output'
+    cy.add(job_restart)
+    cy.add(ensemble)
+
+    # Parallel teams test - test casts both in memory and not
+    cy_teams_to_test = {
+        'cy_teams_not_memory': copy.deepcopy(cy),
+        'cy_teams_memory': copy.deepcopy(cy)
+    }
+
+    for key, cy_teams in cy_teams_to_test.items():
+
+        cy_dir = pathlib.Path(tmpdir).joinpath(key)
+        os.chdir(tmpdir)
+        os.mkdir(str(cy_dir))
+        os.chdir(str(cy_dir))
+        cy_dir.joinpath('../dummy_extant_dir').touch()
+
+        if key == 'cy_teams_not_memory':
+            cy_teams.compose()
+        else:
+            cy_teams.compose(rm_casts_from_memory=False)
+
+        cy_teams_run_success = cy_teams.run(
+            teams=True,
+            teams_exe_cmd=(
+                ' ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}'),
+            teams_exe_cmd_nproc=2,
+            teams_node_file={'pbs': node_file}
+        )
+        assert cy_teams_run_success == 0, \
+            "Some parallel team cycle casts did not run successfully."
+        assert cy_dir.joinpath("WrfHydroCycle.pkl").exists()
+
+        # Check for command correctness in output files.
+        file_check = {
+            ('cast_2012121200/member_000/entry_cmd.output',
+             'cast_2012121200/member_001/entry_cmd.output',
+             'cast_2012121500/member_000/entry_cmd.output',
+             'cast_2012121500/member_001/entry_cmd.output',
+             'cast_2012121800/member_000/entry_cmd.output',
+             'cast_2012121800/member_001/entry_cmd.output'):
+            'mpirun entry_cmd\n',
+
+            ('cast_2012121200/member_000/exit_cmd.output',
+             'cast_2012121200/member_001/exit_cmd.output',
+             'cast_2012121500/member_000/exit_cmd.output',
+             'cast_2012121500/member_001/exit_cmd.output',
+             'cast_2012121800/member_000/exit_cmd.output',
+             'cast_2012121800/member_001/exit_cmd.output'):
+            'mpirun exit_cmd\n',
+
+            ('cast_2012121200/member_000/job_test_job_1/diag_hydro.00000',
+             'cast_2012121200/member_001/job_test_job_1/diag_hydro.00000'):
+             'mpirun --host r10i1n1,r10i1n1 -np 2 ./wrf_hydro.exe\n',
+            ('cast_2012121500/member_000/job_test_job_1/diag_hydro.00000',
+             'cast_2012121500/member_001/job_test_job_1/diag_hydro.00000'):
+             'mpirun --host r10i1n2,r10i1n2 -np 2 ./wrf_hydro.exe\n',
+            ('cast_2012121800/member_000/job_test_job_1/diag_hydro.00000',
+             'cast_2012121800/member_001/job_test_job_1/diag_hydro.00000'):
+             'mpirun --host r10i1n3,r10i1n3 -np 2 ./wrf_hydro.exe\n',
+        }
+        for tup, ans in file_check.items():
+            for file in tup:
+                check_first_line(file, ans)

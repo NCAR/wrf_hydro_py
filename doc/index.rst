@@ -37,7 +37,8 @@ Documentation
     :caption: Reference
 
     model_api
-    output    
+    output
+    evaluation
     utilities
 
 

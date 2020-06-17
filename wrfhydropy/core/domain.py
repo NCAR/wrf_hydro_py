@@ -91,6 +91,8 @@ class Domain(object):
                 else:
                     self.hydro_files.append(file_path)
 
+            if 'timeslice' in key and value != '':
+                self.hydro_files.append(WrfHydroTs(file_path.glob('*')))
         # Create file paths from nudging namelist
         domain_nudging_nlist = self.hydro_namelist_patches['nudging_nlist']
 

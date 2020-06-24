@@ -11,6 +11,9 @@ from wrfhydropy.core.simulation import Simulation
 from wrfhydropy.core.ensemble import EnsembleSimulation
 from wrfhydropy.core.ensemble_tools import get_ens_dotfile_end_datetime
 
+test_dir = pathlib.Path(os.path.dirname(os.path.realpath(__file__)))
+node_file = test_dir / 'data/nodefile_pbs_example_copy.txt'
+
 
 @pytest.fixture(scope='function')
 def simulation(model, domain):
@@ -383,17 +386,19 @@ def test_ens_teams_run(simulation_compiled, job, scheduler, tmpdir, capfd):
         '0': {
             'members': ['member_000', 'member_002'],
             'nodes': ['hostname0'],
-            'exe_cmd': './wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
+            'exe_cmd': 'sleep 2; ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
         },
         '1': {
             'members': ['member_001', 'member_003'],
             'nodes': ['hostname1', 'hostname1'],
-            'exe_cmd': './wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
+            'exe_cmd': 'sleep 2; ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
         }
     }
 
     sim = simulation_compiled
     ens = EnsembleSimulation()
+    job._exe_cmd = (
+        'sleep 1; ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}')
     job._entry_cmd = 'echo mpirun entry_cmd > entry_cmd.output'
     job._exit_cmd = 'echo mpirun exit_cmd > exit_cmd.output'
     ens.add(job)
@@ -403,8 +408,24 @@ def test_ens_teams_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     os.mkdir(str(ens_dir))
     os.chdir(str(ens_dir))
     ens_parallel.compose()
-    ens_run_success = ens_parallel.run(teams_dict=teams_dict)
 
+    # ens_run_success = ens_parallel.run(teams_dict=teams_dict)
+    #adf
+    ens_run_success = ens_parallel.run(
+        teams=True,
+        teams_exe_cmd_nproc=2,
+        teams_node_file=node_file,
+        teams_exe_cmd="sleep 1; mpirun -np 2 ./wrf_hydro.exe")
+
+    def get_mem_start_file_time(mem_int):
+        return os.path.getmtime(
+            ens_dir /
+            ('member_00' + str(mem_int) + '/.model_start_time'))
+
+    # If the above members are run in parallel, the above sleep  in the
+    # exe_cmd should not affect the difference in start times.
+    assert abs(get_mem_start_file_time(1) - get_mem_start_file_time(0)) < 0.99
+    
     assert ens_run_success == 0, \
         "Some teams ensemble members did not run successfully."
 

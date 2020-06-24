@@ -384,11 +384,13 @@ def test_ens_teams_run(simulation_compiled, job, scheduler, tmpdir, capfd):
             'members': ['member_000', 'member_002'],
             'nodes': ['hostname0'],
             'exe_cmd': './wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
+            'env': None
         },
         '1': {
             'members': ['member_001', 'member_003'],
             'nodes': ['hostname1', 'hostname1'],
             'exe_cmd': './wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
+            'env': None            
         }
     }
 

@@ -19,7 +19,7 @@ from .ensemble_tools import DeepDiffEq, dictify, get_sub_objs, mute
 from .job import Job
 from .schedulers import Scheduler
 from .simulation import Simulation
-from .teams import parallel_teams_run
+from .teams import parallel_teams_run, assign_teams
 
 
 def parallel_compose_addjobs(arg_dict):
@@ -440,10 +440,23 @@ class EnsembleSimulation(object):
         path = pathlib.Path(ens_dir).joinpath('WrfHydroEns.pkl')
         self.pickle(path)
 
-        if isinstance(teams_dict, dict):
-            # Add the env to all the teams
-            for key, value in teams_dict.items():
-                value.update(env=env)
+        if teams or teams_dict is not None:
+            if teams_dict is None and teams_exe_cmd is None:
+                raise ValueError("The teams_exe_cmd is required for using teams.")
+
+            if teams_dict is None:
+                teams_dict = assign_teams(
+                    self,
+                    teams_exe_cmd=teams_exe_cmd,
+                    teams_exe_cmd_nproc=teams_exe_cmd_nproc,
+                    teams_node_file=teams_node_file,
+                    env=env
+                )
+
+            # if isinstance(teams_dict, dict):
+            #     # Add the env to all the teams
+            #     for key, value in teams_dict.items():
+            #         value.update(env=env)
 
             with multiprocessing.Pool(len(teams_dict), initializer=mute) as pool:
                 exit_codes = pool.map(

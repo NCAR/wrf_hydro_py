@@ -187,11 +187,12 @@ def parallel_teams_run(arg_dict):
 
 
 def assign_teams(
-    obj,
-    teams_exe_cmd: str,
-    teams_exe_cmd_nproc: int,
-    teams_node_file: dict = None,
-    env: dict = None
+        obj,
+        teams_exe_cmd: str,
+        teams_exe_cmd_nproc: int,
+        teams_node_file: dict = None,
+        scheduler: str = 'pbs',
+        env: dict = None
 ) -> dict:
     """
     Assign teams for parallel runs across nodes.
@@ -202,7 +203,8 @@ def assign_teams(
             'mpirun --host {hostname} -np {nproc} {cmd}'
         teams_exe_cmd_nproc: int, The number of cores per model/wrf_hydro
             simulation to be run.
-        teams_node_file: dict = None, Optional file that acts like a node file.
+        teams_node_file: [str, pathlib.Path] = None,
+    Optional file that acts like a node file.
             It is not currently implemented but the key specifies the scheduler
             format that the file follows. An example pbs node file is in
             tests/data and this argument is used here to test without a sched.
@@ -218,19 +220,16 @@ def assign_teams(
         object_list = obj.members
         object_name = 'members'
 
-    if isinstance(teams_node_file, dict):
-        if 'pbs' in teams_node_file.keys():
-            pbs_node_file = teams_node_file['pbs']
-    else:
-        pbs_node_file = os.environ.get('PBS_NODEFILE')
-        # Merge other schduler files here.
-
     n_runs = len(object_list)
 
-    if pbs_node_file is not None:
+    if scheduler is 'pbs':
+
+        if teams_node_file is None:
+            teams_node_file = os.environ.get('PBS_NODEFILE')
+
         pbs_nodes = []
         # TODO: comment the target format here.
-        with open(pbs_node_file, 'r') as infile:
+        with open(teams_node_file, 'r') as infile:
             for line in infile:
                 pbs_nodes.append(line.rstrip())
 

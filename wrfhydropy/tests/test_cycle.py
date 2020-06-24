@@ -1222,7 +1222,7 @@ def test_cycle_run_parallel_teams(
                 teams=True,
                 teams_exe_cmd=' ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
                 teams_exe_cmd_nproc=3,
-                teams_node_file={'pbs': node_file}
+                teams_node_file=node_file
             )
             the_error = ("ValueError('teams_exe_cmd_nproc > number of cores/node: "
                          "teams does not currently function in this capacity.',)" )
@@ -1241,7 +1241,7 @@ def test_cycle_run_parallel_teams(
             teams=True,
             teams_exe_cmd=' ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
             teams_exe_cmd_nproc=2,
-            teams_node_file={'pbs': node_file}
+            teams_node_file=node_file
         )
         assert cy_teams_run_success == 0, \
             "Some parallel team cycle casts did not run successfully."
@@ -1358,7 +1358,7 @@ def test_cycle_ensemble_run(
             teams_exe_cmd=(
                 ' ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}'),
             teams_exe_cmd_nproc=2,
-            teams_node_file={'pbs': node_file}
+            teams_node_file=node_file
         )
         assert cy_teams_run_success == 0, \
             "Some parallel team cycle casts did not run successfully."

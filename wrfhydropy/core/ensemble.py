@@ -450,13 +450,7 @@ class EnsembleSimulation(object):
                     teams_exe_cmd=teams_exe_cmd,
                     teams_exe_cmd_nproc=teams_exe_cmd_nproc,
                     teams_node_file=teams_node_file,
-                    env=env
-                )
-
-            # if isinstance(teams_dict, dict):
-            #     # Add the env to all the teams
-            #     for key, value in teams_dict.items():
-            #         value.update(env=env)
+                    env=env)
 
             with multiprocessing.Pool(len(teams_dict), initializer=mute) as pool:
                 exit_codes = pool.map(

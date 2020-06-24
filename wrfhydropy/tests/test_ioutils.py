@@ -151,8 +151,11 @@ def test_nwm_forcing_to_ldasin(tmpdir):
     nwm_yesterday = nwm_yesterday.strftime("nwm.%Y%m%d")
     prod_url = 'http://nomads.ncep.noaa.gov/pub/data/nccf/com/nwm/prod/' + nwm_yesterday
     para_url = 'http://para.nomads.ncep.noaa.gov/pub/data/nccf/com/nwm/para/' + nwm_yesterday
-
-    for version_name, model_version in {'para': para_url, 'prod': prod_url}.items():
+    version_dict = {
+        # 'para': para_url,
+        'prod': prod_url}
+    
+    for version_name, model_version in version_dict.items():
 
         forcing_dirs = url_index_anchor_regex(model_version, r'^forcing_')
         for forcing_range in forcing_dirs:

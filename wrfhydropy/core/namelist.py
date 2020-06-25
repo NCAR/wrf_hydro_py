@@ -3,6 +3,7 @@ import deepdiff
 import f90nml
 import json
 from typing import Union
+import warnings
 
 
 def load_namelist(nml_path: str) -> dict:
@@ -25,7 +26,7 @@ class JSONNamelist(object):
         Args:
             file_path: Path to the namelist file to open, can be a json or fortran90 namelist.
         """
-        self._json_namelist = json.load(open(file_path,mode='r'))
+        self._json_namelist = json.load(open(file_path, mode='r'))
         self.configs = self._json_namelist.keys()
 
     def get_config(self, config: str):
@@ -40,14 +41,19 @@ class JSONNamelist(object):
         if 'base' in self._json_namelist.keys():
             base_namelist = copy.deepcopy(self._json_namelist['base'])
             config_patches = copy.deepcopy(self._json_namelist[config])
-            #Update the base namelist with the config patches
-            config_namelist = dict_merge(base_namelist,config_patches)
+            # Update the base namelist with the config patches
+            config_namelist = dict_merge(base_namelist, config_patches)
 
         else:
-            # 'nwm' as a config has been limited to the compile_options.json file
-            # so this hack is reasonable. 
-            if 'nwm' in config and 'nwm' in self._json_namelist.keys():
-                config = 'nwm'
+            # One can pass any "nwm_*" config to get the compile options.
+            # if that specific config is not there, "nwm" config is used
+            # for the compile options with a warning.
+            if config not in self._json_namelist.keys():
+                if 'nwm' in config and 'nwm' in self._json_namelist.keys():
+                    config = 'nwm'
+                    warnings.warn(
+                        "The compile configuration 'nwm' is inferred from the"
+                        " configuration passed: " + config)
             config_namelist = copy.deepcopy(self._json_namelist[config])
 
         return Namelist(config_namelist)
@@ -62,14 +68,15 @@ class Namelist(dict):
             path: The file path
         """
         with open(str(path), mode=mode) as nml_file:
-            f90nml.write(self,nml_file)
+            f90nml.write(self, nml_file)
 
-    def patch(self,patch: dict):
+    def patch(self, patch: dict):
         """Recursively patch a namelist with key values from another namelist
         Args:
             patch: A Namelist or dict object containing the patches
         """
-        patched_namelist = dict_merge(copy.deepcopy(self),copy.deepcopy(patch))
+        patched_namelist = dict_merge(copy.deepcopy(self),
+                                      copy.deepcopy(patch))
         return patched_namelist
 
 
@@ -94,9 +101,9 @@ def dict_merge(dct: dict, merge_dct: dict) -> dict:
     return(dct)
 
 
-def diff_namelist(old_namelist: Union[Namelist,str], new_namelist: Union[Namelist,str], **kwargs) \
-        -> \
-        dict:
+def diff_namelist(
+        old_namelist: Union[Namelist, str],
+        new_namelist: Union[Namelist, str], **kwargs) -> dict:
     """Diff two Namelist objects or fortran 90 namelist files and return a dictionary of
     differences.
 

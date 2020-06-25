@@ -3,7 +3,7 @@ import deepdiff
 import f90nml
 import json
 from typing import Union
-
+import warnings
 
 def load_namelist(nml_path: str) -> dict:
     """Load a F90 namelist into a wrfhydropy.Namelist object
@@ -44,10 +44,15 @@ class JSONNamelist(object):
             config_namelist = dict_merge(base_namelist,config_patches)
 
         else:
-            # 'nwm' as a config has been limited to the compile_options.json file
-            # so this hack is reasonable. 
-            if 'nwm' in config and 'nwm' in self._json_namelist.keys():
-                config = 'nwm'
+            # One can pass any "nwm_*" config to get the compile options.
+            # if that specific config is not there, "nwm" config is used
+            # for the compile options with a warning.
+            if not config in self._json_namelist.keys():
+                if 'nwm' in config and 'nwm' in self._json_namelist.keys():
+                    config = 'nwm'
+                    warnings.warn(
+                        "The compile configuration 'nwm' is inferred from the"
+                        " configuration passed: " + config)
             config_namelist = copy.deepcopy(self._json_namelist[config])
 
         return Namelist(config_namelist)

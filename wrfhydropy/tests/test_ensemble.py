@@ -11,6 +11,9 @@ from wrfhydropy.core.simulation import Simulation
 from wrfhydropy.core.ensemble import EnsembleSimulation
 from wrfhydropy.core.ensemble_tools import get_ens_dotfile_end_datetime
 
+test_dir = pathlib.Path(os.path.dirname(os.path.realpath(__file__)))
+node_file = test_dir / 'data/nodefile_pbs_example_copy.txt'
+
 
 @pytest.fixture(scope='function')
 def simulation(model, domain):
@@ -377,20 +380,32 @@ def test_ens_parallel_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     assert ens_dir.joinpath("WrfHydroEns.pkl").exists()
 
 
-def test_ens_teams_run(simulation_compiled, job, scheduler, tmpdir, capfd):
+# Some helper function for the following test_ens_teams_run*
+def get_mem_start_file_time(mem_int, ens_dir):
+    return os.path.getmtime(
+        ens_dir /
+        ('member_00' + str(mem_int) + '/.model_start_time'))
+
+
+def check_first_line(file, answer):
+    with open(file) as f:
+        first_line = f.readline()
+    assert first_line == answer
+
+
+def test_ens_teams_run_dict(simulation_compiled, job, scheduler, tmpdir, capfd):
     ens_dir = pathlib.Path(tmpdir).joinpath('ens_teams_run')
     teams_dict = {
         '0': {
             'members': ['member_000', 'member_002'],
             'nodes': ['hostname0'],
-            'exe_cmd': './wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
-        },
+            'env': None,
+            'exe_cmd': 'sleep 2; ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}', },
         '1': {
             'members': ['member_001', 'member_003'],
             'nodes': ['hostname1', 'hostname1'],
-            'exe_cmd': './wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
-        }
-    }
+            'env': None,
+            'exe_cmd': 'sleep 2; ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}', } }
 
     sim = simulation_compiled
     ens = EnsembleSimulation()
@@ -403,16 +418,20 @@ def test_ens_teams_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     os.mkdir(str(ens_dir))
     os.chdir(str(ens_dir))
     ens_parallel.compose()
+
     ens_run_success = ens_parallel.run(teams_dict=teams_dict)
 
     assert ens_run_success == 0, \
         "Some teams ensemble members did not run successfully."
 
-    def check_first_line(file, answer):
-        with open(file) as f:
-            first_line = f.readline()
-        assert first_line == answer
-
+    # If the above members are run in parallel, the above sleep  in the
+    # exe_cmd should not affect the difference in start times.
+    # Members on the same teams will have a >=2 sec delay,
+    # but collated members on different teams should be run with ~=0sec delay
+    # 0 and 1 are collated members on different teams
+    assert abs(get_mem_start_file_time(1, ens_dir) -
+               get_mem_start_file_time(0, ens_dir)) < 0.99
+    
     # Check for command correctness in output files.
     file_check = {
         ('member_000/entry_cmd.output',
@@ -433,3 +452,57 @@ def test_ens_teams_run(simulation_compiled, job, scheduler, tmpdir, capfd):
     for tup, ans in file_check.items():
         for file in tup:
             check_first_line(file, ans)
+
+
+def test_ens_teams_run_args(simulation_compiled, job, scheduler, tmpdir, capfd):
+    ens_dir = pathlib.Path(tmpdir).joinpath('ens_teams_run')
+
+    sim = simulation_compiled
+    ens = EnsembleSimulation()
+    job._entry_cmd = 'echo mpirun entry_cmd > entry_cmd.output'
+    job._exit_cmd = 'echo mpirun exit_cmd > exit_cmd.output'
+    ens.add(job)
+    ens.add([sim, sim, sim, sim])
+
+    ens_parallel = copy.deepcopy(ens)
+    os.mkdir(str(ens_dir))
+    os.chdir(str(ens_dir))
+    ens_parallel.compose()
+
+    exe_cmd = (
+        'sleep 1; ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}')
+    ens_run_success = ens_parallel.run(
+        teams=True,
+        teams_exe_cmd_nproc=2,
+        teams_node_file=node_file,
+        teams_exe_cmd=exe_cmd)
+
+    assert ens_run_success == 0, \
+        "Some teams ensemble members did not run successfully."
+
+    # If the above members are run in parallel, the above sleep  in the
+    # exe_cmd should not affect the difference in start times.
+    assert abs(get_mem_start_file_time(1, ens_dir) -
+               get_mem_start_file_time(0, ens_dir)) < 0.99
+
+    # Check for command correctness in output files.
+    file_check = {
+        ('member_000/entry_cmd.output',
+         'member_001/entry_cmd.output',
+         'member_002/entry_cmd.output',
+         'member_003/entry_cmd.output'): 'mpirun entry_cmd\n',
+        ('member_000/exit_cmd.output',
+         'member_001/exit_cmd.output',
+         'member_002/exit_cmd.output',
+         'member_003/exit_cmd.output'): 'mpirun exit_cmd\n',
+        ('member_000/job_test_job_1/diag_hydro.00000',
+         'member_003/job_test_job_1/diag_hydro.00000'):
+             'mpirun --host r10i1n1,r10i1n1 -np 2 ./wrf_hydro.exe\n',
+        ('member_001/job_test_job_1/diag_hydro.00000',):
+             'mpirun --host r10i1n2,r10i1n2 -np 2 ./wrf_hydro.exe\n',
+        ('member_002/job_test_job_1/diag_hydro.00000',):
+             'mpirun --host r10i1n3,r10i1n3 -np 2 ./wrf_hydro.exe\n',
+    }
+    for tup, ans in file_check.items():
+        for file in tup:
+            check_first_line(file, ans)            

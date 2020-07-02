@@ -5,7 +5,7 @@ setup(
     version='0.0.18',
     packages=find_packages(),
     package_data={'wrfhydropy': ['core/data/*']},
-    url='https://github.com/ishita9/wrf_hydro_py',
+    url='https://github.com/NCAR/wrf_hydro_py',
     license='MIT',
     install_requires=[
         'pandas',

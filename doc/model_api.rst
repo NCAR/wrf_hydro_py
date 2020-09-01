@@ -14,4 +14,4 @@ Model API
    Simulation
    EnsembleSimulation
    CycleSimulation
-
+   parallel_teams_run

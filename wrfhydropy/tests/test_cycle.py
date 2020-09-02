@@ -1220,7 +1220,7 @@ def test_cycle_run_parallel_teams(
         with pytest.raises(Exception) as e_info:
             cy_teams_run_fail_xnode = cy_teams_cp.run(
                 teams=True,
-                teams_exe_cmd=' ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
+                teams_exe_cmd=' ./wrf_hydro.exe mpirun --host {nodelist} -np {nproc} {cmd}',
                 teams_exe_cmd_nproc=3,
                 teams_node_file=node_file
             )
@@ -1239,7 +1239,7 @@ def test_cycle_run_parallel_teams(
 
         cy_teams_run_success = cy_teams.run(
             teams=True,
-            teams_exe_cmd=' ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}',
+            teams_exe_cmd=' ./wrf_hydro.exe mpirun --host {nodelist} -np {nproc} {cmd}',
             teams_exe_cmd_nproc=2,
             teams_node_file=node_file
         )
@@ -1256,11 +1256,11 @@ def test_cycle_run_parallel_teams(
              'cast_2012121500/exit_cmd.output',
              'cast_2012121800/exit_cmd.output'): 'mpirun exit_cmd\n',
             ('cast_2012121200/job_test_job_1/diag_hydro.00000',):
-                 'mpirun --host r10i1n1,r10i1n1 -np 2 ./wrf_hydro.exe\n',
+                 'mpirun --host r10i1n1.ib0.cheyenne.ucar.edu,r10i1n1.ib0.cheyenne.ucar.edu -np 2 ./wrf_hydro.exe\n',
             ('cast_2012121500/job_test_job_1/diag_hydro.00000',):
-                 'mpirun --host r10i1n2,r10i1n2 -np 2 ./wrf_hydro.exe\n',
+                 'mpirun --host r10i1n2.ib0.cheyenne.ucar.edu,r10i1n2.ib0.cheyenne.ucar.edu -np 2 ./wrf_hydro.exe\n',
             ('cast_2012121800/job_test_job_1/diag_hydro.00000',):
-                 'mpirun --host r10i1n3,r10i1n3 -np 2 ./wrf_hydro.exe\n',
+                 'mpirun --host r10i1n3.ib0.cheyenne.ucar.edu,r10i1n3.ib0.cheyenne.ucar.edu -np 2 ./wrf_hydro.exe\n',
         }
         for tup, ans in file_check.items():
             for file in tup:
@@ -1356,7 +1356,7 @@ def test_cycle_ensemble_run(
         cy_teams_run_success = cy_teams.run(
             teams=True,
             teams_exe_cmd=(
-                ' ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}'),
+                ' ./wrf_hydro.exe mpirun --host {nodelist} -np {nproc} {cmd}'),
             teams_exe_cmd_nproc=2,
             teams_node_file=node_file
         )
@@ -1384,13 +1384,13 @@ def test_cycle_ensemble_run(
 
             ('cast_2012121200/member_000/job_test_job_1/diag_hydro.00000',
              'cast_2012121200/member_001/job_test_job_1/diag_hydro.00000'):
-             'mpirun --host r10i1n1,r10i1n1 -np 2 ./wrf_hydro.exe\n',
+             'mpirun --host r10i1n1.ib0.cheyenne.ucar.edu,r10i1n1.ib0.cheyenne.ucar.edu -np 2 ./wrf_hydro.exe\n',
             ('cast_2012121500/member_000/job_test_job_1/diag_hydro.00000',
              'cast_2012121500/member_001/job_test_job_1/diag_hydro.00000'):
-             'mpirun --host r10i1n2,r10i1n2 -np 2 ./wrf_hydro.exe\n',
+             'mpirun --host r10i1n2.ib0.cheyenne.ucar.edu,r10i1n2.ib0.cheyenne.ucar.edu -np 2 ./wrf_hydro.exe\n',
             ('cast_2012121800/member_000/job_test_job_1/diag_hydro.00000',
              'cast_2012121800/member_001/job_test_job_1/diag_hydro.00000'):
-             'mpirun --host r10i1n3,r10i1n3 -np 2 ./wrf_hydro.exe\n',
+             'mpirun --host r10i1n3.ib0.cheyenne.ucar.edu,r10i1n3.ib0.cheyenne.ucar.edu -np 2 ./wrf_hydro.exe\n',
         }
         for tup, ans in file_check.items():
             for file in tup:

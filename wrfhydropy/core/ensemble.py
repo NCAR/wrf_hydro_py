@@ -418,9 +418,10 @@ class EnsembleSimulation(object):
         """Run the ensemble of simulations.
         Inputs:
             n_concurrent: int = 1, Only used for non-team runs.
-            teams: bool = False, Use teams?
+            teams: bool = False, Use teams? See parallel_teams_run for
+                details.
             teams_exe_cmd: str, The mpi-specific syntax needed. For
-                example: 'mpirun --host {hostname} -np {nproc} {cmd}'
+                example: 'mpirun --hosts {nodelist} -np {nproc} {cmd}'
             teams_exe_cmd_nproc: int, The number of cores per model/wrf_hydro
                 simulation to be run.
             teams_node_file: dict = None, Optional file that acts like a node

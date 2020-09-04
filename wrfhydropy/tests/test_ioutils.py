@@ -59,10 +59,7 @@ def test_open_wh_dataset_no_forecast(ds_timeseries):
     )
 
     the_ref_times = np.array(
-        ['1984-10-14T00:00:00.000000000',
-         '1984-10-14T01:00:00.000000000',
-         '1984-10-14T02:00:00.000000000'],
-        dtype='datetime64[ns]')
+        ['1970-01-01T00:00:00.000000000'],dtype='datetime64[ns]')
     assert (the_ds['reference_time'].values == the_ref_times).all()
 
     the_ds['time'].values.sort()

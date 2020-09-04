@@ -14,5 +14,6 @@ from .core.model import Model
 from .core.namelist import diff_namelist
 from .core.schedulers import PBSCheyenne
 from .core.simulation import Simulation
+from .core.teams import parallel_teams_run
 from .util.xrcmp import xrcmp
 from .util.xrnan import xrnan

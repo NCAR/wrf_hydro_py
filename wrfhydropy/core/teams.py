@@ -77,12 +77,12 @@ def parallel_teams_run(arg_dict):
 
         The 'exe_cmd' is a form of invocation for the distribution of MPI to be
         used. For openmpi, for example for OpenMPI, this is
-            exe_cmd: 'mpirun --host {hostnames} -np {nproc} {cmd}'
+            exe_cmd: 'mpirun --host {nodelist} -np {nproc} {cmd}'
         The variables in brackets are expanded by internal variables. The
         'exe_cmd' command substitutes the wrfhydropy of 'wrf_hydro.exe'
         convention for {cmd}.
         The {nproc} argument is the length of the list passed in the nodes
-        argument, and the {hostnames} are the comma separated arguments in that
+        argument, and the {nodellist} are the comma separated arguments in that
         list.
 
         The "entry_cmd" and "exit_cmd" ARE TAKEN FROM THE JOB object.
@@ -132,7 +132,7 @@ def parallel_teams_run(arg_dict):
                         team_dict['exe_cmd'].format(
                             **{
                                 'cmd': cmd,
-                                'hostname': team_dict['nodes'][0],  # only use one task
+                                'nodelist': team_dict['nodes'][0],  # only use one task
                                 'nproc': 1
                             }
                         )
@@ -151,7 +151,7 @@ def parallel_teams_run(arg_dict):
                         team_dict['exe_cmd'].format(
                             **{
                                 'cmd': cmd,
-                                'hostname': team_dict['nodes'][0],  # only use one task
+                                'nodelist': team_dict['nodes'][0],  # only use one task
                                 'nproc': 1
                             }
                         )
@@ -163,10 +163,14 @@ def parallel_teams_run(arg_dict):
         job._exe_cmd = team_dict['exe_cmd'].format(
             **{
                 'cmd': './wrf_hydro.exe',
-                'hostname': ','.join(team_dict['nodes']),
+                'nodelist': ','.join(team_dict['nodes']),
                 'nproc': len(team_dict['nodes'])
             }
         )
+
+        # This will write the cmd to be executed into the member dir.
+        # with open('team_run_cmd', 'w') as opened_file:
+        #    opened_file.write(job._exe_cmd)
 
         object_pkl.pickle(object_pkl_file)
         if have_cycle_ens:
@@ -200,7 +204,7 @@ def assign_teams(
         obj: The ensemble or cycle object, containin lists of members or casts
             to be run.
         teams_exe_cmd: str, The mpi-specific syntax needed. For example
-            'mpirun --host {hostname} -np {nproc} {cmd}'
+            'mpirun --host {nodelist} -np {nproc} {cmd}'
         teams_exe_cmd_nproc: int, The number of cores per model/wrf_hydro
             simulation to be run.
         teams_node_file: [str, pathlib.Path] = None,
@@ -262,7 +266,7 @@ def assign_teams(
         # Map the nodes on to the teams
         # Homogonization step here to avoid communication across nodes...
         # Sorting necessary for testing.
-        unique_nodes = sorted([node.split('.')[0] for node in list(set(pbs_nodes))])
+        unique_nodes = sorted([node for node in list(set(pbs_nodes))])
         print("\n*** Team " + object_name + ' ***')
         print("Running on nodes: " + ', '.join(unique_nodes))
         del pbs_nodes

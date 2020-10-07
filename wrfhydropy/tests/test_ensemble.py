@@ -400,12 +400,12 @@ def test_ens_teams_run_dict(simulation_compiled, job, scheduler, tmpdir, capfd):
             'members': ['member_000', 'member_002'],
             'nodes': ['hostname0'],
             'env': None,
-            'exe_cmd': 'sleep 2; ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}', },
+            'exe_cmd': 'sleep 2; ./wrf_hydro.exe mpirun --host {nodelist} -np {nproc} {cmd}', },
         '1': {
             'members': ['member_001', 'member_003'],
             'nodes': ['hostname1', 'hostname1'],
             'env': None,
-            'exe_cmd': 'sleep 2; ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}', } }
+            'exe_cmd': 'sleep 2; ./wrf_hydro.exe mpirun --host {nodelist} -np {nproc} {cmd}', } }
 
     sim = simulation_compiled
     ens = EnsembleSimulation()
@@ -470,7 +470,7 @@ def test_ens_teams_run_args(simulation_compiled, job, scheduler, tmpdir, capfd):
     ens_parallel.compose()
 
     exe_cmd = (
-        'sleep 1; ./wrf_hydro.exe mpirun --host {hostname} -np {nproc} {cmd}')
+        'sleep 1; ./wrf_hydro.exe mpirun --host {nodelist} -np {nproc} {cmd}')
     ens_run_success = ens_parallel.run(
         teams=True,
         teams_exe_cmd_nproc=2,
@@ -497,11 +497,11 @@ def test_ens_teams_run_args(simulation_compiled, job, scheduler, tmpdir, capfd):
          'member_003/exit_cmd.output'): 'mpirun exit_cmd\n',
         ('member_000/job_test_job_1/diag_hydro.00000',
          'member_003/job_test_job_1/diag_hydro.00000'):
-             'mpirun --host r10i1n1,r10i1n1 -np 2 ./wrf_hydro.exe\n',
+             'mpirun --host r10i1n1.ib0.cheyenne.ucar.edu,r10i1n1.ib0.cheyenne.ucar.edu -np 2 ./wrf_hydro.exe\n',
         ('member_001/job_test_job_1/diag_hydro.00000',):
-             'mpirun --host r10i1n2,r10i1n2 -np 2 ./wrf_hydro.exe\n',
+             'mpirun --host r10i1n2.ib0.cheyenne.ucar.edu,r10i1n2.ib0.cheyenne.ucar.edu -np 2 ./wrf_hydro.exe\n',
         ('member_002/job_test_job_1/diag_hydro.00000',):
-             'mpirun --host r10i1n3,r10i1n3 -np 2 ./wrf_hydro.exe\n',
+             'mpirun --host r10i1n3.ib0.cheyenne.ucar.edu,r10i1n3.ib0.cheyenne.ucar.edu -np 2 ./wrf_hydro.exe\n',
     }
     for tup, ans in file_check.items():
         for file in tup:

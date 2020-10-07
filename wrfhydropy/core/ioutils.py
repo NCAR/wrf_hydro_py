@@ -349,8 +349,8 @@ def open_wh_dataset(paths: list,
         ds = xr.open_dataset(a_file, chunks=chunks, mask_and_scale=False)
         # Check if forecast and set reference_time to zero if not
         if not forecast:
-            ds.assign_coords({"reference_time": np.array(
-                [np.datetime64('1970-01-01T00:00:00', 'ns')])})
+            ds.coords['reference_time'] = np.array(
+                [np.datetime64('1970-01-01T00:00:00', 'ns')])
 
         ref_time = ds['reference_time'].values[0]
         if ref_time in ds_dict:

@@ -49,7 +49,7 @@ class Job(object):
         restart: Job is starting from a restart file. Use False for a cold start.
         restart_dir: The path in which to look for the restart files.
         restart_file_time: The time on the restart file, if not the same as the model_start_time.
-            Eithera string (e.g. '2000-01-01 00') or a datetime object (datetime or pandas) or a dict
+            Eithera string (e.g. '2000-01-01 00') or a datetime object (datetime) or a dict
             the form {'hydro': date1, 'hrldas': date2}  where dates are either strings or datetime
             objects.
         exe_cmd: The system-specific command to execute WRF-Hydro, for example 'mpirun -np
@@ -78,9 +78,9 @@ class Job(object):
         """bool: Start model from a restart."""
 
         self.restart_file_time = restart_file_time
-        """np.datetime: Time on the restart file to use, if different from model_start_time. The path
-           in any supplied restart file path in the namelists is preserved while modifying the date
-           and time."""
+        """np.datetime: Time on the restart file to use, if different from model_start_time. The
+           path in any supplied restart file path in the namelists is preserved while modifying 
+           the date and time."""
 
         if self.restart_file_time is None:
             self._restart_file_time_hydro = pd.to_datetime(model_start_time)
@@ -388,7 +388,8 @@ class Job(object):
                 else:
                     noah_nlst = self._hrldas_namelist['noahlsm_offline']
                     if noah_nlst['restart_filename_requested'] is not None:
-                        lsm_restart_dirname = os.path.dirname(noah_nlst['restart_filename_requested'])
+                        lsm_restart_dirname = os.path.dirname(
+                            noah_nlst['restart_filename_requested'])
                     else:
                         lsm_restart_dirname = '.'
 
@@ -398,7 +399,8 @@ class Job(object):
 
                 lsm_restart_file = str(pathlib.Path(lsm_restart_dirname) / lsm_restart_basename)
 
-                self._hrldas_times['noahlsm_offline']['restart_filename_requested'] = lsm_restart_file
+                self._hrldas_times[
+                    'noahlsm_offline']['restart_filename_requested'] = lsm_restart_file
 
             # TODO(JLM): I dont love this if statement, it's a bit hacky.
             # Some of the tests call _set_hrldas/hydro_times when no namelist has been set.
@@ -439,8 +441,9 @@ class Job(object):
                 'HYDRO_RST.' + self._restart_file_time_hydro.strftime('%Y-%m-%d_%H:%M') + '_DOMAIN1'
 
             # Format - 2011-08-26_00_00 - seconds
-            nudging_restart_basename = \
-                'nudgingLastObs.' + self._restart_file_time_hydro.strftime('%Y-%m-%d_%H:%M:%S') + '.nc'
+            nudging_restart_basename = (
+                'nudgingLastObs.' +
+                self._restart_file_time_hydro.strftime('%Y-%m-%d_%H:%M:%S') + '.nc')
 
             # Use convenience function to return name of file with or without colons in name
             # This is needed because the model outputs restarts with colons, and our distributed

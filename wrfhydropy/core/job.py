@@ -21,12 +21,12 @@ class Job(object):
     def __init__(
             self,
             job_id: str,
-            model_start_time: Union[str, pd.datetime] = None,
-            model_end_time: Union[str, pd.datetime] = None,
+            model_start_time: Union[str, datetime.datetime] = None,
+            model_end_time: Union[str, datetime.datetime] = None,
             restart_freq_hr: Union[int, dict] = None,
             output_freq_hr: Union[int, dict] = None,
             restart: bool = True,
-            restart_file_time: Union[str, pd.datetime, dict] = None,
+            restart_file_time: Union[str, datetime.datetime, dict] = None,
             restart_dir: Union[str, pathlib.Path, dict] = None,
             exe_cmd: str = None,
             entry_cmd: str = None,
@@ -85,7 +85,7 @@ class Job(object):
         if self.restart_file_time is None:
             self._restart_file_time_hydro = pd.to_datetime(model_start_time)
             self._restart_file_time_hrldas = pd.to_datetime(model_start_time)
-        elif (isinstance(self.restart_file_time, pd.datetime) or
+        elif (isinstance(self.restart_file_time, datetime.datetime) or
               isinstance(self.restart_file_time, str)):
             self._restart_file_time_hydro = pd.to_datetime(self.restart_file_time)
             self._restart_file_time_hrldas = pd.to_datetime(self.restart_file_time)

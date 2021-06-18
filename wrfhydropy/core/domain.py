@@ -85,7 +85,7 @@ class Domain(object):
 
         for key, value in domain_hydro_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
-            if file_path.is_file() is True:
+            if file_path.is_file() is True and "HYDRO_RST" not in file_path.name:
                 if file_path.suffix == '.nc':
                     self.hydro_files.append(WrfHydroStatic(file_path))
                 else:
@@ -96,7 +96,7 @@ class Domain(object):
 
         for key, value in domain_nudging_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
-            if file_path.is_file() is True:
+            if file_path.is_file() is True and "nudingLastObs" not in file_path.name:
                 if file_path.suffix == '.nc':
                     self.nudging_files.append(WrfHydroStatic(file_path))
                 else:
@@ -112,7 +112,7 @@ class Domain(object):
         for key, value in domain_lsm_nlist.items():
             file_path = self.domain_top_dir.joinpath(str(value))
 
-            if file_path.is_file() is True:
+            if file_path.is_file() is True and "RESTART." not in file_path.name:
                 if file_path.suffix == '.nc':
                     self.lsm_files.append(WrfHydroStatic(file_path))
                 else:

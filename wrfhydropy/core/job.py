@@ -28,6 +28,7 @@ class Job(object):
             restart: bool = True,
             restart_file_time: Union[str, pd.datetime, dict] = None,
             restart_dir: Union[str, pathlib.Path, dict] = None,
+            restart_strftime: dict = None,
             exe_cmd: str = None,
             entry_cmd: str = None,
             exit_cmd: str = None
@@ -48,6 +49,9 @@ class Job(object):
             must be of the form {'hydro': int, 'hrldas': int} which sets them independently.
         restart: Job is starting from a restart file. Use False for a cold start.
         restart_dir: The path in which to look for the restart files.
+        restart_strftime: A dict (keys: 'hrldas', 'hydro') of the name format for the restart files.
+            Both are optional and default to 'RESTART.%Y%m%d%H_DOMAIN1' and
+            'HYDRO_RST.%Y-%m-%d_%H:%M_DOMAIN1' if missing.
         restart_file_time: The time on the restart file, if not the same as the model_start_time.
             Eithera string (e.g. '2000-01-01 00') or a datetime object (datetime or pandas) or a dict
             the form {'hydro': date1, 'hrldas': date2}  where dates are either strings or datetime
@@ -104,10 +108,20 @@ class Job(object):
             self._restart_dir_hydro = pathlib.Path(self.restart_dir)
             self._restart_dir_hrldas = pathlib.Path(self.restart_dir)
         elif isinstance(self.restart_dir, dict):
-            self._restart_dir_hydro = pathlib.Path(self.restart_file_time['hydro'])
-            self._restart_dir_hrldas = pathlib.Path(self.restart_file_time['hrldas'])
+            self._restart_dir_hydro = pathlib.Path(self.restart_dir['hydro'])
+            self._restart_dir_hrldas = pathlib.Path(self.restart_dir['hrldas'])
         else:
-            raise ValueError("restart_file_time is an in appropriate type.")
+            raise ValueError("restart_dir is an in appropriate type.")
+
+        self.restart_strftime = restart_strftime
+        restart_strftime_default = {
+            'hrldas':'RESTART.%Y%m%d%H_DOMAIN1',
+            'hydro': 'HYDRO_RST.%Y-%m-%d_%H:%M_DOMAIN1'}
+        if self.restart_strftime is None:
+            self.restart_strftime = restart_strftime_default
+        for key, val in restart_strftime_default.items():
+            if key not in self.restart_strftime.keys():
+                self.restart_strftime[key] = val
 
         self._model_start_time = pd.to_datetime(model_start_time)
         """np.datetime64: The model time at the start of the execution."""
@@ -393,8 +407,8 @@ class Job(object):
                         lsm_restart_dirname = '.'
 
                 # Format - 2011082600 - no minutes
-                lsm_restart_basename = 'RESTART.' + \
-                    self._restart_file_time_hrldas.strftime('%Y%m%d%H') + '_DOMAIN1'
+                lsm_restart_basename = (
+                    self._restart_file_time_hrldas.strftime(self.restart_strftime['hrldas']))
 
                 lsm_restart_file = str(pathlib.Path(lsm_restart_dirname) / lsm_restart_basename)
 
@@ -435,8 +449,8 @@ class Job(object):
                     hydro_restart_dirname = '.'
 
             # Format - 2011-08-26_00_00 - minutes
-            hydro_restart_basename = \
-                'HYDRO_RST.' + self._restart_file_time_hydro.strftime('%Y-%m-%d_%H:%M') + '_DOMAIN1'
+            hydro_restart_basename = (
+                self._restart_file_time_hydro.strftime(self.restart_strftime['hydro']))
 
             # Format - 2011-08-26_00_00 - seconds
             nudging_restart_basename = \

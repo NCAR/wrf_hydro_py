@@ -63,7 +63,7 @@ def preprocess_whp_data(
             ds = ds.drop_vars(to_drop)
 
     # Exception for RESTART.YYMMDDHHMM_DOMAIN1 files
-    if 'RESTART.' in str(path):
+    if 'RESTART' in str(path):
         time = datetime.strptime(ds.Times.values[0].decode('utf-8'), '%Y-%m-%d_%H:%M:%S')
         ds = ds.squeeze('Time')
         ds = ds.drop_vars(['Times'])

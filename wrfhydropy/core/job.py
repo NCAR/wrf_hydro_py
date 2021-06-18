@@ -325,7 +325,6 @@ class Job(object):
                 cmd_string,
                 shell=True,
                 cwd=str(current_dir),
-                #stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             )
         else:
             self._proc_log = subprocess.run(
@@ -350,12 +349,15 @@ class Job(object):
                     diag_exit_status = 1
 
             # Check stdout files second
-            with self.stdout_file.open() as f:
-                stdout_file = f.read()
-                if 'The model finished successfully.......' in stdout_file:
-                    stdout_exit_status = 0
-                else:
-                    stdout_exit_status = 1
+            if self.std_err_out_to_file:
+                with self.stdout_file.open() as f:
+                    stdout_file = f.read()
+                    if 'The model finished successfully.......' in stdout_file:
+                        stdout_exit_status = 0
+                    else:
+                        stdout_exit_status = 1
+            else:
+                stdout_exit_status = self._proc_log.returncode
 
             if diag_exit_status == 0 or stdout_exit_status == 0:
                 self.exit_status = 0
@@ -365,8 +367,10 @@ class Job(object):
                 for file in diag_files:
                     shutil.move(str(file), str(self.job_dir))
 
-                shutil.move(str(self.stdout_file), str(self.job_dir))
-                shutil.move(str(self.stderr_file), str(self.job_dir))
+                if self.stdout_file.exists():
+                    shutil.move(str(self.stdout_file), str(self.job_dir))
+                    shutil.move(str(self.stderr_file), str(self.job_dir))
+
                 current_dir.joinpath('hydro.namelist').unlink()
                 current_dir.joinpath('namelist.hrldas').unlink()
             else:

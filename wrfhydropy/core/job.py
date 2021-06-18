@@ -5,6 +5,7 @@ import pathlib
 import pickle
 import shutil
 import subprocess
+import sys
 import warnings
 from typing import Union
 
@@ -31,7 +32,8 @@ class Job(object):
             restart_strftime: dict = None,
             exe_cmd: str = None,
             entry_cmd: str = None,
-            exit_cmd: str = None
+            exit_cmd: str = None,
+            std_err_out_to_file=True,
     ):
 
         """Instatiate a Job object.
@@ -169,6 +171,9 @@ class Job(object):
         self.output_freq_hr_hrldas = output_freq_hr_hrldas
         """int: Hrldas output write frequency in hours."""
 
+        self.std_err_out_to_file = std_err_out_to_file
+        """bool: standard error and out to files or not (regular streams)."""
+
         # property construction
         self._hrldas_times = {
             'noahlsm_offline':
@@ -289,7 +294,8 @@ class Job(object):
         # Pipe outputs to file using shell. This is required because of large stdout and stderr
         # on large domains overflows either the python or os buffer
         cmd_string += self._exe_cmd
-        cmd_string += (" 2> " + str(self.stderr_file) + " 1>" + str(self.stdout_file))
+        if self.std_err_out_to_file:
+            cmd_string += (" 2> " + str(self.stderr_file) + " 1>" + str(self.stdout_file))
         cmd_string += ';'
 
         if self._exit_cmd is not None:
@@ -312,11 +318,14 @@ class Job(object):
 
         self.job_start_time = str(datetime.datetime.now())
 
+        _ = sys.stdout.flush()
+        _ = sys.stderr.flush()
         if env is None or env == 'None':
             self._proc_log = subprocess.run(
                 cmd_string,
                 shell=True,
-                cwd=str(current_dir)
+                cwd=str(current_dir),
+                #stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             )
         else:
             self._proc_log = subprocess.run(

@@ -60,7 +60,7 @@ class Model(object):
         """Instantiate a Model object.
         Args:
             source_dir: Directory containing the source code, e.g.
-               'wrf_hydro_nwm/trunk/NDHMS'.
+               'wrf_hydro_nwm/src'.
             model_config: The configuration of the model. Used to match a model to a domain
                 configuration. Must be a key in both the *_namelists.json of in the source directory
                 and the *_namelist_patches.json in the domain directory.
@@ -69,7 +69,7 @@ class Model(object):
                 example of a machine specification see the 'cheyenne' machine specification using
                 wrfhydropy.get_machine_spec('cheyenne').
             hydro_namelist_config_file: Path to a hydro namelist config file external to the model
-                repository. Default(None) implies using the model trunk/NDHMS/hydro_namelists.json.
+                repository. Default(None) implies using the model src/hydro_namelists.json.
             hrldas_namelist_config_file: As for hydro_namelist_config_file, but for hrldas namelist.
             compile_options_config_file: As for hydro_namelist_config_file, but for compile options.
             compiler: The compiler to use, must be one of 'pgi','gfort',
@@ -187,7 +187,7 @@ class Model(object):
         self.compile_dir = pathlib.Path(compile_dir).absolute()
 
         self.modules = subprocess.run('module list', shell=True, stderr=subprocess.PIPE).stderr
-        
+
         # check compile directory.
         if not self.compile_dir.is_dir():
             warnings.warn(str(self.compile_dir.absolute()) + ' directory does not exist, creating')

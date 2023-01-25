@@ -170,7 +170,7 @@ def domain_dir(tmpdir, ds_1d):
 @pytest.fixture(scope='function')
 def model_dir(tmpdir):
 
-    model_dir_path = pathlib.Path(tmpdir).joinpath('wrf_hydro_nwm_public/trunk/NDHMS')
+    model_dir_path = pathlib.Path(tmpdir).joinpath('wrf_hydro_nwm_public/src')
     model_dir_path.mkdir(parents=True)
 
     # Make namelist files

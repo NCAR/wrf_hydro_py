@@ -68,7 +68,7 @@ domain = wrfhydropy.Domain(
 # ### Model
 
 model = wrfhydropy.Model(
-    source_dir=model_dir / 'trunk/NDHMS',
+    source_dir=model_dir / 'src',
     model_config=configuration,
     compiler='ifort'
 )

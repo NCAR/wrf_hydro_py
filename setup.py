@@ -17,7 +17,7 @@ setup(
         'deepdiff==3.3.0',
         'f90nml>=1.2',
         'netCDF4>=1.5.3',
-        'numpy==1.18.1',
+        'numpy==1.22.0',
         'pandas>=1.0.3',
         'pathlib==1.0.1',
         'properscoring==0.1',

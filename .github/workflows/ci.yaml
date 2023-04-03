@@ -148,7 +148,7 @@ jobs:
           pip list
 
       - name: Run tests
-        working-directory: autotest
+        working-directory: wrfhydropy/tests
         run: pytest
           -v
           --durations=0

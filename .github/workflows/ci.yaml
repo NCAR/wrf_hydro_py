@@ -38,9 +38,9 @@ jobs:
         run: |
           pip --verbose install .
 
-      - name: Print pyhmn version
-        run: |
-          python -c "import wrfhydropy; print(wrfhydropy.__version__)"
+      # - name: Print pyhmn version
+      #   run: |
+      #     python -c "import wrfhydropy; print(wrfhydropy.__version__)"
 
       - name: Build wrfhydropy, check dist outputs
         run: |

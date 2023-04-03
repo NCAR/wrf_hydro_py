@@ -1,4 +1,4 @@
-name: wrfhydropy_test
+name: whp
 channels:
   - conda-forge
   - nodefaults
@@ -20,7 +20,7 @@ dependencies:
  - requests>=2.23.0
  - spotpy>=1.5.14
  - xarray==0.14.1
-  - pip
+ - pip
   - pip:
       - click != 8.1.0
       - black < 23.1.0

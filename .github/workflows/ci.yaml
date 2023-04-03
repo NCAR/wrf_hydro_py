@@ -152,7 +152,7 @@ jobs:
       - name: Run tests
         working-directory: wrfhydropy/tests
         run: pytest
-          -v
+          -vv
           --durations=0
           --cov=wrfhydropy
           --cov-report=xml
@@ -164,7 +164,7 @@ jobs:
   #       uses: actions/upload-artifact@v2
   #       with:
   #         name: Test results for ${{ runner.os }}-${{ matrix.python-version }}
-  #         path: ./autotest/pytest.xml
+  #         path: ./wrfhydropy/tests/pytest.xml
 
   #     - name: Upload code coverage to Codecov
   #       uses: codecov/codecov-action@v2.1.0

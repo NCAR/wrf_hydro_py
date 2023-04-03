@@ -147,16 +147,15 @@ jobs:
           pip -V
           pip list
 
-  #     - name: Run tests
-  #       working-directory: autotest
-  #       run: pytest
-  #         -v
+      - name: Run tests
+        working-directory: autotest
+        run: pytest
+          -v
+          --durations=0
+          --cov=wrfhydropy
+          --cov-report=xml
+          --junitxml=pytest.xml
   #         -n=auto
-  #         --durations=0
-  #         --all_domains
-  #         --cov=wrfhydropy
-  #         --cov-report=xml
-  #         --junitxml=pytest.xml
 
   #     - name: Upload test results
   #       if: always()

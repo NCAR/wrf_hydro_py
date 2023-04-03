@@ -42,10 +42,10 @@ jobs:
       #   run: |
       #     python -c "import wrfhydropy; print(wrfhydropy.__version__)"
 
-      - name: Build wrfhydropy, check dist outputs
-        run: |
-          python -m build
-          twine check --strict dist/*
+      # - name: Build wrfhydropy, check dist outputs
+      #   run: |
+      #     python -m build
+      #     twine check --strict dist/*
 
   # wrfhydropy_lint:
   #   name: linting

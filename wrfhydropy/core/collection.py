@@ -155,7 +155,7 @@ def open_whp_dataset_inner(
         drop_variables=drop_variables
     ).filter(is_not_none).compute()
 
-    if len(ds_list) is 0:
+    if len(ds_list) == 0:
         return None
 
     if profile:

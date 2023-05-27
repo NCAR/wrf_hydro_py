@@ -97,7 +97,8 @@ def calc_stats(arg_tuple):
             # if key == 'time':
             #    rr.values = cc.values
 
-            diff_xr = cc - rr
+            diff_da = cc - rr
+            diff_xr = xr.DataArray(diff_da.compute())
             # TODO: This threshold should be type dependent
             nz_xr = diff_xr.where(abs(diff_xr) > 0.000000, drop=True)
             if len(nz_xr) == 0:
@@ -296,9 +297,9 @@ def parse_arguments():
     chunks = args.chunks
     n_cores = args.n_cores
 
-    if chunks is 1:
+    if chunks == 1:
         chunks = {}    # No chunking
-    elif chunks is 0:
+    elif chunks == 0:
         chunks = None  # This will use the conus_chunks_dict
 
     return can_file, ref_file, log_file, chunks, n_cores

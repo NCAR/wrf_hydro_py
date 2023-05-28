@@ -453,7 +453,12 @@ class Evaluation(object):
                 mm = mm.reset_index().set_index(inds_m_member).sort_index()
                 # Remove the member dimension from the obs. Could check the mean
                 # matches the values.
-                oo = observed.mean(axis=0, level=inds_m_member)
+                if isinstance(observed, pd.Series):
+                    oo = observed.groupby(inds_m_member).mean()
+                elif isinstance(observed, pd.DataFrame):
+                    oo = observed.to_frame().mean(axis=0, level=inds_m_member[0])
+                else:
+                    raise ValueError('observed not panda Series or DataFrame')
                 oo = oo.reset_index().set_index(inds_m_member).sort_index()
                 assert mm.index.equals(oo.index)
                 modeled = mm

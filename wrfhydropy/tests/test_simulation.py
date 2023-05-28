@@ -4,11 +4,11 @@ import os
 import pathlib
 import pickle
 import pytest
-import warnings
 
 from wrfhydropy.core.simulation import Simulation, SimulationOutput
 from wrfhydropy.core.ioutils import WrfHydroTs
 from wrfhydropy.core.ensemble_tools import DeepDiffEq
+from wrfhydropy.core.outputdiffs import check_unprocessed_diffs
 
 
 def test_simulation_add_model_domain(model, domain):
@@ -206,11 +206,11 @@ def test_simulation_pickle(model, domain, job, tmpdir):
     del sim
     sim = pickle.load(pickle_path.open(mode='rb'))
 
-    diff = deepdiff.DeepDiff(sim, sim0)
-    if 'unprocessed' in diff.keys():
-        warnings.warn(UserWarning("deepdiff couldn't process the following in diff:", str(diff['unprocessed'])))
-        diff.pop('unprocessed')
-    assert diff == {}
+    sim_diff = deepdiff.DeepDiff(sim, sim0)
+    unprocessed_diffs = sim_diff.pop('unprocessed', [])
+    if unprocessed_diffs:
+        check_unprocessed_diffs(unprocessed_diffs)
+    assert sim_diff == {}
 
 
 def test_simulation_sub_obj_pickle(model, domain, job, tmpdir):
@@ -228,13 +228,13 @@ def test_simulation_sub_obj_pickle(model, domain, job, tmpdir):
 
     sim.restore_sub_objs()
     domain_diff = deepdiff.DeepDiff(sim.domain, domain)
-    if 'unprocessed' in domain_diff.keys():
-        warnings.warn(UserWarning("deepdiff couldn't process the following in domain_diff:", domain_diff['unprocessed']))
-        domain_diff.pop('unprocessed')
+    unprocessed_diffs = domain_diff.pop('unprocessed', [])
+    if unprocessed_diffs:
+        check_unprocessed_diffs(unprocessed_diffs)
     assert domain_diff == {}
 
     model_diff = deepdiff.DeepDiff(sim.model, model)
-    if 'unprocessed' in model_diff.keys():
-        warnings.warn(UserWarning("deepdiff couldn't process the following in model_diff:", model_diff['unprocessed']))
-        model_diff.pop('unprocessed')
+    unprocessed_diffs = model_diff.pop('unprocessed', [])
+    if unprocessed_diffs:
+        check_unprocessed_diffs(unprocessed_diffs)
     assert model_diff == {}

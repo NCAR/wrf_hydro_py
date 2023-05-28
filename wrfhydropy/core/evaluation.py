@@ -259,7 +259,7 @@ class Evaluation(object):
         """
 
         if group_by:
-            cont_stats = self.data.set_index(group_by).groupby(group_by). \
+            cont_stats = self.data.groupby(group_by). \
                 apply(
                     self._group_calc_cont_stats,
                     threshold=threshold,

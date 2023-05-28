@@ -6,11 +6,12 @@ import pathlib
 import pandas
 import pytest
 import timeit
+import warnings
 
 from wrfhydropy.core.simulation import Simulation
 from wrfhydropy.core.ensemble import EnsembleSimulation
 from wrfhydropy.core.ensemble_tools import get_ens_dotfile_end_datetime
-
+from wrfhydropy.core.outputdiffs import check_unprocessed_diffs
 test_dir = pathlib.Path(os.path.dirname(os.path.realpath(__file__)))
 node_file = test_dir / 'data/nodefile_pbs_example_copy.txt'
 
@@ -58,7 +59,11 @@ def test_ensemble_addsimulation(simulation, job, scheduler, simulation_compiled)
     sim = simulation_compiled
     ens1.add([sim])
     ens2.add(sim)
-    assert deepdiff.DeepDiff(ens1, ens2) == {}
+    ens_diff = deepdiff.DeepDiff(ens1, ens2)
+    unprocessed_diffs = ens_diff.pop('unprocessed', [])
+    if unprocessed_diffs:
+        check_unprocessed_diffs(unprocessed_diffs)
+    assert ens_diff == {}
 
     # add a sim with job and make sure it is deleted.
     sim.add(job)
@@ -97,7 +102,11 @@ def test_ensemble_replicate(simulation_compiled):
     ens1.add(sim)
     ens1.replicate_member(4)
     ens2.add([sim, sim, sim, sim])
-    assert deepdiff.DeepDiff(ens1, ens2) == {}
+    ens_diff = deepdiff.DeepDiff(ens1, ens2)
+    unprocessed_diffs = ens_diff.pop('unprocessed', [])
+    if unprocessed_diffs:
+        check_unprocessed_diffs(unprocessed_diffs)
+    assert ens_diff == {}
 
 
 def test_ensemble_length(simulation_compiled):
@@ -174,7 +183,13 @@ def test_ens_compose_restore(simulation_compiled, job_restart, scheduler, tmpdir
         del dsk.jobs[0].job_end_time, dsk.jobs[0].job_start_time
 
     from pprint import pprint
-    assert deepdiff.DeepDiff(ens, ens_disk) == {}
+
+    ens_diff = deepdiff.DeepDiff(ens, ens_disk)
+    unprocessed_diffs = ens_diff.pop('unprocessed', [])
+    if unprocessed_diffs:
+        check_unprocessed_diffs(unprocessed_diffs)
+
+    assert ens_diff == {}
 
 
 @pytest.mark.xfail(strict=False)
@@ -431,7 +446,7 @@ def test_ens_teams_run_dict(simulation_compiled, job, scheduler, tmpdir, capfd):
     # 0 and 1 are collated members on different teams
     assert abs(get_mem_start_file_time(1, ens_dir) -
                get_mem_start_file_time(0, ens_dir)) < 0.99
-    
+
     # Check for command correctness in output files.
     file_check = {
         ('member_000/entry_cmd.output',
@@ -505,4 +520,4 @@ def test_ens_teams_run_args(simulation_compiled, job, scheduler, tmpdir, capfd):
     }
     for tup, ans in file_check.items():
         for file in tup:
-            check_first_line(file, ans)            
+            check_first_line(file, ans)

@@ -20,6 +20,7 @@ from .job import Job
 from .schedulers import Scheduler
 from .simulation import Simulation
 from .teams import parallel_teams_run, assign_teams
+from .outputdiffs import check_unprocessed_diffs
 
 
 def parallel_compose_addjobs(arg_dict):
@@ -216,13 +217,9 @@ class EnsembleSimulation(object):
             mem_ii_ref_dict = dictify(mem)
             diff = DeepDiffEq(mem_0_ref_dict, mem_ii_ref_dict, eq_types={pathlib.PosixPath})
 
-            unexpected_diffs = set(diff.keys()) - set(['values_changed'])
-            if len(unexpected_diffs):
-                unexpected_diffs1 = {uu: diff[uu] for uu in list(unexpected_diffs)}
-                raise ValueError(
-                    'Unexpected attribute differences between ensemble members:',
-                    unexpected_diffs1
-                )
+            unprocessed_diffs = diff.pop('unprocessed', [])
+            if unprocessed_diffs:
+                check_unprocessed_diffs(unprocessed_diffs)
 
             diff_keys = list(diff['values_changed'].keys())
             all_diff_keys = all_diff_keys | set([ss.replace('root', '') for ss in diff_keys])

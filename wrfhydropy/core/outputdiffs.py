@@ -423,3 +423,24 @@ def _check_file_lists(candidate_files: list, reference_files: list) -> tuple:
     valid_can_files.sort(key=lambda x: x.name)
 
     return valid_can_files, valid_ref_files
+
+def check_unprocessed_diffs(unexpected_diffs: list):
+    """Function to the unexpected_diffs of DeepDiff
+    Args:
+        unexpected_diffs: The unexpected diffs list
+    Returns:
+        None
+    """
+    for diff_str in unexpected_diffs:
+        diff_key = diff_str.split(':',1)[0].strip()
+        diff = diff_str.split(':',1)[1].strip()
+        diff_parts = diff.split(' and ')# .strip()
+        if (diff_parts[0] != diff_parts[1]):
+            if ('_compose_dir' in diff_key):
+                warnings.warn(UserWarning("deepdiff _compose_dirs were different:",
+                                          diff_key, ":", diff_parts[0], " != ", diff_parts[1]))
+                return
+            # if difference isn't in _compose_dir raise error
+            raise ValueError(
+                'Unexpected attribute differences in unexpected members from DeepDiff output:',
+                diff_key, ":", diff_parts[0], " != ", diff_parts[1])

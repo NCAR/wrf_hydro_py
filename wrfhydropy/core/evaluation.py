@@ -456,7 +456,7 @@ class Evaluation(object):
                 if isinstance(observed, pd.Series):
                     oo = observed.groupby(inds_m_member).mean()
                 elif isinstance(observed, pd.DataFrame):
-                    oo = observed.to_frame().mean(axis=0, level=inds_m_member[0])
+                    oo = observed.mean(axis=0, level=inds_m_member)
                 else:
                     raise ValueError('observed not panda Series or DataFrame')
                 oo = oo.reset_index().set_index(inds_m_member).sort_index()

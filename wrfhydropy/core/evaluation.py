@@ -326,14 +326,14 @@ class Evaluation(object):
             if group_by is None:
                 gof_stats = xr.apply_ufunc(
                     spo_all_xr,
-                    self.data.observed,
-                    self.data.modeled,
+                    self.data.observed.data,
+                    self.data.modeled.data,
                     kwargs={
                         'inf_as_na': inf_as_na,
                         'decimals': decimals},
                     input_core_dims=[self.join_on, self.join_on]
                 )
-                gof_stats = gof_stats.values[()]()._mapping
+                gof_stats = gof_stats.value
 
             else:
 

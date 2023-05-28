@@ -511,7 +511,12 @@ class Evaluation(object):
             observed = data[obs_col]
 
             modeled = modeled.unstack(level='time').to_numpy().transpose()
-            observed = observed.mean(axis=0, level='time').to_numpy()
+            if isinstance(observed, pd.Series):
+                observed = observed.groupby('time').mean().to_numpy()
+            elif isinstance(observed, pd.DataFrame):
+                observed = observed.mean(axis=0, level='time').to_numpy()
+            else:
+                raise ValueError('observed not panda Series or DataFrame')
             result = ps.threshold_brier_score(observed, modeled, threshold=threshold)
             return result
 

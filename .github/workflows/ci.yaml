@@ -132,12 +132,12 @@ jobs:
       #     architecture: x64
 
       - name: Install Dependencies via Micromamba
-        uses: mamba-org/provision-with-micromamba@main
+        uses: mamba-org/setup-micromamba@v1
         with:
           environment-file: ./whp_test_env.yml
           cache-downloads: true
-          cache-env: true
-          extra-specs: |
+          cache-environment: true
+          create-args: >-
             python=${{ matrix.python-version }}
 
       - name: Install wrfhydropy

@@ -436,10 +436,12 @@ def check_unprocessed_diffs(unexpected_diffs: list):
         diff = diff_str.split(':',1)[1].strip()
         diff_parts = diff.split(' and ')# .strip()
         if (diff_parts[0] != diff_parts[1]):
-            if ('_compose_dir' in diff_key):
-                warnings.warn(UserWarning("deepdiff _compose_dirs were different:",
-                                          diff_key, ":", diff_parts[0], " != ", diff_parts[1]))
-                return
+            # commenting out this section for now to check if CI tests pass
+            # if ('_compose_dir' in diff_key):
+            #     warnings.warn(UserWarning("deepdiff _compose_dirs were different:",
+            #                               diff_key, ":", diff_parts[0], " != ", diff_parts[1]))
+            #     return
+
             # if difference isn't in _compose_dir raise error
             raise ValueError(
                 'Unexpected attribute differences in unexpected members from DeepDiff output:',

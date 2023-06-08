@@ -1,5 +1,8 @@
 from setuptools import find_packages, setup
 
+with open("README.md", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
+
 setup(
     name='wrfhydropy',
     version='0.0.18',
@@ -11,7 +14,7 @@ setup(
         'boltons>=20.2.1',
         'bs4>=0.0.1',
         'dask[bag]>=2.14.0',
-        'deepdiff==3.3.0',
+        'deepdiff==6.3.0',
         'f90nml>=1.2',
         'netCDF4>=1.5.3',
         'numpy==1.22.0',
@@ -26,7 +29,10 @@ setup(
         'spotpy>=1.5.14',
         'xarray==0.14.1',
     ],
-    author='James McCreight',
-    author_email='jamesmcc@ucar.edu',
-    description='Crude API for the WRF-Hydro model',
+    author='WRF-Hydro Team',
+    author_email='@ucar.edu',
+    description='API for the WRF-Hydro model',
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    python_requires=">=3.8",
 )

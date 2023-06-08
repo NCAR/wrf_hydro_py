@@ -1,0 +1,177 @@
+name: CI
+on:
+  push:
+    branches:
+      - "*"
+  pull_request:
+    branches:
+      - "*"
+
+jobs:
+
+  wrfhydropy_setup:
+    name: standard installation
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      #- name: Set environment variables
+      #  run: |
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Upgrade pip and install build and twine
+        run: |
+          python -m pip install --upgrade pip
+          pip install wheel build twine
+
+      - name: Base installation
+        run: |
+          pip --verbose install .
+
+      # - name: Print pyhmn version
+      #   run: |
+      #     python -c "import wrfhydropy; print(wrfhydropy.__version__)"
+
+      # - name: Build wrfhydropy, check dist outputs
+      #   run: |
+      #     python -m build
+      #     twine check --strict dist/*
+
+  # wrfhydropy_lint:
+  #   name: linting
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     fail-fast: false
+  #   defaults:
+  #     run:
+  #       shell: bash
+  #   steps:
+  #     - name: Checkout repo
+  #       uses: actions/checkout@v3
+
+  #     - name: Setup Python
+  #       uses: actions/setup-python@v4
+  #       with:
+  #         python-version: 3.10
+
+  #     - name: Install dependencies
+  #       run: |
+  #         pip install wheel
+  #         pip install -r ./ci/requirements/environment.txt
+
+  #     - name: Version info
+  #       run: |
+  #         pip -V
+  #         pip list
+
+  #     - name: Run isort
+  #       run: |
+  #         echo "if isort check fails update isort using"
+  #         echo "  pip install isort --upgrade"
+  #         echo "and run"
+  #         echo "  isort ./wrfhydropy ./autotest"
+  #         echo "and then commit the changes."
+  #         isort --check --diff ./wrfhydropy
+
+  #     - name: Run black
+  #       run: |
+  #         echo "if black check fails update black using"
+  #         echo "  pip install black --upgrade"
+  #         echo "and run"
+  #         echo "  black ./wrfhydropy ./autotest"
+  #         echo "and then commit the changes."
+  #         black --check --diff ./wrfhydropy
+
+  #     - name: Run flake8
+  #       run: |
+  #         flake8 --count --show-source --exit-zero ./wrfhydropy ./autotest
+
+  #     - name: Run pylint
+  #       run: |
+  #         pylint --jobs=2 --errors-only --exit-zero ./wrfhydropy ./autotest
+
+  test:
+    name: ${{ matrix.os}} py${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -l {0}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ "ubuntu-latest", "macos-latest", "windows-latest" ]
+        python-version: [ "3.9", "3.10" ]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set environment variables
+        run: |
+          echo "PYTHON_VERSION=${{ matrix.python-version }}" >> $GITHUB_ENV
+
+  #     - name: Setup gfortran
+  #       uses: awvwgk/setup-fortran@main
+  #       with:
+  #         compiler: gcc
+  #         version: 11
+
+      # - name: Setup Python
+      #   uses: actions/setup-python@v4
+      #   with:
+      #     python-version: ${{ matrix.python-version }}
+      #     architecture: x64
+
+      - name: Install Dependencies via Micromamba
+        uses: mamba-org/provision-with-micromamba@main
+        with:
+          environment-file: ./whp_test_env.yml
+          cache-downloads: true
+          cache-env: true
+          extra-specs: |
+            python=${{ matrix.python-version }}
+
+      - name: Install wrfhydropy
+        run: |
+          pip install .
+
+      - name: Version info
+        run: |
+          pip -V
+          pip list
+
+      - name: Run tests
+        working-directory: wrfhydropy/tests
+        run: pytest
+          -vv
+          --durations=0
+          --cov=wrfhydropy
+          --cov-report=xml
+          --junitxml=pytest.xml
+  #         -n=auto
+
+  #     - name: Upload test results
+  #       if: always()
+  #       uses: actions/upload-artifact@v2
+  #       with:
+  #         name: Test results for ${{ runner.os }}-${{ matrix.python-version }}
+  #         path: ./wrfhydropy/tests/pytest.xml
+
+  #     - name: Upload code coverage to Codecov
+  #       uses: codecov/codecov-action@v2.1.0
+  #       with:
+  #         file: ./autotest/coverage.xml
+  #         # flags: unittests
+  #         env_vars: RUNNER_OS,PYTHON_VERSION
+  #         # name: codecov-umbrella
+  #         fail_ci_if_error: false
+  #         version: "v0.1.15"

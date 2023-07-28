@@ -259,7 +259,7 @@ class Evaluation(object):
         """
 
         if group_by:
-            cont_stats = self.data.set_index(group_by).groupby(group_by). \
+            cont_stats = self.data.groupby(group_by). \
                 apply(
                     self._group_calc_cont_stats,
                     threshold=threshold,
@@ -326,14 +326,14 @@ class Evaluation(object):
             if group_by is None:
                 gof_stats = xr.apply_ufunc(
                     spo_all_xr,
-                    self.data.observed,
-                    self.data.modeled,
+                    self.data.observed.data,
+                    self.data.modeled.data,
                     kwargs={
                         'inf_as_na': inf_as_na,
                         'decimals': decimals},
                     input_core_dims=[self.join_on, self.join_on]
                 )
-                gof_stats = gof_stats.values[()]()._mapping
+                gof_stats = gof_stats.value
 
             else:
 
@@ -453,7 +453,12 @@ class Evaluation(object):
                 mm = mm.reset_index().set_index(inds_m_member).sort_index()
                 # Remove the member dimension from the obs. Could check the mean
                 # matches the values.
-                oo = observed.mean(axis=0, level=inds_m_member)
+                if isinstance(observed, pd.Series):
+                    oo = observed.groupby(inds_m_member).mean()
+                elif isinstance(observed, pd.DataFrame):
+                    oo = observed.mean(axis=0, level=inds_m_member)
+                else:
+                    raise ValueError('observed not panda Series or DataFrame')
                 oo = oo.reset_index().set_index(inds_m_member).sort_index()
                 assert mm.index.equals(oo.index)
                 modeled = mm
@@ -506,7 +511,12 @@ class Evaluation(object):
             observed = data[obs_col]
 
             modeled = modeled.unstack(level='time').to_numpy().transpose()
-            observed = observed.mean(axis=0, level='time').to_numpy()
+            if isinstance(observed, pd.Series):
+                observed = observed.groupby('time').mean().to_numpy()
+            elif isinstance(observed, pd.DataFrame):
+                observed = observed.mean(axis=0, level='time').to_numpy()
+            else:
+                raise ValueError('observed not panda Series or DataFrame')
             result = ps.threshold_brier_score(observed, modeled, threshold=threshold)
             return result
 

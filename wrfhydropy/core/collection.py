@@ -155,7 +155,7 @@ def open_whp_dataset_inner(
         drop_variables=drop_variables
     ).filter(is_not_none).compute()
 
-    if len(ds_list) is 0:
+    if len(ds_list) == 0:
         return None
 
     if profile:
@@ -320,6 +320,12 @@ def open_whp_dataset(
 
     n_files = len(paths)
     print('n_files', str(n_files))
+
+    # remove path to file if file doesn't exist
+    for p in paths:
+        if (os.path.exists(p) == False):
+            print("removing file since it doesn't exist:", str(p))
+            paths.remove(p)
 
     if file_chunk_size is None:
         file_chunk_size = n_files

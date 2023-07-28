@@ -8,6 +8,7 @@ import pytest
 from wrfhydropy.core.simulation import Simulation, SimulationOutput
 from wrfhydropy.core.ioutils import WrfHydroTs
 from wrfhydropy.core.ensemble_tools import DeepDiffEq
+from wrfhydropy.core.outputdiffs import check_unprocessed_diffs
 
 
 def test_simulation_add_model_domain(model, domain):
@@ -204,7 +205,12 @@ def test_simulation_pickle(model, domain, job, tmpdir):
     sim0 = copy.deepcopy(sim)
     del sim
     sim = pickle.load(pickle_path.open(mode='rb'))
-    assert deepdiff.DeepDiff(sim, sim0) == {}
+
+    sim_diff = deepdiff.DeepDiff(sim, sim0)
+    unprocessed_diffs = sim_diff.pop('unprocessed', [])
+    if unprocessed_diffs:
+        check_unprocessed_diffs(unprocessed_diffs)
+    assert sim_diff == {}
 
 
 def test_simulation_sub_obj_pickle(model, domain, job, tmpdir):
@@ -221,5 +227,14 @@ def test_simulation_sub_obj_pickle(model, domain, job, tmpdir):
     assert sim.model.resolve() == model_path
 
     sim.restore_sub_objs()
-    assert deepdiff.DeepDiff(sim.domain, domain) == {}
-    assert deepdiff.DeepDiff(sim.model, model) == {}
+    domain_diff = deepdiff.DeepDiff(sim.domain, domain)
+    unprocessed_diffs = domain_diff.pop('unprocessed', [])
+    if unprocessed_diffs:
+        check_unprocessed_diffs(unprocessed_diffs)
+    assert domain_diff == {}
+
+    model_diff = deepdiff.DeepDiff(sim.model, model)
+    unprocessed_diffs = model_diff.pop('unprocessed', [])
+    if unprocessed_diffs:
+        check_unprocessed_diffs(unprocessed_diffs)
+    assert model_diff == {}

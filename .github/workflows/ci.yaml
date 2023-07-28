@@ -110,7 +110,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ "ubuntu-latest", "macos-latest", "windows-latest" ]
-        python-version: [ "3.9", "3.10" ]
+        python-version: [ "3.10" ]
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -132,13 +132,39 @@ jobs:
       #     architecture: x64
 
       - name: Install Dependencies via Micromamba
-        uses: mamba-org/provision-with-micromamba@main
+        if: matrix.os ==  'ubuntu-latest' || matrix.os == 'macos-latest'
+        uses: mamba-org/setup-micromamba@v1
         with:
           environment-file: ./whp_test_env.yml
           cache-downloads: true
-          cache-env: true
-          extra-specs: |
+          cache-environment: true
+          create-args: >-
+            python=${{ matrix.python-version }} nccmp
+
+      - name: Install Dependencies via Micromamba
+        if: matrix.os ==  'windows-latest'
+        uses: mamba-org/setup-micromamba@v1
+        with:
+          environment-file: ./whp_test_env.yml
+          cache-downloads: true
+          cache-environment: true
+          create-args: >-
             python=${{ matrix.python-version }}
+
+      - name: Install nccmp on Windows
+        if: matrix.os ==  'windows-latest'
+        run: |
+          curl -kL https://downloads.sourceforge.net/project/nccmp/windows/x86_64/nccmp-1.8.2.0-msys2-x86_64.zip -o nccmp-1.8.2.0-msys2-x86_64.zip
+          unzip nccmp-1.8.2.0-msys2-x86_64.zip
+          echo "${PWD}/usr/local/bin" >> $GITHUB_PATH
+
+
+      # - name: Install nccmp on Ubuntu or MacOS
+      #   uses: mamba-org/setup-micromamba@v1
+      #   with:
+      #     cache-downloads: true
+      #     cache-environment: true
+      #     create-args: nccmp
 
       - name: Install wrfhydropy
         run: |

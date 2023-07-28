@@ -701,7 +701,7 @@ def nwm_forcing_to_ldasin(
             raise FileNotFoundError("The nwm_forcing_dir does not exist, exiting.")
         os.chdir(str(nwm_forcing_dir))
         daily_dirs = sorted(nwm_forcing_dir.glob("nwm.*[0-9]"))
-        if len(daily_dirs) is 0:
+        if len(daily_dirs) == 0:
             warnings.warn(
                 "No daily nwm.YYYYMMDD directores found in the supplied path, "
                 "If you passed a daily directory, it must be conatined in a list."
@@ -722,6 +722,8 @@ def nwm_forcing_to_ldasin(
             re_range = range
             if '_hawaii' in range:
                 re_range = range.split('_hawaii')[0]
+            elif '_puertorico' in range:
+                re_range = range.split('_puertorico')[0]
 
             if forc_type == 9 or forc_type == 10:
                 forcing_files = member_dir.glob('*' + re_range + '.channel_rt.*')

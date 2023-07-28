@@ -1,9 +1,12 @@
+basemap
 boltons>=20.2.1
 bs4>=0.0.1
 dask[bag]>=2.14.0
 deepdiff>=6.2.3
 f90nml>=1.2
+importlib-metadata==4.13.0
 netCDF4>=1.5.3
+nodejs
 numpy==1.21.0
 pandas>=1.0.3
 properscoring==0.1
@@ -13,4 +16,5 @@ pytest-datadir-ng>=1.1.1
 pytest-lazy-fixture>=0.6.3
 requests>=2.23.0
 spotpy>=1.6.0
+urllib3==1.26.6
 xarray>=0.19

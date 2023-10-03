@@ -14,5 +14,5 @@ pytest-datadir-ng>=1.1.1
 pytest-lazy-fixture>=0.6.3
 requests>=2.23.0
 spotpy>=1.6.0
-urllib3==1.26.6
+urllib3==1.26.17
 xarray>=0.19

@@ -115,9 +115,13 @@ class PBSCheyenne(Scheduler):
         """Private method to write bash PBS scripts for submitting each job """
         import copy
         import sys
+        import os
 
         # Get the current pytohn executable to handle virtual environments in the scheduler
         python_path = sys.executable
+
+        # Check for a job prefix
+        job_prefix = os.environ.get('WRF_HYDRO_JOB_PREFIX', '')
 
         for job in jobs:
             # Copy the job because the exe cmd is edited below
@@ -127,7 +131,7 @@ class PBSCheyenne(Scheduler):
             # Write PBS script
             jobstr = ""
             jobstr += "#!/bin/sh\n"
-            jobstr += "#PBS -N {0}\n".format(job.job_id)
+            jobstr += "#PBS -N {0}{1}\n".format(job_prefix, job.job_id)
             jobstr += "#PBS -A {0}\n".format(self.scheduler_opts['account'])
             jobstr += "#PBS -q {0}\n".format(self.scheduler_opts['queue'])
 

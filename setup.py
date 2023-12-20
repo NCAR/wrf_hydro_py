@@ -18,7 +18,7 @@ setup(
         'f90nml>=1.2',
         'importlib-metadata==4.13.0',
         'netCDF4>=1.5.3',
-        'numpy==1.21.0',
+        'numpy==1.22.4',
         'pandas>=1.3.5',
         'properscoring==0.1',
         'pytest>=5.4.1',

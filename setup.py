@@ -27,7 +27,7 @@ setup(
         'pytest-lazy-fixture>=0.6.3',
         'requests>=2.23.0',
         'spotpy>=1.6.0',
-        'urllib3==1.26.6',
+        'urllib3==1.26.18',
         'xarray>=0.19'
     ],
     author='WRF-Hydro Team',

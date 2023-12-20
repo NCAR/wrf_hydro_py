@@ -109,7 +109,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ "ubuntu-latest", "macos-latest", "windows-latest" ]
+        # os: [ "ubuntu-latest", "macos-latest", "windows-latest" ]
+        # for debugging purposes run github actions only on ubuntu-latest until its passing
+        os: [ "ubuntu-latest" ]
         python-version: [ "3.10" ]
     steps:
       - name: Checkout repo

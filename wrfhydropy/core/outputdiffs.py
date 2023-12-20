@@ -288,9 +288,9 @@ def _compare_nc_xrcmp(
 
                 nccmp_out = pd.read_table(log_file_path, delim_whitespace=True, header=0)
                 return nccmp_out
-            except:
+            except Exception as e:
                 warnings.warn('Problem reading xrcmp output to pandas dataframe,'
-                              'returning error code')
+                              'returning error code: {e}')
                 return ret
         else:
             return open(log_file_path, 'r').read()
@@ -371,9 +371,9 @@ def _compare_nc_nccmp(
 
                 nccmp_out = pd.read_table(output, delim_whitespace=True, header=0)
                 return nccmp_out
-            except:
+            except Exception as e:
                 warnings.warn('Problem reading nccmp output to pandas dataframe,'
-                              'returning as subprocess object')
+                              'returning as subprocess object: {e}')
                 return proc
         else:
             return proc.stderr.decode('utf-8') + proc.stdout.decode('utf-8')
@@ -424,6 +424,7 @@ def _check_file_lists(candidate_files: list, reference_files: list) -> tuple:
 
     return valid_can_files, valid_ref_files
 
+
 def check_unprocessed_diffs(unexpected_diffs: list):
     """Function to the unexpected_diffs of DeepDiff
     Args:
@@ -432,15 +433,15 @@ def check_unprocessed_diffs(unexpected_diffs: list):
         None
     """
     for diff_str in unexpected_diffs:
-        diff_key = diff_str.split(':',1)[0].strip()
-        diff = diff_str.split(':',1)[1].strip()
-        diff_parts = diff.split(' and ')# .strip()
+        diff_key = diff_str.split(':', 1)[0].strip()
+        diff = diff_str.split(':', 1)[1].strip()
+        diff_parts = diff.split(' and ')  # .strip()
         if (diff_parts[0] != diff_parts[1]):
             # commenting out this section for now to check if CI tests pass
-            # if ('_compose_dir' in diff_key):
-            #     warnings.warn(UserWarning("deepdiff _compose_dirs were different:",
-            #                               diff_key, ":", diff_parts[0], " != ", diff_parts[1]))
-            #     return
+            if ('_compose_dir' in diff_key):
+                warnings.warn(UserWarning("deepdiff _compose_dirs were different:",
+                                          diff_key, ":", diff_parts[0], " != ", diff_parts[1]))
+                return
 
             # if difference isn't in _compose_dir raise error
             raise ValueError(

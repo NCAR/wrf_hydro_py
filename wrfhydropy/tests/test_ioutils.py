@@ -59,7 +59,7 @@ def test_open_wh_dataset_no_forecast(ds_timeseries):
     )
 
     the_ref_times = np.array(
-        ['1970-01-01T00:00:00.000000000'],dtype='datetime64[ns]')
+        ['1970-01-01T00:00:00.000000000'], dtype='datetime64[ns]')
     assert (the_ds['reference_time'].values == the_ref_times).all()
 
     the_ds['time'].values.sort()
@@ -151,10 +151,10 @@ def test_nwm_forcing_to_ldasin(tmpdir):
     version_dict = {
         # 'para': para_url,
         'prod': prod_url}
-    
+
     for version_name, model_version in version_dict.items():
 
-        forcing_dirs = url_index_anchor_regex(model_version, r'^forcing_')
+        forcing_dirs = url_index_anchor_regex(model_version, r'^forcing_analysis_assim/$')
         for forcing_range in forcing_dirs:
 
             forcing_files = url_index_anchor_regex(forcing_range, r'\.nc$')

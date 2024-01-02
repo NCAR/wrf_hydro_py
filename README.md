@@ -1,10 +1,15 @@
-![](https://ral.ucar.edu/sites/default/files/public/wrf_hydro_symbol_logo_2017_09_150pxby63px.png) WRF-HYDRO-PY ![](https://www.python.org/static/community_logos/python-powered-h-140x182.png)
+# WRF-HYDRO-PY
 
-[![Build Status](https://travis-ci.org/NCAR/wrf_hydro_py.svg?branch=master)](https://travis-ci.org/NCAR/wrf_hydro_py)
+[![Build Status](https://github.com/NCAR/wrf_hydro_py/actions/workflows/ci.yaml/badge.svg)](https://github.com/NCAR/wrf_hydro_py/blob/main/.github/workflows/ci.yaml)
 [![Coverage Status](https://coveralls.io/repos/github/NCAR/wrf_hydro_py/badge.svg?branch=master&service=github)](https://coveralls.io/github/NCAR/wrf_hydro_py?branch=master)
 [![PyPI](https://img.shields.io/pypi/v/wrfhydropy.svg)](https://pypi.python.org/pypi/wrfhydropy)
 [![GitHub release](https://img.shields.io/github/release/NCAR/wrf_hydro_py.svg)](https://github.com/NCAR/wrf_hydro_py/releases/latest)
 [![Documentation Status](https://readthedocs.org/projects/wrfhydropy/badge/?version=latest)](https://wrfhydropy.readthedocs.io/en/latest/?badge=latest)
+
+
+
+![](https://ral.ucar.edu/sites/default/files/public/wrf_hydro_symbol_logo_2017_09_150pxby63px.png) <img src="https://www.python.org/static/community_logos/python-powered-w-200x80.png" width="160" height="64">
+
 
 **IMPORTANT:** This package is in the very early stages of development and the package API may change at any time. It is not recommended that this package be used for significant work until version 0.1
 

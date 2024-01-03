@@ -10,17 +10,15 @@ sphinx:
 
 # Docker image used for build
 build:
-    image: stable
-
+  os: ubuntu-22.04
+  tools:
+    python: "3.10"
+    
 # Optionally build your docs in additional formats such as PDF and ePub
 formats: []
 
 # Optionally set the version of Python and requirements required to build your docs
 python:
-  version: 3.6
   install:
     - requirements: doc/requirements.txt
     - requirements: requirements.txt
-    - method: setuptools
-      path: ./
-  system_packages: true

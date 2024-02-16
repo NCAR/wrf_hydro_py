@@ -3,7 +3,7 @@ channels:
   - conda-forge
   - nodefaults
 dependencies:
-  - boltons>=20.2.1
+  - boltons>=23.1.1
   - bs4>=0.0.1
   - dask[bag]>=2.14.0
   - deepdiff==6.3.0

@@ -11,7 +11,7 @@ setup(
     url='https://github.com/NCAR/wrf_hydro_py',
     license='MIT',
     install_requires=[
-        'boltons>=20.2.1',
+        'boltons>=23.1.1',
         'bs4>=0.0.1',
         'dask[bag]>=2.14.0',
         'deepdiff>=6.2.3',
